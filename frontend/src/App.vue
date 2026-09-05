@@ -43,6 +43,7 @@ import { formatMoney, formatSignedMoney, type CurrencyUnit } from './utils/curre
 import { formatDate, formatDateTime } from './utils/date'
 import OrderWorkspaceView from './views/OrderWorkspaceView.vue'
 import OrdersView from './views/OrdersView.vue'
+import MaterialsView from './views/MaterialsView.vue'
 
 type Tone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
 
@@ -383,6 +384,8 @@ function showToast(message: string) {
             <OrdersView v-else key="orders-list" :orders="mockOrders" :currency-unit="currencyUnit" @open-order="openOrder" @new-order="openNewOrder" />
           </Transition>
         </div>
+
+        <MaterialsView v-else-if="activeView === 'Materials'" key="materials" :currency-unit="currencyUnit" @notify="showToast" />
 
         <section v-else key="empty" class="empty-workspace">
           <div class="empty-workspace-icon" aria-hidden="true"><Sparkles :size="22" :stroke-width="1.8" /></div>
