@@ -1,19 +1,49 @@
-# README
+# Atropaten
 
-## About
+Atropaten is a local desktop management application for small print shops. It combines sales, production, inventory, pricing, accounting, customer/supplier management, checks, loans, owner accounting, and reporting in one Windows-first application.
 
-This is the official Wails Vue-TS template.
+## Stack
 
-You can configure the project by editing `wails.json`. More information about the project settings can be found
-here: https://wails.io/docs/reference/project-config
+- Go
+- Wails 2
+- Vue 3
+- TypeScript
+- Vite
+- SQLite
 
-## Live Development
+## Product principles
 
-To run in live development mode, run `wails dev` in the project directory. This will run a Vite development
-server that will provide very fast hot reload of your frontend changes. If you want to develop in a browser
-and have access to your Go methods, there is also a dev server that runs on http://localhost:34115. Connect
-to this in your browser, and you can call your Go code from devtools.
+- Local-first desktop application; no SaaS or multi-tenant assumptions.
+- Windows is the primary deployment target.
+- Fast operational workflows are more important than decorative UI.
+- Accounting is double-entry internally, while routine operations post journal entries automatically.
+- Historical order, cost, inventory, and accounting records are immutable or corrected through compensating records.
+- Pricing is rule-based and composable instead of hardcoded per service.
+- Estimated cost, actual cost, and selling price remain distinct.
+- Owners/partners are first-class accounting entities.
 
-## Building
+## Project documents
 
-To build a redistributable, production mode package, use `wails build`.
+- [Product](docs/PRODUCT.md)
+- [Domain](docs/DOMAIN.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [UI](docs/UI.md)
+- [Roadmap](ROADMAP.md)
+- [Milestones](MILESTONES.md)
+- [Contributing](CONTRIBUTING.md)
+
+## Development
+
+```sh
+wails dev
+```
+
+## Build
+
+```sh
+wails build
+```
+
+## Status
+
+Initial product and architecture definition. Implementation begins with the desktop shell and core operational workflows before the final persistence schema is locked down.
