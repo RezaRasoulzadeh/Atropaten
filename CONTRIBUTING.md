@@ -11,6 +11,18 @@
 
 Atropaten is a small application. Avoid enterprise abstractions, speculative extensibility, and unnecessary framework layers.
 
+## Task shape and live verification
+
+Implementation tasks should normally be vertical slices rather than backend-only batches.
+
+When a task introduces a user-facing capability, it must also include the corresponding usable UI in the same task so the change can be inspected by running Atropaten locally. Examples: material persistence includes a Materials UI, order behavior includes the relevant Orders UI, accounting behavior includes the relevant Accounting UI, and production behavior includes the relevant Production UI.
+
+Each such task should leave the application in a state that can be launched and manually exercised. Acceptance criteria should explicitly describe what the user can open, click, enter, or observe to verify the task visually.
+
+Backend-only tasks are appropriate only when there is genuinely no meaningful visible surface, such as migrations/infrastructure needed by a later slice. Keep these narrow and follow them immediately with the user-visible slice they enable.
+
+Do not implement large hidden backend phases and defer all UI until later milestones.
+
 ## Backend
 
 - Keep authoritative business rules in Go.
