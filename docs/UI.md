@@ -45,6 +45,41 @@ The left sidebar is collapsible. A top bar provides global search and applicatio
 
 Frequently used operational areas appear before finance and administration.
 
+## Global workspace and sticky-surface rules
+
+All major pages must use the same workspace structure rather than inventing independent page shells.
+
+The application shell owns the viewport. The global sidebar, top bar, and bottom status strip remain visually stable. The page workspace between them owns normal vertical scrolling.
+
+Every substantial page should use a shared page-header/action pattern positioned directly below the global top bar. This region should consume the otherwise unused whitespace at the top of the workspace and contain the page identity and high-value actions instead of leaving a large decorative gap before content.
+
+The standard page header should normally contain, as applicable:
+
+- breadcrumb/back navigation or section context
+- page title and compact supporting metadata/status
+- primary action
+- secondary actions or overflow menu
+- page-level filters or controls when they are important enough to remain accessible
+
+When the workspace scrolls, high-value page actions should remain available using the shared sticky page-header/action surface. Sticky elements must be positioned relative to the correct scroll container and offset below the global top bar; they must not cover content, tabs, dropdowns, or focus targets.
+
+Bottom actions that are operationally important throughout a page, such as Dashboard Quick Actions, should use the shared persistent-bottom action pattern above the global bottom status strip rather than appearing as ordinary content at the end of a long page.
+
+Use these patterns consistently across Dashboard, Orders, Production, Customers, Services, Materials, Purchases, Suppliers, Accounting, Checks, Loans, Owners, Reports, and Settings wherever the page needs persistent controls.
+
+Do not create multiple visually different sticky bars for different features. Shared sticky surfaces should have consistent background, border, shadow/elevation, spacing, z-index behavior, and transition behavior. Prefer subtle separation from content rather than floating-card styling.
+
+Avoid:
+
+- large unused whitespace between the global top bar and page header/content
+- `position: fixed` inside feature components when a sticky shared surface is sufficient
+- unrelated page-specific sticky offsets or z-index values
+- nested vertical scroll containers without a specific functional reason
+- content hidden underneath sticky headers or the bottom status strip
+- action bars that disappear merely because the user scrolled a long table/form
+
+Tables, inspectors, tabs, and forms should participate in the same workspace geometry. A page with tabs may keep the page header and, where useful, the tab strip sticky as a coordinated stack rather than implementing unrelated sticky positions.
+
 ## Interaction patterns
 
 Prefer:

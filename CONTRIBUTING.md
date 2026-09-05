@@ -40,6 +40,13 @@ Do not implement large hidden backend phases and defer all UI until later milest
 - Keep business calculations out of Vue when they affect authoritative stored results.
 - Optimize for desktop density and keyboard/mouse use, not mobile-first layouts.
 - Avoid excessive modals, oversized cards, and decorative dashboard clutter.
+- Treat workspace geometry as a project-wide design system, not a per-page choice. Major pages must reuse the shared page-header/action, sticky, tab, and persistent-bottom surface patterns defined in `docs/UI.md`.
+- The application shell owns the viewport; ordinary page scrolling belongs to the shared workspace. Do not introduce page-specific full-window scrolling or nested vertical scrolling unless the feature specifically requires it.
+- Important page actions should remain accessible while the relevant content scrolls. Use the shared sticky page header/action surface rather than one-off fixed-position controls.
+- Use the space directly below the global top bar efficiently. Do not introduce large empty header gaps when page identity, actions, filters, status, or context can occupy that region.
+- Sticky/fixed surfaces must use shared offsets, spacing, borders/elevation, z-index conventions, and motion. Do not solve each page with unrelated CSS constants.
+- Persistent bottom actions must sit above the global bottom status area and reserve enough content space so nothing is obscured.
+- New pages must visually belong to the same application. Before introducing a new layout primitive, check whether an existing shell/header/table/inspector/tabs/form/action pattern already solves the problem.
 
 ## Tests
 
