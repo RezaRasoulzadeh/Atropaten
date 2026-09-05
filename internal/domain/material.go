@@ -9,7 +9,9 @@ import (
 	"time"
 )
 
-const QuantityScale int64 = 1_000_000
+// QuantityScale is intentionally an untyped constant so it can participate
+// in arithmetic with both the Quantity domain type and int64 parser values.
+const QuantityScale = 1_000_000
 
 var (
 	ErrMaterialNotFound = errors.New("material not found")
