@@ -1,5 +1,36 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, type Component } from 'vue'
+import {
+  ArrowDownLeft,
+  ArrowRight,
+  BarChart3,
+  BriefcaseBusiness,
+  Calculator,
+  ChartNoAxesCombined,
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  CircleDollarSign,
+  ClipboardList,
+  HandCoins,
+  Info,
+  Landmark,
+  LayoutDashboard,
+  MoreHorizontal,
+  Package,
+  PackageOpen,
+  Plus,
+  Printer,
+  ReceiptText,
+  Settings,
+  ShoppingCart,
+  Sparkles,
+  TriangleAlert,
+  Truck,
+  TrendingUp,
+  UserRound,
+  Users,
+} from 'lucide-vue-next'
 import AppToolbar from './components/AppToolbar.vue'
 import KpiCard from './components/KpiCard.vue'
 import SectionPanel from './components/SectionPanel.vue'
@@ -13,42 +44,42 @@ type Tone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
 
 interface NavigationItem {
   label: string
-  icon: string
+  icon: Component
 }
 
 const navigationSections: { label: string; items: NavigationItem[] }[] = [
   {
     label: 'Workspace',
     items: [
-      { label: 'Dashboard', icon: 'dashboard' },
-      { label: 'Orders', icon: 'orders' },
-      { label: 'Production', icon: 'production' },
-      { label: 'Customers', icon: 'customers' },
+      { label: 'Dashboard', icon: LayoutDashboard },
+      { label: 'Orders', icon: ClipboardList },
+      { label: 'Production', icon: Printer },
+      { label: 'Customers', icon: Users },
     ],
   },
   {
     label: 'Catalog & purchasing',
     items: [
-      { label: 'Services', icon: 'services' },
-      { label: 'Materials', icon: 'materials' },
-      { label: 'Purchases', icon: 'purchases' },
-      { label: 'Suppliers', icon: 'suppliers' },
+      { label: 'Services', icon: BriefcaseBusiness },
+      { label: 'Materials', icon: Package },
+      { label: 'Purchases', icon: ShoppingCart },
+      { label: 'Suppliers', icon: Truck },
     ],
   },
   {
     label: 'Finance',
     items: [
-      { label: 'Accounting', icon: 'accounting' },
-      { label: 'Checks', icon: 'checks' },
-      { label: 'Loans', icon: 'loans' },
-      { label: 'Owners', icon: 'owners' },
+      { label: 'Accounting', icon: Calculator },
+      { label: 'Checks', icon: Landmark },
+      { label: 'Loans', icon: CircleDollarSign },
+      { label: 'Owners', icon: UserRound },
     ],
   },
   {
     label: 'Insights & setup',
     items: [
-      { label: 'Reports', icon: 'reports' },
-      { label: 'Settings', icon: 'settings' },
+      { label: 'Reports', icon: BarChart3 },
+      { label: 'Settings', icon: Settings },
     ],
   },
 ]
@@ -85,22 +116,22 @@ const productionJobs = [
 ]
 
 const financialAlerts = [
-  { label: 'Check due today', detail: 'Pars Paper · #CH-2094', amount: '$1,280', tone: 'red' as Tone, icon: 'checks' },
-  { label: 'Installment due this week', detail: 'Digital press loan · 16 Aug', amount: '$860', tone: 'amber' as Tone, icon: 'loans' },
-  { label: 'Invoice overdue', detail: 'Pendar Clinic · 12 days', amount: '$2,450', tone: 'red' as Tone, icon: 'receipt' },
+  { label: 'Check due today', detail: 'Pars Paper · #CH-2094', amount: '$1,280', tone: 'red' as Tone, icon: CircleAlert },
+  { label: 'Installment due this week', detail: 'Digital press loan · 16 Aug', amount: '$860', tone: 'amber' as Tone, icon: Landmark },
+  { label: 'Invoice overdue', detail: 'Pendar Clinic · 12 days', amount: '$2,450', tone: 'red' as Tone, icon: ReceiptText },
 ]
 
 const lowStockItems = [
-  { name: 'A4 300gsm matte', available: '3 reams', threshold: '5 reams', tone: 'red' as Tone },
-  { name: 'Gloss lamination roll', available: '42 m', threshold: '50 m', tone: 'amber' as Tone },
-  { name: 'Black toner · Ricoh', available: '18%', threshold: '25%', tone: 'amber' as Tone },
+  { name: 'A4 300gsm matte', available: '3 reams', threshold: '5 reams', tone: 'red' as Tone, icon: TriangleAlert },
+  { name: 'Gloss lamination roll', available: '42 m', threshold: '50 m', tone: 'amber' as Tone, icon: TriangleAlert },
+  { name: 'Black toner · Ricoh', available: '18%', threshold: '25%', tone: 'amber' as Tone, icon: TriangleAlert },
 ]
 
 const recentTransactions = [
-  { title: 'Payment received', party: 'Mehr Studio · ORD-1048', amount: '+$920', time: '10:42 AM', tone: 'green' as Tone, icon: 'arrow-down' },
-  { title: 'Purchase recorded', party: 'Pars Paper · PUR-0061', amount: '−$1,280', time: '09:18 AM', tone: 'slate' as Tone, icon: 'purchases' },
-  { title: 'Expense posted', party: 'Courier and delivery', amount: '−$84', time: 'Yesterday', tone: 'slate' as Tone, icon: 'receipt' },
-  { title: 'Payment received', party: 'Arman Foods · ORD-1045', amount: '+$640', time: 'Yesterday', tone: 'green' as Tone, icon: 'arrow-down' },
+  { title: 'Payment received', party: 'Mehr Studio · ORD-1048', amount: '+$920', time: '10:42 AM', tone: 'green' as Tone, icon: ArrowDownLeft },
+  { title: 'Purchase recorded', party: 'Pars Paper · PUR-0061', amount: '−$1,280', time: '09:18 AM', tone: 'slate' as Tone, icon: ShoppingCart },
+  { title: 'Expense posted', party: 'Courier and delivery', amount: '−$84', time: 'Yesterday', tone: 'slate' as Tone, icon: ReceiptText },
+  { title: 'Payment received', party: 'Arman Foods · ORD-1045', amount: '+$640', time: 'Yesterday', tone: 'green' as Tone, icon: ArrowDownLeft },
 ]
 
 function selectView(label: string) {
@@ -199,25 +230,26 @@ function showToast(message: string) {
                   <option>This month</option>
                   <option>This quarter</option>
                 </select>
+                <ChevronDown class="select-chevron" :size="14" :stroke-width="1.8" aria-hidden="true" />
               </label>
               <button class="button button-primary" type="button" @click="openNewOrder">
-                <span class="button-icon" aria-hidden="true">+</span>
+                <Plus class="button-icon" :size="16" :stroke-width="1.8" aria-hidden="true" />
                 New order
               </button>
             </div>
           </header>
 
           <section class="kpi-grid" aria-label="Business summary">
-            <KpiCard title="Sales" value="$24,860" detail="vs. $22,040 last week" trend="+12.8%" icon="sales" accent="blue" />
-            <KpiCard title="Gross profit" value="$8,420" detail="33.9% margin this week" trend="+9.4%" icon="profit" accent="green" />
-            <KpiCard title="Receivables" value="$12,680" detail="7 open invoices" trend="3 due soon" icon="receivables" accent="amber" />
-            <KpiCard title="Payables" value="$6,240" detail="4 supplier balances" trend="2 due soon" icon="payables" accent="red" />
+            <KpiCard title="Sales" value="$24,860" detail="vs. $22,040 last week" trend="+12.8%" :icon="TrendingUp" accent="blue" />
+            <KpiCard title="Gross profit" value="$8,420" detail="33.9% margin this week" trend="+9.4%" :icon="ChartNoAxesCombined" accent="green" />
+            <KpiCard title="Receivables" value="$12,680" detail="7 open invoices" trend="3 due soon" :icon="HandCoins" accent="amber" />
+            <KpiCard title="Payables" value="$6,240" detail="4 supplier balances" trend="2 due soon" :icon="ReceiptText" accent="red" />
           </section>
 
           <section class="dashboard-grid dashboard-grid-primary">
             <SectionPanel title="Production queue" subtitle="4 active jobs · sorted by promised delivery" class="production-panel">
               <template #action>
-                <button class="text-button" type="button" @click="selectView('Production')">View production <span aria-hidden="true">→</span></button>
+                <button class="text-button" type="button" @click="selectView('Production')">View production <ArrowRight :size="14" :stroke-width="1.8" aria-hidden="true" /></button>
               </template>
               <div class="table-wrap">
                 <table class="data-table production-table">
@@ -255,21 +287,17 @@ function showToast(message: string) {
               </template>
               <div class="alert-list">
                 <button v-for="alert in financialAlerts" :key="alert.label" class="alert-row" type="button" @click="showToast(`${alert.label}: ${alert.amount}`)">
-                  <span class="alert-icon" :class="`tone-${alert.tone}`" aria-hidden="true">
-                    <span v-if="alert.icon === 'checks'">✓</span>
-                    <span v-else-if="alert.icon === 'loans'">↗</span>
-                    <span v-else>!</span>
-                  </span>
+                  <span class="alert-icon" :class="`tone-${alert.tone}`" aria-hidden="true"><component :is="alert.icon" :size="15" :stroke-width="1.8" /></span>
                   <span class="alert-content">
                     <span class="alert-label">{{ alert.label }}</span>
                     <span class="alert-detail">{{ alert.detail }}</span>
                   </span>
                   <span class="alert-amount">{{ alert.amount }}</span>
-                  <span class="alert-chevron" aria-hidden="true">›</span>
+                  <ChevronRight class="alert-chevron" :size="16" :stroke-width="1.8" aria-hidden="true" />
                 </button>
               </div>
               <div class="panel-callout">
-                <span class="callout-icon" aria-hidden="true">i</span>
+                <span class="callout-icon" aria-hidden="true"><Info :size="15" :stroke-width="1.8" /></span>
                 <span>Resolve urgent items before the 4:00 PM dispatch run.</span>
               </div>
             </SectionPanel>
@@ -278,11 +306,11 @@ function showToast(message: string) {
           <section class="dashboard-grid dashboard-grid-secondary">
             <SectionPanel title="Low stock" subtitle="Materials approaching reorder point" class="low-stock-panel">
               <template #action>
-                <button class="text-button" type="button" @click="selectView('Materials')">Open materials <span aria-hidden="true">→</span></button>
+                <button class="text-button" type="button" @click="selectView('Materials')">Open materials <ArrowRight :size="14" :stroke-width="1.8" aria-hidden="true" /></button>
               </template>
               <div class="stock-list">
                 <div v-for="item in lowStockItems" :key="item.name" class="stock-row">
-                  <span class="stock-indicator" :class="`tone-${item.tone}`" aria-hidden="true"></span>
+                  <component :is="item.icon" class="stock-indicator" :class="`tone-${item.tone}`" :size="15" :stroke-width="1.8" aria-hidden="true" />
                   <span class="stock-name">{{ item.name }}</span>
                   <span class="stock-available">{{ item.available }}</span>
                   <span class="stock-threshold">Reorder at {{ item.threshold }}</span>
@@ -292,14 +320,11 @@ function showToast(message: string) {
 
             <SectionPanel title="Recent transactions" subtitle="Latest activity across the shop" class="transactions-panel">
               <template #action>
-                <button class="icon-button" type="button" aria-label="More transaction actions" @click="showToast('Transaction filters are coming soon.')">•••</button>
+                <button class="icon-button" type="button" aria-label="More transaction actions" @click="showToast('Transaction filters are coming soon.')"><MoreHorizontal :size="17" :stroke-width="1.8" aria-hidden="true" /></button>
               </template>
               <div class="transaction-list">
                 <div v-for="transaction in recentTransactions" :key="`${transaction.title}-${transaction.party}`" class="transaction-row">
-                  <span class="transaction-icon" :class="`tone-${transaction.tone}`" aria-hidden="true">
-                    <span v-if="transaction.icon === 'arrow-down'">↓</span>
-                    <span v-else>↗</span>
-                  </span>
+                  <span class="transaction-icon" :class="`tone-${transaction.tone}`" aria-hidden="true"><component :is="transaction.icon" :size="15" :stroke-width="1.8" /></span>
                   <span class="transaction-content">
                     <span class="transaction-title">{{ transaction.title }}</span>
                     <span class="transaction-party">{{ transaction.party }}</span>
@@ -317,10 +342,10 @@ function showToast(message: string) {
               <p class="quick-actions-help">Jump into the workflows you use most.</p>
             </div>
             <div class="quick-action-buttons">
-              <button class="quick-action" type="button" @click="openNewOrder"><span class="quick-action-icon">+</span>New order</button>
-              <button class="quick-action" type="button" @click="selectView('Production')"><span class="quick-action-icon">▣</span>Start production</button>
-              <button class="quick-action" type="button" @click="selectView('Purchases')"><span class="quick-action-icon">↙</span>Record purchase</button>
-              <button class="quick-action" type="button" @click="selectView('Accounting')"><span class="quick-action-icon">₿</span>Post expense</button>
+              <button class="quick-action" type="button" @click="openNewOrder"><Plus class="quick-action-icon" :size="16" :stroke-width="1.8" aria-hidden="true" />New order</button>
+              <button class="quick-action" type="button" @click="selectView('Production')"><PackageOpen class="quick-action-icon" :size="16" :stroke-width="1.8" aria-hidden="true" />Start production</button>
+              <button class="quick-action" type="button" @click="selectView('Purchases')"><ShoppingCart class="quick-action-icon" :size="16" :stroke-width="1.8" aria-hidden="true" />Record purchase</button>
+              <button class="quick-action" type="button" @click="selectView('Accounting')"><Calculator class="quick-action-icon" :size="16" :stroke-width="1.8" aria-hidden="true" />Post expense</button>
             </div>
           </section>
         </template>
@@ -343,7 +368,7 @@ function showToast(message: string) {
         </template>
 
         <section v-else class="empty-workspace">
-          <div class="empty-workspace-icon" aria-hidden="true">✦</div>
+          <div class="empty-workspace-icon" aria-hidden="true"><Sparkles :size="22" :stroke-width="1.8" /></div>
           <p class="eyebrow">Atropaten workspace</p>
           <h1>{{ currentView.title }}</h1>
           <p>{{ currentView.description }}</p>

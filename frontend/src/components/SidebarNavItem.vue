@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import AppIcon from './AppIcon.vue'
+import type { Component } from 'vue'
 
 defineProps<{
   label: string
-  icon: string
+  icon: Component
   active?: boolean
   collapsed?: boolean
 }>()
@@ -21,7 +21,7 @@ defineEmits<{ select: [] }>()
     :aria-current="active ? 'page' : undefined"
     @click="$emit('select')"
   >
-    <span class="nav-item-icon"><AppIcon :name="icon" :size="17" /></span>
+    <span class="nav-item-icon"><component :is="icon" :size="17" :stroke-width="1.8" aria-hidden="true" /></span>
     <span v-if="!collapsed" class="nav-item-label">{{ label }}</span>
   </button>
 </template>

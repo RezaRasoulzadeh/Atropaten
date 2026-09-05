@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppIcon from './AppIcon.vue'
+import { Bell, ChevronDown, Menu, Search, Store } from 'lucide-vue-next'
 
 defineProps<{
   collapsed: boolean
@@ -16,11 +16,11 @@ defineEmits<{
 <template>
   <header class="topbar">
     <button class="sidebar-toggle" type="button" :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'" @click="$emit('toggle-sidebar')">
-      <AppIcon name="menu" :size="18" />
+      <Menu :size="18" :stroke-width="1.8" aria-hidden="true" />
     </button>
     <label class="topbar-search">
       <span class="sr-only">Search</span>
-      <AppIcon class="search-icon" name="search" :size="16" />
+      <Search class="search-icon" :size="16" :stroke-width="1.8" aria-hidden="true" />
       <input
         :value="searchQuery"
         type="search"
@@ -32,12 +32,12 @@ defineEmits<{
     </label>
     <span class="topbar-spacer"></span>
     <button class="shop-selector" type="button" aria-label="Current shop: Central shop">
-      <span class="shop-dot" aria-hidden="true"></span>
+      <Store class="shop-dot" :size="16" :stroke-width="1.8" aria-hidden="true" />
       <span><strong>Central shop</strong> · Tehran</span>
-      <span class="shop-selector-chevron" aria-hidden="true">⌄</span>
+      <ChevronDown class="shop-selector-chevron" :size="14" :stroke-width="1.8" aria-hidden="true" />
     </button>
     <button class="icon-button notification-button" type="button" aria-label="Notifications" @click="$emit('notifications')">
-      <AppIcon name="bell" :size="17" />
+      <Bell :size="17" :stroke-width="1.8" aria-hidden="true" />
       <span class="notification-dot" aria-hidden="true"></span>
     </button>
     <div class="user-profile">

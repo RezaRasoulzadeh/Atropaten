@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import AppIcon from '../components/AppIcon.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import type { CommercialStatus, FulfillmentStatus, Order, PaymentStatus, Priority } from '../data/orders'
+import { ArrowRight, ArrowUpDown, ChevronDown, Plus, Search, SearchX } from 'lucide-vue-next'
 
 type SortKey = 'id' | 'customer' | 'created' | 'promised' | 'total' | 'balance' | 'priority'
 type BadgeTone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
@@ -107,7 +107,7 @@ function priorityTone(priority: Priority): BadgeTone {
         <p class="heading-description">Track every customer order from confirmation through delivery.</p>
       </div>
       <button class="button button-primary" type="button" @click="$emit('new-order')">
-        <span class="button-icon" aria-hidden="true">+</span>
+        <Plus class="button-icon" :size="16" :stroke-width="1.8" aria-hidden="true" />
         New order
       </button>
     </header>
@@ -115,24 +115,24 @@ function priorityTone(priority: Priority): BadgeTone {
     <section class="orders-filter-bar panel" aria-label="Order filters">
       <label class="orders-search">
         <span class="sr-only">Search orders</span>
-        <AppIcon name="search" :size="16" />
+        <Search :size="16" :stroke-width="1.8" aria-hidden="true" />
         <input v-model="searchQuery" type="search" placeholder="Search order, customer, or item" autocomplete="off" />
       </label>
       <label class="filter-control">
         <span>Commercial</span>
-        <span class="select-control"><select v-model="commercialFilter" aria-label="Filter by commercial status"><option>All</option><option>Draft</option><option>Quoted</option><option>Confirmed</option><option>Closed</option></select></span>
+        <span class="select-control"><select v-model="commercialFilter" aria-label="Filter by commercial status"><option>All</option><option>Draft</option><option>Quoted</option><option>Confirmed</option><option>Closed</option></select><ChevronDown class="select-chevron" :size="14" :stroke-width="1.8" aria-hidden="true" /></span>
       </label>
       <label class="filter-control">
         <span>Fulfillment</span>
-        <span class="select-control"><select v-model="fulfillmentFilter" aria-label="Filter by fulfillment status"><option>All</option><option>Pending</option><option>In production</option><option>Ready</option><option>Delivered</option></select></span>
+        <span class="select-control"><select v-model="fulfillmentFilter" aria-label="Filter by fulfillment status"><option>All</option><option>Pending</option><option>In production</option><option>Ready</option><option>Delivered</option></select><ChevronDown class="select-chevron" :size="14" :stroke-width="1.8" aria-hidden="true" /></span>
       </label>
       <label class="filter-control">
         <span>Payment</span>
-        <span class="select-control"><select v-model="paymentFilter" aria-label="Filter by payment status"><option>All</option><option>Unpaid</option><option>Partially paid</option><option>Paid</option></select></span>
+        <span class="select-control"><select v-model="paymentFilter" aria-label="Filter by payment status"><option>All</option><option>Unpaid</option><option>Partially paid</option><option>Paid</option></select><ChevronDown class="select-chevron" :size="14" :stroke-width="1.8" aria-hidden="true" /></span>
       </label>
       <label class="filter-control">
         <span>Priority</span>
-        <span class="select-control"><select v-model="priorityFilter" aria-label="Filter by priority"><option>All</option><option>Urgent</option><option>High</option><option>Normal</option><option>Low</option></select></span>
+        <span class="select-control"><select v-model="priorityFilter" aria-label="Filter by priority"><option>All</option><option>Urgent</option><option>High</option><option>Normal</option><option>Low</option></select><ChevronDown class="select-chevron" :size="14" :stroke-width="1.8" aria-hidden="true" /></span>
       </label>
       <button v-if="hasActiveFilters" class="filter-clear" type="button" @click="clearFilters">Clear</button>
       <span class="filter-result">{{ filteredOrders.length }} of {{ orders.length }} orders</span>
@@ -151,17 +151,17 @@ function priorityTone(priority: Priority): BadgeTone {
         <table class="data-table orders-table">
           <thead>
             <tr>
-              <th scope="col" :aria-sort="sortKey === 'id' ? (sortAscending ? 'ascending' : 'descending') : 'none'"><button type="button" @click="sortOrders('id')">Order <span aria-hidden="true">↕</span></button></th>
-              <th scope="col" :aria-sort="sortKey === 'customer' ? (sortAscending ? 'ascending' : 'descending') : 'none'"><button type="button" @click="sortOrders('customer')">Customer <span aria-hidden="true">↕</span></button></th>
+              <th scope="col" :aria-sort="sortKey === 'id' ? (sortAscending ? 'ascending' : 'descending') : 'none'"><button type="button" @click="sortOrders('id')">Order <ArrowUpDown class="sort-icon" :size="13" :stroke-width="1.8" aria-hidden="true" /></button></th>
+              <th scope="col" :aria-sort="sortKey === 'customer' ? (sortAscending ? 'ascending' : 'descending') : 'none'"><button type="button" @click="sortOrders('customer')">Customer <ArrowUpDown class="sort-icon" :size="13" :stroke-width="1.8" aria-hidden="true" /></button></th>
               <th scope="col">Items</th>
-              <th scope="col" :aria-sort="sortKey === 'created' ? (sortAscending ? 'ascending' : 'descending') : 'none'"><button type="button" @click="sortOrders('created')">Created <span aria-hidden="true">↕</span></button></th>
-              <th scope="col" :aria-sort="sortKey === 'promised' ? (sortAscending ? 'ascending' : 'descending') : 'none'"><button type="button" @click="sortOrders('promised')">Promised <span aria-hidden="true">↕</span></button></th>
-              <th scope="col" class="numeric-column" :aria-sort="sortKey === 'total' ? (sortAscending ? 'ascending' : 'descending') : 'none'"><button type="button" @click="sortOrders('total')">Total <span aria-hidden="true">↕</span></button></th>
-              <th scope="col" class="numeric-column" :aria-sort="sortKey === 'balance' ? (sortAscending ? 'ascending' : 'descending') : 'none'"><button type="button" @click="sortOrders('balance')">Balance <span aria-hidden="true">↕</span></button></th>
+              <th scope="col" :aria-sort="sortKey === 'created' ? (sortAscending ? 'ascending' : 'descending') : 'none'"><button type="button" @click="sortOrders('created')">Created <ArrowUpDown class="sort-icon" :size="13" :stroke-width="1.8" aria-hidden="true" /></button></th>
+              <th scope="col" :aria-sort="sortKey === 'promised' ? (sortAscending ? 'ascending' : 'descending') : 'none'"><button type="button" @click="sortOrders('promised')">Promised <ArrowUpDown class="sort-icon" :size="13" :stroke-width="1.8" aria-hidden="true" /></button></th>
+              <th scope="col" class="numeric-column" :aria-sort="sortKey === 'total' ? (sortAscending ? 'ascending' : 'descending') : 'none'"><button type="button" @click="sortOrders('total')">Total <ArrowUpDown class="sort-icon" :size="13" :stroke-width="1.8" aria-hidden="true" /></button></th>
+              <th scope="col" class="numeric-column" :aria-sort="sortKey === 'balance' ? (sortAscending ? 'ascending' : 'descending') : 'none'"><button type="button" @click="sortOrders('balance')">Balance <ArrowUpDown class="sort-icon" :size="13" :stroke-width="1.8" aria-hidden="true" /></button></th>
               <th scope="col">Commercial</th>
               <th scope="col">Fulfillment</th>
               <th scope="col">Payment</th>
-              <th scope="col" :aria-sort="sortKey === 'priority' ? (sortAscending ? 'ascending' : 'descending') : 'none'"><button type="button" @click="sortOrders('priority')">Priority <span aria-hidden="true">↕</span></button></th>
+              <th scope="col" :aria-sort="sortKey === 'priority' ? (sortAscending ? 'ascending' : 'descending') : 'none'"><button type="button" @click="sortOrders('priority')">Priority <ArrowUpDown class="sort-icon" :size="13" :stroke-width="1.8" aria-hidden="true" /></button></th>
               <th scope="col"><span class="sr-only">Open</span></th>
             </tr>
           </thead>
@@ -178,14 +178,14 @@ function priorityTone(priority: Priority): BadgeTone {
               <td><StatusBadge :label="order.fulfillmentStatus" :tone="fulfillmentTone(order.fulfillmentStatus)" /></td>
               <td><StatusBadge :label="order.paymentStatus" :tone="paymentTone(order.paymentStatus)" /></td>
               <td><StatusBadge :label="order.priority" :tone="priorityTone(order.priority)" /></td>
-              <td><button class="row-open-button" type="button" aria-label="Open order" @click.stop="openOrder(order.id)">→</button></td>
+              <td><button class="row-open-button" type="button" aria-label="Open order" @click.stop="openOrder(order.id)"><ArrowRight :size="16" :stroke-width="1.8" aria-hidden="true" /></button></td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <div v-else class="orders-empty">
-        <div class="empty-workspace-icon" aria-hidden="true">⌕</div>
+        <div class="empty-workspace-icon" aria-hidden="true"><SearchX :size="21" :stroke-width="1.8" /></div>
         <h2>No orders match these filters</h2>
         <p>Try a different search or clear the filters to see the full operational queue.</p>
         <button class="button button-secondary" type="button" @click="clearFilters">Clear filters</button>

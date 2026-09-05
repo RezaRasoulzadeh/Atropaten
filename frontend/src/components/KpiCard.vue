@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import AppIcon from './AppIcon.vue'
+import type { Component } from 'vue'
 
 withDefaults(defineProps<{
   title: string
   value: string
   detail: string
   trend: string
-  icon: string
+  icon: Component
   accent?: 'blue' | 'green' | 'amber' | 'red'
 }>(), {
   accent: 'blue',
@@ -17,7 +17,7 @@ withDefaults(defineProps<{
   <article class="kpi-card" :class="`kpi-${accent}`">
     <div class="kpi-card-header">
       <span class="kpi-label">{{ title }}</span>
-      <span class="kpi-icon"><AppIcon :name="icon" :size="16" /></span>
+      <span class="kpi-icon"><component :is="icon" :size="16" :stroke-width="1.8" aria-hidden="true" /></span>
     </div>
     <p class="kpi-value">{{ value }}</p>
     <div class="kpi-footer">

@@ -157,10 +157,11 @@
   color: var(--accent-strong);
 }
 
-.orders-table th button span {
+.sort-icon {
+  display: inline-block;
+  margin-left: 4px;
+  vertical-align: -3px;
   color: #b5bec7;
-  font-size: 12px;
-  letter-spacing: 0;
 }
 
 .orders-table td {
@@ -1147,11 +1148,13 @@
 }
 
 .file-type {
-  display: grid;
+  display: inline-flex;
   width: 32px;
   height: 32px;
   flex: 0 0 32px;
-  place-items: center;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   border-radius: 7px;
   background: var(--danger-soft);
   color: var(--danger);

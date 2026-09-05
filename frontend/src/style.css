@@ -199,8 +199,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .shop-selector { display: flex; align-items: center; gap: 8px; padding: 6px 9px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-soft); font-size: 12px; white-space: nowrap; }
 .shop-selector:hover { border-color: var(--line-strong); background: var(--surface-subtle); }
 .shop-selector strong { color: var(--text); font-size: 12px; }
-.shop-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-.shop-selector-chevron { color: var(--text-muted); font-size: 15px; line-height: 1; }
+.shop-dot { width: 16px; height: 16px; flex: 0 0 16px; color: var(--accent); }
+.shop-selector-chevron { display: block; color: var(--text-muted); }
 .notification-button { position: relative; }
 .notification-dot { position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border: 1px solid white; border-radius: 50%; background: var(--danger); }
 .user-profile { display: flex; align-items: center; gap: 9px; padding-left: 3px; }
@@ -218,8 +218,8 @@ h1 { margin-bottom: 4px; color: var(--text); font-size: clamp(23px, 2.4vw, 30px)
 .heading-actions, .quick-action-buttons { display: flex; align-items: center; gap: 9px; }
 
 .select-control { position: relative; display: inline-flex; align-items: center; }
-.select-control::after { position: absolute; right: 11px; color: var(--text-muted); content: '⌄'; pointer-events: none; }
 .select-control select { height: 38px; padding: 0 31px 0 12px; appearance: none; border: 1px solid var(--line); border-radius: var(--radius-sm); outline: 0; background: var(--surface); color: var(--text-soft); font-size: 12px; }
+.select-chevron { position: absolute; right: 10px; color: var(--text-muted); pointer-events: none; }
 .select-control select:hover { border-color: var(--line-strong); }
 
 .button { display: inline-flex; height: 38px; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border: 1px solid transparent; border-radius: var(--radius-sm); font-size: 12px; font-weight: 800; transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease; }
@@ -248,7 +248,7 @@ h1 { margin-bottom: 4px; color: var(--text); font-size: clamp(23px, 2.4vw, 30px)
 .panel-title { margin: 0 0 3px; color: var(--text); font-size: 14px; font-weight: 800; }
 .panel-subtitle { margin: 0; color: var(--text-muted); font-size: 11px; }
 .panel-action { flex: 0 0 auto; }
-.text-button { padding: 3px 0; border: 0; background: transparent; color: var(--accent-strong); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.text-button { display: inline-flex; align-items: center; gap: 4px; padding: 3px 0; border: 0; background: transparent; color: var(--accent-strong); font-size: 11px; font-weight: 800; white-space: nowrap; }
 .text-button:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
 .attention-count { display: grid; min-width: 22px; height: 22px; place-items: center; border-radius: 50%; background: var(--danger-soft); color: var(--danger); font-size: 11px; font-weight: 800; }
 
@@ -278,13 +278,13 @@ h1 { margin-bottom: 4px; color: var(--text); font-size: clamp(23px, 2.4vw, 30px)
 .alert-label, .transaction-title { overflow: hidden; color: var(--text); font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .alert-detail, .transaction-party, .transaction-time { overflow: hidden; color: var(--text-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .alert-amount, .transaction-value { color: var(--text); font-size: 12px; font-weight: 800; white-space: nowrap; }
-.alert-chevron { color: #a6b0ba; font-size: 19px; }
+.alert-chevron { display: block; flex: 0 0 16px; color: #a6b0ba; }
 .panel-callout { display: flex; align-items: flex-start; gap: 8px; margin: 9px 17px 14px; padding: 9px 10px; border-radius: var(--radius-sm); background: var(--surface-subtle); color: var(--text-soft); font-size: 11px; line-height: 1.45; }
 .callout-icon { display: grid; width: 16px; height: 16px; flex: 0 0 16px; place-items: center; border: 1px solid #c8d1da; border-radius: 50%; color: var(--text-muted); font-size: 10px; font-weight: 800; }
 
 .stock-row { min-height: 55px; gap: 10px; border-bottom: 1px solid #edf0f3; }
 .stock-row:last-child { border-bottom: 0; }
-.stock-indicator { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; }
+.stock-indicator { width: 16px; height: 16px; flex: 0 0 16px; border-radius: 5px; }
 .stock-name { min-width: 0; flex: 1; overflow: hidden; color: var(--text); font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .stock-available { color: var(--text); font-size: 12px; font-weight: 800; white-space: nowrap; }
 .stock-threshold { min-width: 93px; color: var(--text-muted); font-size: 10px; text-align: right; white-space: nowrap; }
