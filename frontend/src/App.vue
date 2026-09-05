@@ -44,6 +44,7 @@ import { formatDate, formatDateTime } from './utils/date'
 import OrderWorkspaceView from './views/OrderWorkspaceView.vue'
 import OrdersView from './views/OrdersView.vue'
 import MaterialsView from './views/MaterialsView.vue'
+import ServicesView from './views/ServicesView.vue'
 
 type Tone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
 
@@ -384,6 +385,8 @@ function showToast(message: string) {
             <OrdersView v-else key="orders-list" :orders="mockOrders" :currency-unit="currencyUnit" @open-order="openOrder" @new-order="openNewOrder" />
           </Transition>
         </div>
+
+        <ServicesView v-else-if="activeView === 'Services'" key="services" @notify="showToast" />
 
         <MaterialsView v-else-if="activeView === 'Materials'" key="materials" :currency-unit="currencyUnit" @notify="showToast" />
 

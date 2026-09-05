@@ -5,12 +5,11 @@ import {
   ListMaterials,
   ReactivateMaterial,
   UpdateMaterial,
-  type MaterialDTO,
-  type MaterialInput,
 } from '../../wailsjs/go/main/App'
+import type { main as mainTypes } from '../../wailsjs/go/models'
 
-export type MaterialRecord = MaterialDTO
-export type MaterialPayload = MaterialInput
+export type MaterialRecord = mainTypes.MaterialDTO
+export type MaterialPayload = mainTypes.MaterialInput
 
 export const materialsApi = {
   list(includeArchived = true): Promise<MaterialRecord[]> {
