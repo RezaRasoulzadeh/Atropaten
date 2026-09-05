@@ -5,6 +5,9 @@ import KpiCard from './components/KpiCard.vue'
 import SectionPanel from './components/SectionPanel.vue'
 import SidebarNavItem from './components/SidebarNavItem.vue'
 import StatusBadge from './components/StatusBadge.vue'
+import { createDraftOrder, mockOrders } from './data/orders'
+import OrderWorkspaceView from './views/OrderWorkspaceView.vue'
+import OrdersView from './views/OrdersView.vue'
 
 type Tone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
 
@@ -62,6 +65,9 @@ const activeView = ref('Dashboard')
 const isSidebarCollapsed = ref(false)
 const searchQuery = ref('')
 const selectedPeriod = ref('This week')
+const selectedOrderId = ref<string | null>(null)
+const isDraftOrder = ref(false)
+const draftOrder = createDraftOrder()
 const toastMessage = ref('')
 let toastTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -99,6 +105,28 @@ const recentTransactions = [
 
 function selectView(label: string) {
   activeView.value = label
+  selectedOrderId.value = null
+  isDraftOrder.value = false
+}
+
+const selectedOrder = computed(() => mockOrders.find((order) => order.id === selectedOrderId.value) ?? null)
+
+function openOrder(orderId: string) {
+  activeView.value = 'Orders'
+  selectedOrderId.value = orderId
+  isDraftOrder.value = false
+}
+
+function openNewOrder() {
+  activeView.value = 'Orders'
+  selectedOrderId.value = null
+  isDraftOrder.value = true
+}
+
+function closeOrderWorkspace() {
+  activeView.value = 'Orders'
+  selectedOrderId.value = null
+  isDraftOrder.value = false
 }
 
 function showToast(message: string) {
@@ -109,9 +137,6 @@ function showToast(message: string) {
   }, 2800)
 }
 
-function createNewOrder() {
-  showToast('New order workspace will be available in the next milestone.')
-}
 </script>
 
 <template>
@@ -175,7 +200,7 @@ function createNewOrder() {
                   <option>This quarter</option>
                 </select>
               </label>
-              <button class="button button-primary" type="button" @click="createNewOrder">
+              <button class="button button-primary" type="button" @click="openNewOrder">
                 <span class="button-icon" aria-hidden="true">+</span>
                 New order
               </button>
@@ -292,12 +317,29 @@ function createNewOrder() {
               <p class="quick-actions-help">Jump into the workflows you use most.</p>
             </div>
             <div class="quick-action-buttons">
-              <button class="quick-action" type="button" @click="createNewOrder"><span class="quick-action-icon">+</span>New order</button>
+              <button class="quick-action" type="button" @click="openNewOrder"><span class="quick-action-icon">+</span>New order</button>
               <button class="quick-action" type="button" @click="selectView('Production')"><span class="quick-action-icon">▣</span>Start production</button>
               <button class="quick-action" type="button" @click="selectView('Purchases')"><span class="quick-action-icon">↙</span>Record purchase</button>
               <button class="quick-action" type="button" @click="selectView('Accounting')"><span class="quick-action-icon">₿</span>Post expense</button>
             </div>
           </section>
+        </template>
+
+        <template v-else-if="activeView === 'Orders'">
+          <OrderWorkspaceView
+            v-if="isDraftOrder"
+            :order="draftOrder"
+            :is-draft="true"
+            @back="closeOrderWorkspace"
+            @notify="showToast"
+          />
+          <OrderWorkspaceView
+            v-else-if="selectedOrder"
+            :order="selectedOrder"
+            @back="closeOrderWorkspace"
+            @notify="showToast"
+          />
+          <OrdersView v-else :orders="mockOrders" @open-order="openOrder" @new-order="openNewOrder" />
         </template>
 
         <section v-else class="empty-workspace">
