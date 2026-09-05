@@ -373,7 +373,7 @@ h1 { margin-bottom: 4px; color: var(--text); font-size: clamp(23px, 2.4vw, 30px)
 .empty-workspace-icon { display: grid; width: 48px; height: 48px; margin-bottom: 7px; place-items: center; border-radius: 14px; background: var(--accent-soft); color: var(--accent); font-size: 22px; }
 .empty-workspace h1 { margin-bottom: 0; }
 .empty-workspace > p:not(.eyebrow) { max-width: 340px; margin-bottom: 12px; color: var(--text-soft); }
-.toast { position: fixed; right: 26px; bottom: 48px; z-index: 10; max-width: 360px; padding: 11px 15px; border: 1px solid #cbd8e5; border-radius: var(--radius-sm); background: #243548; box-shadow: 0 7px 18px rgba(29, 41, 57, 0.2); color: white; font-size: 12px; }
+.toast { position: fixed; right: 26px; bottom: 48px; z-index: 99; max-width: 360px; padding: 11px 15px; border: 1px solid #cbd8e5; border-radius: var(--radius-sm); background: #243548; box-shadow: 0 7px 18px rgba(29, 41, 57, 0.2); color: white; font-size: 12px; }
 .workspace-view-enter-active, .workspace-view-leave-active { transition: opacity var(--motion-base) var(--ease-standard), transform var(--motion-base) var(--ease-standard); }
 .workspace-view-enter-from, .workspace-view-leave-to { opacity: 0; transform: translateY(5px); }
 .toast-enter-active, .toast-leave-active { transition: opacity var(--motion-base) var(--ease-standard), transform var(--motion-base) var(--ease-standard); }
