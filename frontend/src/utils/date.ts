@@ -6,6 +6,12 @@ import { isValidJalaaliDate, toGregorian, toJalaali } from 'jalaali-js'
  */
 export type CanonicalDate = string
 
+export interface JalaliDate {
+  year: number
+  month: number
+  day: number
+}
+
 const jalaliMonths = [
   'Farvardin',
   'Ordibehesht',
@@ -20,6 +26,8 @@ const jalaliMonths = [
   'Bahman',
   'Esfand',
 ]
+
+export const jalaliWeekdays = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 
 const tehranDateParts = new Intl.DateTimeFormat('en-US', {
   calendar: 'gregory',
@@ -60,9 +68,8 @@ function canonicalParts(value: CanonicalDate): { year: number; month: number; da
 }
 
 export function formatDate(value: CanonicalDate): string {
-  const { year, month, day } = canonicalParts(value)
-  const jalali = toJalaali(year, month, day)
-  return `${jalali.jd} ${jalaliMonths[jalali.jm - 1]} ${jalali.jy}`
+  const jalali = toJalaliDate(value)
+  return `${jalali.day} ${jalaliMonths[jalali.month - 1]} ${jalali.year}`
 }
 
 export function formatDateTime(value: CanonicalDate): string {
@@ -84,4 +91,40 @@ export function parseJalaliDate(value: string): CanonicalDate | null {
 
   const gregorian = toGregorian(jy, jm, jd)
   return `${gregorian.gy}-${pad(gregorian.gm)}-${pad(gregorian.gd)}`
+}
+
+export function toJalaliDate(value: CanonicalDate): JalaliDate {
+  const { year, month, day } = canonicalParts(value)
+  const jalali = toJalaali(year, month, day)
+  return { year: jalali.jy, month: jalali.jm, day: jalali.jd }
+}
+
+export function fromJalaliDate(date: JalaliDate): CanonicalDate | null {
+  if (!isValidJalaaliDate(date.year, date.month, date.day)) return null
+  const gregorian = toGregorian(date.year, date.month, date.day)
+  return `${gregorian.gy}-${pad(gregorian.gm)}-${pad(gregorian.gd)}`
+}
+
+export function jalaliMonthLength(year: number, month: number): number {
+  if (month <= 6) return 31
+  if (month <= 11) return 30
+  return isValidJalaaliDate(year, month, 30) ? 30 : 29
+}
+
+export function jalaliMonthStartOffset(year: number, month: number): number {
+  const canonical = fromJalaliDate({ year, month, day: 1 })
+  if (!canonical) return 0
+  const date = parseDateOnly(canonical)
+  if (!date) return 0
+  const weekday = new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay()
+  return (weekday + 1) % 7
+}
+
+export function formatJalaliMonth(year: number, month: number): string {
+  return `${jalaliMonths[month - 1]} ${year}`
+}
+
+export function currentCanonicalDate(): CanonicalDate {
+  const { year, month, day } = canonicalParts(new Date().toISOString())
+  return `${year}-${pad(month)}-${pad(day)}`
 }

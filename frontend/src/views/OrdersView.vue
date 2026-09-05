@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import WorkspaceStickyStack from '../components/WorkspaceStickyStack.vue'
 import type { CommercialStatus, FulfillmentStatus, Order, PaymentStatus, Priority } from '../data/orders'
 import { formatMoney, type CurrencyUnit } from '../utils/currency'
 import { formatDate, formatDateTime } from '../utils/date'
@@ -105,7 +106,7 @@ function priorityTone(priority: Priority): BadgeTone {
 
 <template>
   <div class="orders-view">
-    <div class="orders-sticky-controls">
+    <WorkspaceStickyStack>
       <header class="workspace-heading orders-heading">
       <div>
         <p class="eyebrow">Sales / operational queue</p>
@@ -143,7 +144,7 @@ function priorityTone(priority: Priority): BadgeTone {
       <button v-if="hasActiveFilters" class="filter-clear" type="button" @click="clearFilters">Clear</button>
       <span class="filter-result">{{ filteredOrders.length }} of {{ orders.length }} orders</span>
       </section>
-    </div>
+    </WorkspaceStickyStack>
 
     <section class="orders-list-panel panel" aria-labelledby="orders-list-title">
       <header class="orders-list-heading">

@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import SectionPanel from '../components/SectionPanel.vue'
+import JalaliDatePicker from '../components/JalaliDatePicker.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import WorkspaceTabs from '../components/WorkspaceTabs.vue'
+import WorkspaceStickyStack from '../components/WorkspaceStickyStack.vue'
 import type { CommercialStatus, FulfillmentStatus, Order, OrderItem, PaymentStatus, Priority, ProductionStatus } from '../data/orders'
 import { formatMoney, type CurrencyUnit } from '../utils/currency'
-import { formatDate, formatDateTime, parseJalaliDate } from '../utils/date'
+import { formatDate, formatDateTime } from '../utils/date'
 import {
   ArrowLeft,
   ArrowRight,
@@ -41,7 +43,7 @@ const tabs = ['Overview', 'Items', 'Production', 'Payments', 'Files', 'History']
 const activeTab = ref('Overview')
 const showMargins = ref(true)
 const draftCustomer = ref('')
-const draftPromisedDateInput = ref('')
+const draftPromisedDate = ref<string | null>(null)
 const draftPriority = ref<Priority>('Normal')
 const draftNotes = ref('')
 const draftItems = ref<DraftItem[]>([
@@ -126,14 +128,13 @@ function formatDraftCustomer() {
 }
 
 function formatDraftPromised() {
-  const canonicalDate = parseJalaliDate(draftPromisedDateInput.value)
-  return canonicalDate ? formatDate(canonicalDate) : 'Set promised date'
+  return draftPromisedDate.value ? formatDate(draftPromisedDate.value) : 'Set promised date'
 }
 </script>
 
 <template>
   <div class="order-workspace">
-    <div class="order-sticky-controls">
+    <WorkspaceStickyStack :flush="true">
       <header class="order-workspace-header">
       <button class="back-button" type="button" @click="$emit('back')"><ArrowLeft :size="16" :stroke-width="1.8" aria-hidden="true" /> Orders</button>
       <div class="order-heading-copy">
@@ -181,7 +182,7 @@ function formatDraftPromised() {
       </section>
 
       <WorkspaceTabs :tabs="tabs" :active-tab="activeTab" @change="activeTab = $event" />
-    </div>
+    </WorkspaceStickyStack>
 
     <section v-if="activeTab === 'Overview'" class="order-tab-content">
       <div class="order-overview-grid">
@@ -199,8 +200,8 @@ function formatDraftPromised() {
             </label>
             <label class="form-field">
               <span>Promised date</span>
-              <input v-model="draftPromisedDateInput" type="text" inputmode="numeric" placeholder="1403/05/22" aria-describedby="promised-date-help" />
-              <small id="promised-date-help" class="field-help">Jalali date, for example 1403/05/22</small>
+              <JalaliDatePicker v-model="draftPromisedDate" />
+              <small id="promised-date-help" class="field-help">Choose a date from the Jalali calendar.</small>
             </label>
             <label class="form-field">
               <span>Priority</span>

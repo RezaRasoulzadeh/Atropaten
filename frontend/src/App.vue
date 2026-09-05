@@ -36,6 +36,8 @@ import KpiCard from './components/KpiCard.vue'
 import SectionPanel from './components/SectionPanel.vue'
 import SidebarNavItem from './components/SidebarNavItem.vue'
 import StatusBadge from './components/StatusBadge.vue'
+import WorkspaceBottomActions from './components/WorkspaceBottomActions.vue'
+import WorkspaceStickyStack from './components/WorkspaceStickyStack.vue'
 import { createDraftOrder, mockOrders } from './data/orders'
 import { formatMoney, formatSignedMoney, type CurrencyUnit } from './utils/currency'
 import { formatDate, formatDateTime } from './utils/date'
@@ -222,7 +224,7 @@ function showToast(message: string) {
       <main class="workspace" :class="{ 'workspace-dashboard': activeView === 'Dashboard' }" tabindex="-1">
         <Transition name="workspace-view" mode="out-in">
         <div v-if="activeView === 'Dashboard'" key="dashboard" class="dashboard-view">
-          <div class="dashboard-scroll-region">
+          <WorkspaceStickyStack>
             <header class="workspace-heading">
             <div>
               <p class="eyebrow">{{ formatDate(currentView.eyebrow) }}</p>
@@ -245,7 +247,9 @@ function showToast(message: string) {
               </button>
             </div>
             </header>
+          </WorkspaceStickyStack>
 
+          <div class="dashboard-content">
             <section class="kpi-grid" aria-label="Business summary">
               <KpiCard :value="formatMoney(2_486_000_000, currencyUnit)" :detail="`vs. ${formatMoney(2_204_000_000, currencyUnit)} last week`" title="Sales" trend="+12.8%" :icon="TrendingUp" accent="blue" />
               <KpiCard :value="formatMoney(842_000_000, currencyUnit)" detail="33.9% margin this week" title="Gross profit" trend="+9.4%" :icon="ChartNoAxesCombined" accent="green" />
@@ -343,7 +347,7 @@ function showToast(message: string) {
             </SectionPanel>
             </section>
           </div>
-          <section class="quick-actions" aria-labelledby="quick-actions-title">
+          <WorkspaceBottomActions class="quick-actions" aria-labelledby="quick-actions-title">
             <div>
               <p id="quick-actions-title" class="section-kicker">Quick actions</p>
               <p class="quick-actions-help">Jump into the workflows you use most.</p>
@@ -354,7 +358,7 @@ function showToast(message: string) {
               <button class="quick-action" type="button" @click="selectView('Purchases')"><ShoppingCart class="quick-action-icon" :size="16" :stroke-width="1.8" aria-hidden="true" />Record purchase</button>
               <button class="quick-action" type="button" @click="selectView('Accounting')"><Calculator class="quick-action-icon" :size="16" :stroke-width="1.8" aria-hidden="true" />Post expense</button>
             </div>
-          </section>
+          </WorkspaceBottomActions>
         </div>
 
         <div v-else-if="activeView === 'Orders'" key="orders" class="orders-view-transition">
