@@ -205,10 +205,11 @@ func (q Quantity) String() string {
 	}
 	whole := q / QuantityScale
 	fraction := q % QuantityScale
+	wholeValue := int64(whole)
 	if fraction == 0 {
-		return strconv.FormatInt(whole, 10)
+		return strconv.FormatInt(wholeValue, 10)
 	}
-	text := fmt.Sprintf("%06d", fraction)
+	text := fmt.Sprintf("%06d", int64(fraction))
 	text = strings.TrimRight(text, "0")
-	return strconv.FormatInt(whole, 10) + "." + text
+	return strconv.FormatInt(wholeValue, 10) + "." + text
 }
