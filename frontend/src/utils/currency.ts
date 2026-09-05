@@ -5,8 +5,8 @@
 export type CurrencyUnit = 'Toman' | 'Rial'
 
 const currencyLabels: Record<CurrencyUnit, string> = {
-  Toman: 'Toman',
-  Rial: 'Rial',
+  Toman: 'IRT',
+  Rial: 'IRR',
 }
 
 export function convertRial(amountRial: number, unit: CurrencyUnit): number {
