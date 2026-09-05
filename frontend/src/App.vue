@@ -38,6 +38,7 @@ import SidebarNavItem from './components/SidebarNavItem.vue'
 import StatusBadge from './components/StatusBadge.vue'
 import { createDraftOrder, mockOrders } from './data/orders'
 import { formatMoney, formatSignedMoney, type CurrencyUnit } from './utils/currency'
+import { formatDate, formatDateTime } from './utils/date'
 import OrderWorkspaceView from './views/OrderWorkspaceView.vue'
 import OrdersView from './views/OrdersView.vue'
 
@@ -87,7 +88,7 @@ const navigationSections: { label: string; items: NavigationItem[] }[] = [
 
 const viewDescriptions: Record<string, { eyebrow: string; title: string; description: string }> = {
   Dashboard: {
-    eyebrow: 'Monday, 12 August 2024',
+    eyebrow: '2024-08-12',
     title: 'Good morning, Reza',
     description: 'Here is what needs your attention today.',
   },
@@ -111,16 +112,16 @@ const currentView = computed(() => viewDescriptions[activeView.value] ?? {
 })
 
 const productionJobs = [
-  { id: 'ORD-1048', customer: 'Mehr Studio', item: 'Business cards · 500 pcs', due: 'Today, 15:30', status: 'In progress', tone: 'blue' as Tone, progress: 72 },
-  { id: 'ORD-1045', customer: 'Arman Foods', item: 'Menu · A3 laminated', due: 'Today, 17:00', status: 'Ready to print', tone: 'green' as Tone, progress: 100 },
-  { id: 'ORD-1042', customer: 'Nika Events', item: 'Event banners · 3 pcs', due: 'Tomorrow, 10:00', status: 'Queued', tone: 'slate' as Tone, progress: 18 },
-  { id: 'ORD-1039', customer: 'Pendar Clinic', item: 'Appointment cards · 1,000 pcs', due: 'Overdue · 2h', status: 'Waiting for proof', tone: 'amber' as Tone, progress: 45 },
+  { id: 'ORD-1048', customer: 'Mehr Studio', item: 'Business cards · 500 pcs', promisedAt: '2024-08-12T15:30:00+03:30', status: 'In progress', tone: 'blue' as Tone, progress: 72 },
+  { id: 'ORD-1045', customer: 'Arman Foods', item: 'Menu · A3 laminated', promisedAt: '2024-08-12T17:00:00+03:30', status: 'Ready to print', tone: 'green' as Tone, progress: 100 },
+  { id: 'ORD-1042', customer: 'Nika Events', item: 'Event banners · 3 pcs', promisedAt: '2024-08-13T10:00:00+03:30', status: 'Queued', tone: 'slate' as Tone, progress: 18 },
+  { id: 'ORD-1039', customer: 'Pendar Clinic', item: 'Appointment cards · 1,000 pcs', promisedAt: '2024-08-12T13:30:00+03:30', status: 'Waiting for proof', tone: 'amber' as Tone, progress: 45 },
 ]
 
 const financialAlerts = [
-  { label: 'Check due today', detail: 'Pars Paper · #CH-2094', amountRial: 128_000_000, tone: 'red' as Tone, icon: CircleAlert },
-  { label: 'Installment due this week', detail: 'Digital press loan · 16 Aug', amountRial: 86_000_000, tone: 'amber' as Tone, icon: Landmark },
-  { label: 'Invoice overdue', detail: 'Pendar Clinic · 12 days', amountRial: 245_000_000, tone: 'red' as Tone, icon: ReceiptText },
+  { label: 'Check due today', detail: 'Pars Paper · #CH-2094', detailDate: undefined, amountRial: 128_000_000, tone: 'red' as Tone, icon: CircleAlert },
+  { label: 'Installment due this week', detail: 'Digital press loan', detailDate: '2024-08-16', amountRial: 86_000_000, tone: 'amber' as Tone, icon: Landmark },
+  { label: 'Invoice overdue', detail: 'Pendar Clinic · 12 days', detailDate: undefined, amountRial: 245_000_000, tone: 'red' as Tone, icon: ReceiptText },
 ]
 
 const lowStockItems = [
@@ -177,7 +178,7 @@ function showToast(message: string) {
     <aside class="sidebar" aria-label="Primary navigation">
       <div class="brand-block">
         <div class="brand-mark" aria-hidden="true">A</div>
-        <div v-if="!isSidebarCollapsed" class="brand-copy">
+        <div class="brand-copy" :class="{ 'is-hidden': isSidebarCollapsed }">
           <span class="brand-name">Atropaten</span>
           <span class="brand-caption">Print shop control</span>
         </div>
@@ -201,9 +202,9 @@ function showToast(message: string) {
       <div class="sidebar-footer">
         <div class="sync-state">
           <span class="sync-dot" aria-hidden="true"></span>
-          <span v-if="!isSidebarCollapsed">Local workspace · synced</span>
+          <span class="sync-copy" :class="{ 'is-hidden': isSidebarCollapsed }">Local workspace · synced</span>
         </div>
-        <div v-if="!isSidebarCollapsed" class="sidebar-version">v0.1 foundation</div>
+        <div class="sidebar-version" :class="{ 'is-hidden': isSidebarCollapsed }">v0.1 foundation</div>
       </div>
     </aside>
 
@@ -219,11 +220,12 @@ function showToast(message: string) {
       />
 
       <main class="workspace" :class="{ 'workspace-dashboard': activeView === 'Dashboard' }" tabindex="-1">
-        <template v-if="activeView === 'Dashboard'">
+        <Transition name="workspace-view" mode="out-in">
+        <div v-if="activeView === 'Dashboard'" key="dashboard" class="dashboard-view">
           <div class="dashboard-scroll-region">
             <header class="workspace-heading">
             <div>
-              <p class="eyebrow">{{ currentView.eyebrow }}</p>
+              <p class="eyebrow">{{ formatDate(currentView.eyebrow) }}</p>
               <h1>{{ currentView.title }}</h1>
               <p class="heading-description">{{ currentView.description }}</p>
             </div>
@@ -278,7 +280,7 @@ function showToast(message: string) {
                           <span :style="{ width: `${job.progress}%` }"></span>
                         </div>
                       </td>
-                      <td :class="{ 'text-danger': job.status === 'Waiting for proof' }">{{ job.due }}</td>
+                      <td :class="{ 'text-danger': job.status === 'Waiting for proof' }">{{ formatDateTime(job.promisedAt) }}</td>
                       <td><StatusBadge :label="job.status" :tone="job.tone" /></td>
                     </tr>
                   </tbody>
@@ -295,7 +297,7 @@ function showToast(message: string) {
                   <span class="alert-icon" :class="`tone-${alert.tone}`" aria-hidden="true"><component :is="alert.icon" :size="15" :stroke-width="1.8" /></span>
                   <span class="alert-content">
                     <span class="alert-label">{{ alert.label }}</span>
-                    <span class="alert-detail">{{ alert.detail }}</span>
+                    <span class="alert-detail">{{ alert.detail }}<template v-if="alert.detailDate"> · {{ formatDate(alert.detailDate) }}</template></span>
                   </span>
                   <span class="alert-amount">{{ formatMoney(alert.amountRial, currencyUnit) }}</span>
                   <ChevronRight class="alert-chevron" :size="16" :stroke-width="1.8" aria-hidden="true" />
@@ -353,34 +355,39 @@ function showToast(message: string) {
               <button class="quick-action" type="button" @click="selectView('Accounting')"><Calculator class="quick-action-icon" :size="16" :stroke-width="1.8" aria-hidden="true" />Post expense</button>
             </div>
           </section>
-        </template>
+        </div>
 
-        <template v-else-if="activeView === 'Orders'">
-          <OrderWorkspaceView
-            v-if="isDraftOrder"
-            :order="draftOrder"
-            :is-draft="true"
-            :currency-unit="currencyUnit"
-            @back="closeOrderWorkspace"
-            @notify="showToast"
-          />
-          <OrderWorkspaceView
-            v-else-if="selectedOrder"
-            :order="selectedOrder"
-            :currency-unit="currencyUnit"
-            @back="closeOrderWorkspace"
-            @notify="showToast"
-          />
-          <OrdersView v-else :orders="mockOrders" :currency-unit="currencyUnit" @open-order="openOrder" @new-order="openNewOrder" />
-        </template>
+        <div v-else-if="activeView === 'Orders'" key="orders" class="orders-view-transition">
+          <Transition name="workspace-view" mode="out-in">
+            <OrderWorkspaceView
+              v-if="isDraftOrder"
+              key="draft-order"
+              :order="draftOrder"
+              :is-draft="true"
+              :currency-unit="currencyUnit"
+              @back="closeOrderWorkspace"
+              @notify="showToast"
+            />
+            <OrderWorkspaceView
+              v-else-if="selectedOrder"
+              :key="selectedOrder.id"
+              :order="selectedOrder"
+              :currency-unit="currencyUnit"
+              @back="closeOrderWorkspace"
+              @notify="showToast"
+            />
+            <OrdersView v-else key="orders-list" :orders="mockOrders" :currency-unit="currencyUnit" @open-order="openOrder" @new-order="openNewOrder" />
+          </Transition>
+        </div>
 
-        <section v-else class="empty-workspace">
+        <section v-else key="empty" class="empty-workspace">
           <div class="empty-workspace-icon" aria-hidden="true"><Sparkles :size="22" :stroke-width="1.8" /></div>
           <p class="eyebrow">Atropaten workspace</p>
           <h1>{{ currentView.title }}</h1>
           <p>{{ currentView.description }}</p>
           <button class="button button-secondary" type="button" @click="selectView('Dashboard')">Back to dashboard</button>
         </section>
+        </Transition>
       </main>
 
       <footer class="status-bar" aria-label="Workspace status">

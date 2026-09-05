@@ -19,8 +19,9 @@ export interface Order {
   id: string
   customer: string
   customerDetail: string
-  created: string
-  promised: string
+  createdAt: string
+  promisedAt: string | null
+  isOverdue: boolean
   priority: Priority
   commercialStatus: CommercialStatus
   fulfillmentStatus: FulfillmentStatus
@@ -37,8 +38,9 @@ export const mockOrders: Order[] = [
     id: 'ORD-1048',
     customer: 'Mehr Studio',
     customerDetail: 'mehr.studio@example.com · +98 21 4451 2080',
-    created: '12 Aug 2024',
-    promised: 'Today · 15:30',
+    createdAt: '2024-08-12T09:10:00+03:30',
+    promisedAt: '2024-08-12T15:30:00+03:30',
+    isOverdue: false,
     priority: 'High',
     commercialStatus: 'Confirmed',
     fulfillmentStatus: 'In production',
@@ -56,8 +58,9 @@ export const mockOrders: Order[] = [
     id: 'ORD-1045',
     customer: 'Arman Foods',
     customerDetail: 'orders@armanfoods.example · +98 21 8834 7110',
-    created: '12 Aug 2024',
-    promised: 'Today · 17:00',
+    createdAt: '2024-08-12T08:45:00+03:30',
+    promisedAt: '2024-08-12T17:00:00+03:30',
+    isOverdue: false,
     priority: 'Normal',
     commercialStatus: 'Confirmed',
     fulfillmentStatus: 'Ready',
@@ -75,8 +78,9 @@ export const mockOrders: Order[] = [
     id: 'ORD-1042',
     customer: 'Nika Events',
     customerDetail: 'studio@nikaevents.example · +98 21 2268 1904',
-    created: '11 Aug 2024',
-    promised: '13 Aug · 10:00',
+    createdAt: '2024-08-11T16:20:00+03:30',
+    promisedAt: '2024-08-13T10:00:00+03:30',
+    isOverdue: false,
     priority: 'Urgent',
     commercialStatus: 'Quoted',
     fulfillmentStatus: 'Pending',
@@ -94,8 +98,9 @@ export const mockOrders: Order[] = [
     id: 'ORD-1039',
     customer: 'Pendar Clinic',
     customerDetail: 'admin@pendarclinic.example · +98 21 8872 4022',
-    created: '31 Jul 2024',
-    promised: 'Overdue · 2 hours',
+    createdAt: '2024-07-31T11:05:00+03:30',
+    promisedAt: '2024-08-12T13:30:00+03:30',
+    isOverdue: true,
     priority: 'High',
     commercialStatus: 'Confirmed',
     fulfillmentStatus: 'In production',
@@ -113,8 +118,9 @@ export const mockOrders: Order[] = [
     id: 'ORD-1037',
     customer: 'Novin Architects',
     customerDetail: 'hello@novinarch.example · +98 21 2201 1196',
-    created: '29 Jul 2024',
-    promised: '09 Aug · 12:00',
+    createdAt: '2024-07-29T14:40:00+03:30',
+    promisedAt: '2024-08-09T12:00:00+03:30',
+    isOverdue: false,
     priority: 'Normal',
     commercialStatus: 'Closed',
     fulfillmentStatus: 'Delivered',
@@ -132,8 +138,9 @@ export const mockOrders: Order[] = [
     id: 'ORD-1032',
     customer: 'Cafe Saba',
     customerDetail: 'saba.cafe@example.com · +98 21 6671 0340',
-    created: '26 Jul 2024',
-    promised: '02 Aug · 16:00',
+    createdAt: '2024-07-26T10:15:00+03:30',
+    promisedAt: '2024-08-02T16:00:00+03:30',
+    isOverdue: false,
     priority: 'Low',
     commercialStatus: 'Closed',
     fulfillmentStatus: 'Delivered',
@@ -154,8 +161,9 @@ export function createDraftOrder(): Order {
     id: 'DRAFT-NEW',
     customer: 'Select customer',
     customerDetail: 'Choose an existing customer or add a new one',
-    created: 'Today · 12 Aug 2024',
-    promised: 'Set promised date',
+    createdAt: '2024-08-12T12:00:00+03:30',
+    promisedAt: null,
+    isOverdue: false,
     priority: 'Normal',
     commercialStatus: 'Draft',
     fulfillmentStatus: 'Pending',

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import type { CommercialStatus, FulfillmentStatus, Order, PaymentStatus, Priority } from '../data/orders'
 import { formatMoney, type CurrencyUnit } from '../utils/currency'
+import { formatDate, formatDateTime } from '../utils/date'
 import { ArrowRight, ArrowUpDown, ChevronDown, Plus, Search, SearchX } from 'lucide-vue-next'
 
 type SortKey = 'id' | 'customer' | 'created' | 'promised' | 'total' | 'balance' | 'priority'
@@ -51,8 +52,8 @@ function sortValue(order: Order, key: SortKey): string | number {
   if (key === 'priority') return ['Urgent', 'High', 'Normal', 'Low'].indexOf(order.priority)
   if (key === 'id') return order.id
   if (key === 'customer') return order.customer
-  if (key === 'created') return order.created
-  return order.promised
+  if (key === 'created') return order.createdAt
+  return order.promisedAt ?? ''
 }
 
 function sortOrders(key: SortKey) {
@@ -176,8 +177,8 @@ function priorityTone(priority: Priority): BadgeTone {
               <td><button class="order-link" type="button" @click.stop="openOrder(order.id)">{{ order.id }}</button></td>
               <td><span class="table-primary">{{ order.customer }}</span><span class="table-secondary">{{ order.customerDetail.split(' · ')[0] }}</span></td>
               <td><span class="table-primary item-summary">{{ order.itemSummary }}</span><span class="table-secondary">{{ order.items.length }} line items</span></td>
-              <td>{{ order.created }}</td>
-              <td :class="{ 'text-danger': order.promised.includes('Overdue') }">{{ order.promised }}</td>
+              <td>{{ formatDate(order.createdAt) }}</td>
+              <td :class="{ 'text-danger': order.isOverdue }">{{ formatDateTime(order.promisedAt ?? '') }}</td>
               <td class="numeric-column table-money">{{ currency(order.totalRial) }}</td>
               <td class="numeric-column table-money" :class="{ 'text-danger': order.totalRial - order.paidRial > 0 }">{{ currency(order.totalRial - order.paidRial) }}</td>
               <td><StatusBadge :label="order.commercialStatus" :tone="commercialTone(order.commercialStatus)" /></td>

@@ -22,6 +22,6 @@ defineEmits<{ select: [] }>()
     @click="$emit('select')"
   >
     <span class="nav-item-icon"><component :is="icon" :size="17" :stroke-width="1.8" aria-hidden="true" /></span>
-    <span v-if="!collapsed" class="nav-item-label">{{ label }}</span>
+    <span class="nav-item-label" :class="{ 'is-hidden': collapsed }">{{ label }}</span>
   </button>
 </template>
