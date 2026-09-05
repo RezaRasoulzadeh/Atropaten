@@ -37,6 +37,7 @@ import SectionPanel from './components/SectionPanel.vue'
 import SidebarNavItem from './components/SidebarNavItem.vue'
 import StatusBadge from './components/StatusBadge.vue'
 import { createDraftOrder, mockOrders } from './data/orders'
+import { formatMoney, formatSignedMoney, type CurrencyUnit } from './utils/currency'
 import OrderWorkspaceView from './views/OrderWorkspaceView.vue'
 import OrdersView from './views/OrdersView.vue'
 
@@ -96,6 +97,7 @@ const activeView = ref('Dashboard')
 const isSidebarCollapsed = ref(false)
 const searchQuery = ref('')
 const selectedPeriod = ref('This week')
+const currencyUnit = ref<CurrencyUnit>('Toman')
 const selectedOrderId = ref<string | null>(null)
 const isDraftOrder = ref(false)
 const draftOrder = createDraftOrder()
@@ -116,9 +118,9 @@ const productionJobs = [
 ]
 
 const financialAlerts = [
-  { label: 'Check due today', detail: 'Pars Paper · #CH-2094', amount: '$1,280', tone: 'red' as Tone, icon: CircleAlert },
-  { label: 'Installment due this week', detail: 'Digital press loan · 16 Aug', amount: '$860', tone: 'amber' as Tone, icon: Landmark },
-  { label: 'Invoice overdue', detail: 'Pendar Clinic · 12 days', amount: '$2,450', tone: 'red' as Tone, icon: ReceiptText },
+  { label: 'Check due today', detail: 'Pars Paper · #CH-2094', amountRial: 128_000_000, tone: 'red' as Tone, icon: CircleAlert },
+  { label: 'Installment due this week', detail: 'Digital press loan · 16 Aug', amountRial: 86_000_000, tone: 'amber' as Tone, icon: Landmark },
+  { label: 'Invoice overdue', detail: 'Pendar Clinic · 12 days', amountRial: 245_000_000, tone: 'red' as Tone, icon: ReceiptText },
 ]
 
 const lowStockItems = [
@@ -128,10 +130,10 @@ const lowStockItems = [
 ]
 
 const recentTransactions = [
-  { title: 'Payment received', party: 'Mehr Studio · ORD-1048', amount: '+$920', time: '10:42 AM', tone: 'green' as Tone, icon: ArrowDownLeft },
-  { title: 'Purchase recorded', party: 'Pars Paper · PUR-0061', amount: '−$1,280', time: '09:18 AM', tone: 'slate' as Tone, icon: ShoppingCart },
-  { title: 'Expense posted', party: 'Courier and delivery', amount: '−$84', time: 'Yesterday', tone: 'slate' as Tone, icon: ReceiptText },
-  { title: 'Payment received', party: 'Arman Foods · ORD-1045', amount: '+$640', time: 'Yesterday', tone: 'green' as Tone, icon: ArrowDownLeft },
+  { title: 'Payment received', party: 'Mehr Studio · ORD-1048', amountRial: 92_000_000, direction: 'in' as const, time: '10:42 AM', tone: 'green' as Tone, icon: ArrowDownLeft },
+  { title: 'Purchase recorded', party: 'Pars Paper · PUR-0061', amountRial: 128_000_000, direction: 'out' as const, time: '09:18 AM', tone: 'slate' as Tone, icon: ShoppingCart },
+  { title: 'Expense posted', party: 'Courier and delivery', amountRial: 8_400_000, direction: 'out' as const, time: 'Yesterday', tone: 'slate' as Tone, icon: ReceiptText },
+  { title: 'Payment received', party: 'Arman Foods · ORD-1045', amountRial: 64_000_000, direction: 'in' as const, time: 'Yesterday', tone: 'green' as Tone, icon: ArrowDownLeft },
 ]
 
 function selectView(label: string) {
@@ -209,14 +211,17 @@ function showToast(message: string) {
       <AppToolbar
         :collapsed="isSidebarCollapsed"
         :search-query="searchQuery"
+        :currency-unit="currencyUnit"
         @toggle-sidebar="isSidebarCollapsed = !isSidebarCollapsed"
         @update:search-query="searchQuery = $event"
+        @update:currency-unit="currencyUnit = $event"
         @notifications="showToast('You are all caught up.')"
       />
 
-      <main class="workspace" tabindex="-1">
+      <main class="workspace" :class="{ 'workspace-dashboard': activeView === 'Dashboard' }" tabindex="-1">
         <template v-if="activeView === 'Dashboard'">
-          <header class="workspace-heading">
+          <div class="dashboard-scroll-region">
+            <header class="workspace-heading">
             <div>
               <p class="eyebrow">{{ currentView.eyebrow }}</p>
               <h1>{{ currentView.title }}</h1>
@@ -237,16 +242,16 @@ function showToast(message: string) {
                 New order
               </button>
             </div>
-          </header>
+            </header>
 
-          <section class="kpi-grid" aria-label="Business summary">
-            <KpiCard title="Sales" value="$24,860" detail="vs. $22,040 last week" trend="+12.8%" :icon="TrendingUp" accent="blue" />
-            <KpiCard title="Gross profit" value="$8,420" detail="33.9% margin this week" trend="+9.4%" :icon="ChartNoAxesCombined" accent="green" />
-            <KpiCard title="Receivables" value="$12,680" detail="7 open invoices" trend="3 due soon" :icon="HandCoins" accent="amber" />
-            <KpiCard title="Payables" value="$6,240" detail="4 supplier balances" trend="2 due soon" :icon="ReceiptText" accent="red" />
-          </section>
+            <section class="kpi-grid" aria-label="Business summary">
+              <KpiCard :value="formatMoney(2_486_000_000, currencyUnit)" :detail="`vs. ${formatMoney(2_204_000_000, currencyUnit)} last week`" title="Sales" trend="+12.8%" :icon="TrendingUp" accent="blue" />
+              <KpiCard :value="formatMoney(842_000_000, currencyUnit)" detail="33.9% margin this week" title="Gross profit" trend="+9.4%" :icon="ChartNoAxesCombined" accent="green" />
+              <KpiCard :value="formatMoney(1_268_000_000, currencyUnit)" detail="7 open invoices" title="Receivables" trend="3 due soon" :icon="HandCoins" accent="amber" />
+              <KpiCard :value="formatMoney(624_000_000, currencyUnit)" detail="4 supplier balances" title="Payables" trend="2 due soon" :icon="ReceiptText" accent="red" />
+            </section>
 
-          <section class="dashboard-grid dashboard-grid-primary">
+            <section class="dashboard-grid dashboard-grid-primary">
             <SectionPanel title="Production queue" subtitle="4 active jobs · sorted by promised delivery" class="production-panel">
               <template #action>
                 <button class="text-button" type="button" @click="selectView('Production')">View production <ArrowRight :size="14" :stroke-width="1.8" aria-hidden="true" /></button>
@@ -286,13 +291,13 @@ function showToast(message: string) {
                 <span class="attention-count">3</span>
               </template>
               <div class="alert-list">
-                <button v-for="alert in financialAlerts" :key="alert.label" class="alert-row" type="button" @click="showToast(`${alert.label}: ${alert.amount}`)">
+                <button v-for="alert in financialAlerts" :key="alert.label" class="alert-row" type="button" @click="showToast(`${alert.label}: ${formatMoney(alert.amountRial, currencyUnit)}`)">
                   <span class="alert-icon" :class="`tone-${alert.tone}`" aria-hidden="true"><component :is="alert.icon" :size="15" :stroke-width="1.8" /></span>
                   <span class="alert-content">
                     <span class="alert-label">{{ alert.label }}</span>
                     <span class="alert-detail">{{ alert.detail }}</span>
                   </span>
-                  <span class="alert-amount">{{ alert.amount }}</span>
+                  <span class="alert-amount">{{ formatMoney(alert.amountRial, currencyUnit) }}</span>
                   <ChevronRight class="alert-chevron" :size="16" :stroke-width="1.8" aria-hidden="true" />
                 </button>
               </div>
@@ -303,7 +308,7 @@ function showToast(message: string) {
             </SectionPanel>
           </section>
 
-          <section class="dashboard-grid dashboard-grid-secondary">
+            <section class="dashboard-grid dashboard-grid-secondary">
             <SectionPanel title="Low stock" subtitle="Materials approaching reorder point" class="low-stock-panel">
               <template #action>
                 <button class="text-button" type="button" @click="selectView('Materials')">Open materials <ArrowRight :size="14" :stroke-width="1.8" aria-hidden="true" /></button>
@@ -329,13 +334,13 @@ function showToast(message: string) {
                     <span class="transaction-title">{{ transaction.title }}</span>
                     <span class="transaction-party">{{ transaction.party }}</span>
                   </span>
-                  <span class="transaction-value" :class="{ 'value-positive': transaction.amount.startsWith('+') }">{{ transaction.amount }}</span>
+                  <span class="transaction-value" :class="{ 'value-positive': transaction.direction === 'in' }">{{ formatSignedMoney(transaction.amountRial, currencyUnit, transaction.direction === 'in' ? '+' : '−') }}</span>
                   <span class="transaction-time">{{ transaction.time }}</span>
                 </div>
               </div>
             </SectionPanel>
-          </section>
-
+            </section>
+          </div>
           <section class="quick-actions" aria-labelledby="quick-actions-title">
             <div>
               <p id="quick-actions-title" class="section-kicker">Quick actions</p>
@@ -355,16 +360,18 @@ function showToast(message: string) {
             v-if="isDraftOrder"
             :order="draftOrder"
             :is-draft="true"
+            :currency-unit="currencyUnit"
             @back="closeOrderWorkspace"
             @notify="showToast"
           />
           <OrderWorkspaceView
             v-else-if="selectedOrder"
             :order="selectedOrder"
+            :currency-unit="currencyUnit"
             @back="closeOrderWorkspace"
             @notify="showToast"
           />
-          <OrdersView v-else :orders="mockOrders" @open-order="openOrder" @new-order="openNewOrder" />
+          <OrdersView v-else :orders="mockOrders" :currency-unit="currencyUnit" @open-order="openOrder" @new-order="openNewOrder" />
         </template>
 
         <section v-else class="empty-workspace">
@@ -381,10 +388,10 @@ function showToast(message: string) {
         <span class="status-divider" aria-hidden="true"></span>
         <span>Last updated just now</span>
         <span class="status-spacer"></span>
-        <span>Cash <strong>$4,820</strong></span>
-        <span>Bank <strong>$18,640</strong></span>
-        <span>Receivable <strong>$12,680</strong></span>
-        <span>Payable <strong>$6,240</strong></span>
+        <span>Cash <strong>{{ formatMoney(482_000_000, currencyUnit) }}</strong></span>
+        <span>Bank <strong>{{ formatMoney(1_864_000_000, currencyUnit) }}</strong></span>
+        <span>Receivable <strong>{{ formatMoney(1_268_000_000, currencyUnit) }}</strong></span>
+        <span>Payable <strong>{{ formatMoney(624_000_000, currencyUnit) }}</strong></span>
       </footer>
     </div>
 

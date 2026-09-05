@@ -201,6 +201,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .shop-selector strong { color: var(--text); font-size: 12px; }
 .shop-dot { width: 16px; height: 16px; flex: 0 0 16px; color: var(--accent); }
 .shop-selector-chevron { display: block; color: var(--text-muted); }
+.toolbar-currency { position: relative; display: inline-flex; align-items: center; }
+.toolbar-currency select { height: 34px; padding: 0 27px 0 10px; appearance: none; border: 1px solid var(--line); border-radius: var(--radius-sm); outline: 0; background: var(--surface); color: var(--text-soft); font-size: 11px; font-weight: 800; }
+.toolbar-currency select:hover { border-color: var(--line-strong); background: var(--surface-subtle); }
+.toolbar-currency select:focus { border-color: #9dbde6; box-shadow: 0 0 0 3px rgba(47, 111, 202, 0.1); }
+.toolbar-currency-chevron { position: absolute; right: 8px; color: var(--text-muted); pointer-events: none; }
 .notification-button { position: relative; }
 .notification-dot { position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border: 1px solid white; border-radius: 50%; background: var(--danger); }
 .user-profile { display: flex; align-items: center; gap: 9px; padding-left: 3px; }
@@ -209,7 +214,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .user-copy strong { font-size: 12px; }
 .user-copy span { color: var(--text-muted); font-size: 10px; }
 
-.workspace { min-width: 0; min-height: 0; padding: 29px clamp(24px, 3vw, 44px) 38px; overflow: auto; scrollbar-color: #cbd4dd transparent; scrollbar-width: thin; }
+.workspace { min-width: 0; min-height: 0; padding: 29px clamp(24px, 3vw, 44px) 38px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: #cbd4dd transparent; scrollbar-width: thin; }
+.workspace-dashboard { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 0; padding: 0; overflow: hidden; }
+.dashboard-scroll-region { min-width: 0; min-height: 0; padding: 29px clamp(24px, 3vw, 44px) 24px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: #cbd4dd transparent; scrollbar-width: thin; }
 .workspace-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 25px; }
 .eyebrow, .section-kicker { margin: 0 0 7px; color: var(--text-muted); font-size: 11px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
 h1, h2, p { margin-top: 0; }
@@ -295,6 +302,7 @@ h1 { margin-bottom: 4px; color: var(--text); font-size: clamp(23px, 2.4vw, 30px)
 .transaction-time { min-width: 67px; text-align: right; }
 
 .quick-actions { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 13px 17px; }
+.workspace-dashboard > .quick-actions { position: relative; z-index: 2; min-width: 0; margin: 0 clamp(24px, 3vw, 44px) 16px; }
 .section-kicker { margin-bottom: 2px; color: var(--text-soft); font-size: 10px; }
 .quick-actions-help { margin: 0; color: var(--text-muted); font-size: 11px; }
 .quick-action { display: flex; height: 35px; align-items: center; gap: 7px; padding: 0 11px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-subtle); color: var(--text-soft); font-size: 11px; font-weight: 800; white-space: nowrap; }

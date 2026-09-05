@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { Bell, ChevronDown, Menu, Search, Store } from 'lucide-vue-next'
+import type { CurrencyUnit } from '../utils/currency'
 
 defineProps<{
   collapsed: boolean
   searchQuery: string
+  currencyUnit: CurrencyUnit
 }>()
 
 defineEmits<{
   'toggle-sidebar': []
   'update:search-query': [value: string]
+  'update:currency-unit': [value: CurrencyUnit]
   notifications: []
 }>()
 </script>
@@ -36,6 +39,14 @@ defineEmits<{
       <span><strong>Central shop</strong> · Tehran</span>
       <ChevronDown class="shop-selector-chevron" :size="14" :stroke-width="1.8" aria-hidden="true" />
     </button>
+    <label class="toolbar-currency">
+      <span class="sr-only">Display currency</span>
+      <select :value="currencyUnit" aria-label="Display currency" @change="$emit('update:currency-unit', ($event.target as HTMLSelectElement).value as CurrencyUnit)">
+        <option value="Toman">Toman</option>
+        <option value="Rial">Rial</option>
+      </select>
+      <ChevronDown class="toolbar-currency-chevron" :size="13" :stroke-width="1.8" aria-hidden="true" />
+    </label>
     <button class="icon-button notification-button" type="button" aria-label="Notifications" @click="$emit('notifications')">
       <Bell :size="17" :stroke-width="1.8" aria-hidden="true" />
       <span class="notification-dot" aria-hidden="true"></span>

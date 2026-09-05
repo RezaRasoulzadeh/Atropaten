@@ -10,8 +10,8 @@ export interface OrderItem {
   specification: string
   quantity: number
   unit: string
-  sellingPrice: number
-  estimatedCost: number
+  sellingPriceRial: number
+  estimatedCostRial: number
   productionStatus: ProductionStatus
 }
 
@@ -26,8 +26,8 @@ export interface Order {
   fulfillmentStatus: FulfillmentStatus
   paymentStatus: PaymentStatus
   itemSummary: string
-  total: number
-  paid: number
+  totalRial: number
+  paidRial: number
   notes: string
   items: OrderItem[]
 }
@@ -44,12 +44,12 @@ export const mockOrders: Order[] = [
     fulfillmentStatus: 'In production',
     paymentStatus: 'Partially paid',
     itemSummary: 'Business cards · A3 menus',
-    total: 920,
-    paid: 460,
+    totalRial: 92_000_000,
+    paidRial: 46_000_000,
     notes: 'Call Mehr Studio before trimming. They approved the first proof by email.',
     items: [
-      { id: 'item-1048-1', service: 'Business cards', specification: '500 pcs · 350gsm matte · full color · double-sided', quantity: 500, unit: 'pcs', sellingPrice: 540, estimatedCost: 312, productionStatus: 'In progress' },
-      { id: 'item-1048-2', service: 'A3 menu printing', specification: '40 sheets · 300gsm gloss · full color · folded', quantity: 40, unit: 'sheets', sellingPrice: 380, estimatedCost: 214, productionStatus: 'Ready to print' },
+      { id: 'item-1048-1', service: 'Business cards', specification: '500 pcs · 350gsm matte · full color · double-sided', quantity: 500, unit: 'pcs', sellingPriceRial: 54_000_000, estimatedCostRial: 31_200_000, productionStatus: 'In progress' },
+      { id: 'item-1048-2', service: 'A3 menu printing', specification: '40 sheets · 300gsm gloss · full color · folded', quantity: 40, unit: 'sheets', sellingPriceRial: 38_000_000, estimatedCostRial: 21_400_000, productionStatus: 'Ready to print' },
     ],
   },
   {
@@ -63,12 +63,12 @@ export const mockOrders: Order[] = [
     fulfillmentStatus: 'Ready',
     paymentStatus: 'Paid',
     itemSummary: 'A3 menus · window stickers',
-    total: 640,
-    paid: 640,
+    totalRial: 64_000_000,
+    paidRial: 64_000_000,
     notes: 'Pack menus flat. Stickers should be separated by branch.',
     items: [
-      { id: 'item-1045-1', service: 'A3 menu printing', specification: '80 sheets · 250gsm matte · full color · folded', quantity: 80, unit: 'sheets', sellingPrice: 420, estimatedCost: 248, productionStatus: 'Ready to print' },
-      { id: 'item-1045-2', service: 'Window sticker set', specification: '6 pcs · clear vinyl · outdoor laminate', quantity: 6, unit: 'pcs', sellingPrice: 220, estimatedCost: 116, productionStatus: 'Delivered' },
+      { id: 'item-1045-1', service: 'A3 menu printing', specification: '80 sheets · 250gsm matte · full color · folded', quantity: 80, unit: 'sheets', sellingPriceRial: 42_000_000, estimatedCostRial: 24_800_000, productionStatus: 'Ready to print' },
+      { id: 'item-1045-2', service: 'Window sticker set', specification: '6 pcs · clear vinyl · outdoor laminate', quantity: 6, unit: 'pcs', sellingPriceRial: 22_000_000, estimatedCostRial: 11_600_000, productionStatus: 'Delivered' },
     ],
   },
   {
@@ -82,12 +82,12 @@ export const mockOrders: Order[] = [
     fulfillmentStatus: 'Pending',
     paymentStatus: 'Unpaid',
     itemSummary: 'Event banners · artwork setup',
-    total: 1_480,
-    paid: 0,
+    totalRial: 148_000_000,
+    paidRial: 0,
     notes: 'Waiting for the final sponsor lockup before sending to print.',
     items: [
-      { id: 'item-1042-1', service: 'Event banners', specification: '3 pcs · 90 × 200cm · 440gsm PVC · eyelets', quantity: 3, unit: 'pcs', sellingPrice: 1_260, estimatedCost: 784, productionStatus: 'Queued' },
-      { id: 'item-1042-2', service: 'Artwork setup', specification: '3 layouts · preflight and print-ready export', quantity: 3, unit: 'layouts', sellingPrice: 220, estimatedCost: 80, productionStatus: 'Waiting for proof' },
+      { id: 'item-1042-1', service: 'Event banners', specification: '3 pcs · 90 × 200cm · 440gsm PVC · eyelets', quantity: 3, unit: 'pcs', sellingPriceRial: 126_000_000, estimatedCostRial: 78_400_000, productionStatus: 'Queued' },
+      { id: 'item-1042-2', service: 'Artwork setup', specification: '3 layouts · preflight and print-ready export', quantity: 3, unit: 'layouts', sellingPriceRial: 22_000_000, estimatedCostRial: 8_000_000, productionStatus: 'Waiting for proof' },
     ],
   },
   {
@@ -101,12 +101,12 @@ export const mockOrders: Order[] = [
     fulfillmentStatus: 'In production',
     paymentStatus: 'Unpaid',
     itemSummary: 'Appointment cards · envelopes',
-    total: 2_450,
-    paid: 0,
+    totalRial: 245_000_000,
+    paidRial: 0,
     notes: 'Clinic requested delivery before the afternoon appointments.',
     items: [
-      { id: 'item-1039-1', service: 'Appointment cards', specification: '1,000 pcs · 300gsm matte · 1/1 color', quantity: 1000, unit: 'pcs', sellingPrice: 1_850, estimatedCost: 1_146, productionStatus: 'In progress' },
-      { id: 'item-1039-2', service: 'Branded envelopes', specification: '1,000 pcs · C5 · self-seal · 1/0 color', quantity: 1000, unit: 'pcs', sellingPrice: 600, estimatedCost: 322, productionStatus: 'Queued' },
+      { id: 'item-1039-1', service: 'Appointment cards', specification: '1,000 pcs · 300gsm matte · 1/1 color', quantity: 1000, unit: 'pcs', sellingPriceRial: 185_000_000, estimatedCostRial: 114_600_000, productionStatus: 'In progress' },
+      { id: 'item-1039-2', service: 'Branded envelopes', specification: '1,000 pcs · C5 · self-seal · 1/0 color', quantity: 1000, unit: 'pcs', sellingPriceRial: 60_000_000, estimatedCostRial: 32_200_000, productionStatus: 'Queued' },
     ],
   },
   {
@@ -120,12 +120,12 @@ export const mockOrders: Order[] = [
     fulfillmentStatus: 'Delivered',
     paymentStatus: 'Paid',
     itemSummary: 'Presentation boards · binding',
-    total: 1_120,
-    paid: 1_120,
+    totalRial: 112_000_000,
+    paidRial: 112_000_000,
     notes: 'Delivered to the reception desk.',
     items: [
-      { id: 'item-1037-1', service: 'Presentation boards', specification: '12 boards · A2 · foamboard mount · matte', quantity: 12, unit: 'boards', sellingPrice: 960, estimatedCost: 512, productionStatus: 'Delivered' },
-      { id: 'item-1037-2', service: 'Perfect binding', specification: '1 portfolio · 64 pages · soft cover', quantity: 1, unit: 'book', sellingPrice: 160, estimatedCost: 72, productionStatus: 'Delivered' },
+      { id: 'item-1037-1', service: 'Presentation boards', specification: '12 boards · A2 · foamboard mount · matte', quantity: 12, unit: 'boards', sellingPriceRial: 96_000_000, estimatedCostRial: 51_200_000, productionStatus: 'Delivered' },
+      { id: 'item-1037-2', service: 'Perfect binding', specification: '1 portfolio · 64 pages · soft cover', quantity: 1, unit: 'book', sellingPriceRial: 16_000_000, estimatedCostRial: 7_200_000, productionStatus: 'Delivered' },
     ],
   },
   {
@@ -139,12 +139,12 @@ export const mockOrders: Order[] = [
     fulfillmentStatus: 'Delivered',
     paymentStatus: 'Paid',
     itemSummary: 'Loyalty cards · counter sign',
-    total: 385,
-    paid: 385,
+    totalRial: 38_500_000,
+    paidRial: 38_500_000,
     notes: 'Repeat order. Use the saved Cafe Saba artwork.',
     items: [
-      { id: 'item-1032-1', service: 'Loyalty cards', specification: '250 pcs · 350gsm matte · rounded corners', quantity: 250, unit: 'pcs', sellingPrice: 285, estimatedCost: 142, productionStatus: 'Delivered' },
-      { id: 'item-1032-2', service: 'Counter sign', specification: '1 pc · A4 acrylic · full color insert', quantity: 1, unit: 'pc', sellingPrice: 100, estimatedCost: 42, productionStatus: 'Delivered' },
+      { id: 'item-1032-1', service: 'Loyalty cards', specification: '250 pcs · 350gsm matte · rounded corners', quantity: 250, unit: 'pcs', sellingPriceRial: 28_500_000, estimatedCostRial: 14_200_000, productionStatus: 'Delivered' },
+      { id: 'item-1032-2', service: 'Counter sign', specification: '1 pc · A4 acrylic · full color insert', quantity: 1, unit: 'pc', sellingPriceRial: 10_000_000, estimatedCostRial: 4_200_000, productionStatus: 'Delivered' },
     ],
   },
 ]
@@ -161,8 +161,8 @@ export function createDraftOrder(): Order {
     fulfillmentStatus: 'Pending',
     paymentStatus: 'Unpaid',
     itemSummary: 'No services added yet',
-    total: 0,
-    paid: 0,
+    totalRial: 0,
+    paidRial: 0,
     notes: '',
     items: [],
   }

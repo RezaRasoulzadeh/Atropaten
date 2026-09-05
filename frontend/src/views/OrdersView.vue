@@ -2,12 +2,13 @@
 import { computed, ref } from 'vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import type { CommercialStatus, FulfillmentStatus, Order, PaymentStatus, Priority } from '../data/orders'
+import { formatMoney, type CurrencyUnit } from '../utils/currency'
 import { ArrowRight, ArrowUpDown, ChevronDown, Plus, Search, SearchX } from 'lucide-vue-next'
 
 type SortKey = 'id' | 'customer' | 'created' | 'promised' | 'total' | 'balance' | 'priority'
 type BadgeTone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
 
-const props = defineProps<{ orders: Order[] }>()
+const props = defineProps<{ orders: Order[]; currencyUnit: CurrencyUnit }>()
 
 const emit = defineEmits<{
   'open-order': [orderId: string]
@@ -45,10 +46,13 @@ const filteredOrders = computed(() => {
 const hasActiveFilters = computed(() => Boolean(searchQuery.value || commercialFilter.value !== 'All' || fulfillmentFilter.value !== 'All' || paymentFilter.value !== 'All' || priorityFilter.value !== 'All'))
 
 function sortValue(order: Order, key: SortKey): string | number {
-  if (key === 'balance') return order.total - order.paid
-  if (key === 'total') return order.total
+  if (key === 'balance') return order.totalRial - order.paidRial
+  if (key === 'total') return order.totalRial
   if (key === 'priority') return ['Urgent', 'High', 'Normal', 'Low'].indexOf(order.priority)
-  return order[key]
+  if (key === 'id') return order.id
+  if (key === 'customer') return order.customer
+  if (key === 'created') return order.created
+  return order.promised
 }
 
 function sortOrders(key: SortKey) {
@@ -77,8 +81,8 @@ function openOrder(orderId: string) {
   emit('open-order', orderId)
 }
 
-function currency(value: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
+function currency(amountRial: number) {
+  return formatMoney(amountRial, props.currencyUnit)
 }
 
 function commercialTone(status: CommercialStatus): BadgeTone {
@@ -100,7 +104,8 @@ function priorityTone(priority: Priority): BadgeTone {
 
 <template>
   <div class="orders-view">
-    <header class="workspace-heading orders-heading">
+    <div class="orders-sticky-controls">
+      <header class="workspace-heading orders-heading">
       <div>
         <p class="eyebrow">Sales / operational queue</p>
         <h1>Orders</h1>
@@ -110,9 +115,9 @@ function priorityTone(priority: Priority): BadgeTone {
         <Plus class="button-icon" :size="16" :stroke-width="1.8" aria-hidden="true" />
         New order
       </button>
-    </header>
+      </header>
 
-    <section class="orders-filter-bar panel" aria-label="Order filters">
+      <section class="orders-filter-bar panel" aria-label="Order filters">
       <label class="orders-search">
         <span class="sr-only">Search orders</span>
         <Search :size="16" :stroke-width="1.8" aria-hidden="true" />
@@ -136,7 +141,8 @@ function priorityTone(priority: Priority): BadgeTone {
       </label>
       <button v-if="hasActiveFilters" class="filter-clear" type="button" @click="clearFilters">Clear</button>
       <span class="filter-result">{{ filteredOrders.length }} of {{ orders.length }} orders</span>
-    </section>
+      </section>
+    </div>
 
     <section class="orders-list-panel panel" aria-labelledby="orders-list-title">
       <header class="orders-list-heading">
@@ -172,8 +178,8 @@ function priorityTone(priority: Priority): BadgeTone {
               <td><span class="table-primary item-summary">{{ order.itemSummary }}</span><span class="table-secondary">{{ order.items.length }} line items</span></td>
               <td>{{ order.created }}</td>
               <td :class="{ 'text-danger': order.promised.includes('Overdue') }">{{ order.promised }}</td>
-              <td class="numeric-column table-money">{{ currency(order.total) }}</td>
-              <td class="numeric-column table-money" :class="{ 'text-danger': order.total - order.paid > 0 }">{{ currency(order.total - order.paid) }}</td>
+              <td class="numeric-column table-money">{{ currency(order.totalRial) }}</td>
+              <td class="numeric-column table-money" :class="{ 'text-danger': order.totalRial - order.paidRial > 0 }">{{ currency(order.totalRial - order.paidRial) }}</td>
               <td><StatusBadge :label="order.commercialStatus" :tone="commercialTone(order.commercialStatus)" /></td>
               <td><StatusBadge :label="order.fulfillmentStatus" :tone="fulfillmentTone(order.fulfillmentStatus)" /></td>
               <td><StatusBadge :label="order.paymentStatus" :tone="paymentTone(order.paymentStatus)" /></td>

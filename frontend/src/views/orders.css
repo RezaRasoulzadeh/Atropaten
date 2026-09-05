@@ -3,6 +3,29 @@
   min-width: 0;
 }
 
+.orders-sticky-controls,
+.order-sticky-controls {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin-top: -29px;
+  padding-top: 29px;
+  background: var(--app-bg);
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.orders-sticky-controls {
+  padding-bottom: 16px;
+}
+
+.orders-sticky-controls .orders-filter-bar {
+  margin-bottom: 0;
+}
+
+.order-sticky-controls {
+  padding-bottom: 1px;
+}
+
 .orders-heading {
   margin-bottom: 20px;
 }
