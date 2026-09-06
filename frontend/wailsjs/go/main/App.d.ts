@@ -40,11 +40,9 @@ export function CreateCustomer(arg1:main.CustomerInput):Promise<main.CustomerDTO
 
 export function CreateExpense(arg1:main.ExpenseInputDTO):Promise<main.ExpenseDTO>;
 
-export function CreateInvoiceFromOrder(arg1:string):Promise<main.InvoiceDTO>;
-
-export function CreateTransfer(arg1:main.TransferInputDTO):Promise<main.TransferDTO>;
-
 export function CreateInventoryReservation(arg1:main.InventoryReservationInput):Promise<main.InventoryReservationDTO>;
+
+export function CreateInvoiceFromOrder(arg1:string):Promise<main.InvoiceDTO>;
 
 export function CreateMachine(arg1:main.MachineInput):Promise<main.MachineDTO>;
 
@@ -66,9 +64,11 @@ export function CreateService(arg1:main.ServiceInput):Promise<main.ServiceDTO>;
 
 export function CreateSupplier(arg1:main.SupplierInput):Promise<main.SupplierDTO>;
 
-export function DeleteDraftPurchase(arg1:string):Promise<void>;
+export function CreateTransfer(arg1:main.TransferInputDTO):Promise<main.TransferDTO>;
 
 export function DeleteDraftInvoice(arg1:string):Promise<void>;
+
+export function DeleteDraftPurchase(arg1:string):Promise<void>;
 
 export function DeleteProductionJob(arg1:string):Promise<void>;
 
@@ -78,13 +78,13 @@ export function GetCustomer(arg1:string):Promise<main.CustomerDTO>;
 
 export function GetCustomerFinancialSummary(arg1:string):Promise<main.CustomerFinancialDTO>;
 
+export function GetInvoice(arg1:string):Promise<main.InvoiceDTO>;
+
 export function GetMachine(arg1:string):Promise<main.MachineDTO>;
 
 export function GetMaterial(arg1:string):Promise<main.MaterialDTO>;
 
 export function GetOrder(arg1:string):Promise<main.OrderDTO>;
-
-export function GetInvoice(arg1:string):Promise<main.InvoiceDTO>;
 
 export function GetProductionJob(arg1:string):Promise<main.ProductionJobDTO>;
 
@@ -99,19 +99,18 @@ export function GetSupplier(arg1:string):Promise<main.SupplierDTO>;
 export function GetSupplierPayableBalance(arg1:string):Promise<number>;
 
 export function ListAccounts():Promise<Array<main.AccountDTO>>;
-export function GetAccount(arg1:string):Promise<main.AccountDTO>;
 
 export function ListAttachments(arg1:string,arg2:string):Promise<Array<main.AttachmentDTO>>;
 
 export function ListCustomers(arg1:boolean):Promise<Array<main.CustomerDTO>>;
 
-export function ListFinancialAccounts():Promise<Array<main.FinancialAccountDTO>>;
-
 export function ListExpenses():Promise<Array<main.ExpenseDTO>>;
 
-export function ListInvoices():Promise<Array<main.InvoiceDTO>>;
+export function ListFinancialAccounts():Promise<Array<main.FinancialAccountDTO>>;
 
 export function ListInventoryReservations(arg1:string,arg2:string,arg3:string):Promise<Array<main.InventoryReservationDTO>>;
+
+export function ListInvoices():Promise<Array<main.InvoiceDTO>>;
 
 export function ListJournalEntries():Promise<Array<main.JournalEntryDTO>>;
 
@@ -124,7 +123,6 @@ export function ListMaterials(arg1:boolean):Promise<Array<main.MaterialDTO>>;
 export function ListOrders():Promise<Array<main.OrderDTO>>;
 
 export function ListPayments():Promise<Array<main.PaymentDTO>>;
-export function GetPayment(arg1:string):Promise<main.PaymentDTO>;
 
 export function ListProductionConsumptions(arg1:string):Promise<Array<main.ProductionConsumptionDTO>>;
 
@@ -142,9 +140,9 @@ export function ListSuppliers(arg1:boolean):Promise<Array<main.SupplierDTO>>;
 
 export function ListTransfers():Promise<Array<main.TransferDTO>>;
 
-export function PostPurchase(arg1:string):Promise<main.PurchaseDTO>;
-
 export function PostInvoice(arg1:string):Promise<main.InvoiceDTO>;
+
+export function PostPurchase(arg1:string):Promise<main.PurchaseDTO>;
 
 export function ReactivateCustomer(arg1:string):Promise<main.CustomerDTO>;
 
@@ -186,13 +184,13 @@ export function ReplaceOrderItem(arg1:string,arg2:string,arg3:main.OrderItemInpu
 
 export function ReplaceQuoteItem(arg1:string,arg2:string,arg3:main.OrderItemInput):Promise<main.QuoteDTO>;
 
-export function ReversePayment(arg1:string,arg2:string):Promise<main.PaymentDTO>;
-
 export function ReverseExpense(arg1:string,arg2:string):Promise<main.ExpenseDTO>;
 
-export function ReverseTransfer(arg1:string,arg2:string):Promise<main.TransferDTO>;
+export function ReversePayment(arg1:string,arg2:string):Promise<main.PaymentDTO>;
 
 export function ReverseProductionConsumption(arg1:string,arg2:string):Promise<void>;
+
+export function ReverseTransfer(arg1:string,arg2:string):Promise<main.TransferDTO>;
 
 export function UpdateCustomer(arg1:string,arg2:main.CustomerInput):Promise<main.CustomerDTO>;
 
