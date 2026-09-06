@@ -106,6 +106,27 @@ OwnerLoan
 ProfitAllocation
 ```
 
+## Deletion, archive, and historical records
+
+Atropaten must distinguish **Archive** from **Delete**. They are not aliases.
+
+For ordinary user-managed master data such as customers, suppliers, materials, services, machines, reusable pricing definitions, and similar records:
+
+- **Archive** is reversible and only removes the record from normal active workflows.
+- **Delete** means a real hard delete from persistent storage. It must not silently turn into archive/soft-delete behavior.
+- Every major CRUD surface should expose a proper Delete action where deletion is semantically safe.
+- Deleting an unreferenced record should purge it and its purely-owned child configuration transactionally instead of leaving dead rows indefinitely.
+- If another authoritative record still references it, deletion must either cascade only through data that has no independent historical meaning, or be rejected with a clear explanation of what prevents deletion.
+- Never silently orphan references, silently null important links, or silently archive when the user requested Delete.
+
+Historical/posted business records follow stronger rules:
+
+- Persisted order/quote snapshots, posted inventory movements, journal entries, payments, invoices, production consumption, and other authoritative history must not be hard-deleted once they have business/accounting meaning.
+- Draft/unposted transactional records may be hard-deleted when no protected downstream record depends on them.
+- Posted/committed history is corrected through cancellation, reversal, compensating records, or explicit void workflows rather than destructive deletion.
+
+The intent is to avoid database clutter from disposable master/configuration records while preserving auditability of authoritative history.
+
 ## Service and pricing model
 
 A service is a configurable calculation model, not merely a fixed-price catalog item.
