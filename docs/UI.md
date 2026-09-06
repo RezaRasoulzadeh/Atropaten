@@ -80,6 +80,26 @@ Avoid:
 
 Tables, inspectors, tabs, and forms should participate in the same workspace geometry. A page with tabs may keep the page header and, where useful, the tab strip sticky as a coordinated stack rather than implementing unrelated sticky positions.
 
+## Workspace fit, width, and overflow rules
+
+Desktop pages must use the available workspace width deliberately. A large unused right/left region is a layout defect unless that whitespace is part of a specific reading-width decision.
+
+For register + inspector/editor layouts:
+
+- the register/table pane should flex to consume remaining width
+- the inspector must have an explicit sensible width/min-width/max-width
+- neither pane may force controls outside its own box
+- grid/flex children that contain forms/tables must use `min-width: 0` where required so they can actually shrink
+- inputs, selects, textareas, and grouped field rows must fit the inspector width and use `box-sizing: border-box`
+- two-column form rows must collapse or rebalance before fields clip or overflow
+- long labels, values, badges, and table content must wrap, truncate, or scroll intentionally; accidental clipping is not acceptable
+- horizontal scrolling is acceptable for genuinely wide data tables, but ordinary forms/inspectors should not require it
+- the workspace should not leave a narrow content column floating inside a much wider desktop viewport without a deliberate max-width reason
+
+Every major page must be checked at representative desktop window widths, including narrower laptop-like sizes and wide desktop sizes. Layout acceptance is not only “build passes”; the page must use width coherently and no interactive control may be clipped, hidden under another surface, or rendered outside its panel.
+
+The screenshot pattern to avoid is a register that stops early while unused workspace remains beside it, combined with an inspector whose form controls extend beyond and get clipped by the panel/window boundary.
+
 ## Interaction patterns
 
 Prefer:
@@ -95,6 +115,8 @@ Prefer:
 - Explicit confirmation for destructive or financially significant operations
 
 Avoid excessive modal dialogs and navigation to separate pages for simple inspections.
+
+Deletion must be a distinct destructive action from Archive. When a record can be safely hard-deleted, expose Delete with explicit confirmation. If deletion is blocked because protected history references the record, explain why rather than silently archiving it.
 
 ## Dashboard
 
