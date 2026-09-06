@@ -138,6 +138,38 @@ var migrations = []migration{{
 		option_order INTEGER NOT NULL CHECK(option_order >= 0),
 		value TEXT NOT NULL CHECK(length(trim(value)) > 0),
 		PRIMARY KEY(parameter_id, option_order)
+	)`}, {
+	version: 3,
+	sql: `CREATE TABLE machines (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL CHECK(length(trim(name)) > 0),
+		code TEXT NOT NULL DEFAULT '',
+		category TEXT NOT NULL DEFAULT '',
+		rate_basis TEXT NOT NULL CHECK(rate_basis IN ('unit', 'minute', 'hour')),
+		rate_rial INTEGER NOT NULL CHECK(rate_rial >= 0),
+		setup_cost_rial INTEGER NOT NULL DEFAULT 0 CHECK(setup_cost_rial >= 0),
+		notes TEXT NOT NULL DEFAULT '',
+		active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	);
+	CREATE TABLE service_cost_components (
+		id TEXT PRIMARY KEY,
+		service_id TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+		component_name TEXT NOT NULL CHECK(length(trim(component_name)) > 0),
+		component_type TEXT NOT NULL CHECK(component_type IN ('material', 'machine', 'labor', 'outsourced', 'fixed', 'overhead', 'waste', 'manual')),
+		reference_id TEXT NOT NULL DEFAULT '',
+		usage_mode TEXT NOT NULL CHECK(usage_mode IN ('fixed', 'parameter')),
+		parameter_key TEXT NOT NULL DEFAULT '',
+		multiplier_units INTEGER NOT NULL CHECK(multiplier_units > 0),
+		rate_rial INTEGER NOT NULL DEFAULT 0 CHECK(rate_rial >= 0),
+		percentage_units INTEGER NOT NULL DEFAULT 0 CHECK(percentage_units >= 0),
+		rate_basis TEXT NOT NULL DEFAULT '',
+		enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)),
+		display_order INTEGER NOT NULL CHECK(display_order >= 0),
+		notes TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
 	)`},
 }
 
@@ -221,6 +253,60 @@ func (s *Store) Update(ctx context.Context, material domain.Material) error {
 	return nil
 }
 
+func (s *Store) ListMachines(ctx context.Context, includeArchived bool) ([]domain.Machine, error) {
+	query := `SELECT id, name, code, category, rate_basis, rate_rial, setup_cost_rial, notes, active, created_at, updated_at FROM machines`
+	if !includeArchived {
+		query += ` WHERE active = 1`
+	}
+	query += ` ORDER BY lower(name), id`
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("list machines: %w", err)
+	}
+	defer rows.Close()
+	machines := []domain.Machine{}
+	for rows.Next() {
+		machine, scanErr := scanMachine(rows)
+		if scanErr != nil {
+			return nil, fmt.Errorf("scan machine: %w", scanErr)
+		}
+		machines = append(machines, machine)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read machines: %w", err)
+	}
+	return machines, nil
+}
+
+func (s *Store) GetMachine(ctx context.Context, id string) (domain.Machine, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT id, name, code, category, rate_basis, rate_rial, setup_cost_rial, notes, active, created_at, updated_at FROM machines WHERE id = ?`, id)
+	machine, err := scanMachine(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return domain.Machine{}, domain.ErrMachineNotFound
+	}
+	if err != nil {
+		return domain.Machine{}, fmt.Errorf("get machine: %w", err)
+	}
+	return machine, nil
+}
+
+func (s *Store) SaveMachine(ctx context.Context, machine domain.Machine) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE machines SET name = ?, code = ?, category = ?, rate_basis = ?, rate_rial = ?, setup_cost_rial = ?, notes = ?, active = ?, updated_at = ? WHERE id = ?`, machine.Name, machine.Code, machine.Category, machine.RateBasis, machine.RateRial, machine.SetupCostRial, machine.Notes, boolToInt(machine.Active), machine.UpdatedAt.UTC().Format(time.RFC3339Nano), machine.ID)
+	if err != nil {
+		return fmt.Errorf("update machine: %w", err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check machine update: %w", err)
+	}
+	if count == 0 {
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO machines (id, name, code, category, rate_basis, rate_rial, setup_cost_rial, notes, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, machine.ID, machine.Name, machine.Code, machine.Category, machine.RateBasis, machine.RateRial, machine.SetupCostRial, machine.Notes, boolToInt(machine.Active), machine.CreatedAt.UTC().Format(time.RFC3339Nano), machine.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+			return fmt.Errorf("insert machine: %w", err)
+		}
+	}
+	return nil
+}
+
 func (s *Store) ListServices(ctx context.Context, includeArchived bool) ([]domain.Service, error) {
 	query := `SELECT id, name, code, category, description, active, created_at, updated_at FROM services`
 	if !includeArchived {
@@ -252,6 +338,10 @@ func (s *Store) ListServices(ctx context.Context, includeArchived bool) ([]domai
 		if err != nil {
 			return nil, err
 		}
+		services[index].Components, err = s.loadComponents(ctx, services[index].ID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return services, nil
 }
@@ -266,6 +356,10 @@ func (s *Store) GetService(ctx context.Context, id string) (domain.Service, erro
 		return domain.Service{}, fmt.Errorf("get service: %w", err)
 	}
 	service.Parameters, err = s.loadParameters(ctx, service.ID)
+	if err != nil {
+		return domain.Service{}, err
+	}
+	service.Components, err = s.loadComponents(ctx, service.ID)
 	if err != nil {
 		return domain.Service{}, err
 	}
@@ -374,6 +468,14 @@ func (s *Store) SaveServiceDefinition(ctx context.Context, service domain.Servic
 			}
 		}
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM service_cost_components WHERE service_id = ?`, service.ID); err != nil {
+		return rollback(fmt.Errorf("replace service cost components: %w", err))
+	}
+	for _, component := range service.Components {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO service_cost_components (id, service_id, component_name, component_type, reference_id, usage_mode, parameter_key, multiplier_units, rate_rial, percentage_units, rate_basis, enabled, display_order, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, component.ID, service.ID, component.Name, string(component.Type), component.ReferenceID, string(component.UsageMode), component.ParameterKey, int64(component.Multiplier), component.RateRial, int64(component.Percentage), component.RateBasis, boolToInt(component.Enabled), component.Position, component.Notes, component.CreatedAt.UTC().Format(time.RFC3339Nano), component.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+			return rollback(fmt.Errorf("insert service cost component: %w", err))
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit service definition: %w", err)
 	}
@@ -461,6 +563,72 @@ func scanParameter(row scanner) (domain.ServiceParameter, error) {
 		return domain.ServiceParameter{}, fmt.Errorf("parse parameter updated timestamp: %w", err)
 	}
 	return parameter, nil
+}
+
+func (s *Store) loadComponents(ctx context.Context, serviceID string) ([]domain.ServiceCostComponent, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, service_id, component_name, component_type, reference_id, usage_mode, parameter_key, multiplier_units, rate_rial, percentage_units, rate_basis, enabled, display_order, notes, created_at, updated_at FROM service_cost_components WHERE service_id = ? ORDER BY display_order, id`, serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("list service cost components: %w", err)
+	}
+	defer rows.Close()
+	components := []domain.ServiceCostComponent{}
+	for rows.Next() {
+		component, scanErr := scanComponent(rows)
+		if scanErr != nil {
+			return nil, fmt.Errorf("scan service cost component: %w", scanErr)
+		}
+		components = append(components, component)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read service cost components: %w", err)
+	}
+	return components, nil
+}
+
+func scanMachine(row scanner) (domain.Machine, error) {
+	var machine domain.Machine
+	var active int
+	var created, updated string
+	if err := row.Scan(&machine.ID, &machine.Name, &machine.Code, &machine.Category, &machine.RateBasis, &machine.RateRial, &machine.SetupCostRial, &machine.Notes, &active, &created, &updated); err != nil {
+		return domain.Machine{}, err
+	}
+	machine.Active = active == 1
+	var err error
+	machine.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
+	if err != nil {
+		return domain.Machine{}, fmt.Errorf("parse machine created timestamp: %w", err)
+	}
+	machine.UpdatedAt, err = time.Parse(time.RFC3339Nano, updated)
+	if err != nil {
+		return domain.Machine{}, fmt.Errorf("parse machine updated timestamp: %w", err)
+	}
+	return machine, nil
+}
+
+func scanComponent(row scanner) (domain.ServiceCostComponent, error) {
+	var component domain.ServiceCostComponent
+	var componentType, usageMode string
+	var multiplier, percentage int64
+	var enabled int
+	var created, updated string
+	if err := row.Scan(&component.ID, &component.ServiceID, &component.Name, &componentType, &component.ReferenceID, &usageMode, &component.ParameterKey, &multiplier, &component.RateRial, &percentage, &component.RateBasis, &enabled, &component.Position, &component.Notes, &created, &updated); err != nil {
+		return domain.ServiceCostComponent{}, err
+	}
+	component.Type = domain.CostComponentType(componentType)
+	component.UsageMode = domain.UsageMode(usageMode)
+	component.Multiplier = domain.Quantity(multiplier)
+	component.Percentage = domain.Quantity(percentage)
+	component.Enabled = enabled == 1
+	var err error
+	component.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
+	if err != nil {
+		return domain.ServiceCostComponent{}, fmt.Errorf("parse component created timestamp: %w", err)
+	}
+	component.UpdatedAt, err = time.Parse(time.RFC3339Nano, updated)
+	if err != nil {
+		return domain.ServiceCostComponent{}, fmt.Errorf("parse component updated timestamp: %w", err)
+	}
+	return component, nil
 }
 
 func boolToInt(value bool) int {

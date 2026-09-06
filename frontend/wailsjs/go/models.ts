@@ -83,8 +83,8 @@ export namespace main {
 	    position: number;
 	    defaultValue: string;
 	    options: string[];
-	    minValue: string | null;
-	    maxValue: string | null;
+	    minValue?: string;
+	    maxValue?: string;
 	    unit: string;
 	    active: boolean;
 
@@ -102,8 +102,8 @@ export namespace main {
 	        this.position = source["position"];
 	        this.defaultValue = source["defaultValue"];
 	        this.options = source["options"];
-	        this.minValue = source["minValue"] ?? null;
-	        this.maxValue = source["maxValue"] ?? null;
+	        this.minValue = source["minValue"];
+	        this.maxValue = source["maxValue"];
 	        this.unit = source["unit"];
 	        this.active = source["active"];
 	    }
@@ -118,6 +118,7 @@ export namespace main {
 	    createdAt: string;
 	    updatedAt: string;
 	    parameters: ServiceParameterDTO[];
+	    components: ServiceCostComponentDTO[];
 
 	    static createFrom(source: any = {}) {
 	        return new ServiceDTO(source);
@@ -134,6 +135,7 @@ export namespace main {
 	        this.createdAt = source["createdAt"];
 	        this.updatedAt = source["updatedAt"];
 	        this.parameters = this.convertValues(source["parameters"], ServiceParameterDTO);
+	        this.components = this.convertValues(source["components"], ServiceCostComponentDTO);
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -154,6 +156,11 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class ServiceCostComponentDTO {
+	    id: string; name: string; type: string; referenceId: string; usageMode: string; parameterKey: string; multiplier: string; rateRial: number; percentage: string; rateBasis: string; enabled: boolean; position: number; notes: string;
+	    static createFrom(source: any = {}) { return new ServiceCostComponentDTO(source); }
+	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.id=source["id"]; this.name=source["name"]; this.type=source["type"]; this.referenceId=source["referenceId"]; this.usageMode=source["usageMode"]; this.parameterKey=source["parameterKey"]; this.multiplier=source["multiplier"]; this.rateRial=source["rateRial"]; this.percentage=source["percentage"]; this.rateBasis=source["rateBasis"]; this.enabled=source["enabled"]; this.position=source["position"]; this.notes=source["notes"]; }
+	}
 	export class ServiceParameterInput {
 	    id: string;
 	    key: string;
@@ -162,8 +169,8 @@ export namespace main {
 	    required: boolean;
 	    defaultValue: string;
 	    options: string[];
-	    minValue: string | null;
-	    maxValue: string | null;
+	    minValue?: string;
+	    maxValue?: string;
 	    unit: string;
 
 	    static createFrom(source: any = {}) {
@@ -179,8 +186,8 @@ export namespace main {
 	        this.required = source["required"];
 	        this.defaultValue = source["defaultValue"];
 	        this.options = source["options"];
-	        this.minValue = source["minValue"] ?? null;
-	        this.maxValue = source["maxValue"] ?? null;
+	        this.minValue = source["minValue"];
+	        this.maxValue = source["maxValue"];
 	        this.unit = source["unit"];
 	    }
 	}
@@ -190,6 +197,7 @@ export namespace main {
 	    category: string;
 	    description: string;
 	    parameters: ServiceParameterInput[];
+	    components: ServiceCostComponentInput[];
 
 	    static createFrom(source: any = {}) {
 	        return new ServiceInput(source);
@@ -202,6 +210,7 @@ export namespace main {
 	        this.category = source["category"];
 	        this.description = source["description"];
 	        this.parameters = this.convertValues(source["parameters"], ServiceParameterInput);
+	        this.components = this.convertValues(source["components"], ServiceCostComponentInput);
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -221,6 +230,21 @@ export namespace main {
 		    }
 		    return a;
 		}
+	}
+	export class ServiceCostComponentInput {
+	    id: string; name: string; type: string; referenceId: string; usageMode: string; parameterKey: string; multiplier: string; rateRial: number; percentage: string; rateBasis: string; enabled: boolean; notes: string;
+	    static createFrom(source: any = {}) { return new ServiceCostComponentInput(source); }
+	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.id=source["id"]; this.name=source["name"]; this.type=source["type"]; this.referenceId=source["referenceId"]; this.usageMode=source["usageMode"]; this.parameterKey=source["parameterKey"]; this.multiplier=source["multiplier"]; this.rateRial=source["rateRial"]; this.percentage=source["percentage"]; this.rateBasis=source["rateBasis"]; this.enabled=source["enabled"]; this.notes=source["notes"]; }
+	}
+	export class MachineDTO {
+	    id: string; name: string; code: string; category: string; rateBasis: string; rateRial: number; setupCostRial: number; notes: string; active: boolean; createdAt: string; updatedAt: string;
+	    static createFrom(source: any = {}) { return new MachineDTO(source); }
+	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.id=source["id"]; this.name=source["name"]; this.code=source["code"]; this.category=source["category"]; this.rateBasis=source["rateBasis"]; this.rateRial=source["rateRial"]; this.setupCostRial=source["setupCostRial"]; this.notes=source["notes"]; this.active=source["active"]; this.createdAt=source["createdAt"]; this.updatedAt=source["updatedAt"]; }
+	}
+	export class MachineInput {
+	    name: string; code: string; category: string; rateBasis: string; rateRial: number; setupCostRial: number; notes: string;
+	    static createFrom(source: any = {}) { return new MachineInput(source); }
+	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.name=source["name"]; this.code=source["code"]; this.category=source["category"]; this.rateBasis=source["rateBasis"]; this.rateRial=source["rateRial"]; this.setupCostRial=source["setupCostRial"]; this.notes=source["notes"]; }
 	}
 
 

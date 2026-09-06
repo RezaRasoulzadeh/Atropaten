@@ -71,6 +71,16 @@
 .parameter-empty-inline { display: flex; min-height: 68px; align-items: center; justify-content: center; gap: 8px; border: 1px dashed var(--line-strong); border-radius: var(--radius-sm); color: var(--text-muted); font-size: 11px; text-align: center; }
 .parameter-empty-inline svg { color: var(--accent); }
 .form-field em { color: var(--text-muted); font-style: normal; font-weight: 400; }
+.cost-component-card { border-left: 3px solid #d9e7f8; }
+.cost-component-card .checkbox-control { width: fit-content; }
+.field-warning { color: var(--danger); }
+.inspector-component-list { display: grid; margin-top: 17px; padding-top: 14px; border-top: 1px solid var(--line); }
+.inspector-subheading { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.inspector-subheading span { color: var(--accent-strong); }
+.inspector-component { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid #edf0f3; }
+.inspector-component > div { display: grid; min-width: 0; gap: 3px; }
+.inspector-component strong { color: var(--text); font-size: 12px; }
+.inspector-component small { color: var(--text-muted); font-size: 10px; line-height: 1.35; }
 
 @media (max-width: 1160px) { .services-layout { grid-template-columns: minmax(0, 1fr) minmax(310px, 370px); } }
 @media (max-width: 920px) { .services-layout { grid-template-columns: minmax(0, 1fr); } .service-inspector { position: static; } }

@@ -11,17 +11,18 @@ import (
 )
 
 var (
-	ErrServiceNotFound   = errors.New("service not found")
-	ErrParameterNotFound = errors.New("service parameter not found")
+	ErrServiceNotFound       = errors.New("service not found")
+	ErrParameterNotFound     = errors.New("service parameter not found")
+	ErrCostComponentNotFound = errors.New("service cost component not found")
 )
 
 type ParameterType string
 
 const (
-	ParameterInteger         ParameterType = "integer"
-	ParameterDecimal         ParameterType = "decimal"
-	ParameterBoolean         ParameterType = "boolean"
-	ParameterChoice          ParameterType = "choice"
+	ParameterInteger           ParameterType = "integer"
+	ParameterDecimal           ParameterType = "decimal"
+	ParameterBoolean           ParameterType = "boolean"
+	ParameterChoice            ParameterType = "choice"
 	ParameterMaterialReference ParameterType = "material-reference"
 )
 
@@ -37,6 +38,7 @@ type Service struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Parameters  []ServiceParameter
+	Components  []ServiceCostComponent
 }
 
 type ServiceDraft struct {
@@ -45,6 +47,63 @@ type ServiceDraft struct {
 	Category    string
 	Description string
 	Parameters  []ServiceParameterDraft
+	Components  []ServiceCostComponentDraft
+}
+
+type CostComponentType string
+
+const (
+	// Percentage components are definitions only in M1-003. M1-004 applies
+	// overhead and waste to the enabled subtotal accumulated before them.
+	CostMaterial   CostComponentType = "material"
+	CostMachine    CostComponentType = "machine"
+	CostLabor      CostComponentType = "labor"
+	CostOutsourced CostComponentType = "outsourced"
+	CostFixed      CostComponentType = "fixed"
+	CostOverhead   CostComponentType = "overhead"
+	CostWaste      CostComponentType = "waste"
+	CostManual     CostComponentType = "manual"
+)
+
+type UsageMode string
+
+const (
+	UsageFixed     UsageMode = "fixed"
+	UsageParameter UsageMode = "parameter"
+)
+
+type ServiceCostComponent struct {
+	ID           string
+	ServiceID    string
+	Name         string
+	Type         CostComponentType
+	ReferenceID  string
+	UsageMode    UsageMode
+	ParameterKey string
+	Multiplier   Quantity
+	RateRial     int64
+	Percentage   Quantity
+	RateBasis    string
+	Enabled      bool
+	Position     int
+	Notes        string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type ServiceCostComponentDraft struct {
+	ID           string
+	Name         string
+	Type         CostComponentType
+	ReferenceID  string
+	UsageMode    UsageMode
+	ParameterKey string
+	Multiplier   Quantity
+	RateRial     int64
+	Percentage   Quantity
+	RateBasis    string
+	Enabled      bool
+	Notes        string
 }
 
 type ServiceParameter struct {
@@ -93,6 +152,10 @@ func NewService(id string, draft ServiceDraft, now time.Time) (Service, error) {
 	for index, parameter := range draft.Parameters {
 		service.Parameters[index] = parameterFromDraft(service.ID, parameter, index, now)
 	}
+	service.Components = make([]ServiceCostComponent, len(draft.Components))
+	for index, component := range draft.Components {
+		service.Components[index] = componentFromDraft(service.ID, component, index, now)
+	}
 	if err := service.Validate(); err != nil {
 		return Service{}, err
 	}
@@ -116,6 +179,15 @@ func (s *Service) Update(draft ServiceDraft, now time.Time) error {
 		}
 		updated.Parameters[index].ServiceID = s.ID
 		updated.Parameters[index].UpdatedAt = now.UTC()
+	}
+	for index := range updated.Components {
+		for _, existing := range s.Components {
+			if existing.ID != "" && existing.ID == updated.Components[index].ID {
+				updated.Components[index].CreatedAt = existing.CreatedAt
+			}
+		}
+		updated.Components[index].ServiceID = s.ID
+		updated.Components[index].UpdatedAt = now.UTC()
 	}
 	*s = updated
 	return nil
@@ -150,6 +222,107 @@ func (s Service) Validate() error {
 		ids[parameter.ID] = struct{}{}
 		if err := parameter.Validate(); err != nil {
 			return fmt.Errorf("parameter %q: %w", parameter.Key, err)
+		}
+	}
+	componentIDs := make(map[string]struct{}, len(s.Components))
+	for index, component := range s.Components {
+		if component.ServiceID != s.ID {
+			return validationError(fmt.Sprintf("components[%d].serviceId", index), "must match the service")
+		}
+		if component.Position != index {
+			return validationError(fmt.Sprintf("components[%d].position", index), "must be deterministic")
+		}
+		if _, exists := componentIDs[component.ID]; exists {
+			return validationError("component.id", "must be unique within a service")
+		}
+		componentIDs[component.ID] = struct{}{}
+		if err := component.Validate(); err != nil {
+			return fmt.Errorf("component %q: %w", component.Name, err)
+		}
+	}
+	parameterTypes := make(map[string]ParameterType, len(s.Parameters))
+	for _, parameter := range s.Parameters {
+		parameterTypes[parameter.Key] = parameter.Type
+	}
+	for index, component := range s.Components {
+		if component.UsageMode == UsageParameter {
+			parameterType, exists := parameterTypes[component.ParameterKey]
+			if !exists {
+				return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference an existing service parameter")
+			}
+			if parameterType != ParameterInteger && parameterType != ParameterDecimal {
+				return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference an integer or decimal parameter")
+			}
+		}
+	}
+	return nil
+}
+
+func (c ServiceCostComponent) Validate() error {
+	if strings.TrimSpace(c.ID) == "" {
+		return validationError("id", "is required")
+	}
+	if strings.TrimSpace(c.Name) == "" {
+		return validationError("name", "is required")
+	}
+	if c.Position < 0 {
+		return validationError("position", "cannot be negative")
+	}
+	if c.CreatedAt.IsZero() || c.UpdatedAt.IsZero() {
+		return validationError("timestamps", "are required")
+	}
+	if c.Multiplier <= 0 {
+		return validationError("multiplier", "must be greater than zero")
+	}
+	if c.RateRial < 0 {
+		return validationError("rateRial", "cannot be negative")
+	}
+	if c.Percentage < 0 || c.Percentage > Quantity(100*QuantityScale) {
+		return validationError("percentage", "must be between 0 and 100")
+	}
+	switch c.Type {
+	case CostMaterial, CostMachine:
+		if strings.TrimSpace(c.ReferenceID) == "" {
+			return validationError("referenceId", "is required")
+		}
+		if c.RateRial != 0 || c.Percentage != 0 {
+			return validationError("rateRial", "is not supported for referenced components")
+		}
+	case CostLabor, CostOutsourced, CostFixed, CostManual:
+		if c.ReferenceID != "" || c.Percentage != 0 {
+			return validationError("referenceId", "is not supported for this component type")
+		}
+		if c.Type == CostLabor {
+			validBasis := false
+			for _, basis := range SupportedRateBases() {
+				if c.RateBasis == basis {
+					validBasis = true
+					break
+				}
+			}
+			if !validBasis {
+				return validationError("rateBasis", "must be unit, minute, or hour for labor")
+			}
+		}
+	case CostOverhead, CostWaste:
+		if c.Percentage <= 0 {
+			return validationError("percentage", "must be greater than zero")
+		}
+		if c.ReferenceID != "" || c.RateRial != 0 || c.UsageMode != UsageFixed || c.ParameterKey != "" {
+			return validationError("percentage", "must be the only cost input for this component type")
+		}
+	default:
+		return validationError("type", "is not supported")
+	}
+	if c.Type != CostOverhead && c.Type != CostWaste {
+		if c.UsageMode != UsageFixed && c.UsageMode != UsageParameter {
+			return validationError("usageMode", "must be fixed or parameter")
+		}
+		if c.UsageMode == UsageFixed && c.ParameterKey != "" {
+			return validationError("parameterKey", "must be empty for fixed usage")
+		}
+		if c.UsageMode == UsageParameter && strings.TrimSpace(c.ParameterKey) == "" {
+			return validationError("parameterKey", "is required for parameter usage")
 		}
 	}
 	return nil
@@ -264,6 +437,14 @@ func parameterFromDraft(serviceID string, draft ServiceParameterDraft, position 
 	}
 }
 
+func componentFromDraft(serviceID string, draft ServiceCostComponentDraft, position int, now time.Time) ServiceCostComponent {
+	usageMode := UsageMode(strings.ToLower(strings.TrimSpace(string(draft.UsageMode))))
+	if usageMode == "" {
+		usageMode = UsageFixed
+	}
+	return ServiceCostComponent{ID: draft.ID, ServiceID: serviceID, Name: strings.TrimSpace(draft.Name), Type: CostComponentType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), ReferenceID: strings.TrimSpace(draft.ReferenceID), UsageMode: usageMode, ParameterKey: strings.TrimSpace(draft.ParameterKey), Multiplier: draft.Multiplier, RateRial: draft.RateRial, Percentage: draft.Percentage, RateBasis: strings.TrimSpace(draft.RateBasis), Enabled: draft.Enabled, Position: position, Notes: strings.TrimSpace(draft.Notes), CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
+}
+
 func validateNumericBounds(minimum, maximum *Quantity) error {
 	if minimum != nil && *minimum < 0 {
 		return validationError("minValue", "cannot be negative")
@@ -325,5 +506,12 @@ func NormalizeParameterOrder(parameters []ServiceParameter) {
 	})
 	for index := range parameters {
 		parameters[index].Position = index
+	}
+}
+
+func NormalizeComponentOrder(components []ServiceCostComponent) {
+	sort.SliceStable(components, func(left, right int) bool { return components[left].Position < components[right].Position })
+	for index := range components {
+		components[index].Position = index
 	}
 }

@@ -46,8 +46,8 @@ func TestMigrationUpgradeKeepsExistingMaterials(t *testing.T) {
 	if err := store.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil {
 		t.Fatalf("read migration version: %v", err)
 	}
-	if version != 2 {
-		t.Fatalf("migration version = %d, want 2", version)
+	if version != 3 {
+		t.Fatalf("migration version = %d, want 3", version)
 	}
 	material, err := store.Get(context.Background(), "MAT-legacy")
 	if err != nil {
@@ -55,6 +55,53 @@ func TestMigrationUpgradeKeepsExistingMaterials(t *testing.T) {
 	}
 	if material.AverageUnitCostRial != 123456789 || material.PhysicalStock != domain.Quantity(1250000) {
 		t.Fatalf("legacy material changed during migration: %+v", material)
+	}
+}
+
+func TestM1002DatabaseUpgradesToM1003WithoutLosingServices(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "m1002.db")
+	legacy, err := sql.Open("sqlite3", path)
+	if err != nil {
+		t.Fatalf("open M1-002 database: %v", err)
+	}
+	if _, err := legacy.Exec(`CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	for version := 1; version <= 2; version++ {
+		if _, err := legacy.Exec(migrations[version-1].sql); err != nil {
+			t.Fatalf("apply legacy migration %d: %v", version, err)
+		}
+		if _, err := legacy.Exec(`INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)`, version, "2024-08-12T07:00:00Z"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := legacy.Exec(`INSERT INTO services (id, name, code, category, description, active, created_at, updated_at) VALUES ('SVC-existing', 'Existing service', '', '', '', 1, '2024-08-12T07:00:00Z', '2024-08-12T07:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := legacy.Exec(`INSERT INTO service_parameters (id, service_id, parameter_key, label, parameter_type, required, display_order, default_value, unit_label, active, created_at, updated_at) VALUES ('PAR-existing', 'SVC-existing', 'quantity', 'Quantity', 'integer', 1, 0, '1', '', 1, '2024-08-12T07:00:00Z', '2024-08-12T07:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := legacy.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store, err := Open(path)
+	if err != nil {
+		t.Fatalf("upgrade M1-002 database: %v", err)
+	}
+	defer store.Close()
+	service, err := store.GetService(context.Background(), "SVC-existing")
+	if err != nil {
+		t.Fatalf("read existing service: %v", err)
+	}
+	if service.Name != "Existing service" || len(service.Parameters) != 1 || len(service.Components) != 0 {
+		t.Fatalf("existing service changed during migration: %+v", service)
+	}
+	var machineTable, componentTable string
+	if err := store.db.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name='machines'`).Scan(&machineTable); err != nil {
+		t.Fatalf("machines table missing: %v", err)
+	}
+	if err := store.db.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name='service_cost_components'`).Scan(&componentTable); err != nil {
+		t.Fatalf("components table missing: %v", err)
 	}
 }
 
@@ -73,6 +120,11 @@ func TestServicePersistenceOrderingAndTransactionalRollback(t *testing.T) {
 			{ID: "PAR-quantity", Key: "quantity", Label: "Quantity", Type: domain.ParameterInteger, Required: true, DefaultValue: "1"},
 			{ID: "PAR-hours", Key: "estimated_hours", Label: "Estimated hours", Type: domain.ParameterDecimal, Required: true, DefaultValue: "0.125001", MinValue: &min},
 			{ID: "PAR-size", Key: "paper_size", Label: "Paper size", Type: domain.ParameterChoice, Options: []string{"A4", "A3"}, DefaultValue: "A4"},
+		},
+		Components: []domain.ServiceCostComponentDraft{
+			{ID: "CMP-paper", Name: "Paper", Type: domain.CostMaterial, ReferenceID: "MAT-paper", UsageMode: domain.UsageParameter, ParameterKey: "quantity", Multiplier: 2 * domain.QuantityScale},
+			{ID: "CMP-labor", Name: "Design labor", Type: domain.CostLabor, UsageMode: domain.UsageParameter, ParameterKey: "estimated_hours", Multiplier: domain.QuantityScale, RateRial: 987654321, RateBasis: domain.RatePerHour},
+			{ID: "CMP-overhead", Name: "Overhead", Type: domain.CostOverhead, Multiplier: domain.QuantityScale, Percentage: 7_125_001},
 		},
 	}, now)
 	if err != nil {
@@ -100,6 +152,9 @@ func TestServicePersistenceOrderingAndTransactionalRollback(t *testing.T) {
 	}
 	if len(got.Parameters[2].Options) != 2 || got.Parameters[2].Options[1] != "A3" {
 		t.Fatalf("choice options were not round-tripped: %+v", got.Parameters[2])
+	}
+	if len(got.Components) != 3 || got.Components[0].Name != "Paper" || got.Components[1].ParameterKey != "estimated_hours" || got.Components[2].Percentage.String() != "7.125001" || got.Components[0].Multiplier.String() != "2" {
+		t.Fatalf("cost components were not round-tripped in order: %+v", got.Components)
 	}
 
 	bad := got

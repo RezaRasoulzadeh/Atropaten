@@ -5,6 +5,10 @@ import {
   ListServices,
   ReactivateService,
   UpdateService,
+  AddServiceCostComponent,
+  RemoveServiceCostComponent,
+  ReorderServiceCostComponents,
+  UpdateServiceCostComponent,
 } from '../../wailsjs/go/main/App'
 import type { main as mainTypes } from '../../wailsjs/go/models'
 
@@ -21,12 +25,27 @@ export type ServiceParameterPayload = {
   maxValue: string | null
   unit: string
 }
+export type ServiceCostComponentPayload = {
+  id: string
+  name: string
+  type: string
+  referenceId: string
+  usageMode: string
+  parameterKey: string
+  multiplier: string
+  rateRial: number
+  percentage: string
+  rateBasis: string
+  enabled: boolean
+  notes: string
+}
 export type ServicePayload = {
   name: string
   code: string
   category: string
   description: string
   parameters: ServiceParameterPayload[]
+  components: ServiceCostComponentPayload[]
 }
 
 export const servicesApi = {
@@ -48,4 +67,8 @@ export const servicesApi = {
   reactivate(id: string): Promise<ServiceRecord> {
     return ReactivateService(id)
   },
+  addComponent(id: string, input: ServiceCostComponentPayload): Promise<ServiceRecord> { return AddServiceCostComponent(id, input as unknown as mainTypes.ServiceCostComponentInput) },
+  updateComponent(id: string, componentId: string, input: ServiceCostComponentPayload): Promise<ServiceRecord> { return UpdateServiceCostComponent(id, componentId, input as unknown as mainTypes.ServiceCostComponentInput) },
+  removeComponent(id: string, componentId: string): Promise<ServiceRecord> { return RemoveServiceCostComponent(id, componentId) },
+  reorderComponents(id: string, componentIds: string[]): Promise<ServiceRecord> { return ReorderServiceCostComponents(id, componentIds) },
 }

@@ -1,0 +1,17 @@
+.machines-view { min-width: 0; padding-bottom: 20px; }
+.machines-heading { margin-bottom: 20px; }
+.machines-filter-bar { display: flex; min-height: 68px; align-items: flex-end; gap: 10px; padding: 12px 14px; }
+.machines-status-filter { width: 145px; }
+.machines-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(350px, 430px); align-items: start; gap: 16px; }
+.machines-table-panel { min-width: 0; }
+.machines-table { min-width: 650px; }
+.machines-table th { height: 39px; padding: 0 12px; }
+.machines-table td { height: 62px; padding: 7px 12px; }
+.machines-table tbody tr { cursor: pointer; transition: background var(--motion-fast) var(--ease-standard); }
+.machines-table tbody tr:hover, .machines-table tbody tr.is-selected { background: #f5f8fc; }
+.machines-table tbody tr.is-selected td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.machines-table .table-secondary { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.machine-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 17px 0 0; padding: 13px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.machine-details dt { color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+.machine-details dd { margin: 5px 0 0; color: var(--text); font-size: 14px; font-weight: 700; }
+@media (max-width: 920px) { .machines-layout { grid-template-columns: minmax(0, 1fr); } .machines-layout .service-inspector { position: static; } }

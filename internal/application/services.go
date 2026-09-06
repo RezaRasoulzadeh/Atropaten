@@ -22,6 +22,10 @@ type MaterialLookup interface {
 	Get(context.Context, string) (domain.Material, error)
 }
 
+type MachineLookup interface {
+	GetMachine(context.Context, string) (domain.Machine, error)
+}
+
 type ParameterInput struct {
 	ID           string
 	Key          string
@@ -41,6 +45,22 @@ type ServiceInput struct {
 	Category    string
 	Description string
 	Parameters  []ParameterInput
+	Components  []CostComponentInput
+}
+
+type CostComponentInput struct {
+	ID           string
+	Name         string
+	Type         string
+	ReferenceID  string
+	UsageMode    string
+	ParameterKey string
+	Multiplier   string
+	RateRial     int64
+	Percentage   string
+	RateBasis    string
+	Enabled      bool
+	Notes        string
 }
 
 type ParameterView struct {
@@ -68,16 +88,34 @@ type ServiceView struct {
 	CreatedAt   string
 	UpdatedAt   string
 	Parameters  []ParameterView
+	Components  []CostComponentView
+}
+
+type CostComponentView struct {
+	ID           string
+	Name         string
+	Type         string
+	ReferenceID  string
+	UsageMode    string
+	ParameterKey string
+	Multiplier   string
+	RateRial     int64
+	Percentage   string
+	RateBasis    string
+	Enabled      bool
+	Position     int
+	Notes        string
 }
 
 type ServicesService struct {
-	repository    ServiceRepository
-	material      MaterialLookup
-	now           func() time.Time
+	repository ServiceRepository
+	material   MaterialLookup
+	machine    MachineLookup
+	now        func() time.Time
 }
 
-func NewServicesService(repository ServiceRepository, material MaterialLookup) *ServicesService {
-	return &ServicesService{repository: repository, material: material, now: time.Now}
+func NewServicesService(repository ServiceRepository, material MaterialLookup, machine MachineLookup) *ServicesService {
+	return &ServicesService{repository: repository, material: material, machine: machine, now: time.Now}
 }
 
 func (s *ServicesService) List(ctx context.Context, includeArchived bool) ([]ServiceView, error) {
@@ -113,7 +151,7 @@ func (s *ServicesService) Create(ctx context.Context, input ServiceInput) (Servi
 	if err != nil {
 		return ServiceView{}, err
 	}
-	if err := s.validateMaterialReferences(ctx, service); err != nil {
+	if err := s.validateReferences(ctx, service); err != nil {
 		return ServiceView{}, err
 	}
 	if err := s.repository.SaveServiceDefinition(ctx, service); err != nil {
@@ -134,7 +172,7 @@ func (s *ServicesService) Update(ctx context.Context, id string, input ServiceIn
 	if err := service.Update(draft, s.now()); err != nil {
 		return ServiceView{}, err
 	}
-	if err := s.validateMaterialReferences(ctx, service); err != nil {
+	if err := s.validateReferences(ctx, service); err != nil {
 		return ServiceView{}, err
 	}
 	if err := s.repository.SaveServiceDefinition(ctx, service); err != nil {
@@ -256,12 +294,100 @@ func (s *ServicesService) ReorderParameters(ctx context.Context, serviceID strin
 	return s.saveDefinition(ctx, service)
 }
 
+func (s *ServicesService) AddCostComponent(ctx context.Context, serviceID string, input CostComponentInput) (ServiceView, error) {
+	service, err := s.repository.GetService(ctx, strings.TrimSpace(serviceID))
+	if err != nil {
+		return ServiceView{}, err
+	}
+	draft, err := s.parseComponent(input)
+	if err != nil {
+		return ServiceView{}, err
+	}
+	service.Components = append(service.Components, componentFromDraft(service.ID, draft, len(service.Components), s.now()))
+	return s.saveDefinition(ctx, service)
+}
+
+func (s *ServicesService) UpdateCostComponent(ctx context.Context, serviceID, componentID string, input CostComponentInput) (ServiceView, error) {
+	service, err := s.repository.GetService(ctx, strings.TrimSpace(serviceID))
+	if err != nil {
+		return ServiceView{}, err
+	}
+	componentIndex := -1
+	for index, component := range service.Components {
+		if component.ID == componentID {
+			componentIndex = index
+			break
+		}
+	}
+	if componentIndex < 0 {
+		return ServiceView{}, domain.ErrCostComponentNotFound
+	}
+	draft, err := s.parseComponent(input)
+	if err != nil {
+		return ServiceView{}, err
+	}
+	draft.ID = componentID
+	service.Components[componentIndex] = componentFromDraft(service.ID, draft, service.Components[componentIndex].Position, s.now())
+	return s.saveDefinition(ctx, service)
+}
+
+func (s *ServicesService) RemoveCostComponent(ctx context.Context, serviceID, componentID string) (ServiceView, error) {
+	service, err := s.repository.GetService(ctx, strings.TrimSpace(serviceID))
+	if err != nil {
+		return ServiceView{}, err
+	}
+	filtered := service.Components[:0]
+	found := false
+	for _, component := range service.Components {
+		if component.ID == componentID {
+			found = true
+			continue
+		}
+		filtered = append(filtered, component)
+	}
+	if !found {
+		return ServiceView{}, domain.ErrCostComponentNotFound
+	}
+	service.Components = filtered
+	domain.NormalizeComponentOrder(service.Components)
+	return s.saveDefinition(ctx, service)
+}
+
+func (s *ServicesService) ReorderCostComponents(ctx context.Context, serviceID string, componentIDs []string) (ServiceView, error) {
+	service, err := s.repository.GetService(ctx, strings.TrimSpace(serviceID))
+	if err != nil {
+		return ServiceView{}, err
+	}
+	if len(componentIDs) != len(service.Components) {
+		return ServiceView{}, domain.ValidationError{Field: "componentIDs", Message: "must include every component exactly once"}
+	}
+	byID := make(map[string]domain.ServiceCostComponent, len(service.Components))
+	for _, component := range service.Components {
+		byID[component.ID] = component
+	}
+	reordered := make([]domain.ServiceCostComponent, 0, len(componentIDs))
+	for _, id := range componentIDs {
+		component, exists := byID[id]
+		if !exists {
+			return ServiceView{}, domain.ValidationError{Field: "componentIDs", Message: "contains an unknown component"}
+		}
+		reordered = append(reordered, component)
+		delete(byID, id)
+	}
+	if len(byID) != 0 {
+		return ServiceView{}, domain.ValidationError{Field: "componentIDs", Message: "must include every component exactly once"}
+	}
+	service.Components = reordered
+	domain.NormalizeComponentOrder(service.Components)
+	return s.saveDefinition(ctx, service)
+}
+
 func (s *ServicesService) saveDefinition(ctx context.Context, service domain.Service) (ServiceView, error) {
 	service.UpdatedAt = s.now().UTC()
 	if err := service.Validate(); err != nil {
 		return ServiceView{}, err
 	}
-	if err := s.validateMaterialReferences(ctx, service); err != nil {
+	if err := s.validateReferences(ctx, service); err != nil {
 		return ServiceView{}, err
 	}
 	if err := s.repository.SaveServiceDefinition(ctx, service); err != nil {
@@ -270,7 +396,7 @@ func (s *ServicesService) saveDefinition(ctx context.Context, service domain.Ser
 	return serviceView(service), nil
 }
 
-func (s *ServicesService) validateMaterialReferences(ctx context.Context, service domain.Service) error {
+func (s *ServicesService) validateReferences(ctx context.Context, service domain.Service) error {
 	for _, parameter := range service.Parameters {
 		if parameter.Type != domain.ParameterMaterialReference || parameter.DefaultValue == "" {
 			continue
@@ -284,6 +410,32 @@ func (s *ServicesService) validateMaterialReferences(ctx context.Context, servic
 		}
 		if !material.Active {
 			return fmt.Errorf("parameter %q: material reference must be active", parameter.Key)
+		}
+	}
+	for _, component := range service.Components {
+		if component.Type == domain.CostMaterial {
+			if s.material == nil {
+				return fmt.Errorf("material component reference cannot be checked")
+			}
+			material, err := s.material.Get(ctx, component.ReferenceID)
+			if err != nil {
+				return fmt.Errorf("component %q: material reference: %w", component.Name, err)
+			}
+			if !material.Active {
+				return fmt.Errorf("component %q: material reference must be active", component.Name)
+			}
+		}
+		if component.Type == domain.CostMachine {
+			if s.machine == nil {
+				return fmt.Errorf("machine component reference cannot be checked")
+			}
+			machine, err := s.machine.GetMachine(ctx, component.ReferenceID)
+			if err != nil {
+				return fmt.Errorf("component %q: machine reference: %w", component.Name, err)
+			}
+			if !machine.Active {
+				return fmt.Errorf("component %q: machine reference must be active", component.Name)
+			}
 		}
 	}
 	return nil
@@ -308,7 +460,55 @@ func (s *ServicesService) parseDraft(ctx context.Context, input ServiceInput, se
 		}
 		parameters = append(parameters, parameter)
 	}
-	return domain.ServiceDraft{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, Parameters: parameters}, nil
+	components := make([]domain.ServiceCostComponentDraft, 0, len(input.Components))
+	for _, input := range input.Components {
+		component, err := s.parseComponent(input)
+		if err != nil {
+			return domain.ServiceDraft{}, err
+		}
+		components = append(components, component)
+	}
+	return domain.ServiceDraft{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, Parameters: parameters, Components: components}, nil
+}
+
+func (s *ServicesService) parseComponent(input CostComponentInput) (domain.ServiceCostComponentDraft, error) {
+	id := strings.TrimSpace(input.ID)
+	if id == "" {
+		var err error
+		id, err = newID("CMP-")
+		if err != nil {
+			return domain.ServiceCostComponentDraft{}, fmt.Errorf("create component id: %w", err)
+		}
+	}
+	multiplier := domain.Quantity(domain.QuantityScale)
+	if strings.TrimSpace(input.Multiplier) != "" {
+		parsed, err := domain.ParseQuantity(input.Multiplier)
+		if err != nil {
+			return domain.ServiceCostComponentDraft{}, domain.ValidationError{Field: "multiplier", Message: "must be a positive decimal with at most six fractional digits"}
+		}
+		multiplier = parsed
+	}
+	percentage := domain.Quantity(0)
+	if strings.TrimSpace(input.Percentage) != "" {
+		parsed, err := domain.ParseQuantity(input.Percentage)
+		if err != nil {
+			return domain.ServiceCostComponentDraft{}, domain.ValidationError{Field: "percentage", Message: "must be a non-negative decimal with at most six fractional digits"}
+		}
+		percentage = parsed
+	}
+	usageMode := domain.UsageMode(strings.ToLower(strings.TrimSpace(input.UsageMode)))
+	if usageMode == "" {
+		usageMode = domain.UsageFixed
+	}
+	return domain.ServiceCostComponentDraft{ID: id, Name: input.Name, Type: domain.CostComponentType(strings.ToLower(strings.TrimSpace(input.Type))), ReferenceID: input.ReferenceID, UsageMode: usageMode, ParameterKey: input.ParameterKey, Multiplier: multiplier, RateRial: input.RateRial, Percentage: percentage, RateBasis: input.RateBasis, Enabled: input.Enabled, Notes: input.Notes}, nil
+}
+
+func componentFromDraft(serviceID string, draft domain.ServiceCostComponentDraft, position int, now time.Time) domain.ServiceCostComponent {
+	usageMode := domain.UsageMode(strings.ToLower(strings.TrimSpace(string(draft.UsageMode))))
+	if usageMode == "" {
+		usageMode = domain.UsageFixed
+	}
+	return domain.ServiceCostComponent{ID: draft.ID, ServiceID: serviceID, Name: strings.TrimSpace(draft.Name), Type: domain.CostComponentType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), ReferenceID: strings.TrimSpace(draft.ReferenceID), UsageMode: usageMode, ParameterKey: strings.TrimSpace(draft.ParameterKey), Multiplier: draft.Multiplier, RateRial: draft.RateRial, Percentage: draft.Percentage, RateBasis: strings.TrimSpace(draft.RateBasis), Enabled: draft.Enabled, Position: position, Notes: strings.TrimSpace(draft.Notes), CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
 }
 
 func (s *ServicesService) parseParameter(_ context.Context, input ParameterInput, _ string, _ []domain.ServiceParameter) (domain.ServiceParameterDraft, error) {
@@ -416,7 +616,11 @@ func serviceView(service domain.Service) ServiceView {
 		}
 		parameters = append(parameters, view)
 	}
-	return ServiceView{ID: service.ID, Name: service.Name, Code: service.Code, Category: service.Category, Description: service.Description, Active: service.Active, CreatedAt: service.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: service.UpdatedAt.UTC().Format(time.RFC3339Nano), Parameters: parameters}
+	components := make([]CostComponentView, 0, len(service.Components))
+	for _, component := range service.Components {
+		components = append(components, CostComponentView{ID: component.ID, Name: component.Name, Type: string(component.Type), ReferenceID: component.ReferenceID, UsageMode: string(component.UsageMode), ParameterKey: component.ParameterKey, Multiplier: component.Multiplier.String(), RateRial: component.RateRial, Percentage: component.Percentage.String(), RateBasis: component.RateBasis, Enabled: component.Enabled, Position: component.Position, Notes: component.Notes})
+	}
+	return ServiceView{ID: service.ID, Name: service.Name, Code: service.Code, Category: service.Category, Description: service.Description, Active: service.Active, CreatedAt: service.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: service.UpdatedAt.UTC().Format(time.RFC3339Nano), Parameters: parameters, Components: components}
 }
 
 func newID(prefix string) (string, error) {

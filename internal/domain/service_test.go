@@ -24,7 +24,7 @@ func TestServiceValidationSupportsGenericParameterTypes(t *testing.T) {
 		t.Fatalf("parameter order was not assigned deterministically: %+v", service.Parameters)
 	}
 	_, err = NewService("SVC-design", ServiceDraft{
-		Name: "Graphic Design",
+		Name:       "Graphic Design",
 		Parameters: []ServiceParameterDraft{{ID: "P-hours", Key: "estimated_hours", Label: "Estimated hours", Type: ParameterDecimal, Required: true, DefaultValue: "0"}},
 	}, now)
 	if err != nil {
@@ -42,8 +42,8 @@ func TestServiceParameterValidation(t *testing.T) {
 			{ID: "one", Key: "quantity", Label: "Quantity", Type: ParameterInteger},
 			{ID: "two", Key: "quantity", Label: "Other", Type: ParameterInteger},
 		}},
-		"choice default": base(ServiceParameterDraft{ID: "choice", Key: "size", Label: "Size", Type: ParameterChoice, Options: []string{"A4", "A3"}, DefaultValue: "Letter"}),
-		"numeric bounds": base(ServiceParameterDraft{ID: "decimal", Key: "hours", Label: "Hours", Type: ParameterDecimal, MinValue: quantityPointer(8), MaxValue: quantityPointer(2)}),
+		"choice default":  base(ServiceParameterDraft{ID: "choice", Key: "size", Label: "Size", Type: ParameterChoice, Options: []string{"A4", "A3"}, DefaultValue: "Letter"}),
+		"numeric bounds":  base(ServiceParameterDraft{ID: "decimal", Key: "hours", Label: "Hours", Type: ParameterDecimal, MinValue: quantityPointer(8), MaxValue: quantityPointer(2)}),
 		"boolean default": base(ServiceParameterDraft{ID: "bool", Key: "lamination", Label: "Lamination", Type: ParameterBoolean, DefaultValue: "yes"}),
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -51,6 +51,47 @@ func TestServiceParameterValidation(t *testing.T) {
 				t.Fatalf("invalid service accepted")
 			}
 		})
+	}
+}
+
+func TestServiceCostComponentValidationIsGeneric(t *testing.T) {
+	now := time.Date(2024, time.August, 12, 0, 0, 0, 0, time.UTC)
+	service, err := NewService("SVC-costs", ServiceDraft{
+		Name: "Configurable service",
+		Parameters: []ServiceParameterDraft{
+			{ID: "P-quantity", Key: "quantity", Label: "Quantity", Type: ParameterInteger},
+			{ID: "P-hours", Key: "hours", Label: "Hours", Type: ParameterDecimal},
+			{ID: "P-flag", Key: "proof", Label: "Proof", Type: ParameterBoolean},
+		},
+		Components: []ServiceCostComponentDraft{
+			{ID: "C-material", Name: "Paper", Type: CostMaterial, ReferenceID: "MAT-1", UsageMode: UsageParameter, ParameterKey: "quantity", Multiplier: QuantityScale},
+			{ID: "C-machine", Name: "Printer", Type: CostMachine, ReferenceID: "MAC-1", UsageMode: UsageFixed, Multiplier: QuantityScale},
+			{ID: "C-labor", Name: "Labor", Type: CostLabor, UsageMode: UsageParameter, ParameterKey: "hours", Multiplier: QuantityScale, RateRial: 120000, RateBasis: RatePerHour},
+			{ID: "C-outsourced", Name: "Outsource", Type: CostOutsourced, UsageMode: UsageFixed, Multiplier: QuantityScale, RateRial: 80000},
+			{ID: "C-fixed", Name: "Setup", Type: CostFixed, UsageMode: UsageFixed, Multiplier: QuantityScale, RateRial: 50000},
+			{ID: "C-overhead", Name: "Overhead", Type: CostOverhead, UsageMode: UsageFixed, Multiplier: QuantityScale, Percentage: 10 * QuantityScale},
+			{ID: "C-waste", Name: "Waste", Type: CostWaste, UsageMode: UsageFixed, Multiplier: QuantityScale, Percentage: 2 * QuantityScale},
+			{ID: "C-manual", Name: "Manual", Type: CostManual, UsageMode: UsageFixed, Multiplier: QuantityScale},
+		},
+	}, now)
+	if err != nil {
+		t.Fatalf("generic component configuration rejected: %v", err)
+	}
+	if len(service.Components) != 8 || service.Components[7].Position != 7 {
+		t.Fatalf("component order not assigned: %+v", service.Components)
+	}
+
+	badReference := service
+	badReference.Components = append([]ServiceCostComponent(nil), service.Components...)
+	badReference.Components[0].ParameterKey = "proof"
+	if err := badReference.Validate(); err == nil {
+		t.Fatal("boolean parameter reference accepted")
+	}
+	badReference = service
+	badReference.Components = append([]ServiceCostComponent(nil), service.Components...)
+	badReference.Components[0].ParameterKey = "missing"
+	if err := badReference.Validate(); err == nil {
+		t.Fatal("missing parameter reference accepted")
 	}
 }
 

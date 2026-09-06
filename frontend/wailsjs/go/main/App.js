@@ -6,6 +6,8 @@ export function AddServiceParameter(arg1, arg2) {
   return window['go']['main']['App']['AddServiceParameter'](arg1, arg2);
 }
 
+export function AddServiceCostComponent(arg1, arg2) { return window['go']['main']['App']['AddServiceCostComponent'](arg1, arg2); }
+
 export function ArchiveMaterial(arg1) {
   return window['go']['main']['App']['ArchiveMaterial'](arg1);
 }
@@ -13,6 +15,8 @@ export function ArchiveMaterial(arg1) {
 export function ArchiveService(arg1) {
   return window['go']['main']['App']['ArchiveService'](arg1);
 }
+
+export function ArchiveMachine(arg1) { return window['go']['main']['App']['ArchiveMachine'](arg1); }
 
 export function CreateMaterial(arg1) {
   return window['go']['main']['App']['CreateMaterial'](arg1);
@@ -22,6 +26,8 @@ export function CreateService(arg1) {
   return window['go']['main']['App']['CreateService'](arg1);
 }
 
+export function CreateMachine(arg1) { return window['go']['main']['App']['CreateMachine'](arg1); }
+
 export function GetMaterial(arg1) {
   return window['go']['main']['App']['GetMaterial'](arg1);
 }
@@ -29,6 +35,8 @@ export function GetMaterial(arg1) {
 export function GetService(arg1) {
   return window['go']['main']['App']['GetService'](arg1);
 }
+
+export function GetMachine(arg1) { return window['go']['main']['App']['GetMachine'](arg1); }
 
 export function ListMaterials(arg1) {
   return window['go']['main']['App']['ListMaterials'](arg1);
@@ -38,6 +46,8 @@ export function ListServices(arg1) {
   return window['go']['main']['App']['ListServices'](arg1);
 }
 
+export function ListMachines(arg1) { return window['go']['main']['App']['ListMachines'](arg1); }
+
 export function ReactivateMaterial(arg1) {
   return window['go']['main']['App']['ReactivateMaterial'](arg1);
 }
@@ -46,13 +56,19 @@ export function ReactivateService(arg1) {
   return window['go']['main']['App']['ReactivateService'](arg1);
 }
 
+export function ReactivateMachine(arg1) { return window['go']['main']['App']['ReactivateMachine'](arg1); }
+
 export function RemoveServiceParameter(arg1, arg2) {
   return window['go']['main']['App']['RemoveServiceParameter'](arg1, arg2);
 }
 
+export function RemoveServiceCostComponent(arg1, arg2) { return window['go']['main']['App']['RemoveServiceCostComponent'](arg1, arg2); }
+
 export function ReorderServiceParameters(arg1, arg2) {
   return window['go']['main']['App']['ReorderServiceParameters'](arg1, arg2);
 }
+
+export function ReorderServiceCostComponents(arg1, arg2) { return window['go']['main']['App']['ReorderServiceCostComponents'](arg1, arg2); }
 
 export function UpdateMaterial(arg1, arg2) {
   return window['go']['main']['App']['UpdateMaterial'](arg1, arg2);
@@ -65,3 +81,7 @@ export function UpdateService(arg1, arg2) {
 export function UpdateServiceParameter(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateServiceParameter'](arg1, arg2, arg3);
 }
+
+export function UpdateServiceCostComponent(arg1, arg2, arg3) { return window['go']['main']['App']['UpdateServiceCostComponent'](arg1, arg2, arg3); }
+
+export function UpdateMachine(arg1, arg2) { return window['go']['main']['App']['UpdateMachine'](arg1, arg2); }

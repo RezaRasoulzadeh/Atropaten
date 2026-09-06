@@ -13,6 +13,7 @@ import {
   CircleDollarSign,
   ClipboardList,
   HandCoins,
+  Factory,
   Info,
   Landmark,
   LayoutDashboard,
@@ -45,6 +46,7 @@ import OrderWorkspaceView from './views/OrderWorkspaceView.vue'
 import OrdersView from './views/OrdersView.vue'
 import MaterialsView from './views/MaterialsView.vue'
 import ServicesView from './views/ServicesView.vue'
+import MachinesView from './views/MachinesView.vue'
 
 type Tone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
 
@@ -68,6 +70,7 @@ const navigationSections: { label: string; items: NavigationItem[] }[] = [
     items: [
       { label: 'Services', icon: BriefcaseBusiness },
       { label: 'Materials', icon: Package },
+      { label: 'Machines', icon: Factory },
       { label: 'Purchases', icon: ShoppingCart },
       { label: 'Suppliers', icon: Truck },
     ],
@@ -386,9 +389,11 @@ function showToast(message: string) {
           </Transition>
         </div>
 
-        <ServicesView v-else-if="activeView === 'Services'" key="services" @notify="showToast" />
+        <ServicesView v-else-if="activeView === 'Services'" key="services" :currency-unit="currencyUnit" @notify="showToast" />
 
         <MaterialsView v-else-if="activeView === 'Materials'" key="materials" :currency-unit="currencyUnit" @notify="showToast" />
+
+        <MachinesView v-else-if="activeView === 'Machines'" key="machines" :currency-unit="currencyUnit" @notify="showToast" />
 
         <section v-else key="empty" class="empty-workspace">
           <div class="empty-workspace-icon" aria-hidden="true"><Sparkles :size="22" :stroke-width="1.8" /></div>
