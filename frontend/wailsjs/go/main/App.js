@@ -74,6 +74,18 @@ export function CreateCustomer(arg1) {
   return window['go']['main']['App']['CreateCustomer'](arg1);
 }
 
+export function CreateExpense(arg1) {
+  return window['go']['main']['App']['CreateExpense'](arg1);
+}
+
+export function CreateInvoiceFromOrder(arg1) {
+  return window['go']['main']['App']['CreateInvoiceFromOrder'](arg1);
+}
+
+export function CreateTransfer(arg1) {
+  return window['go']['main']['App']['CreateTransfer'](arg1);
+}
+
 export function CreateInventoryReservation(arg1) {
   return window['go']['main']['App']['CreateInventoryReservation'](arg1);
 }
@@ -122,6 +134,10 @@ export function DeleteDraftPurchase(arg1) {
   return window['go']['main']['App']['DeleteDraftPurchase'](arg1);
 }
 
+export function DeleteDraftInvoice(arg1) {
+  return window['go']['main']['App']['DeleteDraftInvoice'](arg1);
+}
+
 export function DeleteProductionJob(arg1) {
   return window['go']['main']['App']['DeleteProductionJob'](arg1);
 }
@@ -132,6 +148,14 @@ export function DeleteSupplier(arg1) {
 
 export function GetCustomer(arg1) {
   return window['go']['main']['App']['GetCustomer'](arg1);
+}
+
+export function GetCustomerFinancialSummary(arg1) {
+  return window['go']['main']['App']['GetCustomerFinancialSummary'](arg1);
+}
+
+export function GetInvoice(arg1) {
+  return window['go']['main']['App']['GetInvoice'](arg1);
 }
 
 export function GetMachine(arg1) {
@@ -166,6 +190,10 @@ export function GetSupplier(arg1) {
   return window['go']['main']['App']['GetSupplier'](arg1);
 }
 
+export function GetSupplierPayableBalance(arg1) {
+  return window['go']['main']['App']['GetSupplierPayableBalance'](arg1);
+}
+
 export function ListAccounts() {
   return window['go']['main']['App']['ListAccounts']();
 }
@@ -183,6 +211,14 @@ export function ListCustomers(arg1) {
 
 export function ListFinancialAccounts() {
   return window['go']['main']['App']['ListFinancialAccounts']();
+}
+
+export function ListExpenses() {
+  return window['go']['main']['App']['ListExpenses']();
+}
+
+export function ListInvoices() {
+  return window['go']['main']['App']['ListInvoices']();
 }
 
 export function ListInventoryReservations(arg1, arg2, arg3) {
@@ -244,8 +280,16 @@ export function ListSuppliers(arg1) {
   return window['go']['main']['App']['ListSuppliers'](arg1);
 }
 
+export function ListTransfers() {
+  return window['go']['main']['App']['ListTransfers']();
+}
+
 export function PostPurchase(arg1) {
   return window['go']['main']['App']['PostPurchase'](arg1);
+}
+
+export function PostInvoice(arg1) {
+  return window['go']['main']['App']['PostInvoice'](arg1);
 }
 
 export function ReactivateCustomer(arg1) {
@@ -332,6 +376,14 @@ export function ReversePayment(arg1, arg2) {
   return window['go']['main']['App']['ReversePayment'](arg1, arg2);
 }
 
+export function ReverseExpense(arg1, arg2) {
+  return window['go']['main']['App']['ReverseExpense'](arg1, arg2);
+}
+
+export function ReverseTransfer(arg1, arg2) {
+  return window['go']['main']['App']['ReverseTransfer'](arg1, arg2);
+}
+
 export function ReverseProductionConsumption(arg1, arg2) {
   return window['go']['main']['App']['ReverseProductionConsumption'](arg1, arg2);
 }
@@ -410,4 +462,8 @@ export function UpdateServiceParameter(arg1, arg2, arg3) {
 
 export function UpdateSupplier(arg1, arg2) {
   return window['go']['main']['App']['UpdateSupplier'](arg1, arg2);
+}
+
+export function VoidInvoice(arg1) {
+  return window['go']['main']['App']['VoidInvoice'](arg1);
 }

@@ -88,6 +88,67 @@ type PaymentDTO struct {
 	AmountRial         int64                  `json:"amountRial"`
 	Allocations        []PaymentAllocationDTO `json:"allocations"`
 }
+type ExpenseDTO struct {
+	ID                 string `json:"id"`
+	ExpenseNumber      string `json:"expenseNumber"`
+	ExpenseDate        string `json:"expenseDate"`
+	CategoryAccountID  string `json:"categoryAccountId"`
+	Payee              string `json:"payee"`
+	SupplierID         string `json:"supplierId"`
+	Description        string `json:"description"`
+	AmountRial         int64  `json:"amountRial"`
+	PaymentMethod      string `json:"paymentMethod"`
+	FinancialAccountID string `json:"financialAccountId"`
+	Notes              string `json:"notes"`
+	Status             string `json:"status"`
+	JournalEntryID     string `json:"journalEntryId"`
+	IdempotencyKey     string `json:"idempotencyKey"`
+	CreatedAt          string `json:"createdAt"`
+	UpdatedAt          string `json:"updatedAt"`
+}
+type ExpenseInputDTO struct {
+	ID                 string `json:"id"`
+	ExpenseDate        string `json:"expenseDate"`
+	CategoryAccountID  string `json:"categoryAccountId"`
+	Payee              string `json:"payee"`
+	SupplierID         string `json:"supplierId"`
+	Description        string `json:"description"`
+	AmountRial         int64  `json:"amountRial"`
+	PaymentMethod      string `json:"paymentMethod"`
+	FinancialAccountID string `json:"financialAccountId"`
+	Notes              string `json:"notes"`
+	IdempotencyKey     string `json:"idempotencyKey"`
+}
+type TransferDTO struct {
+	ID                            string `json:"id"`
+	TransferNumber                string `json:"transferNumber"`
+	SourceFinancialAccountID      string `json:"sourceFinancialAccountId"`
+	DestinationFinancialAccountID string `json:"destinationFinancialAccountId"`
+	AmountRial                    int64  `json:"amountRial"`
+	TransferDate                  string `json:"transferDate"`
+	Reference                     string `json:"reference"`
+	Notes                         string `json:"notes"`
+	Status                        string `json:"status"`
+	JournalEntryID                string `json:"journalEntryId"`
+	IdempotencyKey                string `json:"idempotencyKey"`
+	CreatedAt                     string `json:"createdAt"`
+	UpdatedAt                     string `json:"updatedAt"`
+}
+type TransferInputDTO struct {
+	ID                            string `json:"id"`
+	SourceFinancialAccountID      string `json:"sourceFinancialAccountId"`
+	DestinationFinancialAccountID string `json:"destinationFinancialAccountId"`
+	AmountRial                    int64  `json:"amountRial"`
+	TransferDate                  string `json:"transferDate"`
+	Reference                     string `json:"reference"`
+	Notes                         string `json:"notes"`
+	IdempotencyKey                string `json:"idempotencyKey"`
+}
+type CustomerFinancialDTO struct {
+	CustomerID     string `json:"customerId"`
+	ReceivableRial int64  `json:"receivableRial"`
+	CreditRial     int64  `json:"creditRial"`
+}
 
 func (a *App) accountingService() (*application.AccountingService, error) {
 	if a.startupError != nil {
@@ -158,6 +219,21 @@ func (a *App) ListPayments() ([]PaymentDTO, error) {
 	}
 	return paymentDTOs(v), nil
 }
+func (a *App) GetCustomerFinancialSummary(customerID string) (CustomerFinancialDTO, error) {
+	s, e := a.accountingService()
+	if e != nil {
+		return CustomerFinancialDTO{}, e
+	}
+	v, e := s.CustomerFinancial(a.materialContext(), customerID)
+	return CustomerFinancialDTO{CustomerID: v.CustomerID, ReceivableRial: v.ReceivableRial, CreditRial: v.CreditRial}, e
+}
+func (a *App) GetSupplierPayableBalance(supplierID string) (int64, error) {
+	s, e := a.accountingService()
+	if e != nil {
+		return 0, e
+	}
+	return s.SupplierPayable(a.materialContext(), supplierID)
+}
 func (a *App) CreatePayment(in PaymentInputDTO) (PaymentDTO, error) {
 	s, e := a.accountingService()
 	if e != nil {
@@ -173,6 +249,74 @@ func (a *App) ReversePayment(id, key string) (PaymentDTO, error) {
 	}
 	v, e := s.ReversePayment(a.materialContext(), id, key)
 	return paymentDTO(v), e
+}
+func (a *App) ListExpenses() ([]ExpenseDTO, error) {
+	s, e := a.accountingService()
+	if e != nil {
+		return nil, e
+	}
+	v, e := s.Expenses(a.materialContext())
+	if e != nil {
+		return nil, e
+	}
+	out := make([]ExpenseDTO, 0, len(v))
+	for _, x := range v {
+		out = append(out, expenseDTO(x))
+	}
+	return out, nil
+}
+func (a *App) CreateExpense(in ExpenseInputDTO) (ExpenseDTO, error) {
+	s, e := a.accountingService()
+	if e != nil {
+		return ExpenseDTO{}, e
+	}
+	v, e := s.CreateExpense(a.materialContext(), application.ExpenseInput{ID: in.ID, ExpenseDate: in.ExpenseDate, CategoryAccountID: in.CategoryAccountID, Payee: in.Payee, SupplierID: in.SupplierID, Description: in.Description, AmountRial: in.AmountRial, PaymentMethod: in.PaymentMethod, FinancialAccountID: in.FinancialAccountID, Notes: in.Notes, IdempotencyKey: in.IdempotencyKey})
+	return expenseDTO(v), e
+}
+func (a *App) ReverseExpense(id, key string) (ExpenseDTO, error) {
+	s, e := a.accountingService()
+	if e != nil {
+		return ExpenseDTO{}, e
+	}
+	v, e := s.ReverseExpense(a.materialContext(), id, key)
+	return expenseDTO(v), e
+}
+func (a *App) ListTransfers() ([]TransferDTO, error) {
+	s, e := a.accountingService()
+	if e != nil {
+		return nil, e
+	}
+	v, e := s.Transfers(a.materialContext())
+	if e != nil {
+		return nil, e
+	}
+	out := make([]TransferDTO, 0, len(v))
+	for _, x := range v {
+		out = append(out, transferDTO(x))
+	}
+	return out, nil
+}
+func (a *App) CreateTransfer(in TransferInputDTO) (TransferDTO, error) {
+	s, e := a.accountingService()
+	if e != nil {
+		return TransferDTO{}, e
+	}
+	v, e := s.CreateTransfer(a.materialContext(), application.TransferInput{ID: in.ID, SourceFinancialAccountID: in.SourceFinancialAccountID, DestinationFinancialAccountID: in.DestinationFinancialAccountID, AmountRial: in.AmountRial, TransferDate: in.TransferDate, Reference: in.Reference, Notes: in.Notes, IdempotencyKey: in.IdempotencyKey})
+	return transferDTO(v), e
+}
+func (a *App) ReverseTransfer(id, key string) (TransferDTO, error) {
+	s, e := a.accountingService()
+	if e != nil {
+		return TransferDTO{}, e
+	}
+	v, e := s.ReverseTransfer(a.materialContext(), id, key)
+	return transferDTO(v), e
+}
+func expenseDTO(v application.ExpenseView) ExpenseDTO {
+	return ExpenseDTO{ID: v.ID, ExpenseNumber: v.ExpenseNumber, ExpenseDate: v.ExpenseDate, CategoryAccountID: v.CategoryAccountID, Payee: v.Payee, SupplierID: v.SupplierID, Description: v.Description, AmountRial: v.AmountRial, PaymentMethod: v.PaymentMethod, FinancialAccountID: v.FinancialAccountID, Notes: v.Notes, Status: v.Status, JournalEntryID: v.JournalEntryID, IdempotencyKey: v.IdempotencyKey, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt}
+}
+func transferDTO(v application.TransferView) TransferDTO {
+	return TransferDTO{ID: v.ID, TransferNumber: v.TransferNumber, SourceFinancialAccountID: v.SourceFinancialAccountID, DestinationFinancialAccountID: v.DestinationFinancialAccountID, AmountRial: v.AmountRial, TransferDate: v.TransferDate, Reference: v.Reference, Notes: v.Notes, Status: v.Status, JournalEntryID: v.JournalEntryID, IdempotencyKey: v.IdempotencyKey, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt}
 }
 func paymentAllocationInputs(v []PaymentAllocationInput) []application.PaymentAllocationInput {
 	out := make([]application.PaymentAllocationInput, 0, len(v))

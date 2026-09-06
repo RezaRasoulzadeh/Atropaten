@@ -89,6 +89,12 @@ Every operation with financial consequences should expose its accounting effect 
 
 Balances are derived from journal lines. Posted journal entries must balance debits and credits.
 
+For M4-002, sales and COGS recognition occurs when an invoice is posted. The
+sales entry uses the invoice's saved Rial total; the optional COGS entry uses
+only the net actual production-consumption and waste movement costs already
+linked to that order. Later catalog changes or later movements never reprice
+or backfill an invoice automatically; corrections are reversing entries.
+
 ## Inventory boundary
 
 Inventory quantity is derived from movements. Business modules request inventory operations; they do not directly edit a current-stock number as the source of truth.

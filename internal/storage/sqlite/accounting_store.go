@@ -407,7 +407,7 @@ func (s *Store) CreatePayment(ctx context.Context, p domain.Payment) (domain.Pay
 	allocatedByTarget := map[string]int64{}
 	for i := range p.Allocations {
 		a := &p.Allocations[i]
-		if (p.Direction == domain.PaymentIncoming && a.TargetType != "order") || (p.Direction == domain.PaymentOutgoing && a.TargetType != "purchase") {
+		if (p.Direction == domain.PaymentIncoming && a.TargetType != "order" && a.TargetType != "invoice") || (p.Direction == domain.PaymentOutgoing && a.TargetType != "purchase") {
 			tx.Rollback()
 			return domain.Payment{}, domain.ErrPaymentInvalidParty
 		}
@@ -424,6 +424,27 @@ func (s *Store) CreatePayment(ctx context.Context, p domain.Payment) (domain.Pay
 			}
 			var already int64
 			if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='order' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, a.TargetID).Scan(&already); err != nil {
+				tx.Rollback()
+				return domain.Payment{}, err
+			}
+			if already+allocatedByTarget[a.TargetID] > targetTotal-a.AmountRial {
+				tx.Rollback()
+				return domain.Payment{}, domain.ErrAllocationExceeded
+			}
+			allocatedByTarget[a.TargetID] += a.AmountRial
+		} else if a.TargetType == "invoice" {
+			var customer string
+			var targetTotal int64
+			if err = tx.QueryRowContext(ctx, `SELECT COALESCE(customer_id,''),total_rial FROM invoices WHERE id=? AND status IN ('Posted','Partially Paid','Paid')`, a.TargetID).Scan(&customer, &targetTotal); err != nil {
+				tx.Rollback()
+				return domain.Payment{}, domain.ErrAllocationTarget
+			}
+			if p.CustomerID != "" && customer != p.CustomerID {
+				tx.Rollback()
+				return domain.Payment{}, domain.ErrPaymentInvalidParty
+			}
+			var already int64
+			if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='invoice' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, a.TargetID).Scan(&already); err != nil {
 				tx.Rollback()
 				return domain.Payment{}, err
 			}
@@ -614,6 +635,37 @@ func (s *Store) PurchasePaymentSummary(ctx context.Context, id string) (int64, i
 		remaining = 0
 	}
 	return paid, remaining, nil
+}
+
+// CustomerFinancialSummary derives receivables and unapplied customer credit
+// from posted journal lines; no customer balance is stored or mutated.
+func (s *Store) CustomerFinancialSummary(ctx context.Context, customerID string) (int64, int64, error) {
+	var receivable, credit int64
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(debit_rial-credit_rial),0) FROM journal_lines WHERE account_id='ACC-AR' AND party_type='customer' AND party_id=?`, customerID).Scan(&receivable); err != nil {
+		return 0, 0, err
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(credit_rial-debit_rial),0) FROM journal_lines WHERE account_id='ACC-CUSTOMER-CREDIT' AND party_type='customer' AND party_id=?`, customerID).Scan(&credit); err != nil {
+		return 0, 0, err
+	}
+	if receivable < 0 {
+		receivable = 0
+	}
+	if credit < 0 {
+		credit = 0
+	}
+	return receivable, credit, nil
+}
+
+// SupplierPayableBalance derives the supplier's open AP from posted journals.
+func (s *Store) SupplierPayableBalance(ctx context.Context, supplierID string) (int64, error) {
+	var payable int64
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(credit_rial-debit_rial),0) FROM journal_lines WHERE account_id='ACC-AP' AND party_type='supplier' AND party_id=?`, supplierID).Scan(&payable); err != nil {
+		return 0, err
+	}
+	if payable < 0 {
+		payable = 0
+	}
+	return payable, nil
 }
 
 func choose(ok bool, a, b int64) int64 {

@@ -370,6 +370,61 @@ var migrations = []migration{{
 		ALTER TABLE purchases ADD COLUMN accounting_journal_entry_id TEXT REFERENCES journal_entries(id) ON DELETE RESTRICT;
 		CREATE UNIQUE INDEX purchases_accounting_journal_unique ON purchases(accounting_journal_entry_id) WHERE accounting_journal_entry_id IS NOT NULL;`,
 	},
+	{
+		version: 10,
+		sql: `CREATE TABLE invoice_number_sequences (id INTEGER PRIMARY KEY CHECK(id=1), next_number INTEGER NOT NULL CHECK(next_number > 0));
+		INSERT INTO invoice_number_sequences(id,next_number) VALUES(1,1001);
+		CREATE TABLE invoices (
+			id TEXT PRIMARY KEY, invoice_number TEXT NOT NULL UNIQUE, customer_id TEXT REFERENCES customers(id) ON DELETE SET NULL,
+			customer_name_snapshot TEXT NOT NULL, customer_phone_snapshot TEXT NOT NULL DEFAULT '', order_id TEXT REFERENCES orders(id) ON DELETE RESTRICT,
+			issue_date TEXT NOT NULL, due_date TEXT, status TEXT NOT NULL CHECK(status IN ('Draft','Posted','Partially Paid','Paid','Voided')),
+			notes TEXT NOT NULL DEFAULT '', subtotal_rial INTEGER NOT NULL CHECK(subtotal_rial >= 0), discount_rial INTEGER NOT NULL CHECK(discount_rial >= 0), total_rial INTEGER NOT NULL CHECK(total_rial >= 0),
+			accounting_journal_entry_id TEXT UNIQUE REFERENCES journal_entries(id) ON DELETE RESTRICT, cogs_journal_entry_id TEXT UNIQUE REFERENCES journal_entries(id) ON DELETE RESTRICT,
+			created_at TEXT NOT NULL, updated_at TEXT NOT NULL, CHECK(total_rial = subtotal_rial - discount_rial)
+		);
+		CREATE UNIQUE INDEX invoices_order_unique ON invoices(order_id) WHERE order_id IS NOT NULL;
+		CREATE INDEX invoices_issue_date ON invoices(issue_date DESC,invoice_number DESC);
+		CREATE TABLE invoice_items (
+			id TEXT PRIMARY KEY, invoice_id TEXT NOT NULL REFERENCES invoices(id) ON DELETE RESTRICT, position INTEGER NOT NULL CHECK(position >= 0),
+			order_item_id TEXT REFERENCES order_items(id) ON DELETE RESTRICT, description_snapshot TEXT NOT NULL, service_id TEXT NOT NULL DEFAULT '',
+			quantity_units INTEGER NOT NULL CHECK(quantity_units >= 0), quantity_unit TEXT NOT NULL DEFAULT 'unit', unit_price_rial INTEGER NOT NULL CHECK(unit_price_rial >= 0),
+			line_total_rial INTEGER NOT NULL CHECK(line_total_rial >= 0), notes TEXT NOT NULL DEFAULT '', UNIQUE(invoice_id,position)
+		);
+		CREATE TRIGGER invoices_immutable_delete BEFORE DELETE ON invoices WHEN OLD.status <> 'Draft' BEGIN SELECT RAISE(ABORT,'posted invoices cannot be deleted'); END;
+		CREATE TRIGGER invoices_immutable_update BEFORE UPDATE ON invoices WHEN OLD.status NOT IN ('Draft','Posted') OR (OLD.status='Posted' AND NEW.status<>'Voided') BEGIN SELECT RAISE(ABORT,'posted invoices are immutable; use void'); END;
+		CREATE TRIGGER invoice_items_immutable_update BEFORE UPDATE ON invoice_items WHEN EXISTS(SELECT 1 FROM invoices WHERE id=OLD.invoice_id AND status<>'Draft') BEGIN SELECT RAISE(ABORT,'posted invoice lines are immutable'); END;
+		CREATE TRIGGER invoice_items_immutable_delete BEFORE DELETE ON invoice_items WHEN EXISTS(SELECT 1 FROM invoices WHERE id=OLD.invoice_id AND status<>'Draft') BEGIN SELECT RAISE(ABORT,'posted invoice lines are immutable'); END;
+		DROP INDEX payment_allocations_target;
+		ALTER TABLE payment_allocations RENAME TO payment_allocations_v9;
+		CREATE TABLE payment_allocations (
+			id TEXT PRIMARY KEY, payment_id TEXT NOT NULL REFERENCES payments(id) ON DELETE RESTRICT, position INTEGER NOT NULL CHECK(position >= 0),
+			target_type TEXT NOT NULL CHECK(target_type IN ('order','purchase','invoice')), target_id TEXT NOT NULL, amount_rial INTEGER NOT NULL CHECK(amount_rial > 0),
+			reversed INTEGER NOT NULL DEFAULT 0 CHECK(reversed IN (0,1)), UNIQUE(payment_id,position)
+		);
+		INSERT INTO payment_allocations(id,payment_id,position,target_type,target_id,amount_rial,reversed) SELECT id,payment_id,position,target_type,target_id,amount_rial,reversed FROM payment_allocations_v9;
+		DROP TABLE payment_allocations_v9;
+		CREATE INDEX payment_allocations_target ON payment_allocations(target_type,target_id,reversed);
+		CREATE TABLE expense_number_sequences (id INTEGER PRIMARY KEY CHECK(id=1), next_number INTEGER NOT NULL CHECK(next_number > 0));
+		INSERT INTO expense_number_sequences(id,next_number) VALUES(1,1001);
+		CREATE TABLE expenses (
+			id TEXT PRIMARY KEY, expense_number TEXT NOT NULL UNIQUE, expense_date TEXT NOT NULL, category_account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE RESTRICT,
+			payee TEXT NOT NULL DEFAULT '', supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL, description TEXT NOT NULL, amount_rial INTEGER NOT NULL CHECK(amount_rial > 0),
+			payment_method TEXT NOT NULL, financial_account_id TEXT NOT NULL REFERENCES financial_accounts(id) ON DELETE RESTRICT, notes TEXT NOT NULL DEFAULT '', status TEXT NOT NULL CHECK(status IN ('Posted','Reversed')),
+			journal_entry_id TEXT NOT NULL UNIQUE REFERENCES journal_entries(id) ON DELETE RESTRICT, idempotency_key TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+		);
+		CREATE TRIGGER expenses_immutable_delete BEFORE DELETE ON expenses BEGIN SELECT RAISE(ABORT,'posted expenses cannot be deleted'); END;
+		CREATE TABLE transfer_number_sequences (id INTEGER PRIMARY KEY CHECK(id=1), next_number INTEGER NOT NULL CHECK(next_number > 0));
+		INSERT INTO transfer_number_sequences(id,next_number) VALUES(1,1001);
+		CREATE TABLE financial_transfers (
+			id TEXT PRIMARY KEY, transfer_number TEXT NOT NULL UNIQUE, source_financial_account_id TEXT NOT NULL REFERENCES financial_accounts(id) ON DELETE RESTRICT,
+			destination_financial_account_id TEXT NOT NULL REFERENCES financial_accounts(id) ON DELETE RESTRICT, amount_rial INTEGER NOT NULL CHECK(amount_rial > 0), transfer_date TEXT NOT NULL,
+			reference TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', status TEXT NOT NULL CHECK(status IN ('Posted','Reversed')), journal_entry_id TEXT NOT NULL UNIQUE REFERENCES journal_entries(id) ON DELETE RESTRICT,
+			idempotency_key TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, CHECK(source_financial_account_id <> destination_financial_account_id)
+		);
+		CREATE TRIGGER transfers_immutable_delete BEFORE DELETE ON financial_transfers BEGIN SELECT RAISE(ABORT,'posted transfers cannot be deleted'); END;
+		CREATE INDEX expenses_date ON expenses(expense_date DESC,expense_number DESC);
+		CREATE INDEX transfers_date ON financial_transfers(transfer_date DESC,transfer_number DESC);`,
+	},
 }
 
 func (s *Store) seedAccounting(ctx context.Context) error {
@@ -381,6 +436,11 @@ func (s *Store) seedAccounting(ctx context.Context) error {
 		{"ACC-CUSTOMER-CREDIT", "2100", "Customer Credits", "liability"}, {"ACC-EQUITY", "3000", "Owner Equity", "equity"},
 		{"ACC-REVENUE", "4000", "Sales Revenue (future invoice slice)", "revenue"}, {"ACC-COGS", "5000", "Cost of Goods Sold (future invoice slice)", "expense"},
 		{"ACC-EXPENSE", "6000", "Operating Expenses", "expense"},
+		{"ACC-EXP-RENT", "6100", "Rent", "expense"}, {"ACC-EXP-UTILITIES", "6110", "Electricity and Utilities", "expense"},
+		{"ACC-EXP-INTERNET", "6120", "Internet", "expense"}, {"ACC-EXP-REPAIRS", "6130", "Repairs and Maintenance", "expense"},
+		{"ACC-EXP-TRANSPORT", "6140", "Transport", "expense"}, {"ACC-EXP-SOFTWARE", "6150", "Software", "expense"},
+		{"ACC-EXP-SALARIES", "6160", "Salaries and Wages (placeholder)", "expense"}, {"ACC-EXP-TAX", "6170", "Tax and Fees", "expense"},
+		{"ACC-EXP-OTHER", "6190", "Other Expense", "expense"},
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1157,8 +1217,16 @@ func (s *Store) SaveOrder(ctx context.Context, order domain.Order) error {
 	rollback := func(e error) error { _ = tx.Rollback(); return e }
 	var paid, total int64
 	if err := tx.QueryRowContext(ctx, `SELECT total_rial FROM orders WHERE id=?`, order.ID).Scan(&total); err == nil {
-		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='order' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, order.ID).Scan(&paid); err != nil { return rollback(err) }
-		if paid <= 0 { order.PaymentStatus = domain.PaymentUnpaid } else if paid < total { order.PaymentStatus = domain.PaymentPartiallyPaid } else { order.PaymentStatus = domain.PaymentPaid }
+		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='order' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, order.ID).Scan(&paid); err != nil {
+			return rollback(err)
+		}
+		if paid <= 0 {
+			order.PaymentStatus = domain.PaymentUnpaid
+		} else if paid < total {
+			order.PaymentStatus = domain.PaymentPartiallyPaid
+		} else {
+			order.PaymentStatus = domain.PaymentPaid
+		}
 	}
 	result, err := tx.ExecContext(ctx, `UPDATE orders SET customer_id=?,customer_name_snapshot=?,customer_phone_snapshot=?,created_at=?,promised_at=?,priority=?,commercial_status=?,fulfillment_status=?,payment_status=?,notes=?,subtotal_rial=?,discount_rial=?,total_rial=?,estimated_cost_rial=?,updated_at=?,quote_id=? WHERE id=?`, nullableString(order.CustomerID), order.CustomerNameSnapshot, order.CustomerPhoneSnapshot, order.CreatedAt.UTC().Format(time.RFC3339Nano), nullableTime(order.PromisedAt), string(order.Priority), string(order.CommercialStatus), string(order.FulfillmentStatus), string(order.PaymentStatus), order.Notes, order.SubtotalRial, order.DiscountRial, order.TotalRial, order.EstimatedCostRial, order.UpdatedAt.UTC().Format(time.RFC3339Nano), nullableString(order.QuoteID), order.ID)
 	if err != nil {

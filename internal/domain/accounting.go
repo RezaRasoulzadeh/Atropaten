@@ -152,7 +152,7 @@ func (p Payment) Validate() error {
 	}
 	var total big.Int
 	for i, a := range p.Allocations {
-		if a.Position != i || a.AmountRial <= 0 || a.TargetID == "" || (a.TargetType != "order" && a.TargetType != "purchase") {
+		if a.Position != i || a.AmountRial <= 0 || a.TargetID == "" || (a.TargetType != "order" && a.TargetType != "purchase" && a.TargetType != "invoice") {
 			return fmt.Errorf("invalid payment allocation %d", i)
 		}
 		total.Add(&total, big.NewInt(a.AmountRial))

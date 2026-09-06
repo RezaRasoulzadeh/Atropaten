@@ -57,7 +57,7 @@ func TestV7UpgradePreservesInventoryAndPurchasingData(t *testing.T) {
 		t.Fatalf("legacy supplier lost: %v", err)
 	}
 	var version int
-	if err = store.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil || version != 9 {
+	if err = store.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil || version != 10 {
 		t.Fatalf("migration version=%d err=%v", version, err)
 	}
 	if got := countRows(t, store, `SELECT COUNT(*) FROM inventory_reservations`); got != 0 {

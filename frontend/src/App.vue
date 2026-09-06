@@ -62,6 +62,7 @@ import ProductionView from './views/ProductionView.vue'
 import { suppliersApi, type SupplierRecord } from './api/suppliers'
 import { purchasesApi, type PurchaseRecord } from './api/purchases'
 import AccountingView from './views/AccountingView.vue'
+import InvoicesView from './views/InvoicesView.vue'
 
 type Tone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
 
@@ -95,6 +96,7 @@ const navigationSections: { label: string; items: NavigationItem[] }[] = [
     label: 'Finance',
     items: [
       { label: 'Accounting', icon: Calculator },
+      { label: 'Invoices', icon: ReceiptText },
       { label: 'Checks', icon: Landmark },
       { label: 'Loans', icon: CircleDollarSign },
       { label: 'Owners', icon: UserRound },
@@ -467,7 +469,9 @@ function showToast(message: string) {
 
         <ProductionView v-else-if="activeView === 'Production'" key="production" :currency-unit="currencyUnit" :orders="orders" :materials="catalogMaterials" :machines="catalogMachines" :suppliers="suppliers" @notify="showToast" />
 
-        <AccountingView v-else-if="activeView === 'Accounting'" key="accounting" :currency-unit="currencyUnit" :orders="orders" :suppliers="suppliers" :purchases="purchases" :customers="customers" @notify="showToast" />
+        <AccountingView v-else-if="activeView === 'Accounting'" key="accounting" :currency-unit="currencyUnit" :orders="orders" :suppliers="suppliers" :purchases="purchases" :customers="customers" @notify="showToast" @refresh-orders="loadOrders" />
+
+        <InvoicesView v-else-if="activeView === 'Invoices'" key="invoices" :currency-unit="currencyUnit" :orders="orders" @notify="showToast" @refresh-orders="loadOrders" />
 
         <section v-else key="empty" class="empty-workspace">
           <div class="empty-workspace-icon" aria-hidden="true"><Sparkles :size="22" :stroke-width="1.8" /></div>

@@ -25,6 +25,9 @@ type OrderProductionLookup interface {
 type OrderPaymentLookup interface {
 	OrderPaymentSummary(context.Context, string) (int64, int64, domain.PaymentStatus, error)
 }
+type OrderInvoiceLookup interface {
+	OrderInvoiceSummary(context.Context, string) (string, string, int64, int64, int64, error)
+}
 
 type OrderInput struct {
 	CustomerID   string
@@ -49,6 +52,8 @@ type OrderView struct {
 	Priority, CommercialStatus, FulfillmentStatus, PaymentStatus          string
 	SubtotalRial, DiscountRial, TotalRial, EstimatedCostRial              int64
 	PaidRial, RemainingRial                                               int64
+	InvoiceID, InvoiceStatus                                              string
+	InvoicedTotalRial                                                     int64
 	QuoteID                                                               string
 	ProductionJobCount, CompletedProductionJobs, InProgressProductionJobs int
 	Items                                                                 []OrderItemView
@@ -93,6 +98,25 @@ func (s *OrdersService) List(ctx context.Context) ([]OrderView, error) {
 			view.PaymentStatus = string(status)
 			if err != nil {
 				return nil, err
+			}
+		}
+		if lookup, ok := s.repository.(OrderInvoiceLookup); ok {
+			id, status, total, paid, remaining, e := lookup.OrderInvoiceSummary(ctx, row.ID)
+			if e != nil && e != domain.ErrInvoiceNotFound {
+				return nil, e
+			}
+			if e == nil {
+				view.InvoiceID, view.InvoiceStatus, view.InvoicedTotalRial, view.PaidRial, view.RemainingRial = id, status, total, paid, remaining
+				if status == string(domain.InvoiceDraft) {
+					if paymentLookup, ok := s.repository.(OrderPaymentLookup); ok {
+						var paymentStatus domain.PaymentStatus
+						view.PaidRial, view.RemainingRial, paymentStatus, e = paymentLookup.OrderPaymentSummary(ctx, row.ID)
+						if e != nil {
+							return nil, e
+						}
+						view.PaymentStatus = string(paymentStatus)
+					}
+				}
 			}
 		}
 		out = append(out, view)
@@ -163,6 +187,25 @@ func (s *OrdersService) enrich(ctx context.Context, view OrderView) (OrderView, 
 		view.PaymentStatus = string(status)
 		if err != nil {
 			return OrderView{}, err
+		}
+	}
+	if lookup, ok := s.repository.(OrderInvoiceLookup); ok {
+		id, status, total, paid, remaining, e := lookup.OrderInvoiceSummary(ctx, view.ID)
+		if e != nil && e != domain.ErrInvoiceNotFound {
+			return OrderView{}, e
+		}
+		if e == nil {
+			view.InvoiceID, view.InvoiceStatus, view.InvoicedTotalRial, view.PaidRial, view.RemainingRial = id, status, total, paid, remaining
+			if status == string(domain.InvoiceDraft) {
+				if paymentLookup, ok := s.repository.(OrderPaymentLookup); ok {
+					var paymentStatus domain.PaymentStatus
+					view.PaidRial, view.RemainingRial, paymentStatus, e = paymentLookup.OrderPaymentSummary(ctx, view.ID)
+					if e != nil {
+						return OrderView{}, e
+					}
+					view.PaymentStatus = string(paymentStatus)
+				}
+			}
 		}
 	}
 	return view, nil

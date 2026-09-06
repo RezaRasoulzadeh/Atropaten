@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -18,6 +19,18 @@ type AccountingRepository interface {
 	GetPayment(context.Context, string) (domain.Payment, error)
 	CreatePayment(context.Context, domain.Payment) (domain.Payment, error)
 	ReversePayment(context.Context, string, string) (domain.Payment, error)
+}
+type ExpenseRepository interface {
+	ListExpenses(context.Context) ([]domain.Expense, error)
+	GetExpense(context.Context, string) (domain.Expense, error)
+	CreateExpense(context.Context, domain.Expense) (domain.Expense, error)
+	ReverseExpense(context.Context, string, string) (domain.Expense, error)
+}
+type TransferRepository interface {
+	ListTransfers(context.Context) ([]domain.FinancialTransfer, error)
+	GetTransfer(context.Context, string) (domain.FinancialTransfer, error)
+	CreateTransfer(context.Context, domain.FinancialTransfer) (domain.FinancialTransfer, error)
+	ReverseTransfer(context.Context, string, string) (domain.FinancialTransfer, error)
 }
 
 type AccountingService struct {
@@ -67,6 +80,26 @@ type PaymentInput struct {
 type PaymentAllocationInput struct {
 	TargetType, TargetID string
 	AmountRial           int64
+}
+type ExpenseInput struct {
+	ID, ExpenseDate, CategoryAccountID, Payee, SupplierID, Description, PaymentMethod, FinancialAccountID, Notes, IdempotencyKey string
+	AmountRial                                                                                                                   int64
+}
+type ExpenseView struct {
+	ID, ExpenseNumber, ExpenseDate, CategoryAccountID, Payee, SupplierID, Description, PaymentMethod, FinancialAccountID, Notes, Status, JournalEntryID, IdempotencyKey, CreatedAt, UpdatedAt string
+	AmountRial                                                                                                                                                                                int64
+}
+type TransferInput struct {
+	ID, SourceFinancialAccountID, DestinationFinancialAccountID, Reference, Notes, TransferDate, IdempotencyKey string
+	AmountRial                                                                                                  int64
+}
+type TransferView struct {
+	ID, TransferNumber, SourceFinancialAccountID, DestinationFinancialAccountID, Reference, Notes, Status, JournalEntryID, IdempotencyKey, TransferDate, CreatedAt, UpdatedAt string
+	AmountRial                                                                                                                                                                int64
+}
+type CustomerFinancialView struct {
+	CustomerID                 string
+	ReceivableRial, CreditRial int64
 }
 
 func (s *AccountingService) Accounts(ctx context.Context) ([]AccountView, error) {
@@ -127,6 +160,25 @@ func (s *AccountingService) Payment(ctx context.Context, id string) (PaymentView
 	}
 	return paymentView(v), nil
 }
+func (s *AccountingService) CustomerFinancial(ctx context.Context, customerID string) (CustomerFinancialView, error) {
+	r, ok := s.repository.(interface {
+		CustomerFinancialSummary(context.Context, string) (int64, int64, error)
+	})
+	if !ok {
+		return CustomerFinancialView{}, fmt.Errorf("customer financial summary is not available")
+	}
+	receivable, credit, err := r.CustomerFinancialSummary(ctx, customerID)
+	return CustomerFinancialView{CustomerID: customerID, ReceivableRial: receivable, CreditRial: credit}, err
+}
+func (s *AccountingService) SupplierPayable(ctx context.Context, supplierID string) (int64, error) {
+	r, ok := s.repository.(interface {
+		SupplierPayableBalance(context.Context, string) (int64, error)
+	})
+	if !ok {
+		return 0, fmt.Errorf("supplier payable summary is not available")
+	}
+	return r.SupplierPayableBalance(ctx, supplierID)
+}
 func (s *AccountingService) CreatePayment(ctx context.Context, in PaymentInput) (PaymentView, error) {
 	id := strings.TrimSpace(in.ID)
 	if id == "" {
@@ -157,6 +209,104 @@ func (s *AccountingService) ReversePayment(ctx context.Context, id, key string) 
 	}
 	return paymentView(v), nil
 }
+func (s *AccountingService) Expenses(ctx context.Context) ([]ExpenseView, error) {
+	r, ok := s.repository.(ExpenseRepository)
+	if !ok {
+		return nil, fmt.Errorf("expense repository is not available")
+	}
+	v, e := r.ListExpenses(ctx)
+	if e != nil {
+		return nil, e
+	}
+	out := make([]ExpenseView, 0, len(v))
+	for _, x := range v {
+		out = append(out, expenseView(x))
+	}
+	return out, nil
+}
+func (s *AccountingService) CreateExpense(ctx context.Context, in ExpenseInput) (ExpenseView, error) {
+	r, ok := s.repository.(ExpenseRepository)
+	if !ok {
+		return ExpenseView{}, fmt.Errorf("expense repository is not available")
+	}
+	id := in.ID
+	if id == "" {
+		id = mustID("EXP-")
+	}
+	date := s.now().UTC()
+	if in.ExpenseDate != "" {
+		v, e := time.Parse(time.RFC3339, in.ExpenseDate)
+		if e != nil {
+			return ExpenseView{}, e
+		}
+		date = v.UTC()
+	}
+	v, e := r.CreateExpense(ctx, domain.Expense{ID: id, ExpenseDate: date, CategoryAccountID: in.CategoryAccountID, Payee: in.Payee, SupplierID: in.SupplierID, Description: in.Description, PaymentMethod: in.PaymentMethod, FinancialAccountID: in.FinancialAccountID, Notes: in.Notes, AmountRial: in.AmountRial, IdempotencyKey: in.IdempotencyKey, Status: "Posted", CreatedAt: date, UpdatedAt: date})
+	if e != nil {
+		return ExpenseView{}, e
+	}
+	return expenseView(v), nil
+}
+func (s *AccountingService) ReverseExpense(ctx context.Context, id, key string) (ExpenseView, error) {
+	r, ok := s.repository.(ExpenseRepository)
+	if !ok {
+		return ExpenseView{}, fmt.Errorf("expense repository is not available")
+	}
+	v, e := r.ReverseExpense(ctx, id, key)
+	if e != nil {
+		return ExpenseView{}, e
+	}
+	return expenseView(v), nil
+}
+func (s *AccountingService) Transfers(ctx context.Context) ([]TransferView, error) {
+	r, ok := s.repository.(TransferRepository)
+	if !ok {
+		return nil, fmt.Errorf("transfer repository is not available")
+	}
+	v, e := r.ListTransfers(ctx)
+	if e != nil {
+		return nil, e
+	}
+	out := make([]TransferView, 0, len(v))
+	for _, x := range v {
+		out = append(out, transferView(x))
+	}
+	return out, nil
+}
+func (s *AccountingService) CreateTransfer(ctx context.Context, in TransferInput) (TransferView, error) {
+	r, ok := s.repository.(TransferRepository)
+	if !ok {
+		return TransferView{}, fmt.Errorf("transfer repository is not available")
+	}
+	id := in.ID
+	if id == "" {
+		id = mustID("TRF-")
+	}
+	date := s.now().UTC()
+	if in.TransferDate != "" {
+		v, e := time.Parse(time.RFC3339, in.TransferDate)
+		if e != nil {
+			return TransferView{}, e
+		}
+		date = v.UTC()
+	}
+	v, e := r.CreateTransfer(ctx, domain.FinancialTransfer{ID: id, SourceFinancialAccountID: in.SourceFinancialAccountID, DestinationFinancialAccountID: in.DestinationFinancialAccountID, AmountRial: in.AmountRial, TransferDate: date, Reference: in.Reference, Notes: in.Notes, Status: "Posted", IdempotencyKey: in.IdempotencyKey, CreatedAt: date, UpdatedAt: date})
+	if e != nil {
+		return TransferView{}, e
+	}
+	return transferView(v), nil
+}
+func (s *AccountingService) ReverseTransfer(ctx context.Context, id, key string) (TransferView, error) {
+	r, ok := s.repository.(TransferRepository)
+	if !ok {
+		return TransferView{}, fmt.Errorf("transfer repository is not available")
+	}
+	v, e := r.ReverseTransfer(ctx, id, key)
+	if e != nil {
+		return TransferView{}, e
+	}
+	return transferView(v), nil
+}
 func journalView(j domain.JournalEntry) JournalEntryView {
 	v := JournalEntryView{ID: j.ID, EntryNumber: j.EntryNumber, Description: j.Description, SourceType: j.SourceType, SourceID: j.SourceID, ReversalOfID: j.ReversalOfID, PostedAt: j.PostedAt.UTC().Format(time.RFC3339Nano), CreatedAt: j.CreatedAt.UTC().Format(time.RFC3339Nano)}
 	for _, l := range j.Lines {
@@ -170,4 +320,10 @@ func paymentView(p domain.Payment) PaymentView {
 		v.Allocations = append(v.Allocations, PaymentAllocationView{a.ID, a.TargetType, a.TargetID, a.Position, a.AmountRial, a.Reversed})
 	}
 	return v
+}
+func expenseView(v domain.Expense) ExpenseView {
+	return ExpenseView{ID: v.ID, ExpenseNumber: v.ExpenseNumber, ExpenseDate: v.ExpenseDate.UTC().Format(time.RFC3339Nano), CategoryAccountID: v.CategoryAccountID, Payee: v.Payee, SupplierID: v.SupplierID, Description: v.Description, PaymentMethod: v.PaymentMethod, FinancialAccountID: v.FinancialAccountID, Notes: v.Notes, Status: v.Status, JournalEntryID: v.JournalEntryID, IdempotencyKey: v.IdempotencyKey, CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: v.UpdatedAt.UTC().Format(time.RFC3339Nano), AmountRial: v.AmountRial}
+}
+func transferView(v domain.FinancialTransfer) TransferView {
+	return TransferView{ID: v.ID, TransferNumber: v.TransferNumber, SourceFinancialAccountID: v.SourceFinancialAccountID, DestinationFinancialAccountID: v.DestinationFinancialAccountID, Reference: v.Reference, Notes: v.Notes, Status: v.Status, JournalEntryID: v.JournalEntryID, IdempotencyKey: v.IdempotencyKey, TransferDate: v.TransferDate.UTC().Format(time.RFC3339Nano), CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: v.UpdatedAt.UTC().Format(time.RFC3339Nano), AmountRial: v.AmountRial}
 }
