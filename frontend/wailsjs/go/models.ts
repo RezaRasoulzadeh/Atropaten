@@ -1978,6 +1978,20 @@ export namespace main {
 	        this.idempotencyKey = source["idempotencyKey"];
 	    }
 	}
+	export class CheckDTO {
+	    id!:string; checkNumber!:string; direction!:string; bank!:string; branch!:string; accountDescriptor!:string; payerPayee!:string; customerId!:string; supplierId!:string; sourceType!:string; sourceId!:string; financialAccountId!:string; notes!:string; status!:string; issueDate!:string; dueDate!:string; createdAt!:string; updatedAt!:string; amountRial!:number;
+	    static createFrom(source:any={}) { return new CheckDTO(source); }
+	    constructor(source:any={}) { if ('string'===typeof source) source=JSON.parse(source); Object.assign(this,source); }
+	}
+	export class CheckInputDTO extends CheckDTO {}
+	export class CheckEventDTO { id!:string; checkId!:string; fromStatus!:string; toStatus!:string; note!:string; journalEntryId!:string; occurredAt!:string; static createFrom(source:any={}){return new CheckEventDTO(source)} constructor(source:any={}){if('string'===typeof source)source=JSON.parse(source);Object.assign(this,source)} }
+	export class LoanInstallmentInputDTO { id!:string; dueDate!:string; principalRial!:number; interestFeeRial!:number; static createFrom(source:any={}){return new LoanInstallmentInputDTO(source)} constructor(source:any={}){if('string'===typeof source)source=JSON.parse(source);Object.assign(this,source)} }
+	export class LoanDTO { id!:string; loanNumber!:string; direction!:string; counterpartyName!:string; customerId!:string; supplierId!:string; startDate!:string; endDate!:string; status!:string; notes!:string; financialAccountId!:string; journalEntryId!:string; idempotencyKey!:string; createdAt!:string; updatedAt!:string; principalRial!:number; interestFeeRial!:number; paidPrincipalRial!:number; paidInterestRial!:number; remainingPrincipalRial!:number; remainingInterestRial!:number; overdueRial!:number; installments!:Array<LoanInstallmentDTO>; static createFrom(source:any={}){return new LoanDTO(source)} constructor(source:any={}){if('string'===typeof source)source=JSON.parse(source);Object.assign(this,source)} }
+	export class LoanInputDTO extends LoanDTO {}
+	export class LoanInstallmentDTO extends LoanInstallmentInputDTO { totalDueRial!:number; paidPrincipalRial!:number; paidInterestRial!:number; paidRial!:number; remainingRial!:number; overdueRial!:number; position!:number; status!:string }
+	export class LoanPaymentAllocationInputDTO { installmentId!:string; principalRial!:number; interestRial!:number; static createFrom(source:any={}){return new LoanPaymentAllocationInputDTO(source)} constructor(source:any={}){if('string'===typeof source)source=JSON.parse(source);Object.assign(this,source)} }
+	export class LoanPaymentAllocationDTO extends LoanPaymentAllocationInputDTO { id!:string; paymentId!:string; position!:number }
+	export class LoanPaymentDTO { id!:string; paymentNumber!:string; loanId!:string; financialAccountId!:string; paidAt!:string; notes!:string; status!:string; journalEntryId!:string; idempotencyKey!:string; amountRial!:number; principalRial!:number; interestRial!:number; allocations!:Array<LoanPaymentAllocationDTO>; static createFrom(source:any={}){return new LoanPaymentDTO(source)} constructor(source:any={}){if('string'===typeof source)source=JSON.parse(source);Object.assign(this,source)} }
+	export class LoanPaymentInputDTO extends LoanPaymentDTO {}
 
 }
-

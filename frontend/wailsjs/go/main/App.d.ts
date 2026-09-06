@@ -231,3 +231,15 @@ export function UpdateServiceParameter(arg1:string,arg2:string,arg3:main.Service
 export function UpdateSupplier(arg1:string,arg2:main.SupplierInput):Promise<main.SupplierDTO>;
 
 export function VoidInvoice(arg1:string):Promise<main.InvoiceDTO>;
+export function CreateCheck(arg1:main.CheckInputDTO):Promise<main.CheckDTO>;
+export function GetCheck(arg1:string):Promise<main.CheckDTO>;
+export function ListChecks(arg1:string,arg2:string):Promise<Array<main.CheckDTO>>;
+export function TransitionCheck(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.CheckDTO>;
+export function ListCheckEvents(arg1:string):Promise<Array<main.CheckEventDTO>>;
+export function CreateLoan(arg1:main.LoanInputDTO):Promise<main.LoanDTO>;
+export function GetLoan(arg1:string):Promise<main.LoanDTO>;
+export function ListLoans(arg1:string,arg2:string):Promise<Array<main.LoanDTO>>;
+export function ListLoanPayments(arg1:string):Promise<Array<main.LoanPaymentDTO>>;
+export function CreateLoanPayment(arg1:main.LoanPaymentInputDTO):Promise<main.LoanPaymentDTO>;
+export function ReverseLoanPayment(arg1:string,arg2:string):Promise<main.LoanPaymentDTO>;
+export function DeleteDraftCheck(arg1:string):Promise<void>;

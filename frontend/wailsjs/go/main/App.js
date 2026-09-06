@@ -461,3 +461,16 @@ export function UpdateSupplier(arg1, arg2) {
 export function VoidInvoice(arg1) {
   return window['go']['main']['App']['VoidInvoice'](arg1);
 }
+
+export function CreateCheck(arg1) { return window['go']['main']['App']['CreateCheck'](arg1); }
+export function GetCheck(arg1) { return window['go']['main']['App']['GetCheck'](arg1); }
+export function ListChecks(arg1, arg2) { return window['go']['main']['App']['ListChecks'](arg1, arg2); }
+export function TransitionCheck(arg1, arg2, arg3, arg4) { return window['go']['main']['App']['TransitionCheck'](arg1, arg2, arg3, arg4); }
+export function ListCheckEvents(arg1) { return window['go']['main']['App']['ListCheckEvents'](arg1); }
+export function CreateLoan(arg1) { return window['go']['main']['App']['CreateLoan'](arg1); }
+export function GetLoan(arg1) { return window['go']['main']['App']['GetLoan'](arg1); }
+export function ListLoans(arg1, arg2) { return window['go']['main']['App']['ListLoans'](arg1, arg2); }
+export function ListLoanPayments(arg1) { return window['go']['main']['App']['ListLoanPayments'](arg1); }
+export function CreateLoanPayment(arg1) { return window['go']['main']['App']['CreateLoanPayment'](arg1); }
+export function ReverseLoanPayment(arg1, arg2) { return window['go']['main']['App']['ReverseLoanPayment'](arg1, arg2); }
+export function DeleteDraftCheck(arg1) { return window['go']['main']['App']['DeleteDraftCheck'](arg1); }

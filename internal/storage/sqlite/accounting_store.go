@@ -411,6 +411,15 @@ func (s *Store) CreatePayment(ctx context.Context, p domain.Payment) (domain.Pay
 			tx.Rollback()
 			return domain.Payment{}, domain.ErrPaymentInvalidParty
 		}
+		var activeCheck int
+		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM checks WHERE source_type=? AND source_id=? AND status NOT IN ('Draft','Returned','Rejected','Cancelled')`, a.TargetType, a.TargetID).Scan(&activeCheck); err != nil {
+			tx.Rollback()
+			return domain.Payment{}, err
+		}
+		if activeCheck > 0 {
+			tx.Rollback()
+			return domain.Payment{}, domain.ErrCheckObligationPaid
+		}
 		if a.TargetType == "order" {
 			var customer string
 			var targetTotal int64

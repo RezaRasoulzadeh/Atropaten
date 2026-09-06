@@ -425,6 +425,53 @@ var migrations = []migration{{
 		CREATE INDEX expenses_date ON expenses(expense_date DESC,expense_number DESC);
 		CREATE INDEX transfers_date ON financial_transfers(transfer_date DESC,transfer_number DESC);`,
 	},
+	{
+		version: 11,
+		sql: `CREATE TABLE check_number_sequences (id INTEGER PRIMARY KEY CHECK(id=1), next_number INTEGER NOT NULL);
+		INSERT INTO check_number_sequences(id,next_number) VALUES(1,1001);
+		CREATE TABLE checks (
+			id TEXT PRIMARY KEY, check_number TEXT NOT NULL UNIQUE, direction TEXT NOT NULL CHECK(direction IN ('incoming','outgoing')),
+			bank TEXT NOT NULL, branch TEXT NOT NULL DEFAULT '', account_descriptor TEXT NOT NULL DEFAULT '', amount_rial INTEGER NOT NULL CHECK(amount_rial > 0),
+			issue_date TEXT NOT NULL, due_date TEXT NOT NULL, payer_payee TEXT NOT NULL, customer_id TEXT REFERENCES customers(id) ON DELETE SET NULL,
+			supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL, source_type TEXT NOT NULL DEFAULT '', source_id TEXT NOT NULL DEFAULT '',
+			financial_account_id TEXT REFERENCES financial_accounts(id) ON DELETE RESTRICT, notes TEXT NOT NULL DEFAULT '', status TEXT NOT NULL,
+			created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+			CHECK((direction='incoming' AND status IN ('Draft','Received','Deposited','Cleared','Returned','Cancelled')) OR (direction='outgoing' AND status IN ('Draft','Issued','Delivered','Cleared','Returned','Rejected','Cancelled')))
+		);
+		CREATE INDEX checks_due ON checks(direction,status,due_date);
+		CREATE TABLE check_events (
+			id TEXT PRIMARY KEY, check_id TEXT NOT NULL REFERENCES checks(id) ON DELETE RESTRICT, from_status TEXT NOT NULL, to_status TEXT NOT NULL,
+			note TEXT NOT NULL DEFAULT '', journal_entry_id TEXT NOT NULL DEFAULT '', idempotency_key TEXT NOT NULL UNIQUE, occurred_at TEXT NOT NULL
+		);
+		CREATE INDEX check_events_history ON check_events(check_id,occurred_at,id);
+		CREATE TRIGGER checks_immutable_delete BEFORE DELETE ON checks WHEN OLD.status <> 'Draft' BEGIN SELECT RAISE(ABORT,'financial check history cannot be deleted'); END;
+		CREATE TABLE loan_number_sequences (id INTEGER PRIMARY KEY CHECK(id=1), next_number INTEGER NOT NULL);
+		INSERT INTO loan_number_sequences(id,next_number) VALUES(1,1001);
+		CREATE TABLE loans (
+			id TEXT PRIMARY KEY, loan_number TEXT NOT NULL UNIQUE, direction TEXT NOT NULL CHECK(direction IN ('payable','receivable')), counterparty_name TEXT NOT NULL,
+			customer_id TEXT REFERENCES customers(id) ON DELETE SET NULL, supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL, principal_rial INTEGER NOT NULL CHECK(principal_rial > 0),
+			interest_fee_rial INTEGER NOT NULL CHECK(interest_fee_rial >= 0), start_date TEXT NOT NULL, end_date TEXT, status TEXT NOT NULL CHECK(status IN ('Draft','Active','Closed','Cancelled')),
+			notes TEXT NOT NULL DEFAULT '', financial_account_id TEXT NOT NULL REFERENCES financial_accounts(id) ON DELETE RESTRICT, journal_entry_id TEXT NOT NULL UNIQUE REFERENCES journal_entries(id) ON DELETE RESTRICT,
+			idempotency_key TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+		);
+		CREATE INDEX loans_status ON loans(status,direction,start_date);
+		CREATE TABLE loan_installments (
+			id TEXT PRIMARY KEY, loan_id TEXT NOT NULL REFERENCES loans(id) ON DELETE RESTRICT, position INTEGER NOT NULL, due_date TEXT NOT NULL,
+			principal_rial INTEGER NOT NULL CHECK(principal_rial >= 0), interest_fee_rial INTEGER NOT NULL CHECK(interest_fee_rial >= 0), total_due_rial INTEGER NOT NULL CHECK(total_due_rial=principal_rial+interest_fee_rial),
+			status TEXT NOT NULL DEFAULT 'Open' CHECK(status IN ('Open','Partially Paid','Paid')), UNIQUE(loan_id,position)
+		);
+		CREATE TABLE loan_payments (
+			id TEXT PRIMARY KEY, payment_number TEXT NOT NULL UNIQUE, loan_id TEXT NOT NULL REFERENCES loans(id) ON DELETE RESTRICT, financial_account_id TEXT NOT NULL REFERENCES financial_accounts(id) ON DELETE RESTRICT,
+			amount_rial INTEGER NOT NULL CHECK(amount_rial > 0), principal_rial INTEGER NOT NULL CHECK(principal_rial >= 0), interest_rial INTEGER NOT NULL CHECK(interest_rial >= 0),
+			paid_at TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '', status TEXT NOT NULL CHECK(status IN ('posted','reversed')), journal_entry_id TEXT NOT NULL UNIQUE REFERENCES journal_entries(id) ON DELETE RESTRICT,
+			idempotency_key TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, CHECK(amount_rial=principal_rial+interest_rial)
+		);
+		CREATE TABLE loan_payment_allocations (
+			id TEXT PRIMARY KEY, payment_id TEXT NOT NULL REFERENCES loan_payments(id) ON DELETE RESTRICT, installment_id TEXT NOT NULL REFERENCES loan_installments(id) ON DELETE RESTRICT,
+			position INTEGER NOT NULL, principal_rial INTEGER NOT NULL CHECK(principal_rial >= 0), interest_rial INTEGER NOT NULL CHECK(interest_rial >= 0), UNIQUE(payment_id,position)
+		);
+		CREATE INDEX loan_installments_due ON loan_installments(due_date,status);`,
+	},
 }
 
 func (s *Store) seedAccounting(ctx context.Context) error {
@@ -441,6 +488,10 @@ func (s *Store) seedAccounting(ctx context.Context) error {
 		{"ACC-EXP-TRANSPORT", "6140", "Transport", "expense"}, {"ACC-EXP-SOFTWARE", "6150", "Software", "expense"},
 		{"ACC-EXP-SALARIES", "6160", "Salaries and Wages (placeholder)", "expense"}, {"ACC-EXP-TAX", "6170", "Tax and Fees", "expense"},
 		{"ACC-EXP-OTHER", "6190", "Other Expense", "expense"},
+		{"ACC-CHECKS-RECEIVABLE", "1110", "Checks Receivable", "asset"}, {"ACC-CHECKS-IN-TRANSIT", "1120", "Checks in Transit", "asset"},
+		{"ACC-LOANS-RECEIVABLE", "1400", "Loans Receivable", "asset"}, {"ACC-CHECKS-PAYABLE", "2010", "Checks Payable", "liability"},
+		{"ACC-LOANS-PAYABLE", "2200", "Loans Payable", "liability"}, {"ACC-INTEREST-INCOME", "4100", "Interest Income", "revenue"},
+		{"ACC-FINANCE-EXPENSE", "6200", "Finance Expense", "expense"},
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

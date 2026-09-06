@@ -63,6 +63,8 @@ import { suppliersApi, type SupplierRecord } from './api/suppliers'
 import { purchasesApi, type PurchaseRecord } from './api/purchases'
 import AccountingView from './views/AccountingView.vue'
 import InvoicesView from './views/InvoicesView.vue'
+import ChecksView from './views/ChecksView.vue'
+import LoansView from './views/LoansView.vue'
 
 type Tone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
 
@@ -472,6 +474,10 @@ function showToast(message: string) {
         <AccountingView v-else-if="activeView === 'Accounting'" key="accounting" :currency-unit="currencyUnit" :orders="orders" :suppliers="suppliers" :purchases="purchases" :customers="customers" @notify="showToast" @refresh-orders="loadOrders" />
 
         <InvoicesView v-else-if="activeView === 'Invoices'" key="invoices" :currency-unit="currencyUnit" :orders="orders" @notify="showToast" @refresh-orders="loadOrders" />
+
+        <ChecksView v-else-if="activeView === 'Checks'" key="checks" :currency-unit="currencyUnit" @notify="showToast" />
+
+        <LoansView v-else-if="activeView === 'Loans'" key="loans" :currency-unit="currencyUnit" @notify="showToast" />
 
         <section v-else key="empty" class="empty-workspace">
           <div class="empty-workspace-icon" aria-hidden="true"><Sparkles :size="22" :stroke-width="1.8" /></div>

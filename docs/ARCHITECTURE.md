@@ -95,6 +95,15 @@ only the net actual production-consumption and waste movement costs already
 linked to that order. Later catalog changes or later movements never reprice
 or backfill an invoice automatically; corrections are reversing entries.
 
+For M5, incoming checks use Accounts Receivable → Checks Receivable → Checks
+in Transit → Bank as the lifecycle advances. Outgoing checks use Accounts
+Payable → Checks Payable → Bank. Only the clearing step touches a bank ledger,
+so uncleared instruments are never available cash; returns and rejections are
+compensating journal entries. Loans post principal to Cash/Bank against Loans
+Payable or Loans Receivable, while repayments split integer-Rial principal and
+interest lines explicitly. Check and loan posting keys are persisted so
+retries cannot create duplicate financial history.
+
 ## Inventory boundary
 
 Inventory quantity is derived from movements. Business modules request inventory operations; they do not directly edit a current-stock number as the source of truth.
