@@ -147,6 +147,7 @@ export namespace main {
 	    physicalStock: string;
 	    reorderLevel: string;
 	    averageUnitCostRial: number;
+	    inventoryValueRial: number;
 	    preferredSupplier: string;
 	    notes: string;
 	    active: boolean;
@@ -170,6 +171,7 @@ export namespace main {
 	        this.physicalStock = source["physicalStock"];
 	        this.reorderLevel = source["reorderLevel"];
 	        this.averageUnitCostRial = source["averageUnitCostRial"];
+	        this.inventoryValueRial = source["inventoryValueRial"];
 	        this.preferredSupplier = source["preferredSupplier"];
 	        this.notes = source["notes"];
 	        this.active = source["active"];

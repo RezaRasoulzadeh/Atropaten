@@ -1,0 +1,4 @@
+import { ArchiveSupplier, CreateSupplier, DeleteSupplier, ListSuppliers, ReactivateSupplier, UpdateSupplier } from '../../wailsjs/go/main/App'
+export interface SupplierRecord { id:string; name:string; code:string; phone:string; email:string; address:string; notes:string; active:boolean; createdAt:string; updatedAt:string }
+export type SupplierPayload = Omit<SupplierRecord,'id'|'active'|'createdAt'|'updatedAt'>
+export const suppliersApi={list(all=true){return ListSuppliers(all) as unknown as Promise<SupplierRecord[]>},create(v:SupplierPayload){return CreateSupplier(v) as unknown as Promise<SupplierRecord>},update(id:string,v:SupplierPayload){return UpdateSupplier(id,v) as unknown as Promise<SupplierRecord>},archive(id:string){return ArchiveSupplier(id) as unknown as Promise<SupplierRecord>},reactivate(id:string){return ReactivateSupplier(id) as unknown as Promise<SupplierRecord>},remove(id:string){return DeleteSupplier(id)}}

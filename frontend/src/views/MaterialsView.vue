@@ -10,11 +10,13 @@ import {
   Save,
   Search,
   X,
+  RefreshCw,
 } from 'lucide-vue-next'
 import SectionPanel from '../components/SectionPanel.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import WorkspaceStickyStack from '../components/WorkspaceStickyStack.vue'
 import { materialsApi, type MaterialPayload, type MaterialRecord } from '../api/materials'
+import { purchasesApi } from '../api/purchases'
 import { formatMoney, formatMoneyInput, parseMoneyInput, type CurrencyUnit } from '../utils/currency'
 import { formatDateTime } from '../utils/date'
 
@@ -36,6 +38,10 @@ const isLoading = ref(false)
 const isSaving = ref(false)
 const errorMessage = ref('')
 const formError = ref('')
+const movements = ref<any[]>([])
+const adjustmentQuantity = ref('')
+const adjustmentCost = ref('0')
+const adjustmentNote = ref('')
 
 const unitOptions = ['piece', 'sheet', 'pack', 'kilogram', 'gram', 'roll', 'meter', 'liter', 'milliliter', 'square meter']
 
@@ -80,6 +86,23 @@ function selectMaterial(id: string) {
   selectedId.value = id
   editorMode.value = null
   formError.value = ''
+  loadMovements(id)
+}
+
+async function loadMovements(id = selectedId.value ?? '') {
+  if (!id) { movements.value = []; return }
+  try { movements.value = await purchasesApi.movements(id) } catch (error) { errorMessage.value = errorMessageFrom(error, 'Movement history could not be loaded.') }
+}
+
+async function adjustStock() {
+  if (!selectedMaterial.value || !adjustmentQuantity.value.trim()) return
+  const cost = parseMoneyInput(adjustmentCost.value, props.currencyUnit)
+  if (cost === null) { formError.value = 'Enter a whole adjustment cost.'; return }
+  try {
+    await purchasesApi.adjust(selectedMaterial.value.id, adjustmentQuantity.value, cost, adjustmentNote.value)
+    adjustmentQuantity.value = ''; adjustmentNote.value = ''; await loadMaterials(); await loadMovements(selectedMaterial.value.id)
+    emit('notify', 'Stock adjustment recorded as an immutable movement.')
+  } catch (error) { formError.value = errorMessageFrom(error, 'Stock adjustment could not be recorded.') }
 }
 
 function startCreate() {
@@ -228,15 +251,15 @@ function dateLabel(value: string) {
         <div v-else-if="filteredMaterials.length" class="table-wrap materials-table-wrap">
           <table class="data-table materials-table">
             <thead>
-              <tr><th scope="col">Material</th><th scope="col">Units</th><th scope="col">Physical stock</th><th scope="col">Available</th><th scope="col" class="numeric-column">Average cost</th><th scope="col">Reorder</th><th scope="col">State</th></tr>
+              <tr><th scope="col">Material</th><th scope="col">Units</th><th scope="col">Physical stock</th><th scope="col" class="numeric-column">Average cost</th><th scope="col" class="numeric-column">Inventory value</th><th scope="col">Reorder</th><th scope="col">State</th></tr>
             </thead>
             <tbody>
               <tr v-for="material in filteredMaterials" :key="material.id" :class="{ 'is-selected': selectedId === material.id }" tabindex="0" @click="selectMaterial(material.id)" @keydown.enter="selectMaterial(material.id)">
                 <td><span class="table-primary">{{ material.name }}</span><span class="table-secondary">{{ material.sku || material.category || 'No SKU or category' }}</span></td>
                 <td><span class="table-primary">{{ unitLabel(material.purchaseUnit) }}</span><span class="table-secondary">1 = {{ material.conversionFactor }} {{ material.consumptionUnit }}</span></td>
                 <td><span class="table-primary">{{ material.physicalStock }} {{ material.consumptionUnit }}</span><span class="table-secondary">Current physical</span></td>
-                <td><span class="table-primary">{{ material.physicalStock }} {{ material.consumptionUnit }}</span><span class="table-secondary">No reservations</span></td>
                 <td class="numeric-column table-money">{{ formatMoney(material.averageUnitCostRial, props.currencyUnit) }}<span class="table-secondary">per {{ material.consumptionUnit }}</span></td>
+                <td class="numeric-column table-money">{{ formatMoney(material.inventoryValueRial, props.currencyUnit) }}</td>
                 <td>{{ material.reorderLevel }} {{ material.consumptionUnit }}</td>
                 <td><StatusBadge v-if="material.lowStock" label="Low stock" tone="amber" /><StatusBadge v-else :label="material.active ? 'Healthy' : 'Archived'" :tone="material.active ? 'green' : 'slate'" /></td>
               </tr>
@@ -266,10 +289,10 @@ function dateLabel(value: string) {
           </div>
           <label class="form-field form-field-wide"><span>Conversion factor</span><input v-model="form.conversionFactor" type="text" inputmode="decimal" placeholder="500" /><small class="field-help">1 {{ form.purchaseUnit }} = {{ form.conversionFactor || '…' }} {{ form.consumptionUnit }}</small></label>
           <div class="material-form-grid">
-            <label class="form-field"><span>Physical stock</span><input v-model="form.physicalStock" type="text" inputmode="decimal" placeholder="0" /></label>
+            <label class="form-field"><span>Physical stock</span><input v-model="form.physicalStock" type="text" inputmode="decimal" placeholder="0" :disabled="editorMode === 'edit'" /><small v-if="editorMode === 'edit'" class="field-help">Use Adjust Stock to create a ledger movement.</small></label>
             <label class="form-field"><span>Reorder level</span><input v-model="form.reorderLevel" type="text" inputmode="decimal" placeholder="0" /></label>
           </div>
-          <label class="form-field form-field-wide"><span>Average cost / {{ form.consumptionUnit }} ({{ props.currencyUnit }})</span><input :value="costDraft" type="text" inputmode="decimal" placeholder="0" @input="onCostInput" /><small class="field-help">Stored as integer Rial; display follows the toolbar preference.</small></label>
+          <label class="form-field form-field-wide"><span>Average cost / {{ form.consumptionUnit }} ({{ props.currencyUnit }})</span><input :value="costDraft" type="text" inputmode="decimal" placeholder="0" @input="onCostInput" :disabled="editorMode === 'edit'" /><small class="field-help">Stored as integer Rial; edit catalog cost only when establishing opening stock.</small></label>
           <label class="form-field form-field-wide"><span>Preferred supplier <em>optional</em></span><input v-model="form.preferredSupplier" type="text" placeholder="Pars Paper" autocomplete="off" /></label>
           <label class="form-field form-field-wide"><span>Notes <em>optional</em></span><textarea v-model="form.notes" rows="3" placeholder="Storage or handling note"></textarea></label>
           <div class="material-form-actions"><button class="button button-secondary" type="button" @click="cancelEditor">Cancel</button><button class="button button-primary" type="submit" :disabled="isSaving"><Save class="button-icon" :size="15" :stroke-width="1.8" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save material' }}</button></div>
@@ -289,7 +312,9 @@ function dateLabel(value: string) {
           <div><dt>Last updated</dt><dd>{{ dateLabel(selectedMaterial.updatedAt) }}</dd></div>
         </dl>
         <p v-if="selectedMaterial.notes" class="inspector-note">{{ selectedMaterial.notes }}</p>
-        <div class="inspector-actions"><button v-if="selectedMaterial.active" class="button button-secondary" type="button" @click="setActive(false)"><Archive class="button-icon" :size="15" :stroke-width="1.8" aria-hidden="true" />Archive</button><button v-else class="button button-secondary" type="button" @click="setActive(true)"><RotateCcw class="button-icon" :size="15" :stroke-width="1.8" aria-hidden="true" />Reactivate</button></div>
+          <div class="inspector-actions"><button v-if="selectedMaterial.active" class="button button-secondary" type="button" @click="setActive(false)"><Archive class="button-icon" :size="15" :stroke-width="1.8" aria-hidden="true" />Archive</button><button v-else class="button button-secondary" type="button" @click="setActive(true)"><RotateCcw class="button-icon" :size="15" :stroke-width="1.8" aria-hidden="true" />Reactivate</button></div>
+        <div class="stock-adjustment"><h3>Adjust stock</h3><p class="field-help">Positive adds stock; negative records a supplier return or correction.</p><div class="material-form-grid"><label class="form-field"><span>Quantity delta</span><input v-model="adjustmentQuantity" placeholder="−1 or 2.5" inputmode="decimal" /></label><label class="form-field"><span>Unit cost ({{ props.currencyUnit }})</span><input v-model="adjustmentCost" inputmode="numeric" /></label></div><label class="form-field"><span>Reason / note</span><input v-model="adjustmentNote" placeholder="Count correction" /></label><button class="button button-secondary" type="button" @click="adjustStock"><RefreshCw :size="15"/> Record movement</button></div>
+        <div class="movement-history"><h3>Recent movements</h3><div v-if="movements.length" v-for="movement in movements.slice(0,6)" :key="movement.id" class="movement-row"><span><strong>{{ movement.movementType }}</strong><small>{{ dateLabel(movement.occurredAt) }}</small></span><span :class="{'text-danger':movement.quantityDelta.startsWith('-')}">{{ movement.quantityDelta }} {{ selectedMaterial.consumptionUnit }}</span><span>{{ formatMoney(movement.totalCostRial, props.currencyUnit) }}</span></div><p v-else class="field-help">No inventory movements yet.</p></div>
       </SectionPanel>
 
       <SectionPanel v-else title="Material inspector" subtitle="Select a row to inspect it." class="material-inspector material-inspector-empty">

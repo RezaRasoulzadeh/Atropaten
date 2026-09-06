@@ -70,6 +70,27 @@ export function ListQuotes():Promise<Array<main.QuoteDTO>>;
 
 export function ListServices(arg1:boolean):Promise<Array<main.ServiceDTO>>;
 
+export function ListSuppliers(arg1:boolean):Promise<any[]>;
+export function GetSupplier(arg1:string):Promise<any>;
+export function CreateSupplier(arg1:any):Promise<any>;
+export function UpdateSupplier(arg1:string,arg2:any):Promise<any>;
+export function ArchiveSupplier(arg1:string):Promise<any>;
+export function ReactivateSupplier(arg1:string):Promise<any>;
+export function DeleteSupplier(arg1:string):Promise<void>;
+export function ListPurchases():Promise<any[]>;
+export function GetPurchase(arg1:string):Promise<any>;
+export function CreatePurchase(arg1:any):Promise<any>;
+export function UpdatePurchase(arg1:string,arg2:any):Promise<any>;
+export function AddPurchaseItem(arg1:string,arg2:any):Promise<any>;
+export function UpdatePurchaseItem(arg1:string,arg2:string,arg3:any):Promise<any>;
+export function RemovePurchaseItem(arg1:string,arg2:string):Promise<any>;
+export function ReorderPurchaseItems(arg1:string,arg2:string[]):Promise<any>;
+export function PostPurchase(arg1:string):Promise<any>;
+export function CancelPurchase(arg1:string):Promise<any>;
+export function DeleteDraftPurchase(arg1:string):Promise<void>;
+export function ListMaterialMovements(arg1:string):Promise<any[]>;
+export function AdjustMaterialStock(arg1:string,arg2:string,arg3:number,arg4:string):Promise<void>;
+
 export function ReactivateCustomer(arg1:string):Promise<main.CustomerDTO>;
 
 export function ReactivateMachine(arg1:string):Promise<main.MachineDTO>;

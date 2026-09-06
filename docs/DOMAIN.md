@@ -171,6 +171,8 @@ Default valuation is weighted average cost.
 
 Inventory movements are immutable and include purchase, production consumption, waste, supplier return, customer return where applicable, adjustment, transfer, and opening balance.
 
+The v7 inventory ledger stores quantities at six fixed decimal places and all authoritative money as integer Rial. Quantity-to-Rial multiplication and weighted-average unit costs use deterministic round-half-up integer arithmetic; a purchase-unit conversion is rejected if its result cannot be represented exactly at that scale. Purchase discount, shipping, tax, and additional costs are allocated proportionally by line acquisition value, with any integer remainder assigned to the first non-zero line. Tax is included in landed inventory value.
+
 Conceptually:
 
 ```text

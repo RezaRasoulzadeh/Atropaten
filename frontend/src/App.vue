@@ -56,6 +56,10 @@ import CustomersView from './views/CustomersView.vue'
 import QuotesView from './views/QuotesView.vue'
 import QuoteWorkspaceView from './views/QuoteWorkspaceView.vue'
 import { quotesApi, type QuoteRecord } from './api/quotes'
+import SuppliersView from './views/SuppliersView.vue'
+import PurchasesView from './views/PurchasesView.vue'
+import { suppliersApi, type SupplierRecord } from './api/suppliers'
+import { purchasesApi, type PurchaseRecord } from './api/purchases'
 
 type Tone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
 
@@ -120,6 +124,8 @@ const selectedOrderId = ref<string | null>(null)
 const selectedQuoteId = ref<string | null>(null)
 const orders = ref<OrderRecord[]>([])
 const quotes = ref<QuoteRecord[]>([])
+const suppliers = ref<SupplierRecord[]>([])
+const purchases = ref<PurchaseRecord[]>([])
 const ordersLoading = ref(false)
 const ordersError = ref('')
 const quotesLoading = ref(false)
@@ -169,6 +175,8 @@ function selectView(label: string) {
   selectedQuoteId.value = null
   if (label === 'Orders') { loadOrders(); loadOrderCatalog() }
   if (label === 'Quotes') { loadQuotes(); loadOrderCatalog() }
+  if (label === 'Suppliers') loadSuppliers()
+  if (label === 'Purchases') { loadSuppliers(); loadPurchases(); loadOrderCatalog() }
 }
 
 const selectedOrder = computed(() => orders.value.find((order) => order.id === selectedOrderId.value) ?? null)
@@ -189,6 +197,8 @@ async function loadOrderCatalog() {
   } catch (error) { showToast(String(error)) }
 }
 async function loadQuotes() { quotesLoading.value=true; quotesError.value=''; try { quotes.value=await quotesApi.list() } catch(error) { quotesError.value=String(error) } finally { quotesLoading.value=false } }
+async function loadSuppliers() { try { suppliers.value = await suppliersApi.list(true) } catch (error) { showToast(String(error)) } }
+async function loadPurchases() { try { purchases.value = await purchasesApi.list() } catch (error) { showToast(String(error)) } }
 
 function openOrder(orderId: string) {
   activeView.value = 'Orders'
@@ -218,7 +228,7 @@ function updateQuote(quote: QuoteRecord) { quotes.value=quotes.value.some(item=>
 async function openNewQuote() { activeView.value='Quotes'; try { const quote=await quotesApi.create({customerId:'',expiryDate:null,notes:'',discountRial:0}); quotes.value=[quote,...quotes.value]; selectedQuoteId.value=quote.id } catch(error) { showToast(String(error)) } }
 function openConvertedOrder(orderId: string) { selectedQuoteId.value=null; activeView.value='Orders'; loadOrders(); selectedOrderId.value=orderId }
 
-onMounted(() => { loadOrderCatalog(); loadOrders(); loadQuotes() })
+onMounted(() => { loadOrderCatalog(); loadOrders(); loadQuotes(); loadSuppliers(); loadPurchases() })
 
 function showToast(message: string) {
   toastMessage.value = message
@@ -448,6 +458,10 @@ function showToast(message: string) {
         <MaterialsView v-else-if="activeView === 'Materials'" key="materials" :currency-unit="currencyUnit" @notify="showToast" />
 
         <MachinesView v-else-if="activeView === 'Machines'" key="machines" :currency-unit="currencyUnit" @notify="showToast" />
+
+        <SuppliersView v-else-if="activeView === 'Suppliers'" key="suppliers" @notify="showToast" />
+
+        <PurchasesView v-else-if="activeView === 'Purchases'" key="purchases" :currency-unit="currencyUnit" :suppliers="suppliers" :materials="catalogMaterials" @notify="showToast" />
 
         <section v-else key="empty" class="empty-workspace">
           <div class="empty-workspace-icon" aria-hidden="true"><Sparkles :size="22" :stroke-width="1.8" /></div>

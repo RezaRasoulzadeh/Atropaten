@@ -21,6 +21,8 @@ type App struct {
 	orders       *application.OrdersService
 	quotes       *application.QuotesService
 	metadata     *application.MetadataService
+	suppliers    *application.SuppliersService
+	purchases    *application.PurchasesService
 	database     *sqlite.Store
 	startupError error
 }
@@ -53,6 +55,8 @@ func (a *App) startup(ctx context.Context) {
 	a.orders = application.NewOrdersService(database, database, a.pricing)
 	a.quotes = application.NewQuotesService(database, database, a.pricing)
 	a.metadata = application.NewMetadataService(database, database)
+	a.suppliers = application.NewSuppliersService(database)
+	a.purchases = application.NewPurchasesService(database, database, database)
 }
 
 func (a *App) shutdown(_ context.Context) {

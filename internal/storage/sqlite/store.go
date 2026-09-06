@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,6 +38,10 @@ func Open(path string) (*Store, error) {
 	}
 	store := &Store{db: db}
 	if err := store.migrate(context.Background()); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := store.ensureLegacyOpeningMovements(context.Background()); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -237,8 +242,93 @@ var migrations = []migration{{
 	CREATE TABLE attachments (id TEXT PRIMARY KEY, owner_type TEXT NOT NULL CHECK(owner_type IN ('quote','order')), owner_id TEXT NOT NULL, file_name TEXT NOT NULL CHECK(length(trim(file_name)) > 0), path TEXT NOT NULL CHECK(length(trim(path)) > 0), mime_type TEXT NOT NULL DEFAULT '', size_bytes INTEGER CHECK(size_bytes IS NULL OR size_bytes >= 0), checksum TEXT NOT NULL DEFAULT '', category TEXT NOT NULL CHECK(category IN ('artwork','proof','reference','other')), notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL);
 	CREATE INDEX attachments_owner ON attachments(owner_type, owner_id, created_at DESC);
 	CREATE TABLE proofs (id TEXT PRIMARY KEY, owner_type TEXT NOT NULL CHECK(owner_type IN ('quote','order')), owner_id TEXT NOT NULL, attachment_id TEXT REFERENCES attachments(id) ON DELETE SET NULL, status TEXT NOT NULL CHECK(status IN ('Draft','Ready','Waiting Customer Approval','Approved','Rejected')), version_label TEXT NOT NULL, prepared_at TEXT, approved_at TEXT, rejected_at TEXT, approver_note TEXT NOT NULL DEFAULT '', internal_note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL);
-	CREATE INDEX proofs_owner ON proofs(owner_type, owner_id, created_at DESC);`,
+		CREATE INDEX proofs_owner ON proofs(owner_type, owner_id, created_at DESC);`,
 },
+	{
+		version: 7,
+		sql: `CREATE TABLE suppliers (
+		id TEXT PRIMARY KEY, name TEXT NOT NULL CHECK(length(trim(name)) > 0), code TEXT NOT NULL DEFAULT '',
+		phone TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', address TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '',
+		active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)), created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+	);
+	CREATE INDEX suppliers_name ON suppliers(lower(name), id);
+	CREATE TABLE purchase_number_sequences (id INTEGER PRIMARY KEY CHECK(id=1), next_number INTEGER NOT NULL CHECK(next_number > 0));
+	INSERT INTO purchase_number_sequences(id, next_number) VALUES (1, 1001);
+	CREATE TABLE purchases (
+		id TEXT PRIMARY KEY, purchase_number TEXT NOT NULL UNIQUE, supplier_id TEXT NOT NULL REFERENCES suppliers(id) ON DELETE RESTRICT,
+		supplier_name_snapshot TEXT NOT NULL DEFAULT '', supplier_code_snapshot TEXT NOT NULL DEFAULT '', supplier_invoice_number TEXT NOT NULL DEFAULT '',
+		purchase_date TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('Draft','Posted','Cancelled')), notes TEXT NOT NULL DEFAULT '',
+		subtotal_rial INTEGER NOT NULL CHECK(subtotal_rial >= 0), discount_rial INTEGER NOT NULL CHECK(discount_rial >= 0),
+		shipping_rial INTEGER NOT NULL CHECK(shipping_rial >= 0), tax_rial INTEGER NOT NULL CHECK(tax_rial >= 0), additional_costs_rial INTEGER NOT NULL CHECK(additional_costs_rial >= 0),
+		total_rial INTEGER NOT NULL CHECK(total_rial >= 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+	);
+	CREATE INDEX purchases_date ON purchases(purchase_date DESC, purchase_number DESC);
+	CREATE TABLE purchase_items (
+		id TEXT PRIMARY KEY, purchase_id TEXT NOT NULL REFERENCES purchases(id) ON DELETE CASCADE, position INTEGER NOT NULL CHECK(position >= 0),
+		material_id TEXT NOT NULL REFERENCES materials(id) ON DELETE RESTRICT, material_name_snapshot TEXT NOT NULL, purchase_unit_snapshot TEXT NOT NULL,
+		consumption_unit_snapshot TEXT NOT NULL, purchase_quantity_units INTEGER NOT NULL CHECK(purchase_quantity_units >= 0), conversion_factor_units INTEGER NOT NULL CHECK(conversion_factor_units > 0),
+		consumption_quantity_units INTEGER NOT NULL CHECK(consumption_quantity_units >= 0), unit_acquisition_cost_rial INTEGER NOT NULL CHECK(unit_acquisition_cost_rial >= 0),
+		allocated_additional_cost_rial INTEGER NOT NULL, landed_unit_cost_rial INTEGER NOT NULL CHECK(landed_unit_cost_rial >= 0),
+		line_total_rial INTEGER NOT NULL CHECK(line_total_rial >= 0), notes TEXT NOT NULL DEFAULT '', UNIQUE(purchase_id, position)
+	);
+	CREATE TABLE inventory_movements (
+		id TEXT PRIMARY KEY, material_id TEXT NOT NULL REFERENCES materials(id) ON DELETE RESTRICT, occurred_at TEXT NOT NULL,
+		movement_type TEXT NOT NULL CHECK(movement_type IN ('opening_balance','purchase','adjustment','supplier_return','production_consumption','waste','customer_return','transfer')),
+		quantity_delta_units INTEGER NOT NULL, unit_cost_rial INTEGER NOT NULL CHECK(unit_cost_rial >= 0), total_cost_rial INTEGER NOT NULL,
+		reference_type TEXT NOT NULL DEFAULT '', reference_id TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL
+	);
+	CREATE INDEX inventory_movements_material_date ON inventory_movements(material_id, occurred_at, id);
+	CREATE INDEX purchase_items_material ON purchase_items(material_id);
+	CREATE TRIGGER inventory_movements_immutable_update BEFORE UPDATE ON inventory_movements BEGIN SELECT RAISE(ABORT, 'inventory movements are immutable'); END;
+	CREATE TRIGGER inventory_movements_immutable_delete BEFORE DELETE ON inventory_movements BEGIN SELECT RAISE(ABORT, 'inventory movements are immutable'); END;`,
+	},
+}
+
+func (s *Store) ensureLegacyOpeningMovements(ctx context.Context) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, physical_stock_units, average_unit_cost_rial, updated_at FROM materials WHERE physical_stock_units > 0 AND NOT EXISTS (SELECT 1 FROM inventory_movements m WHERE m.material_id = materials.id AND m.movement_type = 'opening_balance')`)
+	if err != nil {
+		return fmt.Errorf("find legacy inventory: %w", err)
+	}
+	type opening struct {
+		id        string
+		qty, cost int64
+		at        string
+	}
+	var openings []opening
+	for rows.Next() {
+		var o opening
+		if err := rows.Scan(&o.id, &o.qty, &o.cost, &o.at); err != nil {
+			return err
+		}
+		openings = append(openings, o)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close legacy inventory: %w", err)
+	}
+	if len(openings) == 0 {
+		return nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	for _, o := range openings {
+		total, e := domain.MulQuantityRial(domain.Quantity(o.qty), o.cost)
+		if e != nil {
+			return rollback(e)
+		}
+		if _, e = tx.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, "MOV-OPEN-"+o.id, o.id, o.at, "opening_balance", o.qty, o.cost, total, "material", o.id, "Migrated v6 opening balance", o.at); e != nil {
+			return rollback(fmt.Errorf("backfill opening balance: %w", e))
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit opening balances: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) List(ctx context.Context, includeArchived bool) ([]domain.Material, error) {
@@ -255,7 +345,6 @@ func (s *Store) List(ctx context.Context, includeArchived bool) ([]domain.Materi
 	if err != nil {
 		return nil, fmt.Errorf("list materials: %w", err)
 	}
-	defer rows.Close()
 	materials := []domain.Material{}
 	for rows.Next() {
 		material, err := scanMaterial(rows)
@@ -266,6 +355,15 @@ func (s *Store) List(ctx context.Context, includeArchived bool) ([]domain.Materi
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("read materials: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close materials: %w", err)
+	}
+	for i := range materials {
+		materials[i], err = s.withInventorySummary(ctx, materials[i])
+		if err != nil {
+			return nil, err
+		}
 	}
 	return materials, nil
 }
@@ -282,11 +380,19 @@ func (s *Store) Get(ctx context.Context, id string) (domain.Material, error) {
 	if err != nil {
 		return domain.Material{}, fmt.Errorf("get material: %w", err)
 	}
+	material, err = s.withInventorySummary(ctx, material)
+	if err != nil {
+		return domain.Material{}, err
+	}
 	return material, nil
 }
 
 func (s *Store) Create(ctx context.Context, material domain.Material) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO materials
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin create material: %w", err)
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO materials
 		(id, name, sku, category, purchase_unit, consumption_unit, conversion_factor_units,
 		physical_stock_units, reorder_level_units, average_unit_cost_rial, preferred_supplier,
 		notes, active, created_at, updated_at)
@@ -295,18 +401,34 @@ func (s *Store) Create(ctx context.Context, material domain.Material) error {
 		material.ConversionFactor, material.PhysicalStock, material.ReorderLevel, material.AverageUnitCostRial,
 		material.PreferredSupplier, material.Notes, boolToInt(material.Active), material.CreatedAt.UTC().Format(time.RFC3339Nano), material.UpdatedAt.UTC().Format(time.RFC3339Nano))
 	if err != nil {
+		_ = tx.Rollback()
 		return fmt.Errorf("create material: %w", err)
+	}
+	if material.PhysicalStock > 0 {
+		total, e := domain.MulQuantityRial(material.PhysicalStock, material.AverageUnitCostRial)
+		if e != nil {
+			_ = tx.Rollback()
+			return e
+		}
+		_, e = tx.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, "MOV-OPEN-"+material.ID, material.ID, material.CreatedAt.UTC().Format(time.RFC3339Nano), "opening_balance", material.PhysicalStock, material.AverageUnitCostRial, total, "material", material.ID, "Opening balance", material.CreatedAt.UTC().Format(time.RFC3339Nano))
+		if e != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("create opening balance: %w", e)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit material: %w", err)
 	}
 	return nil
 }
 
 func (s *Store) Update(ctx context.Context, material domain.Material) error {
 	result, err := s.db.ExecContext(ctx, `UPDATE materials SET name = ?, sku = ?, category = ?,
-		purchase_unit = ?, consumption_unit = ?, conversion_factor_units = ?, physical_stock_units = ?,
-		reorder_level_units = ?, average_unit_cost_rial = ?, preferred_supplier = ?, notes = ?,
+		purchase_unit = ?, consumption_unit = ?, conversion_factor_units = ?,
+		reorder_level_units = ?, preferred_supplier = ?, notes = ?,
 		active = ?, updated_at = ? WHERE id = ?`,
 		material.Name, material.SKU, material.Category, material.PurchaseUnit, material.ConsumptionUnit,
-		material.ConversionFactor, material.PhysicalStock, material.ReorderLevel, material.AverageUnitCostRial,
+		material.ConversionFactor, material.ReorderLevel,
 		material.PreferredSupplier, material.Notes, boolToInt(material.Active), material.UpdatedAt.UTC().Format(time.RFC3339Nano), material.ID)
 	if err != nil {
 		return fmt.Errorf("update material: %w", err)
@@ -319,6 +441,42 @@ func (s *Store) Update(ctx context.Context, material domain.Material) error {
 		return domain.ErrMaterialNotFound
 	}
 	return nil
+}
+
+func (s *Store) withInventorySummary(ctx context.Context, material domain.Material) (domain.Material, error) {
+	summary, err := s.inventorySummary(ctx, material.ID)
+	if err != nil {
+		return domain.Material{}, err
+	}
+	material.PhysicalStock = summary.PhysicalStock
+	material.AverageUnitCostRial = summary.AverageUnitCostRial
+	return material, nil
+}
+
+func (s *Store) inventorySummary(ctx context.Context, materialID string) (domain.InventorySummary, error) {
+	var qty, value int64
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(quantity_delta_units),0), COALESCE(SUM(total_cost_rial),0) FROM inventory_movements WHERE material_id = ?`, materialID).Scan(&qty, &value); err != nil {
+		return domain.InventorySummary{}, fmt.Errorf("inventory summary: %w", err)
+	}
+	if qty < 0 {
+		return domain.InventorySummary{}, fmt.Errorf("inventory ledger for %s is negative", materialID)
+	}
+	if qty == 0 {
+		return domain.InventorySummary{}, nil
+	}
+	avg := new(big.Int).Mul(big.NewInt(value), big.NewInt(domain.QuantityScale))
+	avg.Add(avg, big.NewInt(qty/2))
+	avg.Quo(avg, big.NewInt(qty))
+	if !avg.IsInt64() {
+		return domain.InventorySummary{}, fmt.Errorf("average inventory cost is too large")
+	}
+	return domain.InventorySummary{PhysicalStock: domain.Quantity(qty), AverageUnitCostRial: avg.Int64(), InventoryValueRial: value}, nil
+}
+
+func (s *Store) InventoryValue(ctx context.Context, materialID string) (int64, error) {
+	var value int64
+	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(total_cost_rial),0) FROM inventory_movements WHERE material_id = ?`, materialID).Scan(&value)
+	return value, err
 }
 
 func (s *Store) ListMachines(ctx context.Context, includeArchived bool) ([]domain.Machine, error) {

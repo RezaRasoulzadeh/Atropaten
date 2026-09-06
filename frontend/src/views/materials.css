@@ -55,3 +55,4 @@
   .materials-layout { grid-template-columns: minmax(0, 1fr); }
   .material-inspector { position: static; }
 }
+.stock-adjustment,.movement-history{border-top:1px solid var(--border-subtle);margin-top:16px;padding-top:14px}.stock-adjustment h3,.movement-history h3{font-size:13px;margin:0 0 6px}.movement-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-subtle);font-size:12px}.movement-row small{display:block;color:var(--text-muted);margin-top:2px}.movement-row>span:last-child{white-space:nowrap}

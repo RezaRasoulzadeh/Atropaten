@@ -34,6 +34,7 @@ type MaterialDTO struct {
 	PhysicalStock       string `json:"physicalStock"`
 	ReorderLevel        string `json:"reorderLevel"`
 	AverageUnitCostRial int64  `json:"averageUnitCostRial"`
+	InventoryValueRial  int64  `json:"inventoryValueRial"`
 	PreferredSupplier   string `json:"preferredSupplier"`
 	Notes               string `json:"notes"`
 	Active              bool   `json:"active"`
@@ -140,7 +141,7 @@ func materialDTO(view application.MaterialView) MaterialDTO {
 		ID: view.ID, Name: view.Name, SKU: view.SKU, Category: view.Category,
 		PurchaseUnit: view.PurchaseUnit, ConsumptionUnit: view.ConsumptionUnit,
 		ConversionFactor: view.ConversionFactor, PhysicalStock: view.PhysicalStock,
-		ReorderLevel: view.ReorderLevel, AverageUnitCostRial: view.AverageUnitCostRial,
+		ReorderLevel: view.ReorderLevel, AverageUnitCostRial: view.AverageUnitCostRial, InventoryValueRial: view.InventoryValueRial,
 		PreferredSupplier: view.PreferredSupplier, Notes: view.Notes, Active: view.Active,
 		LowStock: view.LowStock, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt,
 	}

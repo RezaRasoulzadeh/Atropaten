@@ -138,6 +138,27 @@ export function ListServices(arg1) {
   return window['go']['main']['App']['ListServices'](arg1);
 }
 
+export function ListSuppliers(arg1) { return window['go']['main']['App']['ListSuppliers'](arg1); }
+export function GetSupplier(arg1) { return window['go']['main']['App']['GetSupplier'](arg1); }
+export function CreateSupplier(arg1) { return window['go']['main']['App']['CreateSupplier'](arg1); }
+export function UpdateSupplier(arg1,arg2) { return window['go']['main']['App']['UpdateSupplier'](arg1,arg2); }
+export function ArchiveSupplier(arg1) { return window['go']['main']['App']['ArchiveSupplier'](arg1); }
+export function ReactivateSupplier(arg1) { return window['go']['main']['App']['ReactivateSupplier'](arg1); }
+export function DeleteSupplier(arg1) { return window['go']['main']['App']['DeleteSupplier'](arg1); }
+export function ListPurchases() { return window['go']['main']['App']['ListPurchases'](); }
+export function GetPurchase(arg1) { return window['go']['main']['App']['GetPurchase'](arg1); }
+export function CreatePurchase(arg1) { return window['go']['main']['App']['CreatePurchase'](arg1); }
+export function UpdatePurchase(arg1,arg2) { return window['go']['main']['App']['UpdatePurchase'](arg1,arg2); }
+export function AddPurchaseItem(arg1,arg2) { return window['go']['main']['App']['AddPurchaseItem'](arg1,arg2); }
+export function UpdatePurchaseItem(arg1,arg2,arg3) { return window['go']['main']['App']['UpdatePurchaseItem'](arg1,arg2,arg3); }
+export function RemovePurchaseItem(arg1,arg2) { return window['go']['main']['App']['RemovePurchaseItem'](arg1,arg2); }
+export function ReorderPurchaseItems(arg1,arg2) { return window['go']['main']['App']['ReorderPurchaseItems'](arg1,arg2); }
+export function PostPurchase(arg1) { return window['go']['main']['App']['PostPurchase'](arg1); }
+export function CancelPurchase(arg1) { return window['go']['main']['App']['CancelPurchase'](arg1); }
+export function DeleteDraftPurchase(arg1) { return window['go']['main']['App']['DeleteDraftPurchase'](arg1); }
+export function ListMaterialMovements(arg1) { return window['go']['main']['App']['ListMaterialMovements'](arg1); }
+export function AdjustMaterialStock(arg1,arg2,arg3,arg4) { return window['go']['main']['App']['AdjustMaterialStock'](arg1,arg2,arg3,arg4); }
+
 export function ReactivateCustomer(arg1) {
   return window['go']['main']['App']['ReactivateCustomer'](arg1);
 }

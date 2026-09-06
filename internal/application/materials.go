@@ -12,10 +12,10 @@ import (
 )
 
 type MaterialRepository interface {
-		List(context.Context, bool) ([]domain.Material, error)
-		Get(context.Context, string) (domain.Material, error)
-		Create(context.Context, domain.Material) error
-		Update(context.Context, domain.Material) error
+	List(context.Context, bool) ([]domain.Material, error)
+	Get(context.Context, string) (domain.Material, error)
+	Create(context.Context, domain.Material) error
+	Update(context.Context, domain.Material) error
 }
 
 type MaterialInput struct {
@@ -33,22 +33,23 @@ type MaterialInput struct {
 }
 
 type MaterialView struct {
-	ID                    string
-	Name                  string
-	SKU                   string
-	Category              string
-	PurchaseUnit          string
-	ConsumptionUnit       string
-	ConversionFactor      string
-	PhysicalStock         string
-	ReorderLevel          string
-	AverageUnitCostRial   int64
-	PreferredSupplier     string
-	Notes                 string
-	Active                bool
-	LowStock              bool
-	CreatedAt             string
-	UpdatedAt             string
+	ID                  string
+	Name                string
+	SKU                 string
+	Category            string
+	PurchaseUnit        string
+	ConsumptionUnit     string
+	ConversionFactor    string
+	PhysicalStock       string
+	ReorderLevel        string
+	AverageUnitCostRial int64
+	InventoryValueRial  int64
+	PreferredSupplier   string
+	Notes               string
+	Active              bool
+	LowStock            bool
+	CreatedAt           string
+	UpdatedAt           string
 }
 
 type MaterialsService struct {
@@ -67,7 +68,16 @@ func (s *MaterialsService) List(ctx context.Context, includeArchived bool) ([]Ma
 	}
 	views := make([]MaterialView, 0, len(materials))
 	for _, material := range materials {
-		views = append(views, toView(material))
+		view := toView(material)
+		if reader, ok := s.repository.(interface {
+			InventoryValue(context.Context, string) (int64, error)
+		}); ok {
+			view.InventoryValueRial, err = reader.InventoryValue(ctx, material.ID)
+			if err != nil {
+				return nil, err
+			}
+		}
+		views = append(views, view)
 	}
 	return views, nil
 }
@@ -77,7 +87,16 @@ func (s *MaterialsService) Get(ctx context.Context, id string) (MaterialView, er
 	if err != nil {
 		return MaterialView{}, err
 	}
-	return toView(material), nil
+	view := toView(material)
+	if reader, ok := s.repository.(interface {
+		InventoryValue(context.Context, string) (int64, error)
+	}); ok {
+		view.InventoryValueRial, err = reader.InventoryValue(ctx, material.ID)
+		if err != nil {
+			return MaterialView{}, err
+		}
+	}
+	return view, nil
 }
 
 func (s *MaterialsService) Create(ctx context.Context, input MaterialInput) (MaterialView, error) {
@@ -96,7 +115,16 @@ func (s *MaterialsService) Create(ctx context.Context, input MaterialInput) (Mat
 	if err := s.repository.Create(ctx, material); err != nil {
 		return MaterialView{}, err
 	}
-	return toView(material), nil
+	view := toView(material)
+	if reader, ok := s.repository.(interface {
+		InventoryValue(context.Context, string) (int64, error)
+	}); ok {
+		view.InventoryValueRial, err = reader.InventoryValue(ctx, material.ID)
+		if err != nil {
+			return MaterialView{}, err
+		}
+	}
+	return view, nil
 }
 
 func (s *MaterialsService) Update(ctx context.Context, id string, input MaterialInput) (MaterialView, error) {
@@ -104,6 +132,7 @@ func (s *MaterialsService) Update(ctx context.Context, id string, input Material
 	if err != nil {
 		return MaterialView{}, err
 	}
+	oldStock, oldCost := material.PhysicalStock, material.AverageUnitCostRial
 	draft, err := parseDraft(input)
 	if err != nil {
 		return MaterialView{}, err
@@ -111,10 +140,21 @@ func (s *MaterialsService) Update(ctx context.Context, id string, input Material
 	if err := material.Update(draft, s.now()); err != nil {
 		return MaterialView{}, err
 	}
+	// Physical stock and average cost are ledger read-model fields.
+	material.PhysicalStock, material.AverageUnitCostRial = oldStock, oldCost
 	if err := s.repository.Update(ctx, material); err != nil {
 		return MaterialView{}, err
 	}
-	return toView(material), nil
+	view := toView(material)
+	if reader, ok := s.repository.(interface {
+		InventoryValue(context.Context, string) (int64, error)
+	}); ok {
+		view.InventoryValueRial, err = reader.InventoryValue(ctx, material.ID)
+		if err != nil {
+			return MaterialView{}, err
+		}
+	}
+	return view, nil
 }
 
 func (s *MaterialsService) Archive(ctx context.Context, id string) (MaterialView, error) {
@@ -159,7 +199,7 @@ func parseDraft(input MaterialInput) (domain.MaterialDraft, error) {
 		PurchaseUnit: input.PurchaseUnit, ConsumptionUnit: input.ConsumptionUnit,
 		ConversionFactor: conversion, PhysicalStock: stock, ReorderLevel: reorder,
 		AverageUnitCostRial: input.AverageUnitCostRial,
-		PreferredSupplier: input.PreferredSupplier, Notes: input.Notes,
+		PreferredSupplier:   input.PreferredSupplier, Notes: input.Notes,
 	}, nil
 }
 
@@ -169,7 +209,8 @@ func toView(material domain.Material) MaterialView {
 		PurchaseUnit: material.PurchaseUnit, ConsumptionUnit: material.ConsumptionUnit,
 		ConversionFactor: material.ConversionFactor.String(), PhysicalStock: material.PhysicalStock.String(),
 		ReorderLevel: material.ReorderLevel.String(), AverageUnitCostRial: material.AverageUnitCostRial,
-		PreferredSupplier: material.PreferredSupplier, Notes: material.Notes, Active: material.Active,
+		InventoryValueRial: 0,
+		PreferredSupplier:  material.PreferredSupplier, Notes: material.Notes, Active: material.Active,
 		LowStock: material.LowStock(), CreatedAt: material.CreatedAt.UTC().Format(time.RFC3339Nano),
 		UpdatedAt: material.UpdatedAt.UTC().Format(time.RFC3339Nano),
 	}
