@@ -157,6 +157,10 @@ func (s *Store) PostJournalEntry(ctx context.Context, entry domain.JournalEntry)
 }
 
 func (s *Store) postJournalTx(ctx context.Context, tx *sql.Tx, entry domain.JournalEntry) (domain.JournalEntry, error) {
+	return s.postJournalTxWithPeriod(ctx, tx, entry, false)
+}
+
+func (s *Store) postJournalTxWithPeriod(ctx context.Context, tx *sql.Tx, entry domain.JournalEntry, allowClosedPeriod bool) (domain.JournalEntry, error) {
 	if err := entry.Validate(); err != nil {
 		return domain.JournalEntry{}, err
 	}
@@ -170,6 +174,15 @@ func (s *Store) postJournalTx(ctx context.Context, tx *sql.Tx, entry domain.Jour
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		return domain.JournalEntry{}, err
+	}
+	if !allowClosedPeriod {
+		closed, err := closedPeriodAtTx(ctx, tx, entry.PostedAt)
+		if err != nil {
+			return domain.JournalEntry{}, err
+		}
+		if closed {
+			return domain.JournalEntry{}, domain.ErrPeriodClosed
+		}
 	}
 	var next int64
 	if err = tx.QueryRowContext(ctx, `SELECT next_number FROM journal_number_sequences WHERE id=1`).Scan(&next); err != nil {
@@ -214,10 +227,56 @@ func (s *Store) reverseJournalTx(ctx context.Context, tx *sql.Tx, id, key, descr
 		}
 		return domain.JournalEntry{}, err
 	}
+	closed, err := closedPeriodAtTx(ctx, tx, original.PostedAt)
+	if err != nil {
+		return domain.JournalEntry{}, err
+	}
+	if closed {
+		return domain.JournalEntry{}, domain.ErrPeriodClosed
+	}
 	if description == "" {
 		description = "Reversal of " + original.EntryNumber
 	}
 	return s.postJournalTx(ctx, tx, original.Reversal("REV-"+id, key, description, postedAt.UTC()))
+}
+
+func closedPeriodAtTx(ctx context.Context, tx *sql.Tx, at time.Time) (bool, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT start_date,end_date FROM fiscal_periods WHERE status='Closed'`)
+	if err != nil {
+		return false, err
+	}
+	var periods [][2]time.Time
+	for rows.Next() {
+		var start, end string
+		if err = rows.Scan(&start, &end); err != nil {
+			rows.Close()
+			return false, err
+		}
+		s, e := time.Parse(time.RFC3339Nano, start)
+		if e != nil {
+			rows.Close()
+			return false, e
+		}
+		parsedEnd, e := time.Parse(time.RFC3339Nano, end)
+		if e != nil {
+			rows.Close()
+			return false, e
+		}
+		periods = append(periods, [2]time.Time{s.UTC(), parsedEnd.UTC().Add(24 * time.Hour)})
+	}
+	if err = rows.Err(); err != nil {
+		rows.Close()
+		return false, err
+	}
+	if err = rows.Close(); err != nil {
+		return false, err
+	}
+	for _, p := range periods {
+		if !at.Before(p[0]) && at.Before(p[1]) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func scanJournalTx(ctx context.Context, tx *sql.Tx, id string) (domain.JournalEntry, error) {

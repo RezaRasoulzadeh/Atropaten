@@ -470,7 +470,47 @@ var migrations = []migration{{
 			id TEXT PRIMARY KEY, payment_id TEXT NOT NULL REFERENCES loan_payments(id) ON DELETE RESTRICT, installment_id TEXT NOT NULL REFERENCES loan_installments(id) ON DELETE RESTRICT,
 			position INTEGER NOT NULL, principal_rial INTEGER NOT NULL CHECK(principal_rial >= 0), interest_rial INTEGER NOT NULL CHECK(interest_rial >= 0), UNIQUE(payment_id,position)
 		);
-		CREATE INDEX loan_installments_due ON loan_installments(due_date,status);`,
+			CREATE INDEX loan_installments_due ON loan_installments(due_date,status);`,
+	},
+	{
+		version: 12,
+		sql: `CREATE TABLE owners (
+			id TEXT PRIMARY KEY, name TEXT NOT NULL CHECK(length(trim(name)) > 0), phone TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '',
+			ownership_bps INTEGER NOT NULL CHECK(ownership_bps >= 0 AND ownership_bps <= 10000), profit_sharing_bps INTEGER NOT NULL CHECK(profit_sharing_bps >= 0 AND profit_sharing_bps <= 10000),
+			active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)), created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+		);
+		CREATE INDEX owners_active ON owners(active,name,id);
+		CREATE TABLE owner_share_history (
+			id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES owners(id) ON DELETE RESTRICT, ownership_bps INTEGER NOT NULL CHECK(ownership_bps >= 0 AND ownership_bps <= 10000), profit_sharing_bps INTEGER NOT NULL CHECK(profit_sharing_bps >= 0 AND profit_sharing_bps <= 10000), effective_at TEXT NOT NULL, reason TEXT NOT NULL DEFAULT ''
+		);
+		CREATE INDEX owner_share_history_owner ON owner_share_history(owner_id,effective_at,id);
+		CREATE TABLE owner_transactions (
+			id TEXT PRIMARY KEY, transaction_number TEXT NOT NULL UNIQUE, owner_id TEXT NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
+			type TEXT NOT NULL CHECK(type IN ('capital_contribution','drawing','owner_paid_expense','owner_reimbursement','loan_to_business','loan_from_business','loan_repayment_to_owner','loan_repayment_from_owner')),
+			amount_rial INTEGER NOT NULL CHECK(amount_rial > 0), occurred_at TEXT NOT NULL, financial_account_id TEXT REFERENCES financial_accounts(id) ON DELETE RESTRICT,
+			category_account_id TEXT REFERENCES accounts(id) ON DELETE RESTRICT, description TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', status TEXT NOT NULL CHECK(status IN ('Posted','Reversed')),
+			journal_entry_id TEXT NOT NULL UNIQUE REFERENCES journal_entries(id) ON DELETE RESTRICT, idempotency_key TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+		);
+		CREATE INDEX owner_transactions_owner ON owner_transactions(owner_id,occurred_at DESC,transaction_number DESC);
+		CREATE TABLE owner_transaction_number_sequences (id INTEGER PRIMARY KEY CHECK(id=1), next_number INTEGER NOT NULL);
+		INSERT INTO owner_transaction_number_sequences(id,next_number) VALUES(1,1001);
+		CREATE TABLE fiscal_periods (
+			id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, start_date TEXT NOT NULL, end_date TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('Open','Closing','Closed')),
+			closed_at TEXT, closing_journal_entry_id TEXT UNIQUE REFERENCES journal_entries(id) ON DELETE RESTRICT, idempotency_key TEXT NOT NULL UNIQUE, notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+			CHECK(start_date <= end_date)
+		);
+		CREATE INDEX fiscal_periods_dates ON fiscal_periods(start_date,end_date);
+		CREATE TABLE profit_allocations (
+			id TEXT PRIMARY KEY, period_id TEXT NOT NULL REFERENCES fiscal_periods(id) ON DELETE RESTRICT, owner_id TEXT NOT NULL REFERENCES owners(id) ON DELETE RESTRICT, position INTEGER NOT NULL CHECK(position >= 0), profit_sharing_bps INTEGER NOT NULL CHECK(profit_sharing_bps >= 0 AND profit_sharing_bps <= 10000), amount_rial INTEGER NOT NULL, UNIQUE(period_id,owner_id), UNIQUE(period_id,position)
+		);
+		CREATE INDEX profit_allocations_period ON profit_allocations(period_id,position);
+		INSERT OR IGNORE INTO accounts(id,code,name,type,active,system,created_at,updated_at) VALUES
+			('ACC-OWNER-CAPITAL','3100','Owner Capital','equity',1,1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+			('ACC-OWNER-DRAWINGS','3200','Owner Drawings','equity',1,1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+			('ACC-OWNER-CURRENT','3300','Owner Current / Payable','liability',1,1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+			('ACC-OWNER-LOAN-PAYABLE','2210','Owner Loan Payable','liability',1,1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+			('ACC-OWNER-LOAN-RECEIVABLE','1410','Owner Loan Receivable','asset',1,1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+			('ACC-RETAINED-EARNINGS','3400','Retained Earnings','equity',1,1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now'));`,
 	},
 }
 

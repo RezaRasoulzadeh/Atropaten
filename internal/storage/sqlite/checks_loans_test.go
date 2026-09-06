@@ -64,7 +64,7 @@ func TestV10ToV11PreservesExistingCustomerAndAddsTreasuryTables(t *testing.T) {
 		t.Fatalf("preserved customer=%q", name)
 	}
 	var version int
-	if err = s.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil || version != 11 {
+	if err = s.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil || version != 12 {
 		t.Fatalf("schema version=%d err=%v", version, err)
 	}
 	var tables int

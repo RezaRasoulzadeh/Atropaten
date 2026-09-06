@@ -65,6 +65,7 @@ import AccountingView from './views/AccountingView.vue'
 import InvoicesView from './views/InvoicesView.vue'
 import ChecksView from './views/ChecksView.vue'
 import LoansView from './views/LoansView.vue'
+import OwnersView from './views/OwnersView.vue'
 
 type Tone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
 
@@ -478,6 +479,8 @@ function showToast(message: string) {
         <ChecksView v-else-if="activeView === 'Checks'" key="checks" :currency-unit="currencyUnit" @notify="showToast" />
 
         <LoansView v-else-if="activeView === 'Loans'" key="loans" :currency-unit="currencyUnit" @notify="showToast" />
+
+        <OwnersView v-else-if="activeView === 'Owners'" key="owners" :currency-unit="currencyUnit" @notify="showToast" />
 
         <section v-else key="empty" class="empty-workspace">
           <div class="empty-workspace-icon" aria-hidden="true"><Sparkles :size="22" :stroke-width="1.8" /></div>

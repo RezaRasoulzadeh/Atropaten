@@ -474,3 +474,18 @@ export function ListLoanPayments(arg1) { return window['go']['main']['App']['Lis
 export function CreateLoanPayment(arg1) { return window['go']['main']['App']['CreateLoanPayment'](arg1); }
 export function ReverseLoanPayment(arg1, arg2) { return window['go']['main']['App']['ReverseLoanPayment'](arg1, arg2); }
 export function DeleteDraftCheck(arg1) { return window['go']['main']['App']['DeleteDraftCheck'](arg1); }
+export function ListOwners(arg1) { return window['go']['main']['App']['ListOwners'](arg1); }
+export function GetOwner(arg1) { return window['go']['main']['App']['GetOwner'](arg1); }
+export function CreateOwner(arg1) { return window['go']['main']['App']['CreateOwner'](arg1); }
+export function UpdateOwnerShares(arg1, arg2) { return window['go']['main']['App']['UpdateOwnerShares'](arg1, arg2); }
+export function ArchiveOwner(arg1) { return window['go']['main']['App']['ArchiveOwner'](arg1); }
+export function ReactivateOwner(arg1) { return window['go']['main']['App']['ReactivateOwner'](arg1); }
+export function DeleteOwner(arg1) { return window['go']['main']['App']['DeleteOwner'](arg1); }
+export function ListOwnerTransactions(arg1) { return window['go']['main']['App']['ListOwnerTransactions'](arg1); }
+export function CreateOwnerTransaction(arg1) { return window['go']['main']['App']['CreateOwnerTransaction'](arg1); }
+export function ReverseOwnerTransaction(arg1, arg2) { return window['go']['main']['App']['ReverseOwnerTransaction'](arg1, arg2); }
+export function ListFiscalPeriods() { return window['go']['main']['App']['ListFiscalPeriods'](); }
+export function GetFiscalPeriod(arg1) { return window['go']['main']['App']['GetFiscalPeriod'](arg1); }
+export function PreviewFiscalPeriod(arg1) { return window['go']['main']['App']['PreviewFiscalPeriod'](arg1); }
+export function CreateFiscalPeriod(arg1) { return window['go']['main']['App']['CreateFiscalPeriod'](arg1); }
+export function CloseFiscalPeriod(arg1, arg2) { return window['go']['main']['App']['CloseFiscalPeriod'](arg1, arg2); }

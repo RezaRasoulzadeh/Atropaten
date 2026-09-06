@@ -409,3 +409,22 @@ h1 { margin-bottom: 4px; color: var(--text); font-size: clamp(23px, 2.4vw, 30px)
   .status-bar { gap: 10px; padding: 0 16px; }
   .status-bar > span:nth-of-type(n + 4) { display: none; }
 }
+
+.workspace-tabs { display:flex; gap:6px; overflow-x:auto; border-bottom:1px solid var(--border); margin-bottom:20px; }
+.workspace-tabs button { flex:0 0 auto; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--text-muted); padding:10px 12px; cursor:pointer; white-space:nowrap; }
+.workspace-tabs button.active { color:var(--text); border-bottom-color:var(--accent); }
+.owners-grid { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr); gap:20px; align-items:start; }
+.owner-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
+.owner-card { display:grid; gap:6px; text-align:left; border:1px solid var(--border); background:var(--surface); border-radius:10px; padding:14px; color:inherit; cursor:pointer; min-width:0; }
+.owner-card.selected, .period-row.selected { border-color:var(--accent); background:var(--surface-raised); }
+.owner-card span, .period-row small { color:var(--text-muted); font-size:12px; }
+.owner-card b { margin-top:4px; }
+.period-list { display:grid; gap:8px; }
+.period-row { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-width:0; border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:11px; color:inherit; text-align:left; cursor:pointer; }
+.period-row > span { display:grid; gap:3px; min-width:0; }
+.period-row small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.owner-form { display:grid; gap:13px; }
+.owner-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.period-actions { display:flex; gap:8px; flex-wrap:wrap; margin:14px 0; }
+@media (max-width: 980px) { .owners-grid { grid-template-columns:minmax(0,1fr); } }
+@media (max-width: 560px) { .owner-form-grid { grid-template-columns:minmax(0,1fr); } }

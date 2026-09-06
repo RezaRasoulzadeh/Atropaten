@@ -104,6 +104,16 @@ Payable or Loans Receivable, while repayments split integer-Rial principal and
 interest lines explicitly. Check and loan posting keys are persisted so
 retries cannot create duplicate financial history.
 
+For M5-002, owner percentages are stored as integer basis points (10,000 =
+100.00%), with ownership and profit-sharing tracked independently. Owner
+balances are derived from party-tagged journal lines; drawings use a dedicated
+equity account and owner-paid expenses credit the owner current account.
+Fiscal-period P&L is derived from posted journal lines only. Closing snapshots
+the active profit-sharing basis points and allocates integer Rial using floor
+division; the deterministic remainder goes to the final owner in ascending
+owner-ID order. Closing creates one balanced allocation journal and immutable
+allocation rows, and closed-period posting/reversal is rejected.
+
 ## Inventory boundary
 
 Inventory quantity is derived from movements. Business modules request inventory operations; they do not directly edit a current-stock number as the source of truth.
