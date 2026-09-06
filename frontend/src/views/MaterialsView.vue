@@ -251,13 +251,14 @@ function dateLabel(value: string) {
         <div v-else-if="filteredMaterials.length" class="table-wrap materials-table-wrap">
           <table class="data-table materials-table">
             <thead>
-              <tr><th scope="col">Material</th><th scope="col">Units</th><th scope="col">Physical stock</th><th scope="col" class="numeric-column">Average cost</th><th scope="col" class="numeric-column">Inventory value</th><th scope="col">Reorder</th><th scope="col">State</th></tr>
+              <tr><th scope="col">Material</th><th scope="col">Units</th><th scope="col">Physical</th><th scope="col">Available</th><th scope="col" class="numeric-column">Average cost</th><th scope="col" class="numeric-column">Inventory value</th><th scope="col">Reorder</th><th scope="col">State</th></tr>
             </thead>
             <tbody>
               <tr v-for="material in filteredMaterials" :key="material.id" :class="{ 'is-selected': selectedId === material.id }" tabindex="0" @click="selectMaterial(material.id)" @keydown.enter="selectMaterial(material.id)">
                 <td><span class="table-primary">{{ material.name }}</span><span class="table-secondary">{{ material.sku || material.category || 'No SKU or category' }}</span></td>
                 <td><span class="table-primary">{{ unitLabel(material.purchaseUnit) }}</span><span class="table-secondary">1 = {{ material.conversionFactor }} {{ material.consumptionUnit }}</span></td>
                 <td><span class="table-primary">{{ material.physicalStock }} {{ material.consumptionUnit }}</span><span class="table-secondary">Current physical</span></td>
+                <td><span class="table-primary">{{ material.availableStock }} {{ material.consumptionUnit }}</span><span class="table-secondary">{{ material.reservedStock }} reserved</span></td>
                 <td class="numeric-column table-money">{{ formatMoney(material.averageUnitCostRial, props.currencyUnit) }}<span class="table-secondary">per {{ material.consumptionUnit }}</span></td>
                 <td class="numeric-column table-money">{{ formatMoney(material.inventoryValueRial, props.currencyUnit) }}</td>
                 <td>{{ material.reorderLevel }} {{ material.consumptionUnit }}</td>
@@ -306,7 +307,8 @@ function dateLabel(value: string) {
         <dl class="inspector-details">
           <div><dt>Unit conversion</dt><dd>1 {{ selectedMaterial.purchaseUnit }} = {{ selectedMaterial.conversionFactor }} {{ selectedMaterial.consumptionUnit }}</dd></div>
           <div><dt>Physical stock</dt><dd>{{ selectedMaterial.physicalStock }} {{ selectedMaterial.consumptionUnit }}</dd></div>
-          <div><dt>Available / physical</dt><dd>{{ selectedMaterial.physicalStock }} {{ selectedMaterial.consumptionUnit }} <small>No reservations yet</small></dd></div>
+          <div><dt>Reserved stock</dt><dd>{{ selectedMaterial.reservedStock }} {{ selectedMaterial.consumptionUnit }}</dd></div>
+          <div><dt>Available stock</dt><dd>{{ selectedMaterial.availableStock }} {{ selectedMaterial.consumptionUnit }} <small>Physical less active reservations</small></dd></div>
           <div><dt>Reorder level</dt><dd>{{ selectedMaterial.reorderLevel }} {{ selectedMaterial.consumptionUnit }}</dd></div>
           <div><dt>Average cost</dt><dd>{{ formatMoney(selectedMaterial.averageUnitCostRial, props.currencyUnit) }} <small>per {{ selectedMaterial.consumptionUnit }}</small></dd></div>
           <div><dt>Last updated</dt><dd>{{ dateLabel(selectedMaterial.updatedAt) }}</dd></div>

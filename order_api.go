@@ -23,25 +23,28 @@ type OrderItemInput struct {
 	Notes                    string            `json:"notes"`
 }
 type OrderDTO struct {
-	ID                string         `json:"id"`
-	OrderNumber       string         `json:"orderNumber"`
-	CustomerID        string         `json:"customerId"`
-	CustomerName      string         `json:"customerName"`
-	CustomerPhone     string         `json:"customerPhone"`
-	Notes             string         `json:"notes"`
-	CreatedAt         string         `json:"createdAt"`
-	UpdatedAt         string         `json:"updatedAt"`
-	PromisedAt        *string        `json:"promisedAt"`
-	Priority          string         `json:"priority"`
-	CommercialStatus  string         `json:"commercialStatus"`
-	FulfillmentStatus string         `json:"fulfillmentStatus"`
-	PaymentStatus     string         `json:"paymentStatus"`
-	SubtotalRial      int64          `json:"subtotalRial"`
-	DiscountRial      int64          `json:"discountRial"`
-	TotalRial         int64          `json:"totalRial"`
-	EstimatedCostRial int64          `json:"estimatedCostRial"`
-	QuoteID           string         `json:"quoteId"`
-	Items             []OrderItemDTO `json:"items"`
+	ID                       string         `json:"id"`
+	OrderNumber              string         `json:"orderNumber"`
+	CustomerID               string         `json:"customerId"`
+	CustomerName             string         `json:"customerName"`
+	CustomerPhone            string         `json:"customerPhone"`
+	Notes                    string         `json:"notes"`
+	CreatedAt                string         `json:"createdAt"`
+	UpdatedAt                string         `json:"updatedAt"`
+	PromisedAt               *string        `json:"promisedAt"`
+	Priority                 string         `json:"priority"`
+	CommercialStatus         string         `json:"commercialStatus"`
+	FulfillmentStatus        string         `json:"fulfillmentStatus"`
+	PaymentStatus            string         `json:"paymentStatus"`
+	SubtotalRial             int64          `json:"subtotalRial"`
+	DiscountRial             int64          `json:"discountRial"`
+	TotalRial                int64          `json:"totalRial"`
+	EstimatedCostRial        int64          `json:"estimatedCostRial"`
+	QuoteID                  string         `json:"quoteId"`
+	ProductionJobCount       int            `json:"productionJobCount"`
+	CompletedProductionJobs  int            `json:"completedProductionJobs"`
+	InProgressProductionJobs int            `json:"inProgressProductionJobs"`
+	Items                    []OrderItemDTO `json:"items"`
 }
 type OrderItemDTO struct {
 	ID                     string `json:"id"`
@@ -217,7 +220,7 @@ func itemInput(i OrderItemInput) application.OrderItemInput {
 	return application.OrderItemInput{ServiceID: i.ServiceID, Parameters: i.Parameters, ManualCosts: i.ManualCosts, SellingPriceOverrideRial: i.SellingPriceOverrideRial, Quantity: i.Quantity, QuantityUnit: i.QuantityUnit, Notes: i.Notes}
 }
 func orderDTO(v application.OrderView) OrderDTO {
-	o := OrderDTO{ID: v.ID, OrderNumber: v.OrderNumber, CustomerID: v.CustomerID, CustomerName: v.CustomerName, CustomerPhone: v.CustomerPhone, Notes: v.Notes, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt, PromisedAt: v.PromisedAt, Priority: v.Priority, CommercialStatus: v.CommercialStatus, FulfillmentStatus: v.FulfillmentStatus, PaymentStatus: v.PaymentStatus, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, TotalRial: v.TotalRial, EstimatedCostRial: v.EstimatedCostRial, QuoteID: v.QuoteID}
+	o := OrderDTO{ID: v.ID, OrderNumber: v.OrderNumber, CustomerID: v.CustomerID, CustomerName: v.CustomerName, CustomerPhone: v.CustomerPhone, Notes: v.Notes, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt, PromisedAt: v.PromisedAt, Priority: v.Priority, CommercialStatus: v.CommercialStatus, FulfillmentStatus: v.FulfillmentStatus, PaymentStatus: v.PaymentStatus, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, TotalRial: v.TotalRial, EstimatedCostRial: v.EstimatedCostRial, QuoteID: v.QuoteID, ProductionJobCount: v.ProductionJobCount, CompletedProductionJobs: v.CompletedProductionJobs, InProgressProductionJobs: v.InProgressProductionJobs}
 	for _, i := range v.Items {
 		o.Items = append(o.Items, OrderItemDTO{ID: i.ID, Position: i.Position, ServiceID: i.ServiceID, ServiceName: i.ServiceName, ServiceCode: i.ServiceCode, Quantity: i.Quantity, QuantityUnit: i.QuantityUnit, ResolvedParametersJSON: i.ResolvedParametersJSON, CostBreakdownJSON: i.CostBreakdownJSON, PricingSnapshotJSON: i.PricingSnapshotJSON, EstimatedCostRial: i.EstimatedCostRial, SuggestedPriceRial: i.SuggestedPriceRial, SellingPriceRial: i.SellingPriceRial, Notes: i.Notes})
 	}

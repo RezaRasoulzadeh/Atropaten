@@ -74,6 +74,8 @@ type InventoryMovement struct {
 
 type InventorySummary struct {
 	PhysicalStock       Quantity
+	ReservedStock       Quantity
+	AvailableStock      Quantity
 	AverageUnitCostRial int64
 	InventoryValueRial  int64
 }

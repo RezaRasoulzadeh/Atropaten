@@ -190,6 +190,21 @@ export function ListSuppliers(arg1) {
   return window['go']['main']['App']['ListSuppliers'](arg1);
 }
 
+export function ListProductionJobs(arg1) { return window['go']['main']['App']['ListProductionJobs'](arg1); }
+export function GetProductionJob(arg1) { return window['go']['main']['App']['GetProductionJob'](arg1); }
+export function CreateProductionJob(arg1) { return window['go']['main']['App']['CreateProductionJob'](arg1); }
+export function UpdateProductionJob(arg1, arg2) { return window['go']['main']['App']['UpdateProductionJob'](arg1, arg2); }
+export function UpdateProductionJobStatus(arg1, arg2) { return window['go']['main']['App']['UpdateProductionJobStatus'](arg1, arg2); }
+export function DeleteProductionJob(arg1) { return window['go']['main']['App']['DeleteProductionJob'](arg1); }
+export function CreateInventoryReservation(arg1) { return window['go']['main']['App']['CreateInventoryReservation'](arg1); }
+export function UpdateInventoryReservation(arg1, arg2) { return window['go']['main']['App']['UpdateInventoryReservation'](arg1, arg2); }
+export function ReleaseInventoryReservation(arg1) { return window['go']['main']['App']['ReleaseInventoryReservation'](arg1); }
+export function ListInventoryReservations(arg1, arg2, arg3) { return window['go']['main']['App']['ListInventoryReservations'](arg1, arg2, arg3); }
+export function RecordProductionConsumption(arg1, arg2) { return window['go']['main']['App']['RecordProductionConsumption'](arg1, arg2); }
+export function ReverseProductionConsumption(arg1, arg2) { return window['go']['main']['App']['ReverseProductionConsumption'](arg1, arg2); }
+export function ListProductionConsumptions(arg1) { return window['go']['main']['App']['ListProductionConsumptions'](arg1); }
+export function UpdateProductionOutsourcing(arg1, arg2) { return window['go']['main']['App']['UpdateProductionOutsourcing'](arg1, arg2); }
+
 export function PostPurchase(arg1) {
   return window['go']['main']['App']['PostPurchase'](arg1);
 }

@@ -58,6 +58,7 @@ import QuoteWorkspaceView from './views/QuoteWorkspaceView.vue'
 import { quotesApi, type QuoteRecord } from './api/quotes'
 import SuppliersView from './views/SuppliersView.vue'
 import PurchasesView from './views/PurchasesView.vue'
+import ProductionView from './views/ProductionView.vue'
 import { suppliersApi, type SupplierRecord } from './api/suppliers'
 import { purchasesApi, type PurchaseRecord } from './api/purchases'
 
@@ -462,6 +463,8 @@ function showToast(message: string) {
         <SuppliersView v-else-if="activeView === 'Suppliers'" key="suppliers" @notify="showToast" />
 
         <PurchasesView v-else-if="activeView === 'Purchases'" key="purchases" :currency-unit="currencyUnit" :suppliers="suppliers" :materials="catalogMaterials" @notify="showToast" />
+
+        <ProductionView v-else-if="activeView === 'Production'" key="production" :currency-unit="currencyUnit" :orders="orders" :materials="catalogMaterials" :machines="catalogMachines" :suppliers="suppliers" @notify="showToast" />
 
         <section v-else key="empty" class="empty-workspace">
           <div class="empty-workspace-icon" aria-hidden="true"><Sparkles :size="22" :stroke-width="1.8" /></div>

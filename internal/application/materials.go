@@ -41,6 +41,8 @@ type MaterialView struct {
 	ConsumptionUnit     string
 	ConversionFactor    string
 	PhysicalStock       string
+	ReservedStock       string
+	AvailableStock      string
 	ReorderLevel        string
 	AverageUnitCostRial int64
 	InventoryValueRial  int64
@@ -208,6 +210,7 @@ func toView(material domain.Material) MaterialView {
 		ID: material.ID, Name: material.Name, SKU: material.SKU, Category: material.Category,
 		PurchaseUnit: material.PurchaseUnit, ConsumptionUnit: material.ConsumptionUnit,
 		ConversionFactor: material.ConversionFactor.String(), PhysicalStock: material.PhysicalStock.String(),
+		ReservedStock: material.ReservedStock.String(), AvailableStock: material.AvailableStock.String(),
 		ReorderLevel: material.ReorderLevel.String(), AverageUnitCostRial: material.AverageUnitCostRial,
 		InventoryValueRial: 0,
 		PreferredSupplier:  material.PreferredSupplier, Notes: material.Notes, Active: material.Active,

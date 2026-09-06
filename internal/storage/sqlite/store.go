@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
@@ -282,6 +281,38 @@ var migrations = []migration{{
 	CREATE TRIGGER inventory_movements_immutable_update BEFORE UPDATE ON inventory_movements BEGIN SELECT RAISE(ABORT, 'inventory movements are immutable'); END;
 	CREATE TRIGGER inventory_movements_immutable_delete BEFORE DELETE ON inventory_movements BEGIN SELECT RAISE(ABORT, 'inventory movements are immutable'); END;`,
 	},
+	{
+		version: 8,
+		sql: `CREATE TABLE inventory_reservations (
+			id TEXT PRIMARY KEY, material_id TEXT NOT NULL REFERENCES materials(id) ON DELETE RESTRICT,
+			order_id TEXT REFERENCES orders(id) ON DELETE RESTRICT, order_item_id TEXT REFERENCES order_items(id) ON DELETE RESTRICT,
+			production_job_id TEXT, quantity_units INTEGER NOT NULL CHECK(quantity_units > 0),
+			status TEXT NOT NULL CHECK(status IN ('active','released','consumed','cancelled')),
+			created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+		);
+		CREATE INDEX inventory_reservations_material_status ON inventory_reservations(material_id,status);
+		CREATE INDEX inventory_reservations_job ON inventory_reservations(production_job_id,status);
+		CREATE TABLE production_number_sequences (id INTEGER PRIMARY KEY CHECK(id=1), next_number INTEGER NOT NULL CHECK(next_number > 0));
+		INSERT INTO production_number_sequences(id,next_number) VALUES(1,1001);
+		CREATE TABLE production_jobs (
+			id TEXT PRIMARY KEY, job_number TEXT NOT NULL UNIQUE, order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE RESTRICT,
+			order_item_id TEXT NOT NULL REFERENCES order_items(id) ON DELETE RESTRICT, service_name_snapshot TEXT NOT NULL DEFAULT '',
+			quantity_units INTEGER NOT NULL CHECK(quantity_units > 0), quantity_unit TEXT NOT NULL DEFAULT 'unit', assigned_machine_id TEXT REFERENCES machines(id) ON DELETE SET NULL,
+			status TEXT NOT NULL CHECK(status IN ('Pending','Ready','In Progress','Paused','Completed','Cancelled','Failed')), priority TEXT NOT NULL DEFAULT 'Normal',
+			planned_at TEXT, started_at TEXT, completed_at TEXT, notes TEXT NOT NULL DEFAULT '', estimated_cost_rial INTEGER NOT NULL CHECK(estimated_cost_rial >= 0),
+			actual_material_cost_rial INTEGER NOT NULL DEFAULT 0 CHECK(actual_material_cost_rial >= 0), actual_waste_cost_rial INTEGER NOT NULL DEFAULT 0 CHECK(actual_waste_cost_rial >= 0), actual_outsourced_cost_rial INTEGER NOT NULL DEFAULT 0 CHECK(actual_outsourced_cost_rial >= 0),
+			outsource_supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL, outsource_description TEXT NOT NULL DEFAULT '', outsource_quoted_cost_rial INTEGER NOT NULL DEFAULT 0 CHECK(outsource_quoted_cost_rial >= 0), outsource_sent_at TEXT, outsource_expected_return_at TEXT, outsource_received_at TEXT, outsource_notes TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+		);
+		CREATE INDEX production_jobs_queue ON production_jobs(status,priority,planned_at);
+		CREATE TABLE production_consumptions (
+			id TEXT PRIMARY KEY, production_job_id TEXT NOT NULL REFERENCES production_jobs(id) ON DELETE RESTRICT, material_id TEXT NOT NULL REFERENCES materials(id) ON DELETE RESTRICT,
+			idempotency_key TEXT NOT NULL, consumed_quantity_units INTEGER NOT NULL CHECK(consumed_quantity_units >= 0), waste_quantity_units INTEGER NOT NULL CHECK(waste_quantity_units >= 0),
+			unit_cost_rial INTEGER NOT NULL CHECK(unit_cost_rial >= 0), material_cost_rial INTEGER NOT NULL CHECK(material_cost_rial >= 0), waste_cost_rial INTEGER NOT NULL CHECK(waste_cost_rial >= 0), notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+			UNIQUE(production_job_id,idempotency_key)
+		);
+		CREATE INDEX production_consumptions_job ON production_consumptions(production_job_id,created_at);`,
+	},
 }
 
 func (s *Store) ensureLegacyOpeningMovements(ctx context.Context) error {
@@ -449,28 +480,14 @@ func (s *Store) withInventorySummary(ctx context.Context, material domain.Materi
 		return domain.Material{}, err
 	}
 	material.PhysicalStock = summary.PhysicalStock
+	material.ReservedStock = summary.ReservedStock
+	material.AvailableStock = summary.AvailableStock
 	material.AverageUnitCostRial = summary.AverageUnitCostRial
 	return material, nil
 }
 
 func (s *Store) inventorySummary(ctx context.Context, materialID string) (domain.InventorySummary, error) {
-	var qty, value int64
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(quantity_delta_units),0), COALESCE(SUM(total_cost_rial),0) FROM inventory_movements WHERE material_id = ?`, materialID).Scan(&qty, &value); err != nil {
-		return domain.InventorySummary{}, fmt.Errorf("inventory summary: %w", err)
-	}
-	if qty < 0 {
-		return domain.InventorySummary{}, fmt.Errorf("inventory ledger for %s is negative", materialID)
-	}
-	if qty == 0 {
-		return domain.InventorySummary{}, nil
-	}
-	avg := new(big.Int).Mul(big.NewInt(value), big.NewInt(domain.QuantityScale))
-	avg.Add(avg, big.NewInt(qty/2))
-	avg.Quo(avg, big.NewInt(qty))
-	if !avg.IsInt64() {
-		return domain.InventorySummary{}, fmt.Errorf("average inventory cost is too large")
-	}
-	return domain.InventorySummary{PhysicalStock: domain.Quantity(qty), AverageUnitCostRial: avg.Int64(), InventoryValueRial: value}, nil
+	return s.inventoryState(ctx, materialID)
 }
 
 func (s *Store) InventoryValue(ctx context.Context, materialID string) (int64, error) {
@@ -1059,6 +1076,9 @@ func (s *Store) SaveOrder(ctx context.Context, order domain.Order) error {
 	count, _ := result.RowsAffected()
 	if count == 0 {
 		return rollback(domain.ErrOrderNotFound)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE inventory_reservations SET status=CASE WHEN ?='Cancelled' THEN 'cancelled' ELSE 'released' END, updated_at=? WHERE order_id=? AND status='active' AND (?='Cancelled' OR ?='Draft')`, string(order.CommercialStatus), order.UpdatedAt.UTC().Format(time.RFC3339Nano), order.ID, string(order.CommercialStatus), string(order.CommercialStatus)); err != nil {
+		return rollback(fmt.Errorf("release order reservations: %w", err))
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM order_items WHERE order_id=?`, order.ID); err != nil {
 		return rollback(fmt.Errorf("replace order items: %w", err))
