@@ -18,6 +18,8 @@ export function CreateMaterial(arg1:main.MaterialInput):Promise<main.MaterialDTO
 
 export function CreateService(arg1:main.ServiceInput):Promise<main.ServiceDTO>;
 
+export function CalculateServicePrice(arg1:main.PricingRequest):Promise<main.PricingDTO>;
+
 export function GetMachine(arg1:string):Promise<main.MachineDTO>;
 
 export function GetMaterial(arg1:string):Promise<main.MaterialDTO>;

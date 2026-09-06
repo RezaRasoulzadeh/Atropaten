@@ -39,6 +39,7 @@ type Service struct {
 	UpdatedAt   time.Time
 	Parameters  []ServiceParameter
 	Components  []ServiceCostComponent
+	PricingRule *ServicePricingRule
 }
 
 type ServiceDraft struct {
@@ -48,6 +49,7 @@ type ServiceDraft struct {
 	Description string
 	Parameters  []ServiceParameterDraft
 	Components  []ServiceCostComponentDraft
+	PricingRule *ServicePricingRuleDraft
 }
 
 type CostComponentType string
@@ -73,37 +75,39 @@ const (
 )
 
 type ServiceCostComponent struct {
-	ID           string
-	ServiceID    string
-	Name         string
-	Type         CostComponentType
-	ReferenceID  string
-	UsageMode    UsageMode
-	ParameterKey string
-	Multiplier   Quantity
-	RateRial     int64
-	Percentage   Quantity
-	RateBasis    string
-	Enabled      bool
-	Position     int
-	Notes        string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID            string
+	ServiceID     string
+	Name          string
+	Type          CostComponentType
+	ReferenceID   string
+	UsageMode     UsageMode
+	ParameterKey  string
+	UsageQuantity Quantity
+	Multiplier    Quantity
+	RateRial      int64
+	Percentage    Quantity
+	RateBasis     string
+	Enabled       bool
+	Position      int
+	Notes         string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 type ServiceCostComponentDraft struct {
-	ID           string
-	Name         string
-	Type         CostComponentType
-	ReferenceID  string
-	UsageMode    UsageMode
-	ParameterKey string
-	Multiplier   Quantity
-	RateRial     int64
-	Percentage   Quantity
-	RateBasis    string
-	Enabled      bool
-	Notes        string
+	ID            string
+	Name          string
+	Type          CostComponentType
+	ReferenceID   string
+	UsageMode     UsageMode
+	ParameterKey  string
+	UsageQuantity Quantity
+	Multiplier    Quantity
+	RateRial      int64
+	Percentage    Quantity
+	RateBasis     string
+	Enabled       bool
+	Notes         string
 }
 
 type ServiceParameter struct {
@@ -122,6 +126,54 @@ type ServiceParameter struct {
 	Active       bool
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+}
+
+type PricingRuleType string
+
+const (
+	PricingFixed       PricingRuleType = "fixed"
+	PricingMarkup      PricingRuleType = "markup"
+	PricingFixedMargin PricingRuleType = "fixed-margin"
+	PricingPerUnit     PricingRuleType = "per-unit"
+	PricingTiers       PricingRuleType = "quantity-tiers"
+	PricingManual      PricingRuleType = "manual"
+)
+
+type ServicePricingRule struct {
+	ID               string
+	ServiceID        string
+	Type             PricingRuleType
+	FixedPriceRial   int64
+	MarkupPercentage Quantity
+	FixedMarginRial  int64
+	PerUnitRateRial  int64
+	ParameterKey     string
+	Tiers            []ServicePricingTier
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type ServicePricingRuleDraft struct {
+	ID               string
+	Type             PricingRuleType
+	FixedPriceRial   int64
+	MarkupPercentage Quantity
+	FixedMarginRial  int64
+	PerUnitRateRial  int64
+	ParameterKey     string
+	Tiers            []ServicePricingTierDraft
+}
+
+type ServicePricingTier struct {
+	Position        int
+	MinimumQuantity Quantity
+	PriceRial       int64
+}
+
+type ServicePricingTierDraft struct {
+	Position        int
+	MinimumQuantity Quantity
+	PriceRial       int64
 }
 
 type ServiceParameterDraft struct {
@@ -156,6 +208,10 @@ func NewService(id string, draft ServiceDraft, now time.Time) (Service, error) {
 	for index, component := range draft.Components {
 		service.Components[index] = componentFromDraft(service.ID, component, index, now)
 	}
+	if draft.PricingRule != nil {
+		rule := pricingRuleFromDraft(service.ID, *draft.PricingRule, now)
+		service.PricingRule = &rule
+	}
 	if err := service.Validate(); err != nil {
 		return Service{}, err
 	}
@@ -188,6 +244,10 @@ func (s *Service) Update(draft ServiceDraft, now time.Time) error {
 		}
 		updated.Components[index].ServiceID = s.ID
 		updated.Components[index].UpdatedAt = now.UTC()
+	}
+	if updated.PricingRule != nil && s.PricingRule != nil {
+		updated.PricingRule.ID = s.PricingRule.ID
+		updated.PricingRule.CreatedAt = s.PricingRule.CreatedAt
 	}
 	*s = updated
 	return nil
@@ -240,6 +300,14 @@ func (s Service) Validate() error {
 			return fmt.Errorf("component %q: %w", component.Name, err)
 		}
 	}
+	if s.PricingRule != nil {
+		if s.PricingRule.ServiceID != s.ID {
+			return validationError("pricingRule.serviceId", "must match the service")
+		}
+		if err := s.PricingRule.Validate(s.Parameters); err != nil {
+			return fmt.Errorf("pricing rule: %w", err)
+		}
+	}
 	parameterTypes := make(map[string]ParameterType, len(s.Parameters))
 	for _, parameter := range s.Parameters {
 		parameterTypes[parameter.Key] = parameter.Type
@@ -273,6 +341,9 @@ func (c ServiceCostComponent) Validate() error {
 	}
 	if c.Multiplier <= 0 {
 		return validationError("multiplier", "must be greater than zero")
+	}
+	if c.UsageQuantity < 0 {
+		return validationError("usageQuantity", "cannot be negative")
 	}
 	if c.RateRial < 0 {
 		return validationError("rateRial", "cannot be negative")
@@ -324,6 +395,68 @@ func (c ServiceCostComponent) Validate() error {
 		if c.UsageMode == UsageParameter && strings.TrimSpace(c.ParameterKey) == "" {
 			return validationError("parameterKey", "is required for parameter usage")
 		}
+	}
+	return nil
+}
+
+func (r ServicePricingRule) Validate(parameters []ServiceParameter) error {
+	if strings.TrimSpace(r.ID) == "" {
+		return validationError("id", "is required")
+	}
+	if strings.TrimSpace(r.ServiceID) == "" {
+		return validationError("serviceId", "is required")
+	}
+	if r.CreatedAt.IsZero() || r.UpdatedAt.IsZero() {
+		return validationError("timestamps", "are required")
+	}
+	if r.FixedPriceRial < 0 || r.FixedMarginRial < 0 || r.PerUnitRateRial < 0 {
+		return validationError("pricing", "money values cannot be negative")
+	}
+	if r.MarkupPercentage < 0 || r.MarkupPercentage > Quantity(1000*QuantityScale) {
+		return validationError("markupPercentage", "must be between 0 and 1000")
+	}
+	parameterTypes := make(map[string]ParameterType, len(parameters))
+	for _, parameter := range parameters {
+		parameterTypes[parameter.Key] = parameter.Type
+	}
+	switch r.Type {
+	case PricingFixed, PricingMarkup, PricingFixedMargin, PricingManual:
+	case PricingPerUnit:
+		return validateNumericPricingParameter(r.ParameterKey, parameterTypes)
+	case PricingTiers:
+		if err := validateNumericPricingParameter(r.ParameterKey, parameterTypes); err != nil {
+			return err
+		}
+		if len(r.Tiers) == 0 {
+			return validationError("tiers", "must contain at least one tier")
+		}
+		for index, tier := range r.Tiers {
+			if tier.Position != index {
+				return validationError("tiers.position", "must be deterministic")
+			}
+			if tier.MinimumQuantity < 0 || tier.PriceRial < 0 {
+				return validationError("tiers", "cannot contain negative values")
+			}
+			if index > 0 && tier.MinimumQuantity <= r.Tiers[index-1].MinimumQuantity {
+				return validationError("tiers", "must be ordered by increasing minimum quantity")
+			}
+		}
+		if r.Tiers[0].MinimumQuantity != 0 {
+			return validationError("tiers[0].minimumQuantity", "must be zero")
+		}
+	default:
+		return validationError("type", "is not supported")
+	}
+	return nil
+}
+
+func validateNumericPricingParameter(key string, parameterTypes map[string]ParameterType) error {
+	if strings.TrimSpace(key) == "" {
+		return validationError("parameterKey", "is required")
+	}
+	typeName, exists := parameterTypes[key]
+	if !exists || (typeName != ParameterInteger && typeName != ParameterDecimal) {
+		return validationError("parameterKey", "must reference an integer or decimal parameter")
 	}
 	return nil
 }
@@ -442,7 +575,23 @@ func componentFromDraft(serviceID string, draft ServiceCostComponentDraft, posit
 	if usageMode == "" {
 		usageMode = UsageFixed
 	}
-	return ServiceCostComponent{ID: draft.ID, ServiceID: serviceID, Name: strings.TrimSpace(draft.Name), Type: CostComponentType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), ReferenceID: strings.TrimSpace(draft.ReferenceID), UsageMode: usageMode, ParameterKey: strings.TrimSpace(draft.ParameterKey), Multiplier: draft.Multiplier, RateRial: draft.RateRial, Percentage: draft.Percentage, RateBasis: strings.TrimSpace(draft.RateBasis), Enabled: draft.Enabled, Position: position, Notes: strings.TrimSpace(draft.Notes), CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
+	usageQuantity := draft.UsageQuantity
+	if usageQuantity == 0 {
+		usageQuantity = Quantity(QuantityScale)
+	}
+	return ServiceCostComponent{ID: draft.ID, ServiceID: serviceID, Name: strings.TrimSpace(draft.Name), Type: CostComponentType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), ReferenceID: strings.TrimSpace(draft.ReferenceID), UsageMode: usageMode, ParameterKey: strings.TrimSpace(draft.ParameterKey), UsageQuantity: usageQuantity, Multiplier: draft.Multiplier, RateRial: draft.RateRial, Percentage: draft.Percentage, RateBasis: strings.TrimSpace(draft.RateBasis), Enabled: draft.Enabled, Position: position, Notes: strings.TrimSpace(draft.Notes), CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
+}
+
+func pricingRuleFromDraft(serviceID string, draft ServicePricingRuleDraft, now time.Time) ServicePricingRule {
+	tiers := make([]ServicePricingTier, len(draft.Tiers))
+	for index, tier := range draft.Tiers {
+		tiers[index] = ServicePricingTier{Position: index, MinimumQuantity: tier.MinimumQuantity, PriceRial: tier.PriceRial}
+	}
+	id := draft.ID
+	if id == "" {
+		id = "pricing-" + serviceID
+	}
+	return ServicePricingRule{ID: id, ServiceID: serviceID, Type: PricingRuleType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), FixedPriceRial: draft.FixedPriceRial, MarkupPercentage: draft.MarkupPercentage, FixedMarginRial: draft.FixedMarginRial, PerUnitRateRial: draft.PerUnitRateRial, ParameterKey: strings.TrimSpace(draft.ParameterKey), Tiers: tiers, CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
 }
 
 func validateNumericBounds(minimum, maximum *Quantity) error {

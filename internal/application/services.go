@@ -46,21 +46,40 @@ type ServiceInput struct {
 	Description string
 	Parameters  []ParameterInput
 	Components  []CostComponentInput
+	PricingRule *PricingRuleInput
 }
 
 type CostComponentInput struct {
-	ID           string
-	Name         string
-	Type         string
-	ReferenceID  string
-	UsageMode    string
-	ParameterKey string
-	Multiplier   string
-	RateRial     int64
-	Percentage   string
-	RateBasis    string
-	Enabled      bool
-	Notes        string
+	ID            string
+	Name          string
+	Type          string
+	ReferenceID   string
+	UsageMode     string
+	ParameterKey  string
+	UsageQuantity string
+	Multiplier    string
+	RateRial      int64
+	Percentage    string
+	RateBasis     string
+	Enabled       bool
+	Notes         string
+}
+
+type PricingRuleInput struct {
+	ID               string
+	Type             string
+	FixedPriceRial   int64
+	MarkupPercentage string
+	FixedMarginRial  int64
+	PerUnitRateRial  int64
+	ParameterKey     string
+	Tiers            []PricingTierInput
+}
+
+type PricingTierInput struct {
+	Position        int
+	MinimumQuantity string
+	PriceRial       int64
 }
 
 type ParameterView struct {
@@ -89,22 +108,41 @@ type ServiceView struct {
 	UpdatedAt   string
 	Parameters  []ParameterView
 	Components  []CostComponentView
+	PricingRule *PricingRuleView
 }
 
 type CostComponentView struct {
-	ID           string
-	Name         string
-	Type         string
-	ReferenceID  string
-	UsageMode    string
-	ParameterKey string
-	Multiplier   string
-	RateRial     int64
-	Percentage   string
-	RateBasis    string
-	Enabled      bool
-	Position     int
-	Notes        string
+	ID            string
+	Name          string
+	Type          string
+	ReferenceID   string
+	UsageMode     string
+	ParameterKey  string
+	UsageQuantity string
+	Multiplier    string
+	RateRial      int64
+	Percentage    string
+	RateBasis     string
+	Enabled       bool
+	Position      int
+	Notes         string
+}
+
+type PricingRuleView struct {
+	ID               string
+	Type             string
+	FixedPriceRial   int64
+	MarkupPercentage string
+	FixedMarginRial  int64
+	PerUnitRateRial  int64
+	ParameterKey     string
+	Tiers            []PricingTierView
+}
+
+type PricingTierView struct {
+	Position        int
+	MinimumQuantity string
+	PriceRial       int64
 }
 
 type ServicesService struct {
@@ -143,7 +181,7 @@ func (s *ServicesService) Create(ctx context.Context, input ServiceInput) (Servi
 	if err != nil {
 		return ServiceView{}, fmt.Errorf("create service id: %w", err)
 	}
-	draft, err := s.parseDraft(ctx, input, id, nil)
+	draft, err := s.parseDraft(ctx, input, id, nil, nil)
 	if err != nil {
 		return ServiceView{}, err
 	}
@@ -165,7 +203,7 @@ func (s *ServicesService) Update(ctx context.Context, id string, input ServiceIn
 	if err != nil {
 		return ServiceView{}, err
 	}
-	draft, err := s.parseDraft(ctx, input, service.ID, service.Parameters)
+	draft, err := s.parseDraft(ctx, input, service.ID, service.Parameters, service.PricingRule)
 	if err != nil {
 		return ServiceView{}, err
 	}
@@ -441,7 +479,7 @@ func (s *ServicesService) validateReferences(ctx context.Context, service domain
 	return nil
 }
 
-func (s *ServicesService) parseDraft(ctx context.Context, input ServiceInput, serviceID string, existing []domain.ServiceParameter) (domain.ServiceDraft, error) {
+func (s *ServicesService) parseDraft(ctx context.Context, input ServiceInput, serviceID string, existing []domain.ServiceParameter, existingRule *domain.ServicePricingRule) (domain.ServiceDraft, error) {
 	existingIDs := make(map[string]struct{}, len(existing))
 	for _, parameter := range existing {
 		existingIDs[parameter.ID] = struct{}{}
@@ -468,7 +506,11 @@ func (s *ServicesService) parseDraft(ctx context.Context, input ServiceInput, se
 		}
 		components = append(components, component)
 	}
-	return domain.ServiceDraft{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, Parameters: parameters, Components: components}, nil
+	pricingRule, err := s.parsePricingRule(input.PricingRule, serviceID, existingRule)
+	if err != nil {
+		return domain.ServiceDraft{}, err
+	}
+	return domain.ServiceDraft{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, Parameters: parameters, Components: components, PricingRule: pricingRule}, nil
 }
 
 func (s *ServicesService) parseComponent(input CostComponentInput) (domain.ServiceCostComponentDraft, error) {
@@ -496,11 +538,49 @@ func (s *ServicesService) parseComponent(input CostComponentInput) (domain.Servi
 		}
 		percentage = parsed
 	}
+	usageQuantity := domain.Quantity(domain.QuantityScale)
+	if strings.TrimSpace(input.UsageQuantity) != "" {
+		parsed, err := domain.ParseQuantity(input.UsageQuantity)
+		if err != nil {
+			return domain.ServiceCostComponentDraft{}, domain.ValidationError{Field: "usageQuantity", Message: "must be a positive decimal with at most six fractional digits"}
+		}
+		usageQuantity = parsed
+	}
 	usageMode := domain.UsageMode(strings.ToLower(strings.TrimSpace(input.UsageMode)))
 	if usageMode == "" {
 		usageMode = domain.UsageFixed
 	}
-	return domain.ServiceCostComponentDraft{ID: id, Name: input.Name, Type: domain.CostComponentType(strings.ToLower(strings.TrimSpace(input.Type))), ReferenceID: input.ReferenceID, UsageMode: usageMode, ParameterKey: input.ParameterKey, Multiplier: multiplier, RateRial: input.RateRial, Percentage: percentage, RateBasis: input.RateBasis, Enabled: input.Enabled, Notes: input.Notes}, nil
+	return domain.ServiceCostComponentDraft{ID: id, Name: input.Name, Type: domain.CostComponentType(strings.ToLower(strings.TrimSpace(input.Type))), ReferenceID: input.ReferenceID, UsageMode: usageMode, ParameterKey: input.ParameterKey, UsageQuantity: usageQuantity, Multiplier: multiplier, RateRial: input.RateRial, Percentage: percentage, RateBasis: input.RateBasis, Enabled: input.Enabled, Notes: input.Notes}, nil
+}
+
+func (s *ServicesService) parsePricingRule(input *PricingRuleInput, serviceID string, existing *domain.ServicePricingRule) (*domain.ServicePricingRuleDraft, error) {
+	if input == nil {
+		return nil, nil
+	}
+	id := strings.TrimSpace(input.ID)
+	if id == "" && existing != nil {
+		id = existing.ID
+	}
+	if id == "" {
+		id = "pricing-" + serviceID
+	}
+	markup := domain.Quantity(0)
+	if strings.TrimSpace(input.MarkupPercentage) != "" {
+		parsed, err := domain.ParseQuantity(input.MarkupPercentage)
+		if err != nil {
+			return nil, domain.ValidationError{Field: "markupPercentage", Message: "must be a non-negative decimal with at most six fractional digits"}
+		}
+		markup = parsed
+	}
+	tiers := make([]domain.ServicePricingTierDraft, 0, len(input.Tiers))
+	for index, tier := range input.Tiers {
+		minimum, err := domain.ParseQuantity(strings.TrimSpace(tier.MinimumQuantity))
+		if err != nil {
+			return nil, domain.ValidationError{Field: fmt.Sprintf("tiers[%d].minimumQuantity", index), Message: "must be a non-negative fixed-scale quantity"}
+		}
+		tiers = append(tiers, domain.ServicePricingTierDraft{Position: index, MinimumQuantity: minimum, PriceRial: tier.PriceRial})
+	}
+	return &domain.ServicePricingRuleDraft{ID: id, Type: domain.PricingRuleType(strings.ToLower(strings.TrimSpace(input.Type))), FixedPriceRial: input.FixedPriceRial, MarkupPercentage: markup, FixedMarginRial: input.FixedMarginRial, PerUnitRateRial: input.PerUnitRateRial, ParameterKey: input.ParameterKey, Tiers: tiers}, nil
 }
 
 func componentFromDraft(serviceID string, draft domain.ServiceCostComponentDraft, position int, now time.Time) domain.ServiceCostComponent {
@@ -508,7 +588,11 @@ func componentFromDraft(serviceID string, draft domain.ServiceCostComponentDraft
 	if usageMode == "" {
 		usageMode = domain.UsageFixed
 	}
-	return domain.ServiceCostComponent{ID: draft.ID, ServiceID: serviceID, Name: strings.TrimSpace(draft.Name), Type: domain.CostComponentType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), ReferenceID: strings.TrimSpace(draft.ReferenceID), UsageMode: usageMode, ParameterKey: strings.TrimSpace(draft.ParameterKey), Multiplier: draft.Multiplier, RateRial: draft.RateRial, Percentage: draft.Percentage, RateBasis: strings.TrimSpace(draft.RateBasis), Enabled: draft.Enabled, Position: position, Notes: strings.TrimSpace(draft.Notes), CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
+	usageQuantity := draft.UsageQuantity
+	if usageQuantity == 0 {
+		usageQuantity = domain.Quantity(domain.QuantityScale)
+	}
+	return domain.ServiceCostComponent{ID: draft.ID, ServiceID: serviceID, Name: strings.TrimSpace(draft.Name), Type: domain.CostComponentType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), ReferenceID: strings.TrimSpace(draft.ReferenceID), UsageMode: usageMode, ParameterKey: strings.TrimSpace(draft.ParameterKey), UsageQuantity: usageQuantity, Multiplier: draft.Multiplier, RateRial: draft.RateRial, Percentage: draft.Percentage, RateBasis: strings.TrimSpace(draft.RateBasis), Enabled: draft.Enabled, Position: position, Notes: strings.TrimSpace(draft.Notes), CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
 }
 
 func (s *ServicesService) parseParameter(_ context.Context, input ParameterInput, _ string, _ []domain.ServiceParameter) (domain.ServiceParameterDraft, error) {
@@ -618,9 +702,17 @@ func serviceView(service domain.Service) ServiceView {
 	}
 	components := make([]CostComponentView, 0, len(service.Components))
 	for _, component := range service.Components {
-		components = append(components, CostComponentView{ID: component.ID, Name: component.Name, Type: string(component.Type), ReferenceID: component.ReferenceID, UsageMode: string(component.UsageMode), ParameterKey: component.ParameterKey, Multiplier: component.Multiplier.String(), RateRial: component.RateRial, Percentage: component.Percentage.String(), RateBasis: component.RateBasis, Enabled: component.Enabled, Position: component.Position, Notes: component.Notes})
+		components = append(components, CostComponentView{ID: component.ID, Name: component.Name, Type: string(component.Type), ReferenceID: component.ReferenceID, UsageMode: string(component.UsageMode), ParameterKey: component.ParameterKey, UsageQuantity: component.UsageQuantity.String(), Multiplier: component.Multiplier.String(), RateRial: component.RateRial, Percentage: component.Percentage.String(), RateBasis: component.RateBasis, Enabled: component.Enabled, Position: component.Position, Notes: component.Notes})
 	}
-	return ServiceView{ID: service.ID, Name: service.Name, Code: service.Code, Category: service.Category, Description: service.Description, Active: service.Active, CreatedAt: service.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: service.UpdatedAt.UTC().Format(time.RFC3339Nano), Parameters: parameters, Components: components}
+	var pricingRule *PricingRuleView
+	if service.PricingRule != nil {
+		rule := service.PricingRule
+		pricingRule = &PricingRuleView{ID: rule.ID, Type: string(rule.Type), FixedPriceRial: rule.FixedPriceRial, MarkupPercentage: rule.MarkupPercentage.String(), FixedMarginRial: rule.FixedMarginRial, PerUnitRateRial: rule.PerUnitRateRial, ParameterKey: rule.ParameterKey}
+		for _, tier := range rule.Tiers {
+			pricingRule.Tiers = append(pricingRule.Tiers, PricingTierView{Position: tier.Position, MinimumQuantity: tier.MinimumQuantity.String(), PriceRial: tier.PriceRial})
+		}
+	}
+	return ServiceView{ID: service.ID, Name: service.Name, Code: service.Code, Category: service.Category, Description: service.Description, Active: service.Active, CreatedAt: service.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: service.UpdatedAt.UTC().Format(time.RFC3339Nano), Parameters: parameters, Components: components, PricingRule: pricingRule}
 }
 
 func newID(prefix string) (string, error) {

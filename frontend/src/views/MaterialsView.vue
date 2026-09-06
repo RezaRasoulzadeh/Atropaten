@@ -111,9 +111,13 @@ function cancelEditor() {
 }
 
 function updateCost(value: string) {
-  costDraft.value = value
   const parsed = parseMoneyInput(value, props.currencyUnit)
-  if (parsed !== null) form.value.averageUnitCostRial = parsed
+  if (parsed !== null) {
+    form.value.averageUnitCostRial = parsed
+    costDraft.value = formatMoneyInput(parsed, props.currencyUnit)
+  } else {
+    costDraft.value = value
+  }
 }
 
 function onCostInput(event: Event) {

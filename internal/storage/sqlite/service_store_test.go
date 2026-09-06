@@ -46,8 +46,8 @@ func TestMigrationUpgradeKeepsExistingMaterials(t *testing.T) {
 	if err := store.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil {
 		t.Fatalf("read migration version: %v", err)
 	}
-	if version != 3 {
-		t.Fatalf("migration version = %d, want 3", version)
+	if version != 4 {
+		t.Fatalf("migration version = %d, want 4", version)
 	}
 	material, err := store.Get(context.Background(), "MAT-legacy")
 	if err != nil {
@@ -102,6 +102,46 @@ func TestM1002DatabaseUpgradesToM1003WithoutLosingServices(t *testing.T) {
 	}
 	if err := store.db.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name='service_cost_components'`).Scan(&componentTable); err != nil {
 		t.Fatalf("components table missing: %v", err)
+	}
+}
+
+func TestM1003DatabaseUpgradesToM1004WithoutChangingComponents(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "m1003.db")
+	legacy, err := sql.Open("sqlite3", path)
+	if err != nil {
+		t.Fatalf("open M1-003 database: %v", err)
+	}
+	if _, err := legacy.Exec(`CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	for version := 1; version <= 3; version++ {
+		if _, err := legacy.Exec(migrations[version-1].sql); err != nil {
+			t.Fatalf("apply legacy migration %d: %v", version, err)
+		}
+		if _, err := legacy.Exec(`INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)`, version, "2026-01-01T00:00:00Z"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := legacy.Exec(`INSERT INTO services (id, name, created_at, updated_at) VALUES ('SVC-legacy', 'Legacy service', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := legacy.Exec(`INSERT INTO service_cost_components (id, service_id, component_name, component_type, usage_mode, multiplier_units, rate_rial, display_order, created_at, updated_at) VALUES ('C-legacy', 'SVC-legacy', 'Legacy fixed', 'fixed', 'fixed', 1000000, 500, 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := legacy.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store, err := Open(path)
+	if err != nil {
+		t.Fatalf("upgrade M1-003 database: %v", err)
+	}
+	defer store.Close()
+	service, err := store.GetService(context.Background(), "SVC-legacy")
+	if err != nil {
+		t.Fatalf("read legacy service: %v", err)
+	}
+	if len(service.Components) != 1 || service.Components[0].UsageQuantity != domain.Quantity(domain.QuantityScale) || service.PricingRule != nil {
+		t.Fatalf("legacy component changed during M1-004 migration: %+v", service)
 	}
 }
 
@@ -185,4 +225,43 @@ func TestServicePersistenceOrderingAndTransactionalRollback(t *testing.T) {
 		t.Fatalf("all services = %+v, err=%v", all, err)
 	}
 	_ = store.Close()
+}
+
+func TestPricingRuleAndUsageQuantityRoundTripAfterV4Migration(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "pricing.db")
+	store, err := Open(path)
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := domain.NewService("SVC-pricing", domain.ServiceDraft{
+		Name:        "Digital Print",
+		Parameters:  []domain.ServiceParameterDraft{{ID: "P-qty", Key: "quantity", Label: "Quantity", Type: domain.ParameterInteger}},
+		Components:  []domain.ServiceCostComponentDraft{{ID: "C-paper", Name: "Paper", Type: domain.CostFixed, UsageQuantity: domain.Quantity(2_500_001), Multiplier: domain.Quantity(1_125_001), RateRial: 987654321, Enabled: true}},
+		PricingRule: &domain.ServicePricingRuleDraft{Type: domain.PricingTiers, ParameterKey: "quantity", Tiers: []domain.ServicePricingTierDraft{{MinimumQuantity: 0, PriceRial: 111}, {MinimumQuantity: 10 * domain.QuantityScale, PriceRial: 222}}},
+	}, now)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := store.SaveServiceDefinition(context.Background(), service); err != nil {
+		t.Fatalf("save service: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("close database: %v", err)
+	}
+	store, err = Open(path)
+	if err != nil {
+		t.Fatalf("reopen database: %v", err)
+	}
+	defer store.Close()
+	got, err := store.GetService(context.Background(), service.ID)
+	if err != nil {
+		t.Fatalf("get service: %v", err)
+	}
+	if got.PricingRule == nil || got.PricingRule.Type != domain.PricingTiers || len(got.PricingRule.Tiers) != 2 || got.PricingRule.Tiers[1].MinimumQuantity != 10*domain.QuantityScale {
+		t.Fatalf("pricing rule not round-tripped: %+v", got.PricingRule)
+	}
+	if got.Components[0].UsageQuantity != domain.Quantity(2_500_001) || got.Components[0].Multiplier != domain.Quantity(1_125_001) {
+		t.Fatalf("usage quantities lost: %+v", got.Components[0])
+	}
 }

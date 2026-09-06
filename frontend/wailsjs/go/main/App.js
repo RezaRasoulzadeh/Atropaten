@@ -34,6 +34,10 @@ export function CreateService(arg1) {
   return window['go']['main']['App']['CreateService'](arg1);
 }
 
+export function CalculateServicePrice(arg1) {
+  return window['go']['main']['App']['CalculateServicePrice'](arg1);
+}
+
 export function GetMachine(arg1) {
   return window['go']['main']['App']['GetMachine'](arg1);
 }

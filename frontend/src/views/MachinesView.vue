@@ -29,6 +29,12 @@ const filtered = computed(() => { const q = query.value.trim().toLowerCase(); re
 
 onMounted(load)
 watch(() => props.currencyUnit, () => { if (mode.value) { const machine = selectedMachine.value; if (machine) { form.value.rate = formatMoneyInput(machine.rateRial, props.currencyUnit); form.value.setupCost = formatMoneyInput(machine.setupCostRial, props.currencyUnit) } } })
+watch(() => [form.value.rate, form.value.setupCost], ([rateValue, setupValue]) => {
+  const parsedRate = parseMoneyInput(rateValue, props.currencyUnit)
+  const parsedSetup = parseMoneyInput(setupValue, props.currencyUnit)
+  if (parsedRate !== null) form.value.rate = formatMoneyInput(parsedRate, props.currencyUnit)
+  if (parsedSetup !== null) form.value.setupCost = formatMoneyInput(parsedSetup, props.currencyUnit)
+})
 function emptyForm(): MachineForm { return { name: '', code: '', category: '', rateBasis: 'hour', rate: '', setupCost: '', notes: '' } }
 function load() { loading.value = true; error.value = ''; machinesApi.list(true).then((data) => { machines.value = data; if (!selectedId.value && data.length) selectedId.value = data[0].id }).catch((e) => { error.value = message(e, 'Machines could not be loaded.') }).finally(() => { loading.value = false }) }
 function select(id: string) { selectedId.value = id; mode.value = null; formError.value = '' }

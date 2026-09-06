@@ -15,6 +15,7 @@ type App struct {
 	ctx          context.Context
 	materials    *application.MaterialsService
 	services     *application.ServicesService
+	pricing      *application.PricingService
 	machines     *application.MachinesService
 	database     *sqlite.Store
 	startupError error
@@ -43,6 +44,7 @@ func (a *App) startup(ctx context.Context) {
 	a.materials = application.NewMaterialsService(database)
 	a.machines = application.NewMachinesService(database)
 	a.services = application.NewServicesService(database, database, database)
+	a.pricing = application.NewPricingService(database, database, database)
 }
 
 func (a *App) shutdown(_ context.Context) {

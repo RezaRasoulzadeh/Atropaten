@@ -26,21 +26,40 @@ type ServiceInput struct {
 	Description string                      `json:"description"`
 	Parameters  []ServiceParameterInput     `json:"parameters"`
 	Components  []ServiceCostComponentInput `json:"components"`
+	PricingRule *PricingRuleInput           `json:"pricingRule"`
 }
 
 type ServiceCostComponentInput struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Type         string `json:"type"`
-	ReferenceID  string `json:"referenceId"`
-	UsageMode    string `json:"usageMode"`
-	ParameterKey string `json:"parameterKey"`
-	Multiplier   string `json:"multiplier"`
-	RateRial     int64  `json:"rateRial"`
-	Percentage   string `json:"percentage"`
-	RateBasis    string `json:"rateBasis"`
-	Enabled      bool   `json:"enabled"`
-	Notes        string `json:"notes"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Type          string `json:"type"`
+	ReferenceID   string `json:"referenceId"`
+	UsageMode     string `json:"usageMode"`
+	ParameterKey  string `json:"parameterKey"`
+	UsageQuantity string `json:"usageQuantity"`
+	Multiplier    string `json:"multiplier"`
+	RateRial      int64  `json:"rateRial"`
+	Percentage    string `json:"percentage"`
+	RateBasis     string `json:"rateBasis"`
+	Enabled       bool   `json:"enabled"`
+	Notes         string `json:"notes"`
+}
+
+type PricingRuleInput struct {
+	ID               string             `json:"id"`
+	Type             string             `json:"type"`
+	FixedPriceRial   int64              `json:"fixedPriceRial"`
+	MarkupPercentage string             `json:"markupPercentage"`
+	FixedMarginRial  int64              `json:"fixedMarginRial"`
+	PerUnitRateRial  int64              `json:"perUnitRateRial"`
+	ParameterKey     string             `json:"parameterKey"`
+	Tiers            []PricingTierInput `json:"tiers"`
+}
+
+type PricingTierInput struct {
+	Position        int    `json:"position"`
+	MinimumQuantity string `json:"minimumQuantity"`
+	PriceRial       int64  `json:"priceRial"`
 }
 
 type ServiceParameterDTO struct {
@@ -69,22 +88,41 @@ type ServiceDTO struct {
 	UpdatedAt   string                    `json:"updatedAt"`
 	Parameters  []ServiceParameterDTO     `json:"parameters"`
 	Components  []ServiceCostComponentDTO `json:"components"`
+	PricingRule *PricingRuleDTO           `json:"pricingRule"`
 }
 
 type ServiceCostComponentDTO struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Type         string `json:"type"`
-	ReferenceID  string `json:"referenceId"`
-	UsageMode    string `json:"usageMode"`
-	ParameterKey string `json:"parameterKey"`
-	Multiplier   string `json:"multiplier"`
-	RateRial     int64  `json:"rateRial"`
-	Percentage   string `json:"percentage"`
-	RateBasis    string `json:"rateBasis"`
-	Enabled      bool   `json:"enabled"`
-	Position     int    `json:"position"`
-	Notes        string `json:"notes"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Type          string `json:"type"`
+	ReferenceID   string `json:"referenceId"`
+	UsageMode     string `json:"usageMode"`
+	ParameterKey  string `json:"parameterKey"`
+	UsageQuantity string `json:"usageQuantity"`
+	Multiplier    string `json:"multiplier"`
+	RateRial      int64  `json:"rateRial"`
+	Percentage    string `json:"percentage"`
+	RateBasis     string `json:"rateBasis"`
+	Enabled       bool   `json:"enabled"`
+	Position      int    `json:"position"`
+	Notes         string `json:"notes"`
+}
+
+type PricingRuleDTO struct {
+	ID               string           `json:"id"`
+	Type             string           `json:"type"`
+	FixedPriceRial   int64            `json:"fixedPriceRial"`
+	MarkupPercentage string           `json:"markupPercentage"`
+	FixedMarginRial  int64            `json:"fixedMarginRial"`
+	PerUnitRateRial  int64            `json:"perUnitRateRial"`
+	ParameterKey     string           `json:"parameterKey"`
+	Tiers            []PricingTierDTO `json:"tiers"`
+}
+
+type PricingTierDTO struct {
+	Position        int    `json:"position"`
+	MinimumQuantity string `json:"minimumQuantity"`
+	PriceRial       int64  `json:"priceRial"`
 }
 
 func (a *App) serviceService() (*application.ServicesService, error) {
@@ -278,11 +316,18 @@ func applicationServiceInput(input ServiceInput) application.ServiceInput {
 	for _, component := range input.Components {
 		components = append(components, applicationCostComponentInput(component))
 	}
-	return application.ServiceInput{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, Parameters: parameters, Components: components}
+	var pricingRule *application.PricingRuleInput
+	if input.PricingRule != nil {
+		pricingRule = &application.PricingRuleInput{ID: input.PricingRule.ID, Type: input.PricingRule.Type, FixedPriceRial: input.PricingRule.FixedPriceRial, MarkupPercentage: input.PricingRule.MarkupPercentage, FixedMarginRial: input.PricingRule.FixedMarginRial, PerUnitRateRial: input.PricingRule.PerUnitRateRial, ParameterKey: input.PricingRule.ParameterKey}
+		for _, tier := range input.PricingRule.Tiers {
+			pricingRule.Tiers = append(pricingRule.Tiers, application.PricingTierInput{Position: tier.Position, MinimumQuantity: tier.MinimumQuantity, PriceRial: tier.PriceRial})
+		}
+	}
+	return application.ServiceInput{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, Parameters: parameters, Components: components, PricingRule: pricingRule}
 }
 
 func applicationCostComponentInput(input ServiceCostComponentInput) application.CostComponentInput {
-	return application.CostComponentInput{ID: input.ID, Name: input.Name, Type: input.Type, ReferenceID: input.ReferenceID, UsageMode: input.UsageMode, ParameterKey: input.ParameterKey, Multiplier: input.Multiplier, RateRial: input.RateRial, Percentage: input.Percentage, RateBasis: input.RateBasis, Enabled: input.Enabled, Notes: input.Notes}
+	return application.CostComponentInput{ID: input.ID, Name: input.Name, Type: input.Type, ReferenceID: input.ReferenceID, UsageMode: input.UsageMode, ParameterKey: input.ParameterKey, UsageQuantity: input.UsageQuantity, Multiplier: input.Multiplier, RateRial: input.RateRial, Percentage: input.Percentage, RateBasis: input.RateBasis, Enabled: input.Enabled, Notes: input.Notes}
 }
 
 func applicationParameterInput(input ServiceParameterInput) application.ParameterInput {
@@ -296,7 +341,14 @@ func serviceDTO(view application.ServiceView) ServiceDTO {
 	}
 	components := make([]ServiceCostComponentDTO, 0, len(view.Components))
 	for _, component := range view.Components {
-		components = append(components, ServiceCostComponentDTO{ID: component.ID, Name: component.Name, Type: component.Type, ReferenceID: component.ReferenceID, UsageMode: component.UsageMode, ParameterKey: component.ParameterKey, Multiplier: component.Multiplier, RateRial: component.RateRial, Percentage: component.Percentage, RateBasis: component.RateBasis, Enabled: component.Enabled, Position: component.Position, Notes: component.Notes})
+		components = append(components, ServiceCostComponentDTO{ID: component.ID, Name: component.Name, Type: component.Type, ReferenceID: component.ReferenceID, UsageMode: component.UsageMode, ParameterKey: component.ParameterKey, UsageQuantity: component.UsageQuantity, Multiplier: component.Multiplier, RateRial: component.RateRial, Percentage: component.Percentage, RateBasis: component.RateBasis, Enabled: component.Enabled, Position: component.Position, Notes: component.Notes})
 	}
-	return ServiceDTO{ID: view.ID, Name: view.Name, Code: view.Code, Category: view.Category, Description: view.Description, Active: view.Active, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt, Parameters: parameters, Components: components}
+	var pricingRule *PricingRuleDTO
+	if view.PricingRule != nil {
+		pricingRule = &PricingRuleDTO{ID: view.PricingRule.ID, Type: view.PricingRule.Type, FixedPriceRial: view.PricingRule.FixedPriceRial, MarkupPercentage: view.PricingRule.MarkupPercentage, FixedMarginRial: view.PricingRule.FixedMarginRial, PerUnitRateRial: view.PricingRule.PerUnitRateRial, ParameterKey: view.PricingRule.ParameterKey}
+		for _, tier := range view.PricingRule.Tiers {
+			pricingRule.Tiers = append(pricingRule.Tiers, PricingTierDTO{Position: tier.Position, MinimumQuantity: tier.MinimumQuantity, PriceRial: tier.PriceRial})
+		}
+	}
+	return ServiceDTO{ID: view.ID, Name: view.Name, Code: view.Code, Category: view.Category, Description: view.Description, Active: view.Active, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt, Parameters: parameters, Components: components, PricingRule: pricingRule}
 }

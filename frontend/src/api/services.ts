@@ -32,12 +32,24 @@ export type ServiceCostComponentPayload = {
   referenceId: string
   usageMode: string
   parameterKey: string
+  usageQuantity: string
   multiplier: string
   rateRial: number
   percentage: string
   rateBasis: string
   enabled: boolean
   notes: string
+}
+export type PricingTierPayload = { position: number; minimumQuantity: string; priceRial: number }
+export type PricingRulePayload = {
+  id: string
+  type: string
+  fixedPriceRial: number
+  markupPercentage: string
+  fixedMarginRial: number
+  perUnitRateRial: number
+  parameterKey: string
+  tiers: PricingTierPayload[]
 }
 export type ServicePayload = {
   name: string
@@ -46,6 +58,7 @@ export type ServicePayload = {
   description: string
   parameters: ServiceParameterPayload[]
   components: ServiceCostComponentPayload[]
+  pricingRule: PricingRulePayload | null
 }
 
 export const servicesApi = {

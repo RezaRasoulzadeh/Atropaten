@@ -137,6 +137,7 @@ export namespace main {
 	    referenceId: string;
 	    usageMode: string;
 	    parameterKey: string;
+	    usageQuantity: string;
 	    multiplier: string;
 	    rateRial: number;
 	    percentage: string;
@@ -157,6 +158,7 @@ export namespace main {
 	        this.referenceId = source["referenceId"];
 	        this.usageMode = source["usageMode"];
 	        this.parameterKey = source["parameterKey"];
+	        this.usageQuantity = source["usageQuantity"];
 	        this.multiplier = source["multiplier"];
 	        this.rateRial = source["rateRial"];
 	        this.percentage = source["percentage"];
@@ -173,6 +175,7 @@ export namespace main {
 	    referenceId: string;
 	    usageMode: string;
 	    parameterKey: string;
+	    usageQuantity: string;
 	    multiplier: string;
 	    rateRial: number;
 	    percentage: string;
@@ -192,6 +195,7 @@ export namespace main {
 	        this.referenceId = source["referenceId"];
 	        this.usageMode = source["usageMode"];
 	        this.parameterKey = source["parameterKey"];
+	        this.usageQuantity = source["usageQuantity"];
 	        this.multiplier = source["multiplier"];
 	        this.rateRial = source["rateRial"];
 	        this.percentage = source["percentage"];
@@ -200,6 +204,29 @@ export namespace main {
 	        this.notes = source["notes"];
 	    }
 	}
+	// Pricing rule classes are generated-compatible transport models for the
+	// generic service configurator.
+	export class PricingTierDTO {
+	    position: number;
+	    minimumQuantity: string;
+	    priceRial: number;
+	    static createFrom(source: any = {}) { return new PricingTierDTO(source); }
+	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.position = source["position"]; this.minimumQuantity = source["minimumQuantity"]; this.priceRial = source["priceRial"]; }
+	}
+	export class PricingRuleDTO {
+	    id: string;
+	    type: string;
+	    fixedPriceRial: number;
+	    markupPercentage: string;
+	    fixedMarginRial: number;
+	    perUnitRateRial: number;
+	    parameterKey: string;
+	    tiers: PricingTierDTO[];
+	    static createFrom(source: any = {}) { return new PricingRuleDTO(source); }
+	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.id = source["id"]; this.type = source["type"]; this.fixedPriceRial = source["fixedPriceRial"]; this.markupPercentage = source["markupPercentage"]; this.fixedMarginRial = source["fixedMarginRial"]; this.perUnitRateRial = source["perUnitRateRial"]; this.parameterKey = source["parameterKey"]; this.tiers = (source["tiers"] || []).map((item: any) => new PricingTierDTO(item)); }
+	}
+	export class PricingTierInput extends PricingTierDTO {}
+	export class PricingRuleInput extends PricingRuleDTO {}
 	export class ServiceParameterDTO {
 	    id: string;
 	    key: string;
@@ -245,6 +272,7 @@ export namespace main {
 	    updatedAt: string;
 	    parameters: ServiceParameterDTO[];
 	    components: ServiceCostComponentDTO[];
+	    pricingRule?: PricingRuleDTO;
 	
 	    static createFrom(source: any = {}) {
 	        return new ServiceDTO(source);
@@ -262,6 +290,7 @@ export namespace main {
 	        this.updatedAt = source["updatedAt"];
 	        this.parameters = this.convertValues(source["parameters"], ServiceParameterDTO);
 	        this.components = this.convertValues(source["components"], ServiceCostComponentDTO);
+	        this.pricingRule = this.convertValues(source["pricingRule"], PricingRuleDTO);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -319,6 +348,7 @@ export namespace main {
 	    description: string;
 	    parameters: ServiceParameterInput[];
 	    components: ServiceCostComponentInput[];
+	    pricingRule?: PricingRuleInput;
 	
 	    static createFrom(source: any = {}) {
 	        return new ServiceInput(source);
@@ -332,6 +362,7 @@ export namespace main {
 	        this.description = source["description"];
 	        this.parameters = this.convertValues(source["parameters"], ServiceParameterInput);
 	        this.components = this.convertValues(source["components"], ServiceCostComponentInput);
+	        this.pricingRule = this.convertValues(source["pricingRule"], PricingRuleInput);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -353,6 +384,28 @@ export namespace main {
 		}
 	}
 	
+	export class PricingRequest {
+	    serviceId: string;
+	    parameters: {[key: string]: string};
+	    manualCosts: {[key: string]: number};
+	    sellingPriceOverrideRial?: number;
+	    static createFrom(source: any = {}) { return new PricingRequest(source); }
+	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.serviceId = source["serviceId"]; this.parameters = source["parameters"]; this.manualCosts = source["manualCosts"]; this.sellingPriceOverrideRial = source["sellingPriceOverrideRial"]; }
+	}
+	export class ResolvedParameterDTO {
+	    key: string; label: string; type: string; value: string; quantity: string; materialId: string; unit: string;
+	    static createFrom(source: any = {}) { return new ResolvedParameterDTO(source); }
+	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.key = source["key"]; this.label = source["label"]; this.type = source["type"]; this.value = source["value"]; this.quantity = source["quantity"]; this.materialId = source["materialId"]; this.unit = source["unit"]; }
+	}
+	export class PricingComponentDTO {
+	    id: string; name: string; type: string; enabled: boolean; usageQuantity: string; rateRial: number; percentage: string; amountRial: number; explanation: string;
+	    static createFrom(source: any = {}) { return new PricingComponentDTO(source); }
+	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.id = source["id"]; this.name = source["name"]; this.type = source["type"]; this.enabled = source["enabled"]; this.usageQuantity = source["usageQuantity"]; this.rateRial = source["rateRial"]; this.percentage = source["percentage"]; this.amountRial = source["amountRial"]; this.explanation = source["explanation"]; }
+	}
+	export class PricingDTO {
+	    serviceId: string; serviceName: string; parameters: ResolvedParameterDTO[]; components: PricingComponentDTO[]; estimatedCostRial: number; suggestedSellingPriceRial: number; effectiveSellingPriceRial: number; profitRial: number; marginPercentage: string; warnings: string[]; belowCost: boolean;
+	    static createFrom(source: any = {}) { return new PricingDTO(source); }
+	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.serviceId = source["serviceId"]; this.serviceName = source["serviceName"]; this.parameters = (source["parameters"] || []).map((item: any) => new ResolvedParameterDTO(item)); this.components = (source["components"] || []).map((item: any) => new PricingComponentDTO(item)); this.estimatedCostRial = source["estimatedCostRial"]; this.suggestedSellingPriceRial = source["suggestedSellingPriceRial"]; this.effectiveSellingPriceRial = source["effectiveSellingPriceRial"]; this.profitRial = source["profitRial"]; this.marginPercentage = source["marginPercentage"]; this.warnings = source["warnings"]; this.belowCost = source["belowCost"]; }
+	}
 
 }
-

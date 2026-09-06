@@ -170,6 +170,27 @@ var migrations = []migration{{
 		notes TEXT NOT NULL DEFAULT '',
 		created_at TEXT NOT NULL,
 		updated_at TEXT NOT NULL
+	)`}, {
+	version: 4,
+	sql: `ALTER TABLE service_cost_components ADD COLUMN usage_quantity_units INTEGER NOT NULL DEFAULT 1000000;
+	CREATE TABLE service_pricing_rules (
+		id TEXT PRIMARY KEY,
+		service_id TEXT NOT NULL UNIQUE REFERENCES services(id) ON DELETE CASCADE,
+		rule_type TEXT NOT NULL CHECK(rule_type IN ('fixed', 'markup', 'fixed-margin', 'per-unit', 'quantity-tiers', 'manual')),
+		fixed_price_rial INTEGER NOT NULL DEFAULT 0 CHECK(fixed_price_rial >= 0),
+		markup_percentage_units INTEGER NOT NULL DEFAULT 0 CHECK(markup_percentage_units >= 0),
+		fixed_margin_rial INTEGER NOT NULL DEFAULT 0 CHECK(fixed_margin_rial >= 0),
+		per_unit_rate_rial INTEGER NOT NULL DEFAULT 0 CHECK(per_unit_rate_rial >= 0),
+		parameter_key TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	);
+	CREATE TABLE service_pricing_tiers (
+		rule_id TEXT NOT NULL REFERENCES service_pricing_rules(id) ON DELETE CASCADE,
+		display_order INTEGER NOT NULL CHECK(display_order >= 0),
+		minimum_quantity_units INTEGER NOT NULL CHECK(minimum_quantity_units >= 0),
+		price_rial INTEGER NOT NULL CHECK(price_rial >= 0),
+		PRIMARY KEY(rule_id, display_order)
 	)`},
 }
 
@@ -342,6 +363,10 @@ func (s *Store) ListServices(ctx context.Context, includeArchived bool) ([]domai
 		if err != nil {
 			return nil, err
 		}
+		services[index].PricingRule, err = s.loadPricingRule(ctx, services[index].ID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return services, nil
 }
@@ -360,6 +385,10 @@ func (s *Store) GetService(ctx context.Context, id string) (domain.Service, erro
 		return domain.Service{}, err
 	}
 	service.Components, err = s.loadComponents(ctx, service.ID)
+	if err != nil {
+		return domain.Service{}, err
+	}
+	service.PricingRule, err = s.loadPricingRule(ctx, service.ID)
 	if err != nil {
 		return domain.Service{}, err
 	}
@@ -472,8 +501,22 @@ func (s *Store) SaveServiceDefinition(ctx context.Context, service domain.Servic
 		return rollback(fmt.Errorf("replace service cost components: %w", err))
 	}
 	for _, component := range service.Components {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO service_cost_components (id, service_id, component_name, component_type, reference_id, usage_mode, parameter_key, multiplier_units, rate_rial, percentage_units, rate_basis, enabled, display_order, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, component.ID, service.ID, component.Name, string(component.Type), component.ReferenceID, string(component.UsageMode), component.ParameterKey, int64(component.Multiplier), component.RateRial, int64(component.Percentage), component.RateBasis, boolToInt(component.Enabled), component.Position, component.Notes, component.CreatedAt.UTC().Format(time.RFC3339Nano), component.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO service_cost_components (id, service_id, component_name, component_type, reference_id, usage_mode, parameter_key, usage_quantity_units, multiplier_units, rate_rial, percentage_units, rate_basis, enabled, display_order, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, component.ID, service.ID, component.Name, string(component.Type), component.ReferenceID, string(component.UsageMode), component.ParameterKey, int64(component.UsageQuantity), int64(component.Multiplier), component.RateRial, int64(component.Percentage), component.RateBasis, boolToInt(component.Enabled), component.Position, component.Notes, component.CreatedAt.UTC().Format(time.RFC3339Nano), component.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
 			return rollback(fmt.Errorf("insert service cost component: %w", err))
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM service_pricing_rules WHERE service_id = ?`, service.ID); err != nil {
+		return rollback(fmt.Errorf("replace service pricing rule: %w", err))
+	}
+	if service.PricingRule != nil {
+		rule := service.PricingRule
+		if _, err := tx.ExecContext(ctx, `INSERT INTO service_pricing_rules (id, service_id, rule_type, fixed_price_rial, markup_percentage_units, fixed_margin_rial, per_unit_rate_rial, parameter_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, rule.ID, service.ID, string(rule.Type), rule.FixedPriceRial, int64(rule.MarkupPercentage), rule.FixedMarginRial, rule.PerUnitRateRial, rule.ParameterKey, rule.CreatedAt.UTC().Format(time.RFC3339Nano), rule.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+			return rollback(fmt.Errorf("insert service pricing rule: %w", err))
+		}
+		for _, tier := range rule.Tiers {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO service_pricing_tiers (rule_id, display_order, minimum_quantity_units, price_rial) VALUES (?, ?, ?, ?)`, rule.ID, tier.Position, int64(tier.MinimumQuantity), tier.PriceRial); err != nil {
+				return rollback(fmt.Errorf("insert service pricing tier: %w", err))
+			}
 		}
 	}
 	if err := tx.Commit(); err != nil {
@@ -566,7 +609,7 @@ func scanParameter(row scanner) (domain.ServiceParameter, error) {
 }
 
 func (s *Store) loadComponents(ctx context.Context, serviceID string) ([]domain.ServiceCostComponent, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, service_id, component_name, component_type, reference_id, usage_mode, parameter_key, multiplier_units, rate_rial, percentage_units, rate_basis, enabled, display_order, notes, created_at, updated_at FROM service_cost_components WHERE service_id = ? ORDER BY display_order, id`, serviceID)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, service_id, component_name, component_type, reference_id, usage_mode, parameter_key, usage_quantity_units, multiplier_units, rate_rial, percentage_units, rate_basis, enabled, display_order, notes, created_at, updated_at FROM service_cost_components WHERE service_id = ? ORDER BY display_order, id`, serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("list service cost components: %w", err)
 	}
@@ -608,14 +651,15 @@ func scanMachine(row scanner) (domain.Machine, error) {
 func scanComponent(row scanner) (domain.ServiceCostComponent, error) {
 	var component domain.ServiceCostComponent
 	var componentType, usageMode string
-	var multiplier, percentage int64
+	var usageQuantity, multiplier, percentage int64
 	var enabled int
 	var created, updated string
-	if err := row.Scan(&component.ID, &component.ServiceID, &component.Name, &componentType, &component.ReferenceID, &usageMode, &component.ParameterKey, &multiplier, &component.RateRial, &percentage, &component.RateBasis, &enabled, &component.Position, &component.Notes, &created, &updated); err != nil {
+	if err := row.Scan(&component.ID, &component.ServiceID, &component.Name, &componentType, &component.ReferenceID, &usageMode, &component.ParameterKey, &usageQuantity, &multiplier, &component.RateRial, &percentage, &component.RateBasis, &enabled, &component.Position, &component.Notes, &created, &updated); err != nil {
 		return domain.ServiceCostComponent{}, err
 	}
 	component.Type = domain.CostComponentType(componentType)
 	component.UsageMode = domain.UsageMode(usageMode)
+	component.UsageQuantity = domain.Quantity(usageQuantity)
 	component.Multiplier = domain.Quantity(multiplier)
 	component.Percentage = domain.Quantity(percentage)
 	component.Enabled = enabled == 1
@@ -629,6 +673,46 @@ func scanComponent(row scanner) (domain.ServiceCostComponent, error) {
 		return domain.ServiceCostComponent{}, fmt.Errorf("parse component updated timestamp: %w", err)
 	}
 	return component, nil
+}
+
+func (s *Store) loadPricingRule(ctx context.Context, serviceID string) (*domain.ServicePricingRule, error) {
+	var rule domain.ServicePricingRule
+	var ruleType, created, updated string
+	var markup int64
+	err := s.db.QueryRowContext(ctx, `SELECT id, service_id, rule_type, fixed_price_rial, markup_percentage_units, fixed_margin_rial, per_unit_rate_rial, parameter_key, created_at, updated_at FROM service_pricing_rules WHERE service_id = ?`, serviceID).Scan(&rule.ID, &rule.ServiceID, &ruleType, &rule.FixedPriceRial, &markup, &rule.FixedMarginRial, &rule.PerUnitRateRial, &rule.ParameterKey, &created, &updated)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get service pricing rule: %w", err)
+	}
+	rule.Type = domain.PricingRuleType(ruleType)
+	rule.MarkupPercentage = domain.Quantity(markup)
+	rule.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
+	if err != nil {
+		return nil, fmt.Errorf("parse pricing rule created timestamp: %w", err)
+	}
+	rule.UpdatedAt, err = time.Parse(time.RFC3339Nano, updated)
+	if err != nil {
+		return nil, fmt.Errorf("parse pricing rule updated timestamp: %w", err)
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT display_order, minimum_quantity_units, price_rial FROM service_pricing_tiers WHERE rule_id = ? ORDER BY display_order`, rule.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list pricing tiers: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var position, minimum int64
+		var price int64
+		if err := rows.Scan(&position, &minimum, &price); err != nil {
+			return nil, fmt.Errorf("scan pricing tier: %w", err)
+		}
+		rule.Tiers = append(rule.Tiers, domain.ServicePricingTier{Position: int(position), MinimumQuantity: domain.Quantity(minimum), PriceRial: price})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read pricing tiers: %w", err)
+	}
+	return &rule, nil
 }
 
 func boolToInt(value bool) int {

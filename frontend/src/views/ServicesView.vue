@@ -23,6 +23,7 @@ import { servicesApi, type ServiceRecord } from '../api/services'
 import { machinesApi, type MachineRecord } from '../api/machines'
 import { formatMoney, formatMoneyInput, parseMoneyInput, type CurrencyUnit } from '../utils/currency'
 import { formatDateTime } from '../utils/date'
+import ServiceConfigurator from '../components/ServiceConfigurator.vue'
 
 const emit = defineEmits<{ notify: [message: string] }>()
 const props = defineProps<{ currencyUnit: CurrencyUnit }>()
@@ -43,8 +44,10 @@ type ParameterForm = {
   unit: string
 }
 type ComponentType = 'material' | 'machine' | 'labor' | 'outsourced' | 'fixed' | 'overhead' | 'waste' | 'manual'
-type ComponentForm = { id: string; name: string; type: ComponentType; referenceId: string; usageMode: 'fixed' | 'parameter'; parameterKey: string; multiplier: string; rateRial: number; rateInput: string; percentage: string; rateBasis: string; enabled: boolean; notes: string }
-type ServiceForm = { name: string; code: string; category: string; description: string; parameters: ParameterForm[]; components: ComponentForm[] }
+type ComponentForm = { id: string; name: string; type: ComponentType; referenceId: string; usageMode: 'fixed' | 'parameter'; parameterKey: string; usageQuantity: string; multiplier: string; rateRial: number; rateInput: string; percentage: string; rateBasis: string; enabled: boolean; notes: string }
+type PricingTierForm = { position: number; minimumQuantity: string; priceRial: number; priceInput: string }
+type PricingRuleForm = { id: string; type: string; fixedPriceRial: number; fixedPriceInput: string; markupPercentage: string; fixedMarginRial: number; fixedMarginInput: string; perUnitRateRial: number; perUnitRateInput: string; parameterKey: string; tiers: PricingTierForm[] }
+type ServiceForm = { name: string; code: string; category: string; description: string; parameters: ParameterForm[]; components: ComponentForm[]; pricingRule: PricingRuleForm | null }
 
 const services = ref<ServiceRecord[]>([])
 const materials = ref<MaterialRecord[]>([])
@@ -70,17 +73,26 @@ const filteredServices = computed(() => {
 })
 
 onMounted(loadServices)
-watch(() => props.currencyUnit, () => { for (const component of form.value.components) component.rateInput = formatMoneyInput(component.rateRial, props.currencyUnit) })
+watch(() => props.currencyUnit, () => {
+  for (const component of form.value.components) component.rateInput = formatMoneyInput(component.rateRial, props.currencyUnit)
+  const rule = form.value.pricingRule
+  if (rule) {
+    rule.fixedPriceInput = formatMoneyInput(rule.fixedPriceRial, props.currencyUnit)
+    rule.fixedMarginInput = formatMoneyInput(rule.fixedMarginRial, props.currencyUnit)
+    rule.perUnitRateInput = formatMoneyInput(rule.perUnitRateRial, props.currencyUnit)
+    for (const tier of rule.tiers) tier.priceInput = formatMoneyInput(tier.priceRial, props.currencyUnit)
+  }
+})
 
 function emptyForm(): ServiceForm {
-  return { name: '', code: '', category: '', description: '', parameters: [], components: [] }
+  return { name: '', code: '', category: '', description: '', parameters: [], components: [], pricingRule: { id: '', type: 'manual', fixedPriceRial: 0, fixedPriceInput: '', markupPercentage: '20', fixedMarginRial: 0, fixedMarginInput: '', perUnitRateRial: 0, perUnitRateInput: '', parameterKey: '', tiers: [] } }
 }
 
 function emptyParameter(): ParameterForm {
   return { id: `draft-parameter-${Date.now()}-${Math.random().toString(16).slice(2)}`, key: '', label: '', type: 'integer', required: false, defaultValue: '', options: [], minValue: null, maxValue: null, unit: '' }
 }
 
-function emptyComponent(): ComponentForm { return { id: `draft-component-${Date.now()}-${Math.random().toString(16).slice(2)}`, name: '', type: 'fixed', referenceId: '', usageMode: 'fixed', parameterKey: '', multiplier: '1', rateRial: 0, rateInput: '', percentage: '', rateBasis: 'hour', enabled: true, notes: '' } }
+function emptyComponent(): ComponentForm { return { id: `draft-component-${Date.now()}-${Math.random().toString(16).slice(2)}`, name: '', type: 'fixed', referenceId: '', usageMode: 'fixed', parameterKey: '', usageQuantity: '1', multiplier: '1', rateRial: 0, rateInput: '', percentage: '', rateBasis: 'hour', enabled: true, notes: '' } }
 
 async function loadServices() {
   isLoading.value = true
@@ -121,7 +133,8 @@ function startEdit() {
       required: parameter.required, defaultValue: parameter.defaultValue, options: [...parameter.options],
       minValue: parameter.minValue ?? null, maxValue: parameter.maxValue ?? null, unit: parameter.unit,
     })),
-    components: service.components.map((component) => ({ id: component.id, name: component.name, type: component.type as ComponentType, referenceId: component.referenceId, usageMode: component.usageMode as 'fixed' | 'parameter', parameterKey: component.parameterKey, multiplier: component.multiplier, rateRial: component.rateRial, rateInput: formatMoneyInput(component.rateRial, props.currencyUnit), percentage: component.percentage, rateBasis: component.rateBasis || 'hour', enabled: component.enabled, notes: component.notes })),
+    components: service.components.map((component) => ({ id: component.id, name: component.name, type: component.type as ComponentType, referenceId: component.referenceId, usageMode: component.usageMode as 'fixed' | 'parameter', parameterKey: component.parameterKey, usageQuantity: component.usageQuantity || '1', multiplier: component.multiplier, rateRial: component.rateRial, rateInput: formatMoneyInput(component.rateRial, props.currencyUnit), percentage: component.percentage, rateBasis: component.rateBasis || 'hour', enabled: component.enabled, notes: component.notes })),
+    pricingRule: service.pricingRule ? { id: service.pricingRule.id, type: service.pricingRule.type, fixedPriceRial: service.pricingRule.fixedPriceRial, fixedPriceInput: formatMoneyInput(service.pricingRule.fixedPriceRial, props.currencyUnit), markupPercentage: service.pricingRule.markupPercentage, fixedMarginRial: service.pricingRule.fixedMarginRial, fixedMarginInput: formatMoneyInput(service.pricingRule.fixedMarginRial, props.currencyUnit), perUnitRateRial: service.pricingRule.perUnitRateRial, perUnitRateInput: formatMoneyInput(service.pricingRule.perUnitRateRial, props.currencyUnit), parameterKey: service.pricingRule.parameterKey, tiers: service.pricingRule.tiers.map((tier) => ({ position: tier.position, minimumQuantity: tier.minimumQuantity, priceRial: tier.priceRial, priceInput: formatMoneyInput(tier.priceRial, props.currencyUnit) })) } : null,
   }
   editorMode.value = 'edit'
   formError.value = ''
@@ -140,7 +153,16 @@ function updateComponentType(component: ComponentForm) { normalizeComponent(comp
 function addComponent() { form.value.components.push(emptyComponent()) }
 function removeComponent(index: number) { form.value.components.splice(index, 1) }
 function moveComponent(index: number, direction: -1 | 1) { const target = index + direction; if (target < 0 || target >= form.value.components.length) return; const [component] = form.value.components.splice(index, 1); form.value.components.splice(target, 0, component) }
-function updateComponentRate(component: ComponentForm) { component.rateRial = parseMoneyInput(component.rateInput, props.currencyUnit) ?? 0 }
+function updateComponentRate(component: ComponentForm) { const value = component.rateInput; const parsed = parseMoneyInput(value, props.currencyUnit); if (parsed !== null) { component.rateRial = parsed; component.rateInput = formatMoneyInput(parsed, props.currencyUnit) } }
+function updateGroupedMoney(target: any, textKey: string, valueKey: string, event: Event) { const value = (event.target as HTMLInputElement).value; target[textKey] = value; const parsed = parseMoneyInput(value, props.currencyUnit); if (parsed !== null) { target[valueKey] = parsed; target[textKey] = formatMoneyInput(parsed, props.currencyUnit) } }
+function normalizePricingRule() {
+  const rule = form.value.pricingRule
+  if (!rule) return
+  if (rule.type !== 'per-unit' && rule.type !== 'quantity-tiers') rule.parameterKey = ''
+  if (rule.type !== 'quantity-tiers') rule.tiers = []
+}
+function addPricingTier() { const rule = form.value.pricingRule; if (rule) rule.tiers.push({ position: rule.tiers.length, minimumQuantity: rule.tiers.length ? '10' : '0', priceRial: 0, priceInput: '' }) }
+function removePricingTier(index: number) { const rule = form.value.pricingRule; if (!rule) return; rule.tiers.splice(index, 1); rule.tiers.forEach((tier, position) => { tier.position = position }) }
 function componentSummary(component: { type: string; name: string; referenceId: string; usageMode: string; parameterKey: string; multiplier: string; rateRial: number; percentage: string; enabled: boolean; rateBasis: string }) {
   const source = component.type === 'material' ? (materials.value.find((item) => item.id === component.referenceId)?.name || 'Material') : component.type === 'machine' ? (machines.value.find((item) => item.id === component.referenceId)?.name || 'Machine') : component.type
   if (component.type === 'overhead' || component.type === 'waste') return `${component.name || typeLabel(component.type)} · ${component.percentage}%${component.enabled ? '' : ' · disabled'}`
@@ -222,7 +244,8 @@ async function saveService() {
       category: form.value.category,
       description: form.value.description,
       parameters: form.value.parameters.map((parameter) => ({ ...parameter })),
-      components: form.value.components.map((component) => ({ id: component.id, name: component.name, type: component.type, referenceId: component.referenceId, usageMode: component.usageMode, parameterKey: component.parameterKey, multiplier: component.multiplier, rateRial: component.rateRial, percentage: component.percentage, rateBasis: component.rateBasis, enabled: component.enabled, notes: component.notes })),
+      components: form.value.components.map((component) => ({ id: component.id, name: component.name, type: component.type, referenceId: component.referenceId, usageMode: component.usageMode, parameterKey: component.parameterKey, usageQuantity: component.usageQuantity, multiplier: component.multiplier, rateRial: component.rateRial, percentage: component.percentage, rateBasis: component.rateBasis, enabled: component.enabled, notes: component.notes })),
+      pricingRule: form.value.pricingRule ? { id: form.value.pricingRule.id, type: form.value.pricingRule.type, fixedPriceRial: form.value.pricingRule.fixedPriceRial, markupPercentage: form.value.pricingRule.markupPercentage, fixedMarginRial: form.value.pricingRule.fixedMarginRial, perUnitRateRial: form.value.pricingRule.perUnitRateRial, parameterKey: form.value.pricingRule.parameterKey, tiers: form.value.pricingRule.tiers.map((tier) => ({ position: tier.position, minimumQuantity: tier.minimumQuantity, priceRial: tier.priceRial })) } : null,
     }
     const saved = wasEditing && selectedId.value
       ? await servicesApi.update(selectedId.value, payload)
@@ -321,14 +344,14 @@ function errorMessageFrom(error: unknown, fallback: string): string {
             </article>
           </div>
           <div v-else class="parameter-empty-inline"><ListPlus :size="17" :stroke-width="1.8" aria-hidden="true" /><span>No parameters yet. Add one when the service needs operator input.</span></div>
-          <div class="parameter-editor-heading"><div><h3>Cost components</h3><p>Ordered reusable cost inputs; no prices are calculated here.</p></div><button class="button button-secondary button-compact" type="button" @click="addComponent"><Plus class="button-icon" :size="15" :stroke-width="1.8" aria-hidden="true" />Add component</button></div>
+          <div class="parameter-editor-heading"><div><h3>Cost components</h3><p>Ordered reusable inputs evaluated by the generic pricing preview.</p></div><button class="button button-secondary button-compact" type="button" @click="addComponent"><Plus class="button-icon" :size="15" :stroke-width="1.8" aria-hidden="true" />Add component</button></div>
           <div v-if="form.components.length" class="parameter-editor-list">
             <article v-for="(component, index) in form.components" :key="component.id" class="parameter-editor-card cost-component-card">
               <header class="parameter-card-header"><span class="parameter-number">{{ String(index + 1).padStart(2, '0') }}</span><strong>{{ component.name || 'Untitled component' }}</strong><div class="parameter-order-actions"><button class="icon-button icon-button-small" type="button" :disabled="index === 0" :aria-label="`Move ${component.name || 'component'} up`" @click="moveComponent(index, -1)"><ChevronUp :size="14" :stroke-width="1.8" aria-hidden="true" /></button><button class="icon-button icon-button-small" type="button" :disabled="index === form.components.length - 1" :aria-label="`Move ${component.name || 'component'} down`" @click="moveComponent(index, 1)"><ChevronDown :size="14" :stroke-width="1.8" aria-hidden="true" /></button><button class="icon-button icon-button-small danger-icon" type="button" :aria-label="`Remove ${component.name || 'component'}`" @click="removeComponent(index)"><Trash2 :size="14" :stroke-width="1.8" aria-hidden="true" /></button></div></header>
               <div class="service-form-grid"><label class="form-field"><span>Name</span><input v-model="component.name" type="text" placeholder="Paper cost" /></label><label class="form-field"><span>Type</span><span class="select-control"><select v-model="component.type" @change="updateComponentType(component)"><option value="material">Material</option><option value="machine">Machine</option><option value="labor">Labor</option><option value="outsourced">Outsourced</option><option value="fixed">Fixed</option><option value="overhead">Overhead</option><option value="waste">Waste</option><option value="manual">Manual</option></select><ChevronDown class="select-chevron" :size="14" :stroke-width="1.8" aria-hidden="true" /></span></label></div>
               <label class="checkbox-control"><input v-model="component.enabled" type="checkbox" />Enabled for future pricing</label>
               <label v-if="componentNeedsReference(component.type)" class="form-field form-field-wide"><span>{{ component.type === 'material' ? 'Material reference' : 'Machine reference' }}</span><select v-model="component.referenceId"><option value="">Select an active {{ component.type }}</option><option v-for="item in component.type === 'material' ? materials : machines" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
-              <div v-if="!componentNeedsPercentage(component.type)" class="service-form-grid"><label class="form-field"><span>Usage source</span><select v-model="component.usageMode"><option value="fixed">Fixed quantity</option><option value="parameter">Numeric parameter</option></select></label><label class="form-field"><span>Multiplier</span><input v-model="component.multiplier" type="text" inputmode="decimal" placeholder="1" /></label></div>
+              <div v-if="!componentNeedsPercentage(component.type)" class="service-form-grid"><label class="form-field"><span>Usage source</span><select v-model="component.usageMode"><option value="fixed">Fixed quantity</option><option value="parameter">Numeric parameter</option></select></label><label class="form-field"><span>Fixed quantity</span><input v-model="component.usageQuantity" type="text" inputmode="decimal" placeholder="1" /></label><label class="form-field"><span>Multiplier</span><input v-model="component.multiplier" type="text" inputmode="decimal" placeholder="1" /></label></div>
               <label v-if="component.usageMode === 'parameter' && !componentNeedsPercentage(component.type)" class="form-field form-field-wide"><span>Usage parameter</span><select v-model="component.parameterKey"><option value="">Select numeric parameter</option><option v-for="parameter in numericParameters()" :key="parameter.id" :value="parameter.key">{{ parameter.label || parameter.key }} · {{ parameter.key }}</option></select><small v-if="component.parameterKey && !numericParameters().some((parameter) => parameter.key === component.parameterKey)" class="field-help field-warning">This reference is no longer numeric and will be rejected until corrected.</small></label>
               <div v-if="componentNeedsRate(component.type)" class="service-form-grid"><label class="form-field"><span>Rate ({{ props.currencyUnit }})</span><input v-model="component.rateInput" type="text" inputmode="decimal" placeholder="0" @input="updateComponentRate(component)" /></label><label v-if="component.type === 'labor' || component.type === 'outsourced'" class="form-field"><span>Rate basis</span><select v-model="component.rateBasis"><option value="unit">Per unit</option><option value="minute">Per minute</option><option value="hour">Per hour</option></select></label></div>
               <label v-if="componentNeedsPercentage(component.type)" class="form-field form-field-wide"><span>Percentage</span><input v-model="component.percentage" type="text" inputmode="decimal" placeholder="10" /><small class="field-help">Stored as an exact fixed-scale percentage of the applicable future cost basis.</small></label>
@@ -336,6 +359,16 @@ function errorMessageFrom(error: unknown, fallback: string): string {
             </article>
           </div>
           <div v-else class="parameter-empty-inline"><Plus :size="17" :stroke-width="1.8" aria-hidden="true" /><span>No cost components yet. Add reusable material, machine, labor, or other inputs.</span></div>
+          <div class="parameter-editor-heading pricing-rule-heading"><div><h3>Selling-price rule</h3><p>Choose a generic suggestion rule; operators can override it in the live configurator.</p></div></div>
+          <div v-if="form.pricingRule" class="pricing-rule-editor">
+            <label class="form-field"><span>Rule</span><select v-model="form.pricingRule.type" @change="normalizePricingRule"><option value="manual">Manual / enter at quote time</option><option value="fixed">Fixed selling price</option><option value="markup">Cost plus markup %</option><option value="fixed-margin">Cost plus fixed margin</option><option value="per-unit">Per-unit parameter</option><option value="quantity-tiers">Quantity tiers</option></select></label>
+            <label v-if="form.pricingRule.type === 'fixed'" class="form-field"><span>Fixed price ({{ props.currencyUnit }})</span><input :value="form.pricingRule.fixedPriceInput" inputmode="decimal" @input="updateGroupedMoney(form.pricingRule, 'fixedPriceInput', 'fixedPriceRial', $event)" /></label>
+            <label v-if="form.pricingRule.type === 'markup'" class="form-field"><span>Markup percentage</span><input v-model="form.pricingRule.markupPercentage" inputmode="decimal" placeholder="20" /></label>
+            <label v-if="form.pricingRule.type === 'fixed-margin'" class="form-field"><span>Fixed margin ({{ props.currencyUnit }})</span><input :value="form.pricingRule.fixedMarginInput" inputmode="decimal" @input="updateGroupedMoney(form.pricingRule, 'fixedMarginInput', 'fixedMarginRial', $event)" /></label>
+            <template v-if="form.pricingRule.type === 'per-unit'"><label class="form-field"><span>Numeric parameter</span><select v-model="form.pricingRule.parameterKey"><option value="">Select parameter</option><option v-for="parameter in numericParameters()" :key="parameter.id" :value="parameter.key">{{ parameter.label || parameter.key }}</option></select></label><label class="form-field"><span>Rate / unit ({{ props.currencyUnit }})</span><input :value="form.pricingRule.perUnitRateInput" inputmode="decimal" @input="updateGroupedMoney(form.pricingRule, 'perUnitRateInput', 'perUnitRateRial', $event)" /></label></template>
+            <div v-if="form.pricingRule.type === 'quantity-tiers'" class="pricing-tiers"><div class="choice-options-heading"><span>Quantity tiers</span><button class="text-button" type="button" @click="addPricingTier"><Plus :size="14" :stroke-width="1.8" />Add tier</button></div><div v-for="(tier, tierIndex) in form.pricingRule.tiers" :key="tier.position" class="choice-option-row"><input v-model="tier.minimumQuantity" inputmode="decimal" :placeholder="tierIndex === 0 ? '0' : '10'" :aria-label="`Tier ${tierIndex + 1} minimum quantity`" /><input :value="tier.priceInput" inputmode="decimal" placeholder="Price" :aria-label="`Tier ${tierIndex + 1} price`" @input="updateGroupedMoney(tier, 'priceInput', 'priceRial', $event)" /><button class="icon-button icon-button-small danger-icon" type="button" :aria-label="`Remove tier ${tierIndex + 1}`" @click="removePricingTier(tierIndex)"><Trash2 :size="13" :stroke-width="1.8" /></button></div><p v-if="!form.pricingRule.tiers.length" class="field-help">Add a zero-minimum tier before saving.</p></div>
+            <p v-if="form.pricingRule.type === 'manual'" class="field-help">The live configurator will show cost and require an entered selling price.</p>
+          </div>
           <div class="service-form-actions"><button class="button button-secondary" type="button" @click="cancelEditor">Cancel</button><button class="button button-primary" type="submit" :disabled="isSaving"><Save class="button-icon" :size="15" :stroke-width="1.8" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save service' }}</button></div>
         </form>
       </SectionPanel>
@@ -353,5 +386,6 @@ function errorMessageFrom(error: unknown, fallback: string): string {
 
       <SectionPanel v-else title="Service inspector" subtitle="Select a row to inspect it." class="service-inspector service-inspector-empty"><div class="inspector-empty-copy"><SlidersHorizontal :size="20" :stroke-width="1.8" aria-hidden="true" /><p>Service details will appear here.</p><button class="text-button" type="button" @click="startCreate">Create a service <Plus :size="14" :stroke-width="1.8" aria-hidden="true" /></button></div></SectionPanel>
     </section>
+    <ServiceConfigurator v-if="selectedService && !editorMode && selectedService.active" :service="selectedService" :materials="materials" :currency-unit="props.currencyUnit" />
   </div>
 </template>
