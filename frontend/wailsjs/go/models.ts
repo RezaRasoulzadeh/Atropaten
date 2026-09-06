@@ -1,5 +1,61 @@
 export namespace main {
-
+	
+	export class MachineDTO {
+	    id: string;
+	    name: string;
+	    code: string;
+	    category: string;
+	    rateBasis: string;
+	    rateRial: number;
+	    setupCostRial: number;
+	    notes: string;
+	    active: boolean;
+	    createdAt: string;
+	    updatedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MachineDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.code = source["code"];
+	        this.category = source["category"];
+	        this.rateBasis = source["rateBasis"];
+	        this.rateRial = source["rateRial"];
+	        this.setupCostRial = source["setupCostRial"];
+	        this.notes = source["notes"];
+	        this.active = source["active"];
+	        this.createdAt = source["createdAt"];
+	        this.updatedAt = source["updatedAt"];
+	    }
+	}
+	export class MachineInput {
+	    name: string;
+	    code: string;
+	    category: string;
+	    rateBasis: string;
+	    rateRial: number;
+	    setupCostRial: number;
+	    notes: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MachineInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.code = source["code"];
+	        this.category = source["category"];
+	        this.rateBasis = source["rateBasis"];
+	        this.rateRial = source["rateRial"];
+	        this.setupCostRial = source["setupCostRial"];
+	        this.notes = source["notes"];
+	    }
+	}
 	export class MaterialDTO {
 	    id: string;
 	    name: string;
@@ -17,11 +73,11 @@ export namespace main {
 	    lowStock: boolean;
 	    createdAt: string;
 	    updatedAt: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new MaterialDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -54,11 +110,11 @@ export namespace main {
 	    averageUnitCostRial: number;
 	    preferredSupplier: string;
 	    notes: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new MaterialInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -71,6 +127,76 @@ export namespace main {
 	        this.reorderLevel = source["reorderLevel"];
 	        this.averageUnitCostRial = source["averageUnitCostRial"];
 	        this.preferredSupplier = source["preferredSupplier"];
+	        this.notes = source["notes"];
+	    }
+	}
+	export class ServiceCostComponentDTO {
+	    id: string;
+	    name: string;
+	    type: string;
+	    referenceId: string;
+	    usageMode: string;
+	    parameterKey: string;
+	    multiplier: string;
+	    rateRial: number;
+	    percentage: string;
+	    rateBasis: string;
+	    enabled: boolean;
+	    position: number;
+	    notes: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ServiceCostComponentDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.type = source["type"];
+	        this.referenceId = source["referenceId"];
+	        this.usageMode = source["usageMode"];
+	        this.parameterKey = source["parameterKey"];
+	        this.multiplier = source["multiplier"];
+	        this.rateRial = source["rateRial"];
+	        this.percentage = source["percentage"];
+	        this.rateBasis = source["rateBasis"];
+	        this.enabled = source["enabled"];
+	        this.position = source["position"];
+	        this.notes = source["notes"];
+	    }
+	}
+	export class ServiceCostComponentInput {
+	    id: string;
+	    name: string;
+	    type: string;
+	    referenceId: string;
+	    usageMode: string;
+	    parameterKey: string;
+	    multiplier: string;
+	    rateRial: number;
+	    percentage: string;
+	    rateBasis: string;
+	    enabled: boolean;
+	    notes: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ServiceCostComponentInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.type = source["type"];
+	        this.referenceId = source["referenceId"];
+	        this.usageMode = source["usageMode"];
+	        this.parameterKey = source["parameterKey"];
+	        this.multiplier = source["multiplier"];
+	        this.rateRial = source["rateRial"];
+	        this.percentage = source["percentage"];
+	        this.rateBasis = source["rateBasis"];
+	        this.enabled = source["enabled"];
 	        this.notes = source["notes"];
 	    }
 	}
@@ -87,11 +213,11 @@ export namespace main {
 	    maxValue?: string;
 	    unit: string;
 	    active: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ServiceParameterDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -119,11 +245,11 @@ export namespace main {
 	    updatedAt: string;
 	    parameters: ServiceParameterDTO[];
 	    components: ServiceCostComponentDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ServiceDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -137,7 +263,7 @@ export namespace main {
 	        this.parameters = this.convertValues(source["parameters"], ServiceParameterDTO);
 	        this.components = this.convertValues(source["components"], ServiceCostComponentDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -156,11 +282,6 @@ export namespace main {
 		    return a;
 		}
 	}
-	export class ServiceCostComponentDTO {
-	    id: string; name: string; type: string; referenceId: string; usageMode: string; parameterKey: string; multiplier: string; rateRial: number; percentage: string; rateBasis: string; enabled: boolean; position: number; notes: string;
-	    static createFrom(source: any = {}) { return new ServiceCostComponentDTO(source); }
-	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.id=source["id"]; this.name=source["name"]; this.type=source["type"]; this.referenceId=source["referenceId"]; this.usageMode=source["usageMode"]; this.parameterKey=source["parameterKey"]; this.multiplier=source["multiplier"]; this.rateRial=source["rateRial"]; this.percentage=source["percentage"]; this.rateBasis=source["rateBasis"]; this.enabled=source["enabled"]; this.position=source["position"]; this.notes=source["notes"]; }
-	}
 	export class ServiceParameterInput {
 	    id: string;
 	    key: string;
@@ -172,11 +293,11 @@ export namespace main {
 	    minValue?: string;
 	    maxValue?: string;
 	    unit: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ServiceParameterInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -198,11 +319,11 @@ export namespace main {
 	    description: string;
 	    parameters: ServiceParameterInput[];
 	    components: ServiceCostComponentInput[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ServiceInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -212,7 +333,7 @@ export namespace main {
 	        this.parameters = this.convertValues(source["parameters"], ServiceParameterInput);
 	        this.components = this.convertValues(source["components"], ServiceCostComponentInput);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -231,21 +352,7 @@ export namespace main {
 		    return a;
 		}
 	}
-	export class ServiceCostComponentInput {
-	    id: string; name: string; type: string; referenceId: string; usageMode: string; parameterKey: string; multiplier: string; rateRial: number; percentage: string; rateBasis: string; enabled: boolean; notes: string;
-	    static createFrom(source: any = {}) { return new ServiceCostComponentInput(source); }
-	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.id=source["id"]; this.name=source["name"]; this.type=source["type"]; this.referenceId=source["referenceId"]; this.usageMode=source["usageMode"]; this.parameterKey=source["parameterKey"]; this.multiplier=source["multiplier"]; this.rateRial=source["rateRial"]; this.percentage=source["percentage"]; this.rateBasis=source["rateBasis"]; this.enabled=source["enabled"]; this.notes=source["notes"]; }
-	}
-	export class MachineDTO {
-	    id: string; name: string; code: string; category: string; rateBasis: string; rateRial: number; setupCostRial: number; notes: string; active: boolean; createdAt: string; updatedAt: string;
-	    static createFrom(source: any = {}) { return new MachineDTO(source); }
-	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.id=source["id"]; this.name=source["name"]; this.code=source["code"]; this.category=source["category"]; this.rateBasis=source["rateBasis"]; this.rateRial=source["rateRial"]; this.setupCostRial=source["setupCostRial"]; this.notes=source["notes"]; this.active=source["active"]; this.createdAt=source["createdAt"]; this.updatedAt=source["updatedAt"]; }
-	}
-	export class MachineInput {
-	    name: string; code: string; category: string; rateBasis: string; rateRial: number; setupCostRial: number; notes: string;
-	    static createFrom(source: any = {}) { return new MachineInput(source); }
-	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.name=source["name"]; this.code=source["code"]; this.category=source["category"]; this.rateBasis=source["rateBasis"]; this.rateRial=source["rateRial"]; this.setupCostRial=source["setupCostRial"]; this.notes=source["notes"]; }
-	}
-
+	
 
 }
+
