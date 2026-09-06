@@ -10,6 +10,10 @@ export function AddOrderItem(arg1, arg2) {
   return window['go']['main']['App']['AddOrderItem'](arg1, arg2);
 }
 
+export function AddPurchaseItem(arg1, arg2) {
+  return window['go']['main']['App']['AddPurchaseItem'](arg1, arg2);
+}
+
 export function AddQuoteItem(arg1, arg2) {
   return window['go']['main']['App']['AddQuoteItem'](arg1, arg2);
 }
@@ -20,6 +24,10 @@ export function AddServiceCostComponent(arg1, arg2) {
 
 export function AddServiceParameter(arg1, arg2) {
   return window['go']['main']['App']['AddServiceParameter'](arg1, arg2);
+}
+
+export function AdjustMaterialStock(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['AdjustMaterialStock'](arg1, arg2, arg3, arg4);
 }
 
 export function ApplyOrderDiscount(arg1, arg2) {
@@ -46,8 +54,16 @@ export function ArchiveService(arg1) {
   return window['go']['main']['App']['ArchiveService'](arg1);
 }
 
+export function ArchiveSupplier(arg1) {
+  return window['go']['main']['App']['ArchiveSupplier'](arg1);
+}
+
 export function CalculateServicePrice(arg1) {
   return window['go']['main']['App']['CalculateServicePrice'](arg1);
+}
+
+export function CancelPurchase(arg1) {
+  return window['go']['main']['App']['CancelPurchase'](arg1);
 }
 
 export function ConvertQuoteToOrder(arg1) {
@@ -74,12 +90,28 @@ export function CreateProof(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
   return window['go']['main']['App']['CreateProof'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
 
+export function CreatePurchase(arg1) {
+  return window['go']['main']['App']['CreatePurchase'](arg1);
+}
+
 export function CreateQuote(arg1) {
   return window['go']['main']['App']['CreateQuote'](arg1);
 }
 
 export function CreateService(arg1) {
   return window['go']['main']['App']['CreateService'](arg1);
+}
+
+export function CreateSupplier(arg1) {
+  return window['go']['main']['App']['CreateSupplier'](arg1);
+}
+
+export function DeleteDraftPurchase(arg1) {
+  return window['go']['main']['App']['DeleteDraftPurchase'](arg1);
+}
+
+export function DeleteSupplier(arg1) {
+  return window['go']['main']['App']['DeleteSupplier'](arg1);
 }
 
 export function GetCustomer(arg1) {
@@ -98,12 +130,20 @@ export function GetOrder(arg1) {
   return window['go']['main']['App']['GetOrder'](arg1);
 }
 
+export function GetPurchase(arg1) {
+  return window['go']['main']['App']['GetPurchase'](arg1);
+}
+
 export function GetQuote(arg1) {
   return window['go']['main']['App']['GetQuote'](arg1);
 }
 
 export function GetService(arg1) {
   return window['go']['main']['App']['GetService'](arg1);
+}
+
+export function GetSupplier(arg1) {
+  return window['go']['main']['App']['GetSupplier'](arg1);
 }
 
 export function ListAttachments(arg1, arg2) {
@@ -118,6 +158,10 @@ export function ListMachines(arg1) {
   return window['go']['main']['App']['ListMachines'](arg1);
 }
 
+export function ListMaterialMovements(arg1) {
+  return window['go']['main']['App']['ListMaterialMovements'](arg1);
+}
+
 export function ListMaterials(arg1) {
   return window['go']['main']['App']['ListMaterials'](arg1);
 }
@@ -130,6 +174,10 @@ export function ListProofs(arg1, arg2) {
   return window['go']['main']['App']['ListProofs'](arg1, arg2);
 }
 
+export function ListPurchases() {
+  return window['go']['main']['App']['ListPurchases']();
+}
+
 export function ListQuotes() {
   return window['go']['main']['App']['ListQuotes']();
 }
@@ -138,26 +186,13 @@ export function ListServices(arg1) {
   return window['go']['main']['App']['ListServices'](arg1);
 }
 
-export function ListSuppliers(arg1) { return window['go']['main']['App']['ListSuppliers'](arg1); }
-export function GetSupplier(arg1) { return window['go']['main']['App']['GetSupplier'](arg1); }
-export function CreateSupplier(arg1) { return window['go']['main']['App']['CreateSupplier'](arg1); }
-export function UpdateSupplier(arg1,arg2) { return window['go']['main']['App']['UpdateSupplier'](arg1,arg2); }
-export function ArchiveSupplier(arg1) { return window['go']['main']['App']['ArchiveSupplier'](arg1); }
-export function ReactivateSupplier(arg1) { return window['go']['main']['App']['ReactivateSupplier'](arg1); }
-export function DeleteSupplier(arg1) { return window['go']['main']['App']['DeleteSupplier'](arg1); }
-export function ListPurchases() { return window['go']['main']['App']['ListPurchases'](); }
-export function GetPurchase(arg1) { return window['go']['main']['App']['GetPurchase'](arg1); }
-export function CreatePurchase(arg1) { return window['go']['main']['App']['CreatePurchase'](arg1); }
-export function UpdatePurchase(arg1,arg2) { return window['go']['main']['App']['UpdatePurchase'](arg1,arg2); }
-export function AddPurchaseItem(arg1,arg2) { return window['go']['main']['App']['AddPurchaseItem'](arg1,arg2); }
-export function UpdatePurchaseItem(arg1,arg2,arg3) { return window['go']['main']['App']['UpdatePurchaseItem'](arg1,arg2,arg3); }
-export function RemovePurchaseItem(arg1,arg2) { return window['go']['main']['App']['RemovePurchaseItem'](arg1,arg2); }
-export function ReorderPurchaseItems(arg1,arg2) { return window['go']['main']['App']['ReorderPurchaseItems'](arg1,arg2); }
-export function PostPurchase(arg1) { return window['go']['main']['App']['PostPurchase'](arg1); }
-export function CancelPurchase(arg1) { return window['go']['main']['App']['CancelPurchase'](arg1); }
-export function DeleteDraftPurchase(arg1) { return window['go']['main']['App']['DeleteDraftPurchase'](arg1); }
-export function ListMaterialMovements(arg1) { return window['go']['main']['App']['ListMaterialMovements'](arg1); }
-export function AdjustMaterialStock(arg1,arg2,arg3,arg4) { return window['go']['main']['App']['AdjustMaterialStock'](arg1,arg2,arg3,arg4); }
+export function ListSuppliers(arg1) {
+  return window['go']['main']['App']['ListSuppliers'](arg1);
+}
+
+export function PostPurchase(arg1) {
+  return window['go']['main']['App']['PostPurchase'](arg1);
+}
 
 export function ReactivateCustomer(arg1) {
   return window['go']['main']['App']['ReactivateCustomer'](arg1);
@@ -175,12 +210,20 @@ export function ReactivateService(arg1) {
   return window['go']['main']['App']['ReactivateService'](arg1);
 }
 
+export function ReactivateSupplier(arg1) {
+  return window['go']['main']['App']['ReactivateSupplier'](arg1);
+}
+
 export function RemoveAttachment(arg1) {
   return window['go']['main']['App']['RemoveAttachment'](arg1);
 }
 
 export function RemoveOrderItem(arg1, arg2) {
   return window['go']['main']['App']['RemoveOrderItem'](arg1, arg2);
+}
+
+export function RemovePurchaseItem(arg1, arg2) {
+  return window['go']['main']['App']['RemovePurchaseItem'](arg1, arg2);
 }
 
 export function RemoveQuoteItem(arg1, arg2) {
@@ -197,6 +240,10 @@ export function RemoveServiceParameter(arg1, arg2) {
 
 export function ReorderOrderItems(arg1, arg2) {
   return window['go']['main']['App']['ReorderOrderItems'](arg1, arg2);
+}
+
+export function ReorderPurchaseItems(arg1, arg2) {
+  return window['go']['main']['App']['ReorderPurchaseItems'](arg1, arg2);
 }
 
 export function ReorderQuoteItems(arg1, arg2) {
@@ -247,6 +294,14 @@ export function UpdateProofStatus(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['UpdateProofStatus'](arg1, arg2, arg3, arg4, arg5);
 }
 
+export function UpdatePurchase(arg1, arg2) {
+  return window['go']['main']['App']['UpdatePurchase'](arg1, arg2);
+}
+
+export function UpdatePurchaseItem(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UpdatePurchaseItem'](arg1, arg2, arg3);
+}
+
 export function UpdateQuote(arg1, arg2) {
   return window['go']['main']['App']['UpdateQuote'](arg1, arg2);
 }
@@ -265,4 +320,8 @@ export function UpdateServiceCostComponent(arg1, arg2, arg3) {
 
 export function UpdateServiceParameter(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateServiceParameter'](arg1, arg2, arg3);
+}
+
+export function UpdateSupplier(arg1, arg2) {
+  return window['go']['main']['App']['UpdateSupplier'](arg1, arg2);
 }

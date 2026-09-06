@@ -6,11 +6,15 @@ export function AddAttachment(arg1:string,arg2:string,arg3:string,arg4:string,ar
 
 export function AddOrderItem(arg1:string,arg2:main.OrderItemInput):Promise<main.OrderDTO>;
 
+export function AddPurchaseItem(arg1:string,arg2:main.PurchaseItemInput):Promise<main.PurchaseDTO>;
+
 export function AddQuoteItem(arg1:string,arg2:main.OrderItemInput):Promise<main.QuoteDTO>;
 
 export function AddServiceCostComponent(arg1:string,arg2:main.ServiceCostComponentInput):Promise<main.ServiceDTO>;
 
 export function AddServiceParameter(arg1:string,arg2:main.ServiceParameterInput):Promise<main.ServiceDTO>;
+
+export function AdjustMaterialStock(arg1:string,arg2:string,arg3:number,arg4:string):Promise<void>;
 
 export function ApplyOrderDiscount(arg1:string,arg2:number):Promise<main.OrderDTO>;
 
@@ -24,7 +28,11 @@ export function ArchiveMaterial(arg1:string):Promise<main.MaterialDTO>;
 
 export function ArchiveService(arg1:string):Promise<main.ServiceDTO>;
 
+export function ArchiveSupplier(arg1:string):Promise<main.SupplierDTO>;
+
 export function CalculateServicePrice(arg1:main.PricingRequest):Promise<main.PricingDTO>;
+
+export function CancelPurchase(arg1:string):Promise<main.PurchaseDTO>;
 
 export function ConvertQuoteToOrder(arg1:string):Promise<main.QuoteDTO>;
 
@@ -38,9 +46,17 @@ export function CreateOrder(arg1:main.OrderInput):Promise<main.OrderDTO>;
 
 export function CreateProof(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string):Promise<main.ProofDTO>;
 
+export function CreatePurchase(arg1:main.PurchaseInput):Promise<main.PurchaseDTO>;
+
 export function CreateQuote(arg1:main.QuoteInput):Promise<main.QuoteDTO>;
 
 export function CreateService(arg1:main.ServiceInput):Promise<main.ServiceDTO>;
+
+export function CreateSupplier(arg1:main.SupplierInput):Promise<main.SupplierDTO>;
+
+export function DeleteDraftPurchase(arg1:string):Promise<void>;
+
+export function DeleteSupplier(arg1:string):Promise<void>;
 
 export function GetCustomer(arg1:string):Promise<main.CustomerDTO>;
 
@@ -50,9 +66,13 @@ export function GetMaterial(arg1:string):Promise<main.MaterialDTO>;
 
 export function GetOrder(arg1:string):Promise<main.OrderDTO>;
 
+export function GetPurchase(arg1:string):Promise<main.PurchaseDTO>;
+
 export function GetQuote(arg1:string):Promise<main.QuoteDTO>;
 
 export function GetService(arg1:string):Promise<main.ServiceDTO>;
+
+export function GetSupplier(arg1:string):Promise<main.SupplierDTO>;
 
 export function ListAttachments(arg1:string,arg2:string):Promise<Array<main.AttachmentDTO>>;
 
@@ -60,36 +80,23 @@ export function ListCustomers(arg1:boolean):Promise<Array<main.CustomerDTO>>;
 
 export function ListMachines(arg1:boolean):Promise<Array<main.MachineDTO>>;
 
+export function ListMaterialMovements(arg1:string):Promise<Array<main.InventoryMovementDTO>>;
+
 export function ListMaterials(arg1:boolean):Promise<Array<main.MaterialDTO>>;
 
 export function ListOrders():Promise<Array<main.OrderDTO>>;
 
 export function ListProofs(arg1:string,arg2:string):Promise<Array<main.ProofDTO>>;
 
+export function ListPurchases():Promise<Array<main.PurchaseDTO>>;
+
 export function ListQuotes():Promise<Array<main.QuoteDTO>>;
 
 export function ListServices(arg1:boolean):Promise<Array<main.ServiceDTO>>;
 
-export function ListSuppliers(arg1:boolean):Promise<any[]>;
-export function GetSupplier(arg1:string):Promise<any>;
-export function CreateSupplier(arg1:any):Promise<any>;
-export function UpdateSupplier(arg1:string,arg2:any):Promise<any>;
-export function ArchiveSupplier(arg1:string):Promise<any>;
-export function ReactivateSupplier(arg1:string):Promise<any>;
-export function DeleteSupplier(arg1:string):Promise<void>;
-export function ListPurchases():Promise<any[]>;
-export function GetPurchase(arg1:string):Promise<any>;
-export function CreatePurchase(arg1:any):Promise<any>;
-export function UpdatePurchase(arg1:string,arg2:any):Promise<any>;
-export function AddPurchaseItem(arg1:string,arg2:any):Promise<any>;
-export function UpdatePurchaseItem(arg1:string,arg2:string,arg3:any):Promise<any>;
-export function RemovePurchaseItem(arg1:string,arg2:string):Promise<any>;
-export function ReorderPurchaseItems(arg1:string,arg2:string[]):Promise<any>;
-export function PostPurchase(arg1:string):Promise<any>;
-export function CancelPurchase(arg1:string):Promise<any>;
-export function DeleteDraftPurchase(arg1:string):Promise<void>;
-export function ListMaterialMovements(arg1:string):Promise<any[]>;
-export function AdjustMaterialStock(arg1:string,arg2:string,arg3:number,arg4:string):Promise<void>;
+export function ListSuppliers(arg1:boolean):Promise<Array<main.SupplierDTO>>;
+
+export function PostPurchase(arg1:string):Promise<main.PurchaseDTO>;
 
 export function ReactivateCustomer(arg1:string):Promise<main.CustomerDTO>;
 
@@ -99,9 +106,13 @@ export function ReactivateMaterial(arg1:string):Promise<main.MaterialDTO>;
 
 export function ReactivateService(arg1:string):Promise<main.ServiceDTO>;
 
+export function ReactivateSupplier(arg1:string):Promise<main.SupplierDTO>;
+
 export function RemoveAttachment(arg1:string):Promise<void>;
 
 export function RemoveOrderItem(arg1:string,arg2:string):Promise<main.OrderDTO>;
+
+export function RemovePurchaseItem(arg1:string,arg2:string):Promise<main.PurchaseDTO>;
 
 export function RemoveQuoteItem(arg1:string,arg2:string):Promise<main.QuoteDTO>;
 
@@ -110,6 +121,8 @@ export function RemoveServiceCostComponent(arg1:string,arg2:string):Promise<main
 export function RemoveServiceParameter(arg1:string,arg2:string):Promise<main.ServiceDTO>;
 
 export function ReorderOrderItems(arg1:string,arg2:Array<string>):Promise<main.OrderDTO>;
+
+export function ReorderPurchaseItems(arg1:string,arg2:Array<string>):Promise<main.PurchaseDTO>;
 
 export function ReorderQuoteItems(arg1:string,arg2:Array<string>):Promise<main.QuoteDTO>;
 
@@ -135,6 +148,10 @@ export function UpdateOrderFulfillmentStatus(arg1:string,arg2:string):Promise<ma
 
 export function UpdateProofStatus(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<main.ProofDTO>;
 
+export function UpdatePurchase(arg1:string,arg2:main.PurchaseInput):Promise<main.PurchaseDTO>;
+
+export function UpdatePurchaseItem(arg1:string,arg2:string,arg3:main.PurchaseItemInput):Promise<main.PurchaseDTO>;
+
 export function UpdateQuote(arg1:string,arg2:main.QuoteInput):Promise<main.QuoteDTO>;
 
 export function UpdateQuoteStatus(arg1:string,arg2:string):Promise<main.QuoteDTO>;
@@ -144,3 +161,5 @@ export function UpdateService(arg1:string,arg2:main.ServiceInput):Promise<main.S
 export function UpdateServiceCostComponent(arg1:string,arg2:string,arg3:main.ServiceCostComponentInput):Promise<main.ServiceDTO>;
 
 export function UpdateServiceParameter(arg1:string,arg2:string,arg3:main.ServiceParameterInput):Promise<main.ServiceDTO>;
+
+export function UpdateSupplier(arg1:string,arg2:main.SupplierInput):Promise<main.SupplierDTO>;
