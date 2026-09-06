@@ -48,6 +48,7 @@ const (
 type Order struct {
 	ID, OrderNumber, CustomerID, CustomerNameSnapshot        string
 	CustomerPhoneSnapshot, Notes                             string
+	QuoteID                                                  string
 	CreatedAt, UpdatedAt                                     time.Time
 	PromisedAt                                               *time.Time
 	Priority                                                 Priority

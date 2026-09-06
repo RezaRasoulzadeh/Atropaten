@@ -42,6 +42,7 @@ type OrderView struct {
 	PromisedAt                                                      *string
 	Priority, CommercialStatus, FulfillmentStatus, PaymentStatus    string
 	SubtotalRial, DiscountRial, TotalRial, EstimatedCostRial        int64
+	QuoteID                                                         string
 	Items                                                           []OrderItemView
 }
 type OrderItemView struct {
@@ -343,7 +344,7 @@ func (s *OrdersService) saveStatus(ctx context.Context, row domain.Order) (Order
 	return orderView(row), nil
 }
 func orderView(o domain.Order) OrderView {
-	v := OrderView{ID: o.ID, OrderNumber: o.OrderNumber, CustomerID: o.CustomerID, CustomerName: o.CustomerNameSnapshot, CustomerPhone: o.CustomerPhoneSnapshot, Notes: o.Notes, CreatedAt: o.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: o.UpdatedAt.UTC().Format(time.RFC3339Nano), Priority: string(o.Priority), CommercialStatus: string(o.CommercialStatus), FulfillmentStatus: string(o.FulfillmentStatus), PaymentStatus: string(o.PaymentStatus), SubtotalRial: o.SubtotalRial, DiscountRial: o.DiscountRial, TotalRial: o.TotalRial, EstimatedCostRial: o.EstimatedCostRial}
+	v := OrderView{ID: o.ID, OrderNumber: o.OrderNumber, CustomerID: o.CustomerID, CustomerName: o.CustomerNameSnapshot, CustomerPhone: o.CustomerPhoneSnapshot, Notes: o.Notes, CreatedAt: o.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: o.UpdatedAt.UTC().Format(time.RFC3339Nano), Priority: string(o.Priority), CommercialStatus: string(o.CommercialStatus), FulfillmentStatus: string(o.FulfillmentStatus), PaymentStatus: string(o.PaymentStatus), SubtotalRial: o.SubtotalRial, DiscountRial: o.DiscountRial, TotalRial: o.TotalRial, EstimatedCostRial: o.EstimatedCostRial, QuoteID: o.QuoteID}
 	if o.PromisedAt != nil {
 		x := o.PromisedAt.UTC().Format(time.RFC3339Nano)
 		v.PromisedAt = &x
