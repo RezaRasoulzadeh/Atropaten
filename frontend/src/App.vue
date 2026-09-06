@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, type Component } from 'vue'
+import { computed, onMounted, ref, type Component } from 'vue'
 import {
   ArrowDownLeft,
   ArrowRight,
@@ -39,7 +39,11 @@ import SidebarNavItem from './components/SidebarNavItem.vue'
 import StatusBadge from './components/StatusBadge.vue'
 import WorkspaceBottomActions from './components/WorkspaceBottomActions.vue'
 import WorkspaceStickyStack from './components/WorkspaceStickyStack.vue'
-import { createDraftOrder, mockOrders } from './data/orders'
+import { customersApi } from './api/customers'
+import { ordersApi, type OrderRecord } from './api/orders'
+import { servicesApi } from './api/services'
+import { materialsApi } from './api/materials'
+import { machinesApi } from './api/machines'
 import { formatMoney, formatSignedMoney, type CurrencyUnit } from './utils/currency'
 import { formatDate, formatDateTime } from './utils/date'
 import OrderWorkspaceView from './views/OrderWorkspaceView.vue'
@@ -47,6 +51,7 @@ import OrdersView from './views/OrdersView.vue'
 import MaterialsView from './views/MaterialsView.vue'
 import ServicesView from './views/ServicesView.vue'
 import MachinesView from './views/MachinesView.vue'
+import CustomersView from './views/CustomersView.vue'
 
 type Tone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
 
@@ -107,8 +112,13 @@ const searchQuery = ref('')
 const selectedPeriod = ref('This week')
 const currencyUnit = ref<CurrencyUnit>('Toman')
 const selectedOrderId = ref<string | null>(null)
-const isDraftOrder = ref(false)
-const draftOrder = createDraftOrder()
+const orders = ref<OrderRecord[]>([])
+const ordersLoading = ref(false)
+const ordersError = ref('')
+const customers = ref<any[]>([])
+const catalogServices = ref<any[]>([])
+const catalogMaterials = ref<any[]>([])
+const catalogMachines = ref<any[]>([])
 const toastMessage = ref('')
 let toastTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -147,28 +157,50 @@ const recentTransactions = [
 function selectView(label: string) {
   activeView.value = label
   selectedOrderId.value = null
-  isDraftOrder.value = false
+  if (label === 'Orders') { loadOrders(); loadOrderCatalog() }
 }
 
-const selectedOrder = computed(() => mockOrders.find((order) => order.id === selectedOrderId.value) ?? null)
+const selectedOrder = computed(() => orders.value.find((order) => order.id === selectedOrderId.value) ?? null)
+
+async function loadOrders() {
+  ordersLoading.value = true
+  ordersError.value = ''
+  try { orders.value = await ordersApi.list() } catch (error) { ordersError.value = String(error) } finally { ordersLoading.value = false }
+}
+
+async function loadOrderCatalog() {
+  try {
+    customers.value = await customersApi.list(true)
+    catalogServices.value = await servicesApi.list(true)
+    catalogMaterials.value = await materialsApi.list(true)
+    catalogMachines.value = await machinesApi.list(true)
+  } catch (error) { showToast(String(error)) }
+}
 
 function openOrder(orderId: string) {
   activeView.value = 'Orders'
   selectedOrderId.value = orderId
-  isDraftOrder.value = false
 }
 
-function openNewOrder() {
+async function openNewOrder() {
   activeView.value = 'Orders'
-  selectedOrderId.value = null
-  isDraftOrder.value = true
+  try {
+    const order = await ordersApi.create({ customerId: '', promisedAt: null, priority: 'Normal', notes: '', discountRial: 0 })
+    orders.value = [order, ...orders.value]
+    selectedOrderId.value = order.id
+  } catch (error) { showToast(String(error)) }
 }
 
 function closeOrderWorkspace() {
   activeView.value = 'Orders'
   selectedOrderId.value = null
-  isDraftOrder.value = false
 }
+
+function updateOrder(order: OrderRecord) {
+  orders.value = orders.value.some((item) => item.id === order.id) ? orders.value.map((item) => item.id === order.id ? order : item) : [order, ...orders.value]
+}
+
+onMounted(() => { loadOrderCatalog(); loadOrders() })
 
 function showToast(message: string) {
   toastMessage.value = message
@@ -369,25 +401,22 @@ function showToast(message: string) {
         <div v-else-if="activeView === 'Orders'" key="orders" class="orders-view-transition">
           <Transition name="workspace-view" mode="out-in">
             <OrderWorkspaceView
-              v-if="isDraftOrder"
-              key="draft-order"
-              :order="draftOrder"
-              :is-draft="true"
-              :currency-unit="currencyUnit"
-              @back="closeOrderWorkspace"
-              @notify="showToast"
-            />
-            <OrderWorkspaceView
-              v-else-if="selectedOrder"
+              v-if="selectedOrder"
               :key="selectedOrder.id"
               :order="selectedOrder"
               :currency-unit="currencyUnit"
+              :customers="customers"
+              :services="catalogServices"
+              :materials="catalogMaterials"
               @back="closeOrderWorkspace"
               @notify="showToast"
+              @saved="updateOrder"
             />
-            <OrdersView v-else key="orders-list" :orders="mockOrders" :currency-unit="currencyUnit" @open-order="openOrder" @new-order="openNewOrder" />
+            <OrdersView v-else key="orders-list" :orders="orders" :loading="ordersLoading" :error="ordersError" :currency-unit="currencyUnit" @open-order="openOrder" @new-order="openNewOrder" />
           </Transition>
         </div>
+
+        <CustomersView v-else-if="activeView === 'Customers'" key="customers" @notify="showToast" />
 
         <ServicesView v-else-if="activeView === 'Services'" key="services" :currency-unit="currencyUnit" @notify="showToast" />
 

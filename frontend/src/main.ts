@@ -5,5 +5,6 @@ import './views/orders.css'
 import './views/materials.css'
 import './views/services.css'
 import './views/machines.css'
+import './views/customers.css'
 
 createApp(App).mount('#app')

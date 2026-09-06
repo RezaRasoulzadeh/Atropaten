@@ -18,39 +18,40 @@ type PricingRequest struct {
 }
 
 type ResolvedParameterView struct {
-	Key        string
-	Label      string
-	Type       string
-	Value      string
-	Quantity   string
-	MaterialID string
-	Unit       string
+	Key        string `json:"key"`
+	Label      string `json:"label"`
+	Type       string `json:"type"`
+	Value      string `json:"value"`
+	Quantity   string `json:"quantity"`
+	MaterialID string `json:"materialId"`
+	Unit       string `json:"unit"`
 }
 
 type PricingComponentView struct {
-	ID            string
-	Name          string
-	Type          string
-	Enabled       bool
-	UsageQuantity string
-	RateRial      int64
-	Percentage    string
-	AmountRial    int64
-	Explanation   string
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Type          string `json:"type"`
+	Enabled       bool   `json:"enabled"`
+	UsageQuantity string `json:"usageQuantity"`
+	RateRial      int64  `json:"rateRial"`
+	Percentage    string `json:"percentage"`
+	AmountRial    int64  `json:"amountRial"`
+	Explanation   string `json:"explanation"`
 }
 
 type PricingView struct {
-	ServiceID                 string
-	ServiceName               string
-	Parameters                []ResolvedParameterView
-	Components                []PricingComponentView
-	EstimatedCostRial         int64
-	SuggestedSellingPriceRial int64
-	EffectiveSellingPriceRial int64
-	ProfitRial                int64
-	MarginPercentage          string
-	Warnings                  []string
-	BelowCost                 bool
+	ServiceID                 string                  `json:"serviceId"`
+	ServiceName               string                  `json:"serviceName"`
+	ServiceCode               string                  `json:"serviceCode"`
+	Parameters                []ResolvedParameterView `json:"parameters"`
+	Components                []PricingComponentView  `json:"components"`
+	EstimatedCostRial         int64                   `json:"estimatedCostRial"`
+	SuggestedSellingPriceRial int64                   `json:"suggestedSellingPriceRial"`
+	EffectiveSellingPriceRial int64                   `json:"effectiveSellingPriceRial"`
+	ProfitRial                int64                   `json:"profitRial"`
+	MarginPercentage          string                  `json:"marginPercentage"`
+	Warnings                  []string                `json:"warnings"`
+	BelowCost                 bool                    `json:"belowCost"`
 }
 
 type PricingService struct {
@@ -67,6 +68,9 @@ func (s *PricingService) Calculate(ctx context.Context, request PricingRequest) 
 	service, err := s.repository.GetService(ctx, strings.TrimSpace(request.ServiceID))
 	if err != nil {
 		return PricingView{}, err
+	}
+	if !service.Active {
+		return PricingView{}, fmt.Errorf("service is archived")
 	}
 	resolved, err := s.resolveParameters(ctx, service.Parameters, request.Parameters)
 	if err != nil {
@@ -192,7 +196,7 @@ func (s *PricingService) resolveParameters(ctx context.Context, definitions []do
 }
 
 func pricingView(service domain.Service, result domain.PricingResult) PricingView {
-	view := PricingView{ServiceID: result.ServiceID, ServiceName: result.ServiceName, EstimatedCostRial: result.EstimatedCostRial, SuggestedSellingPriceRial: result.SuggestedSellingPriceRial, EffectiveSellingPriceRial: result.EffectiveSellingPriceRial, ProfitRial: result.ProfitRial, MarginPercentage: result.MarginPercentage.String(), Warnings: result.Warnings, BelowCost: result.BelowCost}
+	view := PricingView{ServiceID: result.ServiceID, ServiceName: result.ServiceName, ServiceCode: service.Code, EstimatedCostRial: result.EstimatedCostRial, SuggestedSellingPriceRial: result.SuggestedSellingPriceRial, EffectiveSellingPriceRial: result.EffectiveSellingPriceRial, ProfitRial: result.ProfitRial, MarginPercentage: result.MarginPercentage.String(), Warnings: result.Warnings, BelowCost: result.BelowCost}
 	for _, parameter := range result.Parameters {
 		label := parameter.Key
 		for _, definition := range service.Parameters {
