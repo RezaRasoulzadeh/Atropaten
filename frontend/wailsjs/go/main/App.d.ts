@@ -38,11 +38,17 @@ export function ConvertQuoteToOrder(arg1:string):Promise<main.QuoteDTO>;
 
 export function CreateCustomer(arg1:main.CustomerInput):Promise<main.CustomerDTO>;
 
+export function CreateInventoryReservation(arg1:main.InventoryReservationInput):Promise<main.InventoryReservationDTO>;
+
 export function CreateMachine(arg1:main.MachineInput):Promise<main.MachineDTO>;
 
 export function CreateMaterial(arg1:main.MaterialInput):Promise<main.MaterialDTO>;
 
 export function CreateOrder(arg1:main.OrderInput):Promise<main.OrderDTO>;
+
+export function CreatePayment(arg1:main.PaymentInputDTO):Promise<main.PaymentDTO>;
+
+export function CreateProductionJob(arg1:main.ProductionJobInput):Promise<main.ProductionJobDTO>;
 
 export function CreateProof(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string):Promise<main.ProofDTO>;
 
@@ -56,6 +62,8 @@ export function CreateSupplier(arg1:main.SupplierInput):Promise<main.SupplierDTO
 
 export function DeleteDraftPurchase(arg1:string):Promise<void>;
 
+export function DeleteProductionJob(arg1:string):Promise<void>;
+
 export function DeleteSupplier(arg1:string):Promise<void>;
 
 export function GetCustomer(arg1:string):Promise<main.CustomerDTO>;
@@ -66,6 +74,8 @@ export function GetMaterial(arg1:string):Promise<main.MaterialDTO>;
 
 export function GetOrder(arg1:string):Promise<main.OrderDTO>;
 
+export function GetProductionJob(arg1:string):Promise<main.ProductionJobDTO>;
+
 export function GetPurchase(arg1:string):Promise<main.PurchaseDTO>;
 
 export function GetQuote(arg1:string):Promise<main.QuoteDTO>;
@@ -74,9 +84,18 @@ export function GetService(arg1:string):Promise<main.ServiceDTO>;
 
 export function GetSupplier(arg1:string):Promise<main.SupplierDTO>;
 
+export function ListAccounts():Promise<Array<main.AccountDTO>>;
+export function GetAccount(arg1:string):Promise<main.AccountDTO>;
+
 export function ListAttachments(arg1:string,arg2:string):Promise<Array<main.AttachmentDTO>>;
 
 export function ListCustomers(arg1:boolean):Promise<Array<main.CustomerDTO>>;
+
+export function ListFinancialAccounts():Promise<Array<main.FinancialAccountDTO>>;
+
+export function ListInventoryReservations(arg1:string,arg2:string,arg3:string):Promise<Array<main.InventoryReservationDTO>>;
+
+export function ListJournalEntries():Promise<Array<main.JournalEntryDTO>>;
 
 export function ListMachines(arg1:boolean):Promise<Array<main.MachineDTO>>;
 
@@ -85,6 +104,13 @@ export function ListMaterialMovements(arg1:string):Promise<Array<main.InventoryM
 export function ListMaterials(arg1:boolean):Promise<Array<main.MaterialDTO>>;
 
 export function ListOrders():Promise<Array<main.OrderDTO>>;
+
+export function ListPayments():Promise<Array<main.PaymentDTO>>;
+export function GetPayment(arg1:string):Promise<main.PaymentDTO>;
+
+export function ListProductionConsumptions(arg1:string):Promise<Array<main.ProductionConsumptionDTO>>;
+
+export function ListProductionJobs(arg1:string):Promise<Array<main.ProductionJobDTO>>;
 
 export function ListProofs(arg1:string,arg2:string):Promise<Array<main.ProofDTO>>;
 
@@ -95,21 +121,6 @@ export function ListQuotes():Promise<Array<main.QuoteDTO>>;
 export function ListServices(arg1:boolean):Promise<Array<main.ServiceDTO>>;
 
 export function ListSuppliers(arg1:boolean):Promise<Array<main.SupplierDTO>>;
-
-export function ListProductionJobs(arg1:string):Promise<Array<main.ProductionJobDTO>>;
-export function GetProductionJob(arg1:string):Promise<main.ProductionJobDTO>;
-export function CreateProductionJob(arg1:main.ProductionJobInput):Promise<main.ProductionJobDTO>;
-export function UpdateProductionJob(arg1:string,arg2:main.ProductionJobInput):Promise<main.ProductionJobDTO>;
-export function UpdateProductionJobStatus(arg1:string,arg2:string):Promise<main.ProductionJobDTO>;
-export function DeleteProductionJob(arg1:string):Promise<void>;
-export function CreateInventoryReservation(arg1:main.InventoryReservationInput):Promise<main.InventoryReservationDTO>;
-export function UpdateInventoryReservation(arg1:string,arg2:string):Promise<main.InventoryReservationDTO>;
-export function ReleaseInventoryReservation(arg1:string):Promise<void>;
-export function ListInventoryReservations(arg1:string,arg2:string,arg3:string):Promise<Array<main.InventoryReservationDTO>>;
-export function RecordProductionConsumption(arg1:string,arg2:main.ProductionConsumptionInput):Promise<main.ProductionConsumptionDTO>;
-export function ReverseProductionConsumption(arg1:string,arg2:string):Promise<void>;
-export function ListProductionConsumptions(arg1:string):Promise<Array<main.ProductionConsumptionDTO>>;
-export function UpdateProductionOutsourcing(arg1:string,arg2:main.OutsourceInput):Promise<main.ProductionJobDTO>;
 
 export function PostPurchase(arg1:string):Promise<main.PurchaseDTO>;
 
@@ -122,6 +133,10 @@ export function ReactivateMaterial(arg1:string):Promise<main.MaterialDTO>;
 export function ReactivateService(arg1:string):Promise<main.ServiceDTO>;
 
 export function ReactivateSupplier(arg1:string):Promise<main.SupplierDTO>;
+
+export function RecordProductionConsumption(arg1:string,arg2:main.ProductionConsumptionInput):Promise<main.ProductionConsumptionDTO>;
+
+export function ReleaseInventoryReservation(arg1:string):Promise<void>;
 
 export function RemoveAttachment(arg1:string):Promise<void>;
 
@@ -149,7 +164,13 @@ export function ReplaceOrderItem(arg1:string,arg2:string,arg3:main.OrderItemInpu
 
 export function ReplaceQuoteItem(arg1:string,arg2:string,arg3:main.OrderItemInput):Promise<main.QuoteDTO>;
 
+export function ReversePayment(arg1:string,arg2:string):Promise<main.PaymentDTO>;
+
+export function ReverseProductionConsumption(arg1:string,arg2:string):Promise<void>;
+
 export function UpdateCustomer(arg1:string,arg2:main.CustomerInput):Promise<main.CustomerDTO>;
+
+export function UpdateInventoryReservation(arg1:string,arg2:string):Promise<main.InventoryReservationDTO>;
 
 export function UpdateMachine(arg1:string,arg2:main.MachineInput):Promise<main.MachineDTO>;
 
@@ -160,6 +181,12 @@ export function UpdateOrder(arg1:string,arg2:main.OrderInput):Promise<main.Order
 export function UpdateOrderCommercialStatus(arg1:string,arg2:string):Promise<main.OrderDTO>;
 
 export function UpdateOrderFulfillmentStatus(arg1:string,arg2:string):Promise<main.OrderDTO>;
+
+export function UpdateProductionJob(arg1:string,arg2:main.ProductionJobInput):Promise<main.ProductionJobDTO>;
+
+export function UpdateProductionJobStatus(arg1:string,arg2:string):Promise<main.ProductionJobDTO>;
+
+export function UpdateProductionOutsourcing(arg1:string,arg2:main.OutsourceInput):Promise<main.ProductionJobDTO>;
 
 export function UpdateProofStatus(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<main.ProofDTO>;
 

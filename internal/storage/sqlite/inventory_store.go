@@ -187,6 +187,9 @@ func (s *Store) changePurchaseStatus(ctx context.Context, id, status string) err
 		return fail(e)
 	}
 	if p.Status != domain.PurchaseDraft {
+		if status == domain.PurchasePosted && p.Status == domain.PurchasePosted {
+			return tx.Commit()
+		}
 		return fail(domain.ErrPurchaseAlreadyPosted)
 	}
 	if e = purchaseTime(&p, purchaseDate, created, updated); e != nil {
@@ -243,7 +246,27 @@ func (s *Store) changePurchaseStatus(ctx context.Context, id, status string) err
 			return fail(e)
 		}
 	}
-	if _, e = tx.ExecContext(ctx, `UPDATE purchases SET status=?,updated_at=? WHERE id=?`, status, now.Format(time.RFC3339Nano), id); e != nil {
+	// Inventory/AP recognition is part of this same transaction. It is deliberately
+	// limited to purchase posting; revenue, invoices and COGS remain a later slice.
+	var inventoryValue int64
+	for _, item := range p.Items {
+		if inventoryValue > int64(^uint64(0)>>1)-(item.LineTotalRial+item.AllocatedAdditionalCostRial) {
+			return fail(fmt.Errorf("purchase accounting amount is too large"))
+		}
+		inventoryValue += item.LineTotalRial + item.AllocatedAdditionalCostRial
+	}
+	if inventoryValue <= 0 {
+		return fail(fmt.Errorf("posted purchase must have a positive inventory value"))
+	}
+	entryID := "JE-PUR-" + p.ID
+	entry := domain.JournalEntry{ID: entryID, Description: "Posted purchase " + p.PurchaseNumber, SourceType: "purchase", SourceID: p.ID, IdempotencyKey: "purchase:post:" + p.ID, PostedAt: p.PurchaseDate.UTC(), CreatedAt: now, Lines: []domain.JournalLine{
+		{ID: entryID + "-L1", JournalEntryID: entryID, Position: 0, AccountID: "ACC-INVENTORY", DebitRial: inventoryValue, PartyType: "supplier", PartyID: p.SupplierID, Memo: "Inventory received"},
+		{ID: entryID + "-L2", JournalEntryID: entryID, Position: 1, AccountID: "ACC-AP", CreditRial: inventoryValue, PartyType: "supplier", PartyID: p.SupplierID, Memo: "Supplier payable"},
+	}}
+	if _, e = s.postJournalTx(ctx, tx, entry); e != nil {
+		return fail(e)
+	}
+	if _, e = tx.ExecContext(ctx, `UPDATE purchases SET status=?,accounting_journal_entry_id=?,updated_at=? WHERE id=?`, status, entryID, now.Format(time.RFC3339Nano), id); e != nil {
 		return fail(e)
 	}
 	return tx.Commit()
@@ -254,14 +277,17 @@ func (s *Store) CancelPurchase(ctx context.Context, id string) error {
 		return e
 	}
 	fail := func(x error) error { _ = tx.Rollback(); return x }
-	var status string
-	if e = tx.QueryRowContext(ctx, `SELECT status FROM purchases WHERE id=?`, id).Scan(&status); errors.Is(e, sql.ErrNoRows) {
+	var status, journalID string
+	if e = tx.QueryRowContext(ctx, `SELECT status,COALESCE(accounting_journal_entry_id,'') FROM purchases WHERE id=?`, id).Scan(&status, &journalID); errors.Is(e, sql.ErrNoRows) {
 		return fail(domain.ErrPurchaseNotFound)
 	}
 	if e != nil {
 		return fail(e)
 	}
 	if status != domain.PurchasePosted {
+		if status == domain.PurchaseCancelled {
+			return tx.Commit()
+		}
 		return fail(domain.ErrPurchaseCannotCancel)
 	}
 	rows, e := tx.QueryContext(ctx, `SELECT id,material_id,quantity_delta_units,unit_cost_rial,total_cost_rial,occurred_at FROM inventory_movements WHERE reference_type='purchase' AND reference_id=? ORDER BY id`, id)
@@ -298,6 +324,11 @@ func (s *Store) CancelPurchase(ctx context.Context, id string) error {
 		}
 		remaining[v.m] -= v.q
 		if _, e = tx.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, "MOV-CANCEL-"+v.id, v.m, time.Now().UTC().Format(time.RFC3339Nano), "supplier_return", -v.q, v.c, -v.t, "purchase_cancel", id, "Cancelled purchase", time.Now().UTC().Format(time.RFC3339Nano)); e != nil {
+			return fail(e)
+		}
+	}
+	if journalID != "" {
+		if _, e = s.reverseJournalTx(ctx, tx, journalID, "purchase:cancel:"+id, "Cancellation of purchase "+id, time.Now().UTC()); e != nil {
 			return fail(e)
 		}
 	}

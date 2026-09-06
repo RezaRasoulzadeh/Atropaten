@@ -22,6 +22,9 @@ type OrderCustomerLookup interface {
 type OrderProductionLookup interface {
 	ProductionSummary(context.Context, string) (int, int, int, error)
 }
+type OrderPaymentLookup interface {
+	OrderPaymentSummary(context.Context, string) (int64, int64, domain.PaymentStatus, error)
+}
 
 type OrderInput struct {
 	CustomerID   string
@@ -45,6 +48,7 @@ type OrderView struct {
 	PromisedAt                                                            *string
 	Priority, CommercialStatus, FulfillmentStatus, PaymentStatus          string
 	SubtotalRial, DiscountRial, TotalRial, EstimatedCostRial              int64
+	PaidRial, RemainingRial                                               int64
 	QuoteID                                                               string
 	ProductionJobCount, CompletedProductionJobs, InProgressProductionJobs int
 	Items                                                                 []OrderItemView
@@ -83,6 +87,14 @@ func (s *OrdersService) List(ctx context.Context) ([]OrderView, error) {
 				return nil, err
 			}
 		}
+		if lookup, ok := s.repository.(OrderPaymentLookup); ok {
+			var status domain.PaymentStatus
+			view.PaidRial, view.RemainingRial, status, err = lookup.OrderPaymentSummary(ctx, row.ID)
+			view.PaymentStatus = string(status)
+			if err != nil {
+				return nil, err
+			}
+		}
 		out = append(out, view)
 	}
 	return out, nil
@@ -92,7 +104,7 @@ func (s *OrdersService) Get(ctx context.Context, id string) (OrderView, error) {
 	if err != nil {
 		return OrderView{}, err
 	}
-	return s.enrichProduction(ctx, orderView(row))
+	return s.enrich(ctx, orderView(row))
 }
 func (s *OrdersService) Create(ctx context.Context, input OrderInput) (OrderView, error) {
 	row := domain.NewOrder("", strings.TrimSpace(input.CustomerID), s.now())
@@ -114,7 +126,7 @@ func (s *OrdersService) Create(ctx context.Context, input OrderInput) (OrderView
 	if err != nil {
 		return OrderView{}, err
 	}
-	return s.enrichProduction(ctx, orderView(created))
+	return s.enrich(ctx, orderView(created))
 }
 func (s *OrdersService) Update(ctx context.Context, id string, input OrderInput) (OrderView, error) {
 	row, err := s.repository.GetOrder(ctx, strings.TrimSpace(id))
@@ -134,7 +146,26 @@ func (s *OrdersService) Update(ctx context.Context, id string, input OrderInput)
 	if err := s.repository.SaveOrder(ctx, row); err != nil {
 		return OrderView{}, err
 	}
-	return s.enrichProduction(ctx, orderView(row))
+	return s.enrich(ctx, orderView(row))
+}
+
+func (s *OrdersService) enrich(ctx context.Context, view OrderView) (OrderView, error) {
+	var err error
+	if lookup, ok := s.repository.(OrderProductionLookup); ok {
+		view.ProductionJobCount, view.CompletedProductionJobs, view.InProgressProductionJobs, err = lookup.ProductionSummary(ctx, view.ID)
+		if err != nil {
+			return OrderView{}, err
+		}
+	}
+	if lookup, ok := s.repository.(OrderPaymentLookup); ok {
+		var status domain.PaymentStatus
+		view.PaidRial, view.RemainingRial, status, err = lookup.OrderPaymentSummary(ctx, view.ID)
+		view.PaymentStatus = string(status)
+		if err != nil {
+			return OrderView{}, err
+		}
+	}
+	return view, nil
 }
 func (s *OrdersService) applyInput(ctx context.Context, row *domain.Order, input OrderInput) error {
 	row.CustomerID = strings.TrimSpace(input.CustomerID)
@@ -229,7 +260,7 @@ func (s *OrdersService) saveConfiguredItem(ctx context.Context, id string, pos i
 	if err := s.repository.SaveOrder(ctx, row); err != nil {
 		return OrderView{}, err
 	}
-	return s.enrichProduction(ctx, orderView(row))
+	return s.enrich(ctx, orderView(row))
 }
 func parseOrderQuantity(value string, price PricingView) (domain.Quantity, error) {
 	if strings.TrimSpace(value) != "" {
@@ -273,7 +304,7 @@ func (s *OrdersService) RemoveItem(ctx context.Context, id, itemID string) (Orde
 	if err := s.repository.SaveOrder(ctx, row); err != nil {
 		return OrderView{}, err
 	}
-	return s.enrichProduction(ctx, orderView(row))
+	return s.enrich(ctx, orderView(row))
 }
 func (s *OrdersService) ReorderItems(ctx context.Context, id string, itemIDs []string) (OrderView, error) {
 	row, err := s.repository.GetOrder(ctx, id)
@@ -303,7 +334,7 @@ func (s *OrdersService) ReorderItems(ctx context.Context, id string, itemIDs []s
 	if err := s.repository.SaveOrder(ctx, row); err != nil {
 		return OrderView{}, err
 	}
-	return s.enrichProduction(ctx, orderView(row))
+	return s.enrich(ctx, orderView(row))
 }
 func (s *OrdersService) ApplyDiscount(ctx context.Context, id string, discount int64) (OrderView, error) {
 	row, err := s.repository.GetOrder(ctx, id)
@@ -321,7 +352,7 @@ func (s *OrdersService) ApplyDiscount(ctx context.Context, id string, discount i
 	if err := s.repository.SaveOrder(ctx, row); err != nil {
 		return OrderView{}, err
 	}
-	return s.enrichProduction(ctx, orderView(row))
+	return s.enrich(ctx, orderView(row))
 }
 func (s *OrdersService) SetCommercialStatus(ctx context.Context, id string, status string) (OrderView, error) {
 	row, err := s.repository.GetOrder(ctx, id)
@@ -352,7 +383,7 @@ func (s *OrdersService) saveStatus(ctx context.Context, row domain.Order) (Order
 	if err := s.repository.SaveOrder(ctx, row); err != nil {
 		return OrderView{}, err
 	}
-	return s.enrichProduction(ctx, orderView(row))
+	return s.enrich(ctx, orderView(row))
 }
 func orderView(o domain.Order) OrderView {
 	v := OrderView{ID: o.ID, OrderNumber: o.OrderNumber, CustomerID: o.CustomerID, CustomerName: o.CustomerNameSnapshot, CustomerPhone: o.CustomerPhoneSnapshot, Notes: o.Notes, CreatedAt: o.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: o.UpdatedAt.UTC().Format(time.RFC3339Nano), Priority: string(o.Priority), CommercialStatus: string(o.CommercialStatus), FulfillmentStatus: string(o.FulfillmentStatus), PaymentStatus: string(o.PaymentStatus), SubtotalRial: o.SubtotalRial, DiscountRial: o.DiscountRial, TotalRial: o.TotalRial, EstimatedCostRial: o.EstimatedCostRial, QuoteID: o.QuoteID}
@@ -364,15 +395,4 @@ func orderView(o domain.Order) OrderView {
 		v.Items = append(v.Items, OrderItemView{ID: i.ID, Position: i.Position, ServiceID: i.ServiceID, ServiceName: i.ServiceNameSnapshot, ServiceCode: i.ServiceCodeSnapshot, Quantity: i.Quantity.String(), QuantityUnit: i.QuantityUnit, ResolvedParametersJSON: i.ResolvedParametersJSON, CostBreakdownJSON: i.CostBreakdownJSON, PricingSnapshotJSON: i.PricingSnapshotJSON, EstimatedCostRial: i.EstimatedCostRial, SuggestedPriceRial: i.SuggestedPriceRial, SellingPriceRial: i.SellingPriceRial, Notes: i.Notes})
 	}
 	return v
-}
-
-func (s *OrdersService) enrichProduction(ctx context.Context, view OrderView) (OrderView, error) {
-	if lookup, ok := s.repository.(OrderProductionLookup); ok {
-		var err error
-		view.ProductionJobCount, view.CompletedProductionJobs, view.InProgressProductionJobs, err = lookup.ProductionSummary(ctx, view.ID)
-		if err != nil {
-			return OrderView{}, err
-		}
-	}
-	return view, nil
 }

@@ -74,6 +74,10 @@ export function CreateCustomer(arg1) {
   return window['go']['main']['App']['CreateCustomer'](arg1);
 }
 
+export function CreateInventoryReservation(arg1) {
+  return window['go']['main']['App']['CreateInventoryReservation'](arg1);
+}
+
 export function CreateMachine(arg1) {
   return window['go']['main']['App']['CreateMachine'](arg1);
 }
@@ -84,6 +88,14 @@ export function CreateMaterial(arg1) {
 
 export function CreateOrder(arg1) {
   return window['go']['main']['App']['CreateOrder'](arg1);
+}
+
+export function CreatePayment(arg1) {
+  return window['go']['main']['App']['CreatePayment'](arg1);
+}
+
+export function CreateProductionJob(arg1) {
+  return window['go']['main']['App']['CreateProductionJob'](arg1);
 }
 
 export function CreateProof(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
@@ -110,6 +122,10 @@ export function DeleteDraftPurchase(arg1) {
   return window['go']['main']['App']['DeleteDraftPurchase'](arg1);
 }
 
+export function DeleteProductionJob(arg1) {
+  return window['go']['main']['App']['DeleteProductionJob'](arg1);
+}
+
 export function DeleteSupplier(arg1) {
   return window['go']['main']['App']['DeleteSupplier'](arg1);
 }
@@ -130,6 +146,10 @@ export function GetOrder(arg1) {
   return window['go']['main']['App']['GetOrder'](arg1);
 }
 
+export function GetProductionJob(arg1) {
+  return window['go']['main']['App']['GetProductionJob'](arg1);
+}
+
 export function GetPurchase(arg1) {
   return window['go']['main']['App']['GetPurchase'](arg1);
 }
@@ -146,12 +166,31 @@ export function GetSupplier(arg1) {
   return window['go']['main']['App']['GetSupplier'](arg1);
 }
 
+export function ListAccounts() {
+  return window['go']['main']['App']['ListAccounts']();
+}
+export function GetAccount(arg1) {
+  return window['go']['main']['App']['GetAccount'](arg1);
+}
+
 export function ListAttachments(arg1, arg2) {
   return window['go']['main']['App']['ListAttachments'](arg1, arg2);
 }
 
 export function ListCustomers(arg1) {
   return window['go']['main']['App']['ListCustomers'](arg1);
+}
+
+export function ListFinancialAccounts() {
+  return window['go']['main']['App']['ListFinancialAccounts']();
+}
+
+export function ListInventoryReservations(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ListInventoryReservations'](arg1, arg2, arg3);
+}
+
+export function ListJournalEntries() {
+  return window['go']['main']['App']['ListJournalEntries']();
 }
 
 export function ListMachines(arg1) {
@@ -168,6 +207,21 @@ export function ListMaterials(arg1) {
 
 export function ListOrders() {
   return window['go']['main']['App']['ListOrders']();
+}
+
+export function ListPayments() {
+  return window['go']['main']['App']['ListPayments']();
+}
+export function GetPayment(arg1) {
+  return window['go']['main']['App']['GetPayment'](arg1);
+}
+
+export function ListProductionConsumptions(arg1) {
+  return window['go']['main']['App']['ListProductionConsumptions'](arg1);
+}
+
+export function ListProductionJobs(arg1) {
+  return window['go']['main']['App']['ListProductionJobs'](arg1);
 }
 
 export function ListProofs(arg1, arg2) {
@@ -189,21 +243,6 @@ export function ListServices(arg1) {
 export function ListSuppliers(arg1) {
   return window['go']['main']['App']['ListSuppliers'](arg1);
 }
-
-export function ListProductionJobs(arg1) { return window['go']['main']['App']['ListProductionJobs'](arg1); }
-export function GetProductionJob(arg1) { return window['go']['main']['App']['GetProductionJob'](arg1); }
-export function CreateProductionJob(arg1) { return window['go']['main']['App']['CreateProductionJob'](arg1); }
-export function UpdateProductionJob(arg1, arg2) { return window['go']['main']['App']['UpdateProductionJob'](arg1, arg2); }
-export function UpdateProductionJobStatus(arg1, arg2) { return window['go']['main']['App']['UpdateProductionJobStatus'](arg1, arg2); }
-export function DeleteProductionJob(arg1) { return window['go']['main']['App']['DeleteProductionJob'](arg1); }
-export function CreateInventoryReservation(arg1) { return window['go']['main']['App']['CreateInventoryReservation'](arg1); }
-export function UpdateInventoryReservation(arg1, arg2) { return window['go']['main']['App']['UpdateInventoryReservation'](arg1, arg2); }
-export function ReleaseInventoryReservation(arg1) { return window['go']['main']['App']['ReleaseInventoryReservation'](arg1); }
-export function ListInventoryReservations(arg1, arg2, arg3) { return window['go']['main']['App']['ListInventoryReservations'](arg1, arg2, arg3); }
-export function RecordProductionConsumption(arg1, arg2) { return window['go']['main']['App']['RecordProductionConsumption'](arg1, arg2); }
-export function ReverseProductionConsumption(arg1, arg2) { return window['go']['main']['App']['ReverseProductionConsumption'](arg1, arg2); }
-export function ListProductionConsumptions(arg1) { return window['go']['main']['App']['ListProductionConsumptions'](arg1); }
-export function UpdateProductionOutsourcing(arg1, arg2) { return window['go']['main']['App']['UpdateProductionOutsourcing'](arg1, arg2); }
 
 export function PostPurchase(arg1) {
   return window['go']['main']['App']['PostPurchase'](arg1);
@@ -227,6 +266,14 @@ export function ReactivateService(arg1) {
 
 export function ReactivateSupplier(arg1) {
   return window['go']['main']['App']['ReactivateSupplier'](arg1);
+}
+
+export function RecordProductionConsumption(arg1, arg2) {
+  return window['go']['main']['App']['RecordProductionConsumption'](arg1, arg2);
+}
+
+export function ReleaseInventoryReservation(arg1) {
+  return window['go']['main']['App']['ReleaseInventoryReservation'](arg1);
 }
 
 export function RemoveAttachment(arg1) {
@@ -281,8 +328,20 @@ export function ReplaceQuoteItem(arg1, arg2, arg3) {
   return window['go']['main']['App']['ReplaceQuoteItem'](arg1, arg2, arg3);
 }
 
+export function ReversePayment(arg1, arg2) {
+  return window['go']['main']['App']['ReversePayment'](arg1, arg2);
+}
+
+export function ReverseProductionConsumption(arg1, arg2) {
+  return window['go']['main']['App']['ReverseProductionConsumption'](arg1, arg2);
+}
+
 export function UpdateCustomer(arg1, arg2) {
   return window['go']['main']['App']['UpdateCustomer'](arg1, arg2);
+}
+
+export function UpdateInventoryReservation(arg1, arg2) {
+  return window['go']['main']['App']['UpdateInventoryReservation'](arg1, arg2);
 }
 
 export function UpdateMachine(arg1, arg2) {
@@ -303,6 +362,18 @@ export function UpdateOrderCommercialStatus(arg1, arg2) {
 
 export function UpdateOrderFulfillmentStatus(arg1, arg2) {
   return window['go']['main']['App']['UpdateOrderFulfillmentStatus'](arg1, arg2);
+}
+
+export function UpdateProductionJob(arg1, arg2) {
+  return window['go']['main']['App']['UpdateProductionJob'](arg1, arg2);
+}
+
+export function UpdateProductionJobStatus(arg1, arg2) {
+  return window['go']['main']['App']['UpdateProductionJobStatus'](arg1, arg2);
+}
+
+export function UpdateProductionOutsourcing(arg1, arg2) {
+  return window['go']['main']['App']['UpdateProductionOutsourcing'](arg1, arg2);
 }
 
 export function UpdateProofStatus(arg1, arg2, arg3, arg4, arg5) {

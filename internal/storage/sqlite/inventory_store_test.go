@@ -42,6 +42,10 @@ func TestPurchasePostingCancellationAndSupplierProtection(t *testing.T) {
 	if err = store.PostPurchase(ctx, p.ID); err != nil {
 		t.Fatal(err)
 	}
+	entries, err := store.ListJournalEntries(ctx)
+	if err != nil || len(entries) != 1 || len(entries[0].Lines) != 2 {
+		t.Fatalf("purchase journal entries=%d err=%v", len(entries), err)
+	}
 	got, err := store.Get(ctx, m.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -57,6 +61,21 @@ func TestPurchasePostingCancellationAndSupplierProtection(t *testing.T) {
 	}
 	if err = store.CancelPurchase(ctx, p.ID); err != nil {
 		t.Fatal(err)
+	}
+	if err = store.CancelPurchase(ctx, p.ID); err != nil {
+		t.Fatal("idempotent cancellation:", err)
+	}
+	entries, err = store.ListJournalEntries(ctx)
+	if err != nil || len(entries) != 2 {
+		t.Fatalf("purchase reversal entries=%d err=%v", len(entries), err)
+	}
+	inventory, err := store.GetAccount(ctx, "ACC-INVENTORY")
+	if err != nil || inventory.BalanceRial != 0 {
+		t.Fatalf("inventory ledger after cancellation=%d err=%v", inventory.BalanceRial, err)
+	}
+	payable, err := store.GetAccount(ctx, "ACC-AP")
+	if err != nil || payable.BalanceRial != 0 {
+		t.Fatalf("payable ledger after cancellation=%d err=%v", payable.BalanceRial, err)
 	}
 	got, err = store.Get(ctx, m.ID)
 	if err != nil {

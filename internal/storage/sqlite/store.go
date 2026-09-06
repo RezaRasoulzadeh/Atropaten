@@ -44,6 +44,10 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := store.seedAccounting(context.Background()); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return store, nil
 }
 
@@ -313,6 +317,88 @@ var migrations = []migration{{
 		);
 		CREATE INDEX production_consumptions_job ON production_consumptions(production_job_id,created_at);`,
 	},
+	{
+		version: 9,
+		sql: `CREATE TABLE accounts (
+			id TEXT PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
+			type TEXT NOT NULL CHECK(type IN ('asset','liability','equity','revenue','expense')),
+			parent_id TEXT REFERENCES accounts(id) ON DELETE RESTRICT, active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+			system INTEGER NOT NULL DEFAULT 0 CHECK(system IN (0,1)), created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+		);
+		CREATE TABLE journal_number_sequences (id INTEGER PRIMARY KEY CHECK(id=1), next_number INTEGER NOT NULL CHECK(next_number > 0));
+		INSERT INTO journal_number_sequences(id,next_number) VALUES(1,1001);
+		CREATE TABLE journal_entries (
+			id TEXT PRIMARY KEY, entry_number TEXT NOT NULL UNIQUE, posted_at TEXT NOT NULL, description TEXT NOT NULL,
+			source_type TEXT NOT NULL DEFAULT '', source_id TEXT NOT NULL DEFAULT '', idempotency_key TEXT NOT NULL UNIQUE,
+			reversal_of_id TEXT REFERENCES journal_entries(id) ON DELETE RESTRICT, created_at TEXT NOT NULL
+		);
+		CREATE TABLE journal_lines (
+			id TEXT PRIMARY KEY, journal_entry_id TEXT NOT NULL REFERENCES journal_entries(id) ON DELETE RESTRICT,
+			position INTEGER NOT NULL CHECK(position >= 0), account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE RESTRICT,
+			debit_rial INTEGER NOT NULL DEFAULT 0 CHECK(debit_rial >= 0), credit_rial INTEGER NOT NULL DEFAULT 0 CHECK(credit_rial >= 0),
+			party_type TEXT NOT NULL DEFAULT '', party_id TEXT NOT NULL DEFAULT '', memo TEXT NOT NULL DEFAULT '',
+			UNIQUE(journal_entry_id, position), CHECK((debit_rial > 0 AND credit_rial = 0) OR (credit_rial > 0 AND debit_rial = 0))
+		);
+		CREATE INDEX journal_entries_posted_at ON journal_entries(posted_at DESC, entry_number DESC);
+		CREATE INDEX journal_lines_account ON journal_lines(account_id, journal_entry_id);
+		CREATE TRIGGER journal_entries_immutable_update BEFORE UPDATE ON journal_entries BEGIN SELECT RAISE(ABORT, 'journal entries are immutable'); END;
+		CREATE TRIGGER journal_entries_immutable_delete BEFORE DELETE ON journal_entries BEGIN SELECT RAISE(ABORT, 'journal entries are immutable'); END;
+		CREATE TRIGGER journal_lines_immutable_update BEFORE UPDATE ON journal_lines BEGIN SELECT RAISE(ABORT, 'journal lines are immutable'); END;
+		CREATE TRIGGER journal_lines_immutable_delete BEFORE DELETE ON journal_lines BEGIN SELECT RAISE(ABORT, 'journal lines are immutable'); END;
+		CREATE TABLE financial_accounts (
+			id TEXT PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL CHECK(type IN ('cash','bank')),
+			ledger_account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE RESTRICT, details TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+			created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+		);
+		CREATE TABLE payments (
+			id TEXT PRIMARY KEY, payment_number TEXT NOT NULL UNIQUE, direction TEXT NOT NULL CHECK(direction IN ('incoming','outgoing')),
+			method TEXT NOT NULL, amount_rial INTEGER NOT NULL CHECK(amount_rial > 0), posted_at TEXT NOT NULL,
+			financial_account_id TEXT NOT NULL REFERENCES financial_accounts(id) ON DELETE RESTRICT,
+			customer_id TEXT REFERENCES customers(id) ON DELETE SET NULL, supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL,
+			reference TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', status TEXT NOT NULL CHECK(status IN ('posted','reversed')),
+			journal_entry_id TEXT NOT NULL UNIQUE REFERENCES journal_entries(id) ON DELETE RESTRICT, idempotency_key TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL
+		);
+		CREATE TABLE payment_number_sequences (id INTEGER PRIMARY KEY CHECK(id=1), next_number INTEGER NOT NULL CHECK(next_number > 0));
+		INSERT INTO payment_number_sequences(id,next_number) VALUES(1,1001);
+		CREATE TABLE payment_allocations (
+			id TEXT PRIMARY KEY, payment_id TEXT NOT NULL REFERENCES payments(id) ON DELETE RESTRICT, position INTEGER NOT NULL CHECK(position >= 0),
+			target_type TEXT NOT NULL CHECK(target_type IN ('order','purchase')), target_id TEXT NOT NULL, amount_rial INTEGER NOT NULL CHECK(amount_rial > 0),
+			reversed INTEGER NOT NULL DEFAULT 0 CHECK(reversed IN (0,1)), UNIQUE(payment_id, position)
+		);
+		CREATE INDEX payments_posted_at ON payments(posted_at DESC, payment_number DESC);
+		CREATE INDEX payment_allocations_target ON payment_allocations(target_type, target_id, reversed);
+		ALTER TABLE purchases ADD COLUMN accounting_journal_entry_id TEXT REFERENCES journal_entries(id) ON DELETE RESTRICT;
+		CREATE UNIQUE INDEX purchases_accounting_journal_unique ON purchases(accounting_journal_entry_id) WHERE accounting_journal_entry_id IS NOT NULL;`,
+	},
+}
+
+func (s *Store) seedAccounting(ctx context.Context) error {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	accounts := []struct{ id, code, name, typ string }{
+		{"ACC-CASH", "1000", "Cash", "asset"}, {"ACC-BANK", "1010", "Bank", "asset"},
+		{"ACC-AR", "1100", "Accounts Receivable", "asset"}, {"ACC-INVENTORY", "1200", "Inventory", "asset"},
+		{"ACC-OTHER-RECEIVABLE", "1300", "Other Receivables", "asset"}, {"ACC-AP", "2000", "Accounts Payable", "liability"},
+		{"ACC-CUSTOMER-CREDIT", "2100", "Customer Credits", "liability"}, {"ACC-EQUITY", "3000", "Owner Equity", "equity"},
+		{"ACC-REVENUE", "4000", "Sales Revenue (future invoice slice)", "revenue"}, {"ACC-COGS", "5000", "Cost of Goods Sold (future invoice slice)", "expense"},
+		{"ACC-EXPENSE", "6000", "Operating Expenses", "expense"},
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	fail := func(e error) error { _ = tx.Rollback(); return e }
+	for _, a := range accounts {
+		if _, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO accounts(id,code,name,type,active,system,created_at,updated_at) VALUES(?,?,?,?,1,1,?,?)`, a.id, a.code, a.name, a.typ, now, now); err != nil {
+			return fail(err)
+		}
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO financial_accounts(id,name,type,ledger_account_id,details,active,created_at,updated_at) VALUES('FIN-CASH','Cash','cash','ACC-CASH','Default cash account',1,?,?)`, now, now); err != nil {
+		return fail(err)
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO financial_accounts(id,name,type,ledger_account_id,details,active,created_at,updated_at) VALUES('FIN-BANK','Bank','bank','ACC-BANK','Default bank account',1,?,?)`, now, now); err != nil {
+		return fail(err)
+	}
+	return tx.Commit()
 }
 
 func (s *Store) ensureLegacyOpeningMovements(ctx context.Context) error {
@@ -1069,6 +1155,11 @@ func (s *Store) SaveOrder(ctx context.Context, order domain.Order) error {
 		return fmt.Errorf("begin order save: %w", err)
 	}
 	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	var paid, total int64
+	if err := tx.QueryRowContext(ctx, `SELECT total_rial FROM orders WHERE id=?`, order.ID).Scan(&total); err == nil {
+		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='order' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, order.ID).Scan(&paid); err != nil { return rollback(err) }
+		if paid <= 0 { order.PaymentStatus = domain.PaymentUnpaid } else if paid < total { order.PaymentStatus = domain.PaymentPartiallyPaid } else { order.PaymentStatus = domain.PaymentPaid }
+	}
 	result, err := tx.ExecContext(ctx, `UPDATE orders SET customer_id=?,customer_name_snapshot=?,customer_phone_snapshot=?,created_at=?,promised_at=?,priority=?,commercial_status=?,fulfillment_status=?,payment_status=?,notes=?,subtotal_rial=?,discount_rial=?,total_rial=?,estimated_cost_rial=?,updated_at=?,quote_id=? WHERE id=?`, nullableString(order.CustomerID), order.CustomerNameSnapshot, order.CustomerPhoneSnapshot, order.CreatedAt.UTC().Format(time.RFC3339Nano), nullableTime(order.PromisedAt), string(order.Priority), string(order.CommercialStatus), string(order.FulfillmentStatus), string(order.PaymentStatus), order.Notes, order.SubtotalRial, order.DiscountRial, order.TotalRial, order.EstimatedCostRial, order.UpdatedAt.UTC().Format(time.RFC3339Nano), nullableString(order.QuoteID), order.ID)
 	if err != nil {
 		return rollback(fmt.Errorf("update order: %w", err))

@@ -51,7 +51,7 @@ func TestV5UpgradePreservesCommercialData(t *testing.T) {
 		t.Fatalf("order after v6: %+v, %v", order, err)
 	}
 	var version int
-	if err := store.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil || version != 8 {
+	if err := store.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil || version != 9 {
 		t.Fatalf("migration version=%d err=%v", version, err)
 	}
 }

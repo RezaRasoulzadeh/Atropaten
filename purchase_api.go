@@ -36,6 +36,8 @@ type PurchaseDTO struct {
 	TaxRial               int64             `json:"taxRial"`
 	AdditionalCostsRial   int64             `json:"additionalCostsRial"`
 	TotalRial             int64             `json:"totalRial"`
+	PaidRial              int64             `json:"paidRial"`
+	RemainingRial         int64             `json:"remainingRial"`
 	CreatedAt             string            `json:"createdAt"`
 	UpdatedAt             string            `json:"updatedAt"`
 	Items                 []PurchaseItemDTO `json:"items"`
@@ -196,7 +198,7 @@ func (a *App) AdjustMaterialStock(id, qty string, cost int64, note string) error
 	return s.Adjust(a.materialContext(), id, qty, cost, note)
 }
 func purchaseDTO(v application.PurchaseView) PurchaseDTO {
-	out := PurchaseDTO{ID: v.ID, PurchaseNumber: v.PurchaseNumber, SupplierID: v.SupplierID, SupplierName: v.SupplierName, SupplierInvoiceNumber: v.SupplierInvoiceNumber, PurchaseDate: v.PurchaseDate, Status: v.Status, Notes: v.Notes, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, ShippingRial: v.ShippingRial, TaxRial: v.TaxRial, AdditionalCostsRial: v.AdditionalCostsRial, TotalRial: v.TotalRial, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt, Items: make([]PurchaseItemDTO, 0, len(v.Items))}
+	out := PurchaseDTO{ID: v.ID, PurchaseNumber: v.PurchaseNumber, SupplierID: v.SupplierID, SupplierName: v.SupplierName, SupplierInvoiceNumber: v.SupplierInvoiceNumber, PurchaseDate: v.PurchaseDate, Status: v.Status, Notes: v.Notes, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, ShippingRial: v.ShippingRial, TaxRial: v.TaxRial, AdditionalCostsRial: v.AdditionalCostsRial, TotalRial: v.TotalRial, PaidRial: v.PaidRial, RemainingRial: v.RemainingRial, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt, Items: make([]PurchaseItemDTO, 0, len(v.Items))}
 	for _, i := range v.Items {
 		out.Items = append(out.Items, PurchaseItemDTO{ID: i.ID, Position: i.Position, MaterialID: i.MaterialID, MaterialName: i.MaterialName, PurchaseUnit: i.PurchaseUnit, ConsumptionUnit: i.ConsumptionUnit, PurchaseQuantity: i.PurchaseQuantity, ConversionFactor: i.ConversionFactor, ConsumptionQuantity: i.ConsumptionQuantity, UnitAcquisitionCostRial: i.UnitAcquisitionCostRial, AllocatedAdditionalCostRial: i.AllocatedAdditionalCostRial, LandedUnitCostRial: i.LandedUnitCostRial, LineTotalRial: i.LineTotalRial, Notes: i.Notes})
 	}

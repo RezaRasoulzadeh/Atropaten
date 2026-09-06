@@ -113,9 +113,13 @@ type PurchaseRepository interface {
 	ListInventoryMovements(context.Context, string) ([]domain.InventoryMovement, error)
 	AdjustInventory(context.Context, string, domain.Quantity, int64, string) error
 }
+type PurchasePaymentLookup interface {
+	PurchasePaymentSummary(context.Context, string) (int64, int64, error)
+}
 type PurchaseView struct {
 	ID, PurchaseNumber, SupplierID, SupplierName, SupplierInvoiceNumber, PurchaseDate, Status, Notes string
 	SubtotalRial, DiscountRial, ShippingRial, TaxRial, AdditionalCostsRial, TotalRial                int64
+	PaidRial, RemainingRial                                                                          int64
 	CreatedAt, UpdatedAt                                                                             string
 	Items                                                                                            []PurchaseItemView
 }
@@ -157,7 +161,14 @@ func (s *PurchasesService) List(ctx context.Context) ([]PurchaseView, error) {
 	}
 	out := make([]PurchaseView, 0, len(rows))
 	for _, v := range rows {
-		out = append(out, purchaseView(v))
+		view := purchaseView(v)
+		if lookup, ok := s.repository.(PurchasePaymentLookup); ok {
+			view.PaidRial, view.RemainingRial, e = lookup.PurchasePaymentSummary(ctx, v.ID)
+			if e != nil {
+				return nil, e
+			}
+		}
+		out = append(out, view)
 	}
 	return out, nil
 }
@@ -166,7 +177,14 @@ func (s *PurchasesService) Get(ctx context.Context, id string) (PurchaseView, er
 	if e != nil {
 		return PurchaseView{}, e
 	}
-	return purchaseView(v), nil
+	view := purchaseView(v)
+	if lookup, ok := s.repository.(PurchasePaymentLookup); ok {
+		view.PaidRial, view.RemainingRial, e = lookup.PurchasePaymentSummary(ctx, v.ID)
+		if e != nil {
+			return PurchaseView{}, e
+		}
+	}
+	return view, nil
 }
 func (s *PurchasesService) Create(ctx context.Context, in PurchaseInput) (PurchaseView, error) {
 	p, e := s.newPurchase(ctx, in)
