@@ -6,6 +6,7 @@ import MasterDetail from '../../components/layout/MasterDetail.vue';
 import DataTableRow from '../../components/ui/DataTableRow.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import AppInput from '../../components/ui/AppInput.vue';
+import AppTextarea from '../../components/ui/AppTextarea.vue';
 import FormField from '../../components/ui/FormField.vue';
 import DataTableCell from '../../components/ui/DataTableCell.vue';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -230,8 +231,8 @@ function updateCost(value: string) {
   }
 }
 
-function onCostInput(event: Event) {
-  updateCost((event.target as HTMLInputElement).value);
+function onCostInput(value: string) {
+  updateCost(value);
 }
 
 async function saveMaterial() {
@@ -546,14 +547,13 @@ function dateLabel(value: string) {
             <FormField class="gap-1 sm:col-span-2"
               ><span class="text-xs"
                 >Average cost / {{ form.consumptionUnit }} ({{ props.currencyUnit }})</span
-              ><input
-                class="input w-full min-w-0"
-                :value="costDraft"
+              ><AppInput
+                :model-value="costDraft"
                 type="text"
                 inputmode="decimal"
                 placeholder="0"
                 :disabled="editorMode === 'edit'"
-                @input="onCostInput"
+                @update:model-value="onCostInput"
               /><small class="text-xs text-base-content/60"
                 >Stored as integer Rial; use opening stock to establish catalog cost.</small
               ></FormField
@@ -571,12 +571,11 @@ function dateLabel(value: string) {
             /></FormField>
             <FormField class="gap-1 sm:col-span-2"
               ><span class="text-xs">Notes <em>optional</em></span
-              ><textarea
+              ><AppTextarea
                 v-model="form.notes"
-                class="textarea w-full min-w-0"
                 rows="3"
                 placeholder="Storage or handling note"
-              ></textarea>
+              />
             </FormField>
           </FormSection>
         </form>

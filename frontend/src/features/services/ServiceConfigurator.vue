@@ -83,8 +83,7 @@ async function calculate() {
   }
 }
 
-function updateManual(componentId: string, event: Event) {
-  const value = (event.target as HTMLInputElement).value;
+function updateManual(componentId: string, value: string) {
   manualTexts.value[componentId] = value;
   if (value.trim() === '') {
     delete manualCosts.value[componentId];
@@ -99,12 +98,10 @@ function updateManual(componentId: string, event: Event) {
   }
 }
 
-function updateOverride(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const parsed =
-    input.value.trim() === '' ? null : parseMoneyInput(input.value, props.currencyUnit);
-  if (input.value.trim() !== '' && parsed === null) {
-    overrideText.value = input.value;
+function updateOverride(value: string) {
+  const parsed = value.trim() === '' ? null : parseMoneyInput(value, props.currencyUnit);
+  if (value.trim() !== '' && parsed === null) {
+    overrideText.value = value;
     return;
   }
   overrideRial.value = parsed;
@@ -240,16 +237,15 @@ function typeLabel(type: string) {
             }}</strong>
           </div>
         </div>
-        <FormField class="gap-1"
+        <div class="space-y-1"
           ><span>Selling price override <em>optional</em></span>
           <div class="min-w-0 space-y-3">
-            <FormField :label="`Use ${typeLabel('fixed')} rule suggestion`"><input
-              class="input w-full min-w-0"
-              :value="overrideText"
+            <FormField :label="`Use ${typeLabel('fixed')} rule suggestion`"><AppInput
+              :model-value="overrideText"
               type="text"
               inputmode="decimal"
               :placeholder="`Use ${typeLabel('fixed')} rule suggestion`"
-              @input="updateOverride"
+              @update:model-value="updateOverride"
             /></FormField><button
               class="btn btn-ghost"
               v-if="overrideText"
@@ -259,7 +255,7 @@ function typeLabel(type: string) {
             >
               <RotateCcw :size="14" :stroke-width="1.8" />
             </button></div
-        ></FormField>
+        ></div>
         <div v-if="result?.belowCost" class="min-w-0 space-y-3">
           <AlertTriangle :size="15" :stroke-width="1.8" /><span
             >Selling price is below estimated cost.</span
@@ -278,12 +274,11 @@ function typeLabel(type: string) {
             v-for="component in service.components.filter((item) => item.type === 'manual')"
             :key="component.id"
             ><span>{{ component.name }}</span
-            ><input
-              class="input w-full min-w-0"
-              :value="manualTexts[component.id] || ''"
+            ><AppInput
+              :model-value="manualTexts[component.id] || ''"
               inputmode="decimal"
               placeholder="0"
-              @input="updateManual(component.id, $event)"
+              @update:model-value="updateManual(component.id, $event)"
           /></FormField>
         </div>
       </div>

@@ -3,6 +3,8 @@ import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceAc
 const {busy,runAction}=useWorkspaceActions()
 
 import FormField from '../../components/ui/FormField.vue';
+import AppInput from '../../components/ui/AppInput.vue';
+import AppTextarea from '../../components/ui/AppTextarea.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, ref, watch } from 'vue';
 import { ArrowDown, ArrowLeft, ArrowUp, PackageOpen, Pencil, Plus, Trash2 } from 'lucide-vue-next';
@@ -303,9 +305,8 @@ function snapshot(item: any, key: string) {
           <FormSection title="Notes">
             <FormField class="gap-1 sm:col-span-2"
               ><span class="text-xs">Order notes</span
-              ><textarea
+              ><AppTextarea
                 v-model="notes"
-                class="textarea w-full min-w-0"
                 rows="4"
                 placeholder="Order notes"
               />
@@ -349,12 +350,10 @@ function snapshot(item: any, key: string) {
         <div class="mt-4 border-t border-base-300 pt-4">
           <FormField class="gap-1">
             <span class="text-xs text-base-content/60">Order discount</span>
-            <input
-              class="input w-full min-w-0"
-              :value="discountText"
+            <AppInput
+              v-model="discountText"
               inputmode="decimal"
               :placeholder="`Amount in ${props.currencyUnit}`"
-              @input="discountText = ($event.target as HTMLInputElement).value"
               @blur="
                 discountText = formatMoneyInput(
                   parseMoneyInput(discountText, props.currencyUnit) || 0,

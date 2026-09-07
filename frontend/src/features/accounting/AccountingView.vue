@@ -12,6 +12,7 @@ import EmptyState from '../../components/ui/EmptyState.vue'
 import InlineAlert from '../../components/ui/InlineAlert.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import AppInput from '../../components/ui/AppInput.vue';
+import AppTextarea from '../../components/ui/AppTextarea.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref } from 'vue';
 import { Landmark, Plus, RotateCcw, WalletCards } from 'lucide-vue-next';
@@ -212,12 +213,11 @@ const expensesTotal = computed(() =>
                 props.currencyUnit,
               )
             "
-          /></FormField><FormField label="Notes"><textarea
-            class="textarea w-full min-w-0"
+          /></FormField><FormField label="Notes"><AppTextarea
             v-model="form.notes"
             rows="2"
             placeholder="Notes"
-          ></textarea
+          />
           ></FormField><button class="btn btn-primary" type="submit" :disabled="busy">Post payment</button>
         </FormGrid></form></AppPanel><AppPanel title="Payment history" flush><DataTable><thead><tr><th>Payment</th><th>Direction</th><th>Posted</th><th class="text-end">Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr v-for="p in payments" :key="p.id"><DataTableCell><strong>{{p.paymentNumber}}</strong></DataTableCell><DataTableCell>{{p.direction}}</DataTableCell><DataTableCell>{{formatDateTime(p.postedAt)}}</DataTableCell><DataTableCell numeric>{{money(p.amountRial)}}</DataTableCell><DataTableCell><StatusBadge :label="p.status" :tone="p.status==='posted'?'green':'slate'" /></DataTableCell><DataTableCell><button v-if="p.status==='posted'" class="btn btn-ghost btn-sm" @click="reverse(p)" :disabled="busy"><RotateCcw :size="14" />Reverse</button></DataTableCell></tr></tbody></DataTable><EmptyState v-if="!payments.length" title="No payments" /></AppPanel></template>
 <InvoicesView v-else-if="tab==='Invoices'" :currency-unit="currencyUnit" :orders="orders" @notify="emit('notify',$event)" @refresh-orders="emit('refreshOrders')" />

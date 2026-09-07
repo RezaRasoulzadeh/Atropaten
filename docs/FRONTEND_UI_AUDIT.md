@@ -62,7 +62,7 @@ The interaction harness rendered customer form focus/error states, the material 
 | 1280 | 65px | 1000px | false | false |
 | 1600 | 65px | 1320px | false | false |
 
-The full interaction harness reached the print-preview assertion but stopped because the existing assertion expected two `.print-document` nodes while the rendered preview did not expose that count. This is recorded as an existing print-preview test limitation; no print CSS or document structure was changed in M6-011.
+At the time of the M6-011 audit, the interaction harness reached the print-preview assertion but stopped because the preview child threw before exposing the expected two `.print-document` nodes. M6-014 isolated and fixed that render defect; the original assertion now passes.
 
 ## M6-013 data-surface convergence
 
@@ -133,4 +133,35 @@ Completed for this task:
 - No page-level horizontal overflow in 51 register renders
 - Shared select alignment remained start-aligned in all rendered workspaces
 
-Remaining geometry limitations are intentionally outside these tasks: the 1024px stacked master/detail layout requires page scrolling for long inspectors; dense Materials tables use local horizontal scrolling at narrow master widths; the print-preview interaction assertion needs separate investigation; and native Wails/WebView window chrome was not rendered because the browser preview is the available runtime. Information architecture and workflow redesign remain out of scope for M6-012.
+Remaining geometry limitations are intentionally outside these tasks: the 1024px stacked master/detail layout requires page scrolling for long inspectors; dense Materials tables use local horizontal scrolling at narrow master widths; and native Wails/WebView window chrome was not rendered because the browser preview is the available runtime. Information architecture and workflow redesign remain out of scope for M6-012.
+
+## M6-014 forms, editors, dialogs, overlays, and feedback
+
+M6-014 was audited against the populated M6-006 bridge after the shared form/editor changes. The existing interaction harness completed 72 states (24 states at each of 1024px, 1280px, and 1600px) with no page errors and no `documentElement` or `main` overflow. Screenshots are in `/tmp/atropaten-ui-interactions/`; `results.json` records the width/state/overflow results.
+
+### Interaction coverage
+
+| Context/state | Rendered evidence | Result |
+| --- | --- | --- |
+| Customer create form | `customer-form-focus`, `validation-error-preserves-form`, `success-toast`, `confirmation-dialog`, `customer-empty` at all three widths | Focus contract measured as 1px dashed primary with no outline/shadow; failed save preserves values and shows an error; success shows a success toast; destructive confirmation is keyboard-cancellable. |
+| Material editor | `material-editor` at all three widths | Shared form fields, stock/cost grouping, footer clearance, and long editor content remain contained. |
+| Existing order / item editor | `order-editor`, `order-items`, `jalali-calendar` at all three widths | Metadata, notes, discount, item configuration entry, save actions, and the portaled Jalali calendar render without clipping. |
+| Quote editor entry | `quote-editor` at all three widths | Quote register/workspace entry remains inside the accepted master/detail geometry; item configuration uses the shared editor primitive. |
+| Services and configurator | `service-form`, `service-parameter-editor` at all three widths | Service description, parameter, pricing, cost, and manual-money inputs now use shared input/textarea primitives while retaining recalculation behavior. |
+| Checks, loans, accounting, owners | `check-form`, `loan-form`, `loans-populated`, `accounting-*`, `owners-register` at all three widths | Lifecycle forms, Jalali fields, money controls, schedules, and table-backed details render without duplicate nested labels or page overflow. |
+| Print preview | `print-preview` at all three widths; print media assertion | Both screen and teleported print documents render; `#app` is hidden and `.print-output` is visible in print media. |
+| Busy/load/error feedback | `loading`, `page-error`, validation and success states at all three widths | Busy controls disable during the delayed mutation; load failure is visible as an error alert; error and success feedback are not console-only. |
+
+The print-preview failure was a real UI/data-boundary defect, not a stale assertion. The M6-006 response can contain `statementLines: null` (and nullable allocation data), while `PrintDocument` read `.length` and iterated the value unconditionally. That child threw during render, so the expected two preview documents never mounted. The preview now treats nullable line collections as empty arrays; the original two-document assertion remains unchanged and passes.
+
+The source audit covered New/existing Orders, Quotes, Customers, Materials and stock adjustment, Services/configurator/parameters/costs, Machines, Suppliers, Purchases, Production actions, accounting payment/invoice/expense/transfer flows, Checks lifecycle, Loans/schedules/payments, Owners/fiscal views, Reports/print preview, and Settings. Mutations consistently use the shared `runAction` busy guard or an equivalent local guard, errors go through `reportError`/`normalizeError` or the shared toast service, and no `window.confirm` remains. Destructive flows use `confirmAction` and the global native `ConfirmDialog`, which restores focus when the initiating element still exists and supports Escape cancellation.
+
+The form/editor primitive cleanup replaced the remaining important raw textareas in Customers, Orders, Quotes, Materials, Machines, Purchases, Checks, Production, Accounting, Loans, Owners, Suppliers, Services, and the order-item configurator with `AppTextarea`. Money, quantity, service-pricing, and configurator text inputs were routed through `AppInput` while retaining the existing parsing and recalculation callbacks. Nested `FormField`/`SelectField` label structures were removed from Checks and Purchases. `AppTextarea` now forwards normal attributes centrally, and the confirmation dialog has explicit alert-dialog semantics without changing its native top-layer behavior.
+
+### Remaining M6-014 exceptions
+
+- The service definition and configurator remain information-dense because their parameter/component/pricing editors expose many domain fields; they are structurally grouped but are candidates for a later workflow redesign.
+- Some low-level checkbox controls remain native inputs by design; they are not editable text controls and do not receive the dashed text-control focus treatment.
+- The existing browser harness exercises representative mutations and source-audits the remaining action paths, but it does not submit every destructive/lifecycle action against a failure fixture. A future final QA pass should expand those backend-failure scenarios.
+- Toasts from earlier intentionally injected failure states remain visible while the harness moves between workspaces; this is expected test-fixture persistence, not duplicate application feedback.
+- Reports and print preview are now robust for nullable line collections, but broader print layout/content coverage beyond the representative invoice remains for final QA.

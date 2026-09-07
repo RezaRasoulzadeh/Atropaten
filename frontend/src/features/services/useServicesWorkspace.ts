@@ -264,8 +264,7 @@ function updateComponentRate(component: ComponentForm) {
     component.rateInput = formatMoneyInput(parsed, props.currencyUnit);
   }
 }
-function updateGroupedMoney(target: any, textKey: string, valueKey: string, event: Event) {
-  const value = (event.target as HTMLInputElement).value;
+function updateGroupedMoney(target: any, textKey: string, valueKey: string, value: string) {
   target[textKey] = value;
   const parsed = parseMoneyInput(value, props.currencyUnit);
   if (parsed !== null) {

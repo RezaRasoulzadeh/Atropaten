@@ -11,6 +11,7 @@ import InspectorShell from '../../components/layout/InspectorShell.vue'
 import MasterDetail from '../../components/layout/MasterDetail.vue'
 import FormGrid from '../../components/ui/FormGrid.vue';
 import FormField from '../../components/ui/FormField.vue';
+import AppTextarea from '../../components/ui/AppTextarea.vue';
 import { computed, ref, watch } from 'vue';
 import { ArrowLeft, ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from 'lucide-vue-next';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
@@ -201,7 +202,7 @@ reportError(e);
 <form id="quote-details" class="space-y-4" @submit.prevent="saveMetadata">
 <FormGrid><SelectField v-model="customerId" label="Customer" :disabled="quote.status!=='Draft'" :options="[{label:'Walk-in customer',value:''},...customers.filter((x:any)=>x.active||x.id===customerId).map((c:any)=>({label:c.name,value:c.id}))]" />
 <FormField label="Expiry date"><JalaliDatePicker v-model="expiryDate" /></FormField></FormGrid>
-<FormField label="Notes"><textarea v-model="notes" class="textarea w-full min-w-0" rows="4" :disabled="quote.status!=='Draft'" /></FormField>
+<FormField label="Notes"><AppTextarea v-model="notes" rows="4" :disabled="quote.status!=='Draft'" /></FormField>
 <div class="flex items-center justify-between gap-3 border-t border-base-300 pt-3"><span class="text-xs text-base-content/60">Created {{formatDateTime(quote.createdAt)}}</span><button class="btn btn-primary" :disabled="saving || quote.status!=='Draft'">Save details</button></div>
 </form>
 </AppPanel>

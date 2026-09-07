@@ -12,7 +12,7 @@ watch(
       dialog.value?.showModal();
     } else {
       dialog.value?.close();
-      previousFocus?.focus();
+      if (previousFocus?.isConnected) previousFocus.focus();
     }
   },
 );
@@ -21,6 +21,8 @@ watch(
   <dialog
     ref="dialog"
     class="modal"
+    role="alertdialog"
+    aria-modal="true"
     aria-labelledby="confirm-title"
     aria-describedby="confirm-message"
     @cancel.prevent="resolveConfirm(false)"

@@ -10,6 +10,7 @@ import DataTableRow from '../../components/ui/DataTableRow.vue';
 import DataTableCell from '../../components/ui/DataTableCell.vue';
 import DataTable from '../../components/ui/DataTable.vue';
 import AppInput from '../../components/ui/AppInput.vue';
+import AppTextarea from '../../components/ui/AppTextarea.vue';
 import FormField from '../../components/ui/FormField.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref } from 'vue';
@@ -153,8 +154,7 @@ const {busy,runAction,pageLoading,runLoad,tabs,tab,owners,transactions,periods,a
               type="email" /></FormField
           ><FormField class="gap-1"
             ><span>Notes</span
-            ><textarea
-              class="textarea w-full min-w-0"
+            ><AppTextarea
               v-model="ownerForm.notes"
               rows="3"
             />

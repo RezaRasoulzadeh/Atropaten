@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppInput from '../../components/ui/AppInput.vue';
+import AppTextarea from '../../components/ui/AppTextarea.vue';
 import FormField from '../../components/ui/FormField.vue';
 import { computed, ref, watch } from 'vue';
 import { AlertTriangle, Calculator, Plus } from 'lucide-vue-next';
@@ -96,8 +97,7 @@ function setValue(key: string, value: string) {
   pricing.value = null;
 }
 
-function updateMoneyText(event: Event, key: string) {
-  const text = (event.target as HTMLInputElement).value;
+function updateMoneyText(text: string, key: string) {
   if (key === 'override') {
     overrideText.value = text;
     const parsed = parseMoneyInput(text, props.currencyUnit);
@@ -220,12 +220,11 @@ function save() {
         />
         <FormField v-else class="gap-1">
           <span class="text-xs text-base-content/60">{{ parameter.label }}</span>
-          <input
-            class="input w-full min-w-0"
-            :value="values[parameter.key] || ''"
+          <AppInput
+            :model-value="values[parameter.key] || ''"
             :type="parameter.type === 'integer' ? 'number' : 'text'"
             :placeholder="parameter.defaultValue || parameter.type"
-            @input="setValue(parameter.key, ($event.target as HTMLInputElement).value)"
+            @update:model-value="setValue(parameter.key, $event)"
           />
           <small v-if="parameter.unit" class="text-xs text-base-content/50">{{
             parameter.unit
@@ -253,19 +252,17 @@ function save() {
       <template v-if="manualComponents.length">
         <FormField v-for="component in manualComponents" :key="component.id" class="gap-1">
           <span class="text-xs text-base-content/60">{{ component.name }}</span>
-          <input
-            class="input w-full min-w-0"
-            :value="manualTexts[component.id] || ''"
+          <AppInput
+            :model-value="manualTexts[component.id] || ''"
             :placeholder="`Amount in ${currencyUnit}`"
-            @input="updateMoneyText($event, component.id)"
+            @update:model-value="updateMoneyText($event, component.id)"
           />
         </FormField>
       </template>
 
       <FormField class="gap-1 lg:col-span-2">
         <span class="text-xs text-base-content/60">Notes</span>
-        <textarea
-          class="textarea w-full min-w-0"
+        <AppTextarea
           v-model="notes"
           rows="2"
           placeholder="Item-specific notes"
@@ -275,12 +272,11 @@ function save() {
       <div class="flex flex-wrap items-end gap-3 lg:col-span-2">
         <FormField class="min-w-52 flex-1 gap-1">
           <span class="text-xs text-base-content/60">Selling price override</span>
-          <input
-            class="input w-full min-w-0"
-            :value="overrideText"
+          <AppInput
+            :model-value="overrideText"
             inputmode="decimal"
             :placeholder="`Optional ${currencyUnit} price`"
-            @input="updateMoneyText($event, 'override')"
+            @update:model-value="updateMoneyText($event, 'override')"
           />
         </FormField>
         <button

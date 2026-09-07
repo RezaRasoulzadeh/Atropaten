@@ -106,7 +106,7 @@ const emit=defineEmits<{move:[direction:-1|1];remove:[];changeType:[];changeRate
                     inputmode="decimal"
                     placeholder="1" /></FormField
               ></FormGrid>
-              <FormField
+              <div
                 class="gap-1"
                 v-if="
                   component.usageMode === 'parameter' && !componentNeedsPercentage(component.type)
@@ -130,7 +130,7 @@ const emit=defineEmits<{move:[direction:-1|1];remove:[];changeType:[];changeRate
                   "
                   class="block text-xs leading-5 text-base-content/60"
                   >This reference is no longer numeric and will be rejected until corrected.</small
-                ></FormField
+                ></div
               >
               <FormGrid v-if="componentNeedsRate(component.type)"
                 ><FormField class="gap-1"

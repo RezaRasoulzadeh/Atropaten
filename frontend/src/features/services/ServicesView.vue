@@ -16,6 +16,7 @@ import DataTableRow from '../../components/ui/DataTableRow.vue';
 import DataTable from '../../components/ui/DataTable.vue';
 import FormField from '../../components/ui/FormField.vue';
 import AppInput from '../../components/ui/AppInput.vue';
+import AppTextarea from '../../components/ui/AppTextarea.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import {
@@ -211,12 +212,11 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
           ></FormGrid>
           <FormField class="gap-1"
             ><span>Description / notes</span
-            ><textarea
-              class="textarea w-full min-w-0"
+            ><AppTextarea
               v-model="form.description"
               rows="2"
               placeholder="What this operation covers"
-            ></textarea>
+            />
           </FormField>
           <div class="min-w-0 space-y-3">
             <div class="min-w-0 space-y-3">
@@ -277,13 +277,10 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
             />
             <FormField class="gap-1" v-if="form.pricingRule.type === 'fixed'"
               ><span>Fixed price ({{ props.currencyUnit }})</span
-              ><input
-                class="input w-full min-w-0"
-                :value="form.pricingRule.fixedPriceInput"
+              ><AppInput
+                :model-value="form.pricingRule.fixedPriceInput"
                 inputmode="decimal"
-                @input="
-                  updateGroupedMoney(form.pricingRule, 'fixedPriceInput', 'fixedPriceRial', $event)
-                "
+                @update:model-value="updateGroupedMoney(form.pricingRule, 'fixedPriceInput', 'fixedPriceRial', $event)"
             /></FormField>
             <FormField class="gap-1" v-if="form.pricingRule.type === 'markup'"
               ><span>Markup percentage</span
@@ -295,18 +292,10 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
             /></FormField>
             <FormField class="gap-1" v-if="form.pricingRule.type === 'fixed-margin'"
               ><span>Fixed margin ({{ props.currencyUnit }})</span
-              ><input
-                class="input w-full min-w-0"
-                :value="form.pricingRule.fixedMarginInput"
+              ><AppInput
+                :model-value="form.pricingRule.fixedMarginInput"
                 inputmode="decimal"
-                @input="
-                  updateGroupedMoney(
-                    form.pricingRule,
-                    'fixedMarginInput',
-                    'fixedMarginRial',
-                    $event,
-                  )
-                "
+                @update:model-value="updateGroupedMoney(form.pricingRule, 'fixedMarginInput', 'fixedMarginRial', $event)"
             /></FormField>
             <template v-if="form.pricingRule.type === 'per-unit'"
               ><SelectField
@@ -320,18 +309,10 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
                   })),
                 ]" /><FormField class="gap-1"
                 ><span>Rate / unit ({{ props.currencyUnit }})</span
-                ><input
-                  class="input w-full min-w-0"
-                  :value="form.pricingRule.perUnitRateInput"
+                ><AppInput
+                  :model-value="form.pricingRule.perUnitRateInput"
                   inputmode="decimal"
-                  @input="
-                    updateGroupedMoney(
-                      form.pricingRule,
-                      'perUnitRateInput',
-                      'perUnitRateRial',
-                      $event,
-                    )
-                  " /></FormField
+                  @update:model-value="updateGroupedMoney(form.pricingRule, 'perUnitRateInput', 'perUnitRateRial', $event)" /></FormField
             ></template>
             <div v-if="form.pricingRule.type === 'quantity-tiers'" class="min-w-0 space-y-3">
               <div class="min-w-0 space-y-3">
@@ -351,13 +332,12 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
                   inputmode="decimal"
                   :placeholder="tierIndex === 0 ? '0' : '10'"
                   :aria-label="`Tier ${tierIndex + 1} minimum quantity`"
-                /><input
-                  class="input w-full min-w-0"
-                  :value="tier.priceInput"
+                /><AppInput
+                  :model-value="tier.priceInput"
                   inputmode="decimal"
                   placeholder="Price"
                   :aria-label="`Tier ${tierIndex + 1} price`"
-                  @input="updateGroupedMoney(tier, 'priceInput', 'priceRial', $event)"
+                  @update:model-value="updateGroupedMoney(tier, 'priceInput', 'priceRial', $event)"
                 /><button
                   class="btn btn-ghost"
                   type="button"

@@ -4,6 +4,7 @@ const {busy,runAction}=useWorkspaceActions()
 
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import AppInput from '../../components/ui/AppInput.vue';
+import AppTextarea from '../../components/ui/AppTextarea.vue';
 import FormField from '../../components/ui/FormField.vue';
 import { computed, ref, watch } from 'vue';
 import { Mail, MapPin, Pencil, Phone, Plus, Trash2, UserRound, X } from 'lucide-vue-next';
@@ -272,17 +273,15 @@ watch(() => props.refreshKey, load, { immediate: true });
           <FormSection title="Address and notes">
             <FormField class="gap-1 sm:col-span-2"
               ><span class="text-xs">Address</span
-              ><textarea
+              ><AppTextarea
                 v-model="form.address"
-                class="textarea w-full min-w-0"
                 rows="2"
               />
             </FormField>
             <FormField class="gap-1 sm:col-span-2"
               ><span class="text-xs">Notes</span
-              ><textarea
+              ><AppTextarea
                 v-model="form.notes"
-                class="textarea w-full min-w-0"
                 rows="3"
               />
             </FormField>

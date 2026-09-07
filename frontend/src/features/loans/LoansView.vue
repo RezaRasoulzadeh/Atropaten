@@ -14,6 +14,7 @@ import DataTableRow from '../../components/ui/DataTableRow.vue';
 import DataTable from '../../components/ui/DataTable.vue';
 import FormField from '../../components/ui/FormField.vue';
 import AppInput from '../../components/ui/AppInput.vue';
+import AppTextarea from '../../components/ui/AppTextarea.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref } from 'vue';
 import { CircleDollarSign, Plus, RotateCcw, X } from 'lucide-vue-next';
@@ -314,8 +315,7 @@ function date(v: string) {
               " /></FormGrid
           ><FormField class="gap-1"
             ><span>Notes</span
-            ><textarea
-              class="textarea w-full min-w-0"
+            ><AppTextarea
               v-model="form.notes"
               rows="3"
             />

@@ -13,6 +13,7 @@ import DataTableCell from '../../components/ui/DataTableCell.vue';
 import DataTableRow from '../../components/ui/DataTableRow.vue';
 import DataTable from '../../components/ui/DataTable.vue';
 import AppInput from '../../components/ui/AppInput.vue';
+import AppTextarea from '../../components/ui/AppTextarea.vue';
 import FormField from '../../components/ui/FormField.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref } from 'vue';
@@ -284,16 +285,14 @@ function date(v: string) {
         subtitle="Drafts have no financial effect until lifecycle posting."
         ><form @submit.prevent="create" class="min-w-0 space-y-3">
           <FormGrid
-            ><FormField class="gap-1"
-              ><span>Direction</span
-              ><SelectField
+            ><SelectField
                 v-model="form.direction"
                 label="Direction"
                 :options="[
                   { label: 'Incoming', value: 'incoming' },
                   { label: 'Outgoing', value: 'outgoing' },
-                ]" /></FormField
-            ><FormField class="gap-1"
+                ]" />
+            <FormField class="gap-1"
               ><span>Check number</span
               ><AppInput
                 class="input w-full min-w-0"
@@ -330,8 +329,7 @@ function date(v: string) {
               ><JalaliDatePicker v-model="form.dueDate" /></FormField></FormGrid
           ><FormField class="gap-1"
             ><span>Notes</span
-            ><textarea
-              class="textarea w-full min-w-0"
+            ><AppTextarea
               v-model="form.notes"
               rows="3"
             />

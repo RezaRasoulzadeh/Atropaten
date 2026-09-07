@@ -13,6 +13,7 @@ import DataTableRow from '../../components/ui/DataTableRow.vue';
 import DataTable from '../../components/ui/DataTable.vue';
 import FormField from '../../components/ui/FormField.vue';
 import AppInput from '../../components/ui/AppInput.vue';
+import AppTextarea from '../../components/ui/AppTextarea.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref } from 'vue';
 import { ArrowDown, ArrowUp, Check, Plus, Save, ShoppingCart, Trash2, X } from 'lucide-vue-next';
@@ -346,9 +347,7 @@ function replace(value: PurchaseRecord) {
         </div>
         <form v-if="editing" @submit.prevent="save" class="min-w-0 space-y-3">
           <FormGrid
-            ><FormField class="gap-1"
-              ><span>Supplier</span
-              ><SelectField
+            ><SelectField
                 v-model="form.supplierId"
                 label="Supplier"
                 :options="[
@@ -357,8 +356,8 @@ function replace(value: PurchaseRecord) {
                     label: supplier.name,
                     value: supplier.id,
                   })),
-                ]" /></FormField
-            ><FormField class="gap-1"
+                ]" />
+            <FormField class="gap-1"
               ><span>Purchase date</span
               ><JalaliDatePicker
                 v-model="form.purchaseDate"
@@ -399,8 +398,7 @@ function replace(value: PurchaseRecord) {
                 min="0" /></FormField></FormGrid
           ><FormField class="gap-1"
             ><span>Notes</span
-            ><textarea
-              class="textarea w-full min-w-0"
+            ><AppTextarea
               v-model="form.notes"
               rows="2"
             /></FormField

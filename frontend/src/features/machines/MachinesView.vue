@@ -14,6 +14,7 @@ import DataTableCell from '../../components/ui/DataTableCell.vue';
 import DataTableRow from '../../components/ui/DataTableRow.vue';
 import DataTable from '../../components/ui/DataTable.vue';
 import AppInput from '../../components/ui/AppInput.vue';
+import AppTextarea from '../../components/ui/AppTextarea.vue';
 import FormField from '../../components/ui/FormField.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -393,12 +394,11 @@ function message(errorValue: unknown, fallback: string) {
               placeholder="Optional" /></FormField
           ><FormField class="gap-1"
             ><span>Notes</span
-            ><textarea
-              class="textarea w-full min-w-0"
+            ><AppTextarea
               v-model="form.notes"
               rows="3"
               placeholder="Capacity, operating notes, or rate context"
-            ></textarea>
+            />
           </FormField>
           <div class="flex flex-wrap items-center gap-2">
             <button class="btn btn-ghost" type="button" @click="cancel">Cancel</button
