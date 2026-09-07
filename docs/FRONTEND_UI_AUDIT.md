@@ -165,3 +165,52 @@ The form/editor primitive cleanup replaced the remaining important raw textareas
 - The existing browser harness exercises representative mutations and source-audits the remaining action paths, but it does not submit every destructive/lifecycle action against a failure fixture. A future final QA pass should expand those backend-failure scenarios.
 - Toasts from earlier intentionally injected failure states remain visible while the harness moves between workspaces; this is expected test-fixture persistence, not duplicate application feedback.
 - Reports and print preview are now robust for nullable line collections, but broader print layout/content coverage beyond the representative invoice remains for final QA.
+
+## M6-015 final repository-wide status
+
+Audit date: 2026-09-08. This is the final M6 visual QA record. The accepted M6-011 geometry, M6-012 typography/control metrics, M6-013 data surfaces, and M6-014 form/feedback contracts were preserved. No new visual direction or information architecture was introduced.
+
+### Evidence and status rules
+
+- The populated M6-006 bridge was used for the repository-wide browser audits. The clean visual audit rendered 17 major workspaces at 1024px, 1280px, and 1600px: 51 renders total. Results and screenshots are in `/tmp/atropaten-m6-015-visual/`.
+- The data-surface audit rechecked local table overflow, native select alignment, editable-control focus styling, and representative selected/focused/no-results states at all three widths. Results are in `/tmp/atropaten-m6-015-data/`.
+- The typography/control audit rechecked `getBoundingClientRect()` and computed styles for toolbar, forms, date, money/quantity, inspector, dialog, and inline actions. Results and screenshots are in `/tmp/atropaten-m6-015-typography/`.
+- The clean M6-014 interaction run covered 72 form/dialog/popover/feedback states (24 per width) in `/tmp/atropaten-ui-interactions/`. Its source was unchanged by the final product fix; the final M6-015 source changes affect only print output and audit harnesses. A later replay used the already-mutated failure-audit demo root and is not counted as a fresh clean-dataset run.
+- `final-lifecycle-failure-audit.mjs` passed seven injected backend-failure cases: customer delete, material stock adjustment, purchase cancel, payment reversal, check transition, loan creation, and owner delete. Each case verified one request, cleared busy state, visible error feedback, no success feedback, and no page error.
+- `final-print-audit.mjs` passed quote, invoice, payment receipt, customer statement, and supplier statement at 1280px. Screenshots and results are in `/tmp/atropaten-m6-015-print/`. Print media hides the application shell, shows only the prepared document, keeps paper/table backgrounds white, and preserves headings, metadata, lines/allocations, totals, long names, and statement balances.
+
+| Context | Geometry | Typography | Controls | Data surface | Forms / feedback | Rendered widths | Native-only gap |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Dashboard | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Orders register | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| New Order / order workspace | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Quotes register | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Quote workspace | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Production | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Customers | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Services / configurator | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | Native OS text measurement only |
+| Materials | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Machines | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Purchases | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Suppliers | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Accounting overview | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Accounting Accounts | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Accounting Journal | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Accounting Payments | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Invoices | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Expenses | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Transfers / Treasury | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Checks | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Loans | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Owners / fiscal | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Reports | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | None |
+| Settings | PASS | PASS | PASS | PASS | PASS | 1024 / 1280 / 1600 | Native OS settings chrome only |
+| Print preview: quote, invoice, receipt, statements | PASS | PASS | PASS | PASS | PASS | 1280 print media; entry at 1024 / 1280 / 1600 | Native printer dialog and WebView print handoff |
+
+### Final findings and remaining gaps
+
+The last product defect found was in print output, not in the workspace layouts: `PrintDocument` assumed nullable line/statement/allocation collections were always present and the screen preview omitted payment allocation and document metadata. The renderer now treats those collections safely, prints status/due/method/account/payment metadata, prints receipt allocations, and uses a white print-only canvas so dark application surfaces cannot bleed into paper output.
+
+The Services/configurator surface is intentionally dense because parameters, material/cost components, pricing, and actions are all part of one domain workflow. It is grouped and aligned, but remains the clearest candidate for a future workflow redesign; no final-QA visual defect was found. The M6-006 service timestamp warning remains a fixture/domain validation issue: generated component literals omit timestamps even though the service API returns valid service timestamps. It is not a CSS or rendering failure and was not hidden.
+
+Exact remaining gaps for later work are limited to native-environment verification and data-fixture fidelity: the Windows/Wails native printer dialog and WebView chrome were not available here; long multi-page pagination was checked through representative rendered content rather than a native printer; and the quote demo snapshot exposes `CUS-DEMO-03` instead of the customer display name. The backend fixture/data issue and the intentionally dense Services workflow remain outside this final visual convergence change. No known repository-wide geometry, typography, control, data-surface, form, feedback, theme, or print-preview defect remains from this audit.

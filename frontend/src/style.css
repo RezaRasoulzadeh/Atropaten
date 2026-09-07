@@ -99,7 +99,8 @@
 /* Only the prepared document participates in printing. */
 .print-output { display: none; }
 @media print {
+  html, body { min-height: 100%; background: white; color: black; }
   #app { display: none; }
-  body { overflow: visible; height: auto; background: white; }
-  .print-output { display: block; }
+  body { overflow: visible; height: auto; }
+  .print-output { display: block; min-height: 100vh; background: white; color: black; }
 }

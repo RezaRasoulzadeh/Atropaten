@@ -12,6 +12,10 @@ await fs.mkdir(output, { recursive: true })
 
 const widths = process.env.AUDIT_WIDTH ? [Number(process.env.AUDIT_WIDTH)] : [1024, 1280, 1600]
 const results = []
+const waitForVisible = async (locator, timeout = 8000) => {
+  await locator.waitFor({ state: 'visible', timeout })
+  return locator
+}
 
 const readMetric = (element) => {
   const rect = element.getBoundingClientRect()
@@ -148,7 +152,7 @@ for (const width of widths) {
 
   await page.getByRole('button', { name: 'Orders', exact: true }).first().click()
   await page.waitForTimeout(900)
-  await page.getByRole('button', { name: /ORD-1004/ }).first().click()
+  await (await waitForVisible(page.getByRole('button', { name: /ORD-1004/ }).first())).click()
   await page.waitForTimeout(300)
   await record('order-detail')
   const calendarButton = page.getByRole('button', { name: 'Open Jalali calendar', exact: true }).first()
