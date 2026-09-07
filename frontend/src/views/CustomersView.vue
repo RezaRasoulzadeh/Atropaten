@@ -7,7 +7,6 @@ import { customersApi, type CustomerPayload, type CustomerRecord } from '../api/
 import { formatDateTime } from '../utils/date'
 import { confirmAction, normalizeError } from '../ui/feedback'
 import SearchFilterBar from '../components/SearchFilterBar.vue'
-import AppButton from '../components/AppButton.vue'
 
 const props = defineProps<{ refreshKey?: number }>()
 const emit = defineEmits<{ notify: [message: string] }>()
@@ -75,7 +74,7 @@ watch(() => props.refreshKey, load, { immediate: true })
 <template>
   <div>
     <WorkspaceStickyStack>
-      <header><div><p>Workspace / relationships</p><h1>Customers</h1><p>Keep customer contacts ready for every commercial workflow.</p></div><AppButton variant="primary" @click="newCustomer"><Plus :size="16" aria-hidden="true" />New customer</AppButton></header>
+      <header><div><p>Workspace / relationships</p><h1>Customers</h1><p>Keep customer contacts ready for every commercial workflow.</p></div><button class="btn btn-primary" type="button" @click="newCustomer"><Plus :size="16" aria-hidden="true" />New customer</button></header>
       <SearchFilterBar><template #search><label class="form-control gap-1"><Search :size="16" aria-hidden="true" /><span>Search customers</span><input class="input input-bordered w-full min-w-0" v-model="query" placeholder="Search name, phone, or email" /></label></template><template #filters><label class="form-control gap-1"><span>Status</span><select class="select select-bordered w-full min-w-0" v-model="filter" aria-label="Customer status"><option>Active</option><option>Archived</option><option>All</option></select></label></template><template #count><span>{{ visible.length }} customers</span></template></SearchFilterBar>
     </WorkspaceStickyStack>
     <div>

@@ -195,42 +195,12 @@ function showToast(message: string) {
 </script>
 
 <template>
-  <div class="grid min-h-screen min-h-0 font-sans bg-base-200 text-base-content" :class="isSidebarCollapsed ? 'lg:grid-cols-[4.5rem_minmax(0,1fr)]' : 'lg:grid-cols-[14.5rem_minmax(0,1fr)]'">
-    <aside class="hidden min-h-0 flex-col border-e border-base-300 bg-base-100 lg:flex" aria-label="Primary navigation">
-      <div class="flex min-h-16 items-center gap-3 border-b border-base-300 px-4">
-        <div class="grid size-8 shrink-0 place-items-center rounded bg-primary font-bold text-primary-content" aria-hidden="true">A</div>
-        <div v-if="!isSidebarCollapsed" class="min-w-0">
-          <span class="block truncate text-sm font-bold">Atropaten</span>
-          <span class="block text-[10px] text-base-content/60">Print shop control</span>
-        </div>
-      </div>
+  <div class="drawer lg:drawer-open min-h-screen min-h-0 bg-base-200 font-sans text-base-content">
+    <input id="atropaten-drawer" type="checkbox" class="drawer-toggle" />
 
-      <nav class="min-h-0 flex-1 overflow-y-auto p-3">
-        <div v-for="section in navigationSections" :key="section.label" class="mb-4 last:mb-0">
-          <p v-if="!isSidebarCollapsed" class="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wide text-base-content/50">{{ section.label }}</p>
-          <SidebarNavItem
-            v-for="item in section.items"
-            :key="item.label"
-            :label="item.label"
-            :icon="item.icon"
-            :active="activeView === item.label"
-            :collapsed="isSidebarCollapsed"
-            @select="selectView(item.label)"
-          />
-        </div>
-      </nav>
-
-      <div class="border-t border-base-300 p-3 text-xs text-base-content/60">
-        <div class="flex items-center gap-2">
-          <span class="size-2 shrink-0 rounded-full bg-success" aria-hidden="true"></span>
-          <span v-if="!isSidebarCollapsed">Local workspace · synced</span>
-        </div>
-        <div v-if="!isSidebarCollapsed" class="mt-1 text-[10px]">v0.1 foundation</div>
-      </div>
-    </aside>
-
-    <div class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto]">
+    <div class="drawer-content grid min-h-screen min-w-0 grid-rows-[auto_minmax(0,1fr)_auto]">
       <AppToolbar
+        class="sticky top-0 z-20"
         :collapsed="isSidebarCollapsed"
         :search-query="searchQuery"
         :currency-unit="currencyUnit"
@@ -240,7 +210,7 @@ function showToast(message: string) {
       @notifications="toast.info('You are all caught up.')"
       />
 
-      <main class="min-h-0 min-w-0 overflow-y-auto bg-base-200 p-4" tabindex="-1">
+      <main class="min-h-0 min-w-0 overflow-y-auto bg-base-200 p-4 lg:p-6" tabindex="-1">
         <Transition mode="out-in">
         <DashboardView v-if="activeView === 'Dashboard'" key="dashboard" :currency-unit="currencyUnit" @navigate="selectView" @new-order="openNewOrder" @notify="showToast" />
 
@@ -315,6 +285,47 @@ function showToast(message: string) {
         <span>Authoritative data</span>
       </footer>
     </div>
+
+    <div class="drawer-side">
+      <label for="atropaten-drawer" aria-label="Close navigation" class="drawer-overlay"></label>
+      <aside
+        class="flex h-full min-h-full max-h-full flex-col overflow-hidden border-e border-base-300 bg-base-100"
+        :class="isSidebarCollapsed ? 'w-[4.5rem]' : 'w-[14.5rem]'"
+        aria-label="Primary navigation"
+      >
+        <div class="navbar min-h-16 shrink-0 border-b border-base-300 bg-base-100" :class="isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-4'">
+          <div class="grid size-8 shrink-0 place-items-center rounded bg-primary font-bold text-primary-content" aria-hidden="true">A</div>
+          <div v-if="!isSidebarCollapsed" class="min-w-0">
+            <span class="block truncate text-sm font-bold">Atropaten</span>
+            <span class="block text-[10px] text-base-content/60">Print shop control</span>
+          </div>
+        </div>
+
+        <nav class="menu min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-scroll overscroll-contain p-2">
+          <div v-for="section in navigationSections" :key="section.label" class="mb-3 last:mb-0">
+            <p v-if="!isSidebarCollapsed" class="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-base-content/50">{{ section.label }}</p>
+            <SidebarNavItem
+              v-for="item in section.items"
+              :key="item.label"
+              :label="item.label"
+              :icon="item.icon"
+              :active="activeView === item.label"
+              :collapsed="isSidebarCollapsed"
+              @select="selectView(item.label)"
+            />
+          </div>
+        </nav>
+
+        <div class="shrink-0 border-t border-base-300 p-3 text-xs text-base-content/60">
+          <div class="flex items-center gap-2">
+            <span class="size-2 shrink-0 rounded-full bg-success" aria-hidden="true"></span>
+            <span v-if="!isSidebarCollapsed">Local workspace · synced</span>
+          </div>
+          <div v-if="!isSidebarCollapsed" class="mt-1 text-[10px]">v0.1 foundation</div>
+        </div>
+      </aside>
+    </div>
+
     <ToastHost />
     <ConfirmDialog />
   </div>

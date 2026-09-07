@@ -1,7 +1,4 @@
-export { default as AppButton } from '../components/AppButton.vue'
 export { default as IconButton } from '../components/IconButton.vue'
-export { default as AppInput } from '../components/AppInput.vue'
-export { default as AppSelect } from '../components/AppSelect.vue'
 export { default as AppTextarea } from '../components/AppTextarea.vue'
 export { default as FormField } from '../components/FormField.vue'
 export { default as FieldMessage } from '../components/FieldMessage.vue'
