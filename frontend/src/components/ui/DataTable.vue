@@ -22,6 +22,10 @@ defineProps<{ label?: string }>();
   white-space: nowrap;
   background: var(--color-base-200);
 }
+.data-table :deep(table) {
+  width: max-content;
+  min-width: 100%;
+}
 .data-table :deep(th),
 .data-table :deep(td) {
   font-size: 0.875rem;
@@ -29,6 +33,7 @@ defineProps<{ label?: string }>();
   padding: 0.625rem 0.75rem;
   border-bottom: 1px solid var(--color-base-300);
   vertical-align: middle;
+  white-space: nowrap;
 }
 .data-table :deep(tbody tr:last-child td) {
   border-bottom: 0;
@@ -41,7 +46,6 @@ defineProps<{ label?: string }>();
   outline: 1px solid var(--color-base-content);
   outline-offset: -1px;
 }
-.data-table :deep(td) {
-  overflow-wrap: anywhere;
-}
+.data-table :deep(td) { overflow-wrap: normal; }
+.data-table :deep(.badge) { flex-shrink: 0; }
 </style>

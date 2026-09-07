@@ -7,6 +7,7 @@ const {busy,runAction}=useWorkspaceActions()
 
 import InlineAlert from '../../components/ui/InlineAlert.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
+import InspectorSection from '../../components/layout/InspectorSection.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import DataTableCell from '../../components/ui/DataTableCell.vue';
@@ -237,21 +238,20 @@ reportError(e);
             </div>
           </div>
           <StatusBadge :label="current.status" :tone="tone(current.status)" />
-          <div>
-            <div
-              v-for="line in current.items"
-              :key="line.id"
-              class="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-base-300 py-3 last:border-0"
-            >
-              <span
-                ><strong>{{ line.description }}</strong
-                ><small class="block text-xs leading-5 text-base-content/60"
-                  >{{ formatQuantityUnits(line.quantity) }} {{ line.quantityUnit }} · snapshot
-                  {{ formatMoney(line.unitPriceRial, props.currencyUnit) }}</small
-                ></span
-              ><strong>{{ formatMoney(line.lineTotalRial, props.currencyUnit) }}</strong>
-            </div>
-          </div>
+          <InspectorSection title="Invoice lines">
+            <DataTable label="Invoice lines">
+              <thead><tr><th scope="col">Description</th><th scope="col">Quantity</th><th scope="col" class="text-end">Unit price</th><th scope="col" class="text-end">Line total</th></tr></thead>
+              <tbody>
+                <tr v-for="line in current.items" :key="line.id">
+                  <DataTableCell><strong>{{ line.description }}</strong></DataTableCell>
+                  <DataTableCell>{{ formatQuantityUnits(line.quantity) }} {{ line.quantityUnit }}</DataTableCell>
+                  <DataTableCell numeric>{{ formatMoney(line.unitPriceRial, props.currencyUnit) }}</DataTableCell>
+                  <DataTableCell numeric>{{ formatMoney(line.lineTotalRial, props.currencyUnit) }}</DataTableCell>
+                </tr>
+              </tbody>
+            </DataTable>
+          </InspectorSection>
+          <InspectorSection title="Totals">
           <dl class="grid min-w-0 gap-2 text-sm">
             <div
               class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-3 border-b border-base-300 py-2 last:border-0"
@@ -278,6 +278,7 @@ reportError(e);
               </dd>
             </div>
           </dl>
+          </InspectorSection>
           <div class="flex flex-wrap items-center gap-2">
             <button class="btn btn-primary" v-if="current.status === 'Draft'" @click="post" :disabled="busy">
               <Plus :size="15" /> Post invoice</button

@@ -8,6 +8,7 @@ import SearchFilterBar from '../../components/ui/SearchFilterBar.vue'
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 import FormGrid from '../../components/ui/FormGrid.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
+import InspectorSection from '../../components/layout/InspectorSection.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import DataTableCell from '../../components/ui/DataTableCell.vue';
@@ -397,7 +398,7 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
           >
             <Edit3 :size="15" :stroke-width="1.8" aria-hidden="true" /></button
         ></template>
-        <div class="min-w-0 space-y-3">
+        <div class="flex min-w-0 flex-wrap items-center gap-2">
           <StatusBadge
             :label="selectedService.active ? 'Active' : 'Archived'"
             :tone="selectedService.active ? 'green' : 'slate'"
@@ -414,6 +415,7 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
           </div>
         </div>
         <p v-if="selectedService.description">{{ selectedService.description }}</p>
+        <InspectorSection title="Parameters">
         <div class="min-w-0 space-y-3">
           <div
             v-for="parameter in selectedService.parameters"
@@ -449,10 +451,9 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
           </div>
           <p v-if="!selectedService.parameters.length">No parameters configured.</p>
         </div>
+        </InspectorSection>
+        <InspectorSection title="Cost components">
         <div class="min-w-0 space-y-3">
-          <div>
-            Cost components <span>{{ selectedService.components.length }}</span>
-          </div>
           <div
             v-for="component in selectedService.components"
             :key="component.id"
@@ -468,6 +469,7 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
           </div>
           <p v-if="!selectedService.components.length">No cost components configured.</p>
         </div>
+        </InspectorSection>
         <div>Updated {{ dateLabel(selectedService.updatedAt) }}</div>
         <div class="flex flex-wrap items-center gap-2">
           <button

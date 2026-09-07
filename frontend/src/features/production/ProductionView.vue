@@ -9,6 +9,7 @@ import EmptyState from '../../components/ui/EmptyState.vue'
 import InlineAlert from '../../components/ui/InlineAlert.vue';
 import FormGrid from '../../components/ui/FormGrid.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
+import InspectorSection from '../../components/layout/InspectorSection.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import FormField from '../../components/ui/FormField.vue';
@@ -180,6 +181,7 @@ const {busy,runAction,jobs,selectedId,statusFilter,searchQuery,loading,error,cre
             </p>
           </div>
         </div>
+        <InspectorSection title="Cost and schedule">
         <dl class="grid min-w-0 gap-2 text-sm">
           <div
             class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-3 border-b border-base-300 py-2 last:border-0"
@@ -214,6 +216,7 @@ const {busy,runAction,jobs,selectedId,statusFilter,searchQuery,loading,error,cre
             </dd>
           </div>
         </dl>
+        </InspectorSection>
         <div class="flex flex-wrap items-center gap-2">
           <button
             class="btn btn-ghost"
@@ -251,8 +254,7 @@ const {busy,runAction,jobs,selectedId,statusFilter,searchQuery,loading,error,cre
             Cancel
           </button>
         </div>
-        <div class="min-w-0 space-y-3">
-          <h3 class="text-sm font-semibold">Reservations</h3>
+        <InspectorSection title="Reservations">
           <div
             v-for="r in reservations"
             :key="r.id"
@@ -285,7 +287,7 @@ const {busy,runAction,jobs,selectedId,statusFilter,searchQuery,loading,error,cre
           ><button class="btn btn-ghost" @click="reserve" :disabled="busy">
             <RotateCcw :size="15" />Reserve stock
           </button>
-        </div>
+        </InspectorSection>
         <div class="min-w-0 space-y-3">
           <h3 class="text-sm font-semibold">Actual consumption & waste</h3>
           <FormGrid

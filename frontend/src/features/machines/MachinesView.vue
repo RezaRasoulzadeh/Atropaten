@@ -7,6 +7,7 @@ const {busy,runAction}=useWorkspaceActions()
 import InlineAlert from '../../components/ui/InlineAlert.vue';
 import FormGrid from '../../components/ui/FormGrid.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
+import InspectorSection from '../../components/layout/InspectorSection.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import DataTableCell from '../../components/ui/DataTableCell.vue';
@@ -298,8 +299,8 @@ function message(errorValue: unknown, fallback: string) {
                 ><DataTableCell>{{ machine.category || '—' }}</DataTableCell
                 ><DataTableCell>{{ basisLabel(machine.rateBasis) }}</DataTableCell
                 ><DataTableCell numeric
-                  >{{ formatMoney(machine.rateRial, props.currencyUnit)
-                  }}<span>{{ machine.rateBasis }}</span></DataTableCell
+                  ><span class="tabular-nums">{{ formatMoney(machine.rateRial, props.currencyUnit) }}</span>
+                  <span class="ms-1 text-xs text-base-content/60">/ {{ machine.rateBasis }}</span></DataTableCell
                 ><DataTableCell
                   ><StatusBadge
                     :label="machine.active ? 'Active' : 'Archived'"
@@ -422,7 +423,7 @@ function message(errorValue: unknown, fallback: string) {
           >
             <Edit3 :size="15" :stroke-width="1.8" aria-hidden="true" /></button
         ></template>
-        <div class="min-w-0 space-y-3">
+        <div class="flex min-w-0 flex-wrap items-center gap-2">
           <StatusBadge
             :label="selectedMachine.active ? 'Active' : 'Archived'"
             :tone="selectedMachine.active ? 'green' : 'slate'"
@@ -438,6 +439,7 @@ function message(errorValue: unknown, fallback: string) {
             </p>
           </div>
         </div>
+        <InspectorSection title="Rate definition">
         <dl class="grid min-w-0 gap-2 text-sm">
           <div
             class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-3 border-b border-base-300 py-2 last:border-0"
@@ -456,6 +458,7 @@ function message(errorValue: unknown, fallback: string) {
             </dd>
           </div>
         </dl>
+        </InspectorSection>
         <p v-if="selectedMachine.notes">{{ selectedMachine.notes }}</p>
         <div>Updated {{ date(selectedMachine.updatedAt) }}</div>
         <div class="flex flex-wrap items-center gap-2">

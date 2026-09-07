@@ -6,6 +6,7 @@ const {busy,runAction,pageLoading,runLoad}=useWorkspaceActions()
 import InlineAlert from '../../components/ui/InlineAlert.vue';
 import FormGrid from '../../components/ui/FormGrid.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
+import InspectorSection from '../../components/layout/InspectorSection.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import DataTableCell from '../../components/ui/DataTableCell.vue';
@@ -17,6 +18,7 @@ import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref } from 'vue';
 import { CircleDollarSign, Plus, RotateCcw, X } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
+import EmptyState from '../../components/ui/EmptyState.vue';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
 import JalaliDatePicker from '../../components/ui/JalaliDatePicker.vue';
 import SelectField from '../../components/ui/SelectField.vue';
@@ -367,25 +369,21 @@ function date(v: string) {
               </dd>
             </div>
           </dl>
-          <div class="min-w-0 space-y-3">
-            <h3 class="text-sm font-semibold">Installment schedule</h3>
-            <div
-              v-for="i in selected.installments"
-              :key="i.id"
-              class="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-base-300 py-3 last:border-0"
-            >
-              <span
-                ><strong>#{{ i.position + 1 }} · {{ date(i.dueDate) }}</strong
-                ><small class="block text-xs leading-5 text-base-content/60"
-                  >{{ formatMoney(i.paidRial, props.currencyUnit) }} paid ·
-                  {{ formatMoney(i.remainingRial, props.currencyUnit) }} remaining</small
-                ></span
-              ><StatusBadge
-                :label="i.status"
-                :tone="i.status === 'Paid' ? 'green' : i.status === 'Overdue' ? 'red' : 'amber'"
-              />
-            </div>
-          </div>
+          <InspectorSection title="Installment schedule">
+            <DataTable v-if="selected.installments.length" label="Loan installment schedule">
+              <thead><tr><th scope="col">Installment</th><th scope="col">Due</th><th scope="col" class="text-end">Paid</th><th scope="col" class="text-end">Remaining</th><th scope="col">Status</th></tr></thead>
+              <tbody>
+                <tr v-for="i in selected.installments" :key="i.id">
+                  <DataTableCell><strong>#{{ i.position + 1 }}</strong></DataTableCell>
+                  <DataTableCell>{{ date(i.dueDate) }}</DataTableCell>
+                  <DataTableCell numeric>{{ formatMoney(i.paidRial, props.currencyUnit) }}</DataTableCell>
+                  <DataTableCell numeric>{{ formatMoney(i.remainingRial, props.currencyUnit) }}</DataTableCell>
+                  <DataTableCell><StatusBadge :label="i.status" :tone="i.status === 'Paid' ? 'green' : i.status === 'Overdue' ? 'red' : 'amber'" /></DataTableCell>
+                </tr>
+              </tbody>
+            </DataTable>
+            <EmptyState v-else title="No installments" description="This loan has no generated schedule." />
+          </InspectorSection>
           <div class="min-w-0 space-y-3">
             <h3 class="text-sm font-semibold">Record payment</h3>
             <FormGrid
@@ -417,28 +415,20 @@ function date(v: string) {
                 inputmode="numeric" /></FormField></FormGrid
             ><button class="btn btn-ghost" @click="recordPayment" :disabled="busy">Record payment</button>
           </div>
-          <div class="min-w-0 space-y-3">
-            <h3 class="text-sm font-semibold">Payment history</h3>
-            <div
-              v-for="p in payments"
-              :key="p.id"
-              class="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-base-300 py-3 last:border-0"
-            >
-              <span
-                ><strong>{{ formatMoney(p.amountRial, props.currencyUnit) }}</strong
-                ><small class="block text-xs leading-5 text-base-content/60"
-                  >{{ date(p.paidAt) }} · {{ p.status }}</small
-                ></span
-              ><button
-                class="btn btn-ghost"
-                v-if="p.status === 'Posted'"
-                @click="reversePayment(p)"
-               :disabled="busy">
-                <RotateCcw :size="14" /> Reverse
-              </button>
-            </div>
-            <div v-if="!payments.length">No payments yet.</div>
-          </div>
+          <InspectorSection title="Payment history">
+            <DataTable v-if="payments.length" label="Loan payment history">
+              <thead><tr><th scope="col">Posted</th><th scope="col" class="text-end">Amount</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+              <tbody>
+                <tr v-for="p in payments" :key="p.id">
+                  <DataTableCell>{{ date(p.paidAt) }}</DataTableCell>
+                  <DataTableCell numeric>{{ formatMoney(p.amountRial, props.currencyUnit) }}</DataTableCell>
+                  <DataTableCell><StatusBadge :label="p.status" :tone="p.status === 'Posted' ? 'green' : 'slate'" /></DataTableCell>
+                  <DataTableCell><button class="btn btn-ghost btn-sm" v-if="p.status === 'Posted'" @click="reversePayment(p)" :disabled="busy"><RotateCcw :size="14" /> Reverse</button></DataTableCell>
+                </tr>
+              </tbody>
+            </DataTable>
+            <EmptyState v-else title="No payments" description="Payments recorded against this loan will appear here." />
+          </InspectorSection>
         </div></InspectorShell
       ><InspectorShell
         v-else

@@ -64,6 +64,39 @@ The interaction harness rendered customer form focus/error states, the material 
 
 The full interaction harness reached the print-preview assertion but stopped because the existing assertion expected two `.print-document` nodes while the rendered preview did not expose that count. This is recorded as an existing print-preview test limitation; no print CSS or document structure was changed in M6-011.
 
+## M6-013 data-surface convergence
+
+M6-013 keeps the accepted geometry and typography baselines and standardizes data-heavy workspaces around two patterns only: the Orders-style rich register and the shared semantic dense table. No new global styling layer was added. The shared `DataTable`, `DataTableRow`, `DataTableCell`, `RegisterList`, `RegisterRow`, `StatusBadge`, `MasterDetail`, `InspectorShell`, `InspectorHeader`, and `InspectorSection` primitives provide the common surface language.
+
+| Workspace | Chosen surface pattern | Inspector/detail treatment | Rendered evidence |
+| --- | --- | --- | --- |
+| Orders | Rich register (baseline preserved) | Existing order detail preserved | `/tmp/atropaten-m6-013-final/{width}-orders.png` |
+| Quotes | Rich register | Shared inspector/editor shell | `/tmp/atropaten-m6-013-final/{width}-quotes.png` |
+| Production | Rich register | Shared inspector with cost/schedule and reservation sections | `/tmp/atropaten-m6-013-after/{width}-production.png` |
+| Customers | Rich register | Contact and notes sections in `InspectorShell` | `/tmp/atropaten-m6-013-after/{width}-customers.png` |
+| Suppliers | Rich register | Contact details section in `InspectorShell` | `/tmp/atropaten-m6-013-after/{width}-suppliers.png` |
+| Services catalog | Dense table | Parameter and cost-component inspector sections | `/tmp/atropaten-m6-013-after/{width}-services.png` |
+| Materials | Dense table | Stock/cost and movement sections; movement ledger remains a dense table | `/tmp/atropaten-m6-013-after/{width}-materials.png` |
+| Machines | Dense table | Rate definition inspector section | `/tmp/atropaten-m6-013-after/{width}-machines.png` |
+| Purchases | Dense table | Existing editor/inspector retained; item and amount hierarchy stays inside the shell | `/tmp/atropaten-m6-013-after/{width}-purchases.png` |
+| Accounting accounts/journal/payments | Dense tables | Existing tab/panel containment retained | `/tmp/atropaten-m6-013-final/{width}-accounting.png` |
+| Invoices | Dense table | Invoice lines and totals use inspector sections; ready-to-invoice queue remains a shared register-like action surface | `/tmp/atropaten-m6-013-after/{width}-invoices.png` |
+| Expenses/transfers/treasury | Dense tables | Existing Accounting tab panels retained | `/tmp/atropaten-m6-013-final/{width}-accounting.png` |
+| Checks | Dense table | Lifecycle history converted to a dense table in the inspector | `/tmp/atropaten-m6-013-after/{width}-checks.png` |
+| Loans | Dense table | Installment schedule and payment history converted to dense tables | `/tmp/atropaten-m6-013-after/{width}-loans.png` |
+| Owners finance/history | Dense tables | Existing owner inspector and transaction tables retained | `/tmp/atropaten-m6-013-final/{width}-owners.png` |
+| Reports | Dense table | Report result table stays inside its panel | `/tmp/atropaten-m6-013-final/{width}-reports.png` |
+
+### Rendered data-surface checks
+
+The full visual audit rendered every affected context at 1024px, 1280px, and 1600px with the populated M6-006 dataset. It measured `documentElement` and `main` overflow, table scroll/client widths, and native select alignment. All 45 context/width renders reported no page-level or main-region overflow, and all native selects reported `text-align: start`. Dense table overflow was confined to `.data-table` where the master/detail column could not show all deliberate comparison columns; this was checked on Materials, Purchases, Invoices, Checks, and the supporting inspector schedules.
+
+The focused state audit is in `/tmp/atropaten-m6-013-data-surfaces-final/results.json` with screenshots for selected, hover, keyboard-focus, and no-results states for representative registers at all three widths. It also checked computed editable-control focus styles: 1px dashed Amber border, no box shadow, and no layout-changing border width. Representative populated checks included selected rows, long Persian names, large Toman/Rial values, quantities with unit metadata, multiple status badges, empty/no-results states, open inspectors, and local table scrolling. Screenshots were visually inspected for Services, Materials, Machines, Purchases, Invoices, Checks, Loans, Owners, Reports, Customers, Production, and the preserved Orders/Quotes baseline.
+
+The dense-table primitive now prevents character-level wrapping in numeric/status columns, keeps status badges intact, aligns numeric cells at the end, and makes table width explicit so scrolling remains local. Lifecycle, installment, payment, invoice-line, stock-movement, and inspector metadata surfaces use the same neutral-divider/table hierarchy. `rg` found no `table-zebra`, `:has()` alignment workaround, or font metric override in frontend source.
+
+Remaining defects for later redesign are page-specific workflow and form concerns owned by M6-014: purchase editing is still a combined editor rather than a redesigned form flow, production/service configuration controls remain information-dense, and the 1024px stacked inspectors require normal page scrolling for long content. The M6-006 Services fixture continues to emit its existing timestamp validation alert; it is a dataset/domain fixture issue, not a data-surface rendering failure. No table aesthetic or business workflow redesign was started here.
+
 ## M6-012 typography and control metrics
 
 The same populated M6-006 browser bridge rendered the representative control states at 1024px, 1280px, and 1600px. The control audit collected `getBoundingClientRect()` and computed styles for each state, then screenshots were inspected for Vazirmatn optical centering and mixed-row baseline alignment.

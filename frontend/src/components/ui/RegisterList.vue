@@ -19,7 +19,7 @@ withDefaults(
     >
       <div class="min-w-0">
         <h2 class="truncate text-sm font-semibold">{{ title }}</h2>
-        <p v-if="subtitle" class="mt-0.5 text-xs text-base-content/60">{{ subtitle }}</p>
+        <p v-if="subtitle" class="mt-0.5 text-xs leading-4 text-base-content/60">{{ subtitle }}</p>
       </div>
       <div class="flex shrink-0 items-center gap-2">
         <span v-if="count !== undefined" class="badge badge-sm badge-ghost text-xs leading-4 tabular-nums">{{ count }}</span>

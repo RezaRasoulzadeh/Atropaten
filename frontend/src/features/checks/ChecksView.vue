@@ -6,6 +6,7 @@ const {busy,runAction,pageLoading,runLoad}=useWorkspaceActions()
 import InlineAlert from '../../components/ui/InlineAlert.vue';
 import FormGrid from '../../components/ui/FormGrid.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
+import InspectorSection from '../../components/layout/InspectorSection.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import DataTableCell from '../../components/ui/DataTableCell.vue';
@@ -17,6 +18,7 @@ import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref } from 'vue';
 import { Landmark, Plus, RotateCcw, Trash2, X } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
+import EmptyState from '../../components/ui/EmptyState.vue';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
 import JalaliDatePicker from '../../components/ui/JalaliDatePicker.vue';
 import { checksApi, type CheckEventRecord, type CheckRecord } from '../../api/checks';
@@ -385,25 +387,24 @@ function date(v: string) {
               <RotateCcw :size="14" /> {{ value }}
             </button>
           </div>
-          <div class="min-w-0 space-y-3">
-            <h3 class="text-sm font-semibold">Lifecycle history</h3>
-            <div
-              v-for="event in history"
-              :key="event.id"
-              class="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-base-300 py-3 last:border-0"
-            >
-              <span
-                ><strong>{{ event.fromStatus }} → {{ event.toStatus }}</strong
-                ><small class="block text-xs leading-5 text-base-content/60"
-                  >{{ date(event.occurredAt)
-                  }}<template v-if="event.note"> · {{ event.note }}</template></small
-                ></span
-              ><small class="block text-xs leading-5 text-base-content/60">{{
-                event.journalEntryId ? 'Journaled' : 'State only'
-              }}</small>
-            </div>
-            <div v-if="!history.length">No lifecycle events yet.</div>
-          </div>
+          <InspectorSection title="Lifecycle history">
+            <DataTable v-if="history.length" label="Check lifecycle history">
+              <thead>
+                <tr><th scope="col">Transition</th><th scope="col">When</th><th scope="col">Record</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="event in history" :key="event.id">
+                  <DataTableCell><strong>{{ event.fromStatus }} → {{ event.toStatus }}</strong></DataTableCell>
+                  <DataTableCell>{{ date(event.occurredAt) }}</DataTableCell>
+                  <DataTableCell>
+                    <span v-if="event.note" class="me-2 text-xs text-base-content/60">{{ event.note }}</span>
+                    <StatusBadge :label="event.journalEntryId ? 'Journaled' : 'State only'" :tone="event.journalEntryId ? 'green' : 'slate'" />
+                  </DataTableCell>
+                </tr>
+              </tbody>
+            </DataTable>
+            <EmptyState v-else title="No lifecycle events" description="Status changes will appear here." />
+          </InspectorSection>
         </div></InspectorShell
       ><InspectorShell
         v-else

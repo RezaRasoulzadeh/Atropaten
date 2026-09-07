@@ -23,6 +23,7 @@ import {
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import DataTable from '../../components/ui/DataTable.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
+import InspectorSection from '../../components/layout/InspectorSection.vue';
 import FormSection from '../../components/ui/FormSection.vue';
 import EmptyState from '../../components/ui/EmptyState.vue';
 import LoadingState from '../../components/ui/LoadingState.vue';
@@ -622,6 +623,7 @@ function dateLabel(value: string) {
               </p>
             </div>
           </section>
+          <InspectorSection title="Stock and cost">
           <dl class="grid gap-2 rounded-box border border-base-300 p-3 text-sm sm:grid-cols-2">
             <div>
               <dt class="text-xs text-base-content/60">Unit conversion</dt>
@@ -668,6 +670,7 @@ function dateLabel(value: string) {
               <dd class="mt-1 font-medium">{{ dateLabel(selectedMaterial.updatedAt) }}</dd>
             </div>
           </dl>
+          </InspectorSection>
           <p v-if="selectedMaterial.preferredSupplier" class="text-sm">
             <span class="text-xs text-base-content/60">Preferred supplier:</span>
             {{ selectedMaterial.preferredSupplier }}
@@ -713,11 +716,7 @@ function dateLabel(value: string) {
               <RefreshCw :size="15" />Record movement
             </button>
           </section>
-          <section>
-            <div class="mb-2 flex items-center justify-between gap-2">
-              <h3 class="text-sm font-semibold">Recent movements</h3>
-              <span class="text-xs text-base-content/60">Ledger history</span>
-            </div>
+          <InspectorSection title="Recent movements" description="Inventory ledger history">
             <DataTable v-if="movements.length"
               ><thead>
                 <tr>
@@ -751,7 +750,7 @@ function dateLabel(value: string) {
             <p v-else class="rounded-box border border-base-300 p-3 text-xs text-base-content/60">
               No inventory movements yet.
             </p>
-          </section>
+          </InspectorSection>
         </div>
         <template #footer
           ><button

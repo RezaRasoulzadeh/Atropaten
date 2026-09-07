@@ -11,7 +11,7 @@ const emit = defineEmits<{
 
 <template>
   <article
-    class="flex min-w-0 items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-base-200 focus-visible:bg-base-200 focus-visible:outline-none"
+    class="flex min-w-0 items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-base-200 focus-visible:bg-base-200 focus-visible:outline focus-visible:outline-1 focus-visible:outline-base-content focus-visible:outline-offset-[-1px]"
     :class="selected ? 'bg-base-300' : ''"
      :role="interactive === false ? undefined : 'button'"
     :tabindex="interactive === false ? undefined : 0"

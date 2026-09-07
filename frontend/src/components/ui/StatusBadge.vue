@@ -33,7 +33,7 @@ const icon = computed(() => {
 
 <template>
   <span
-    class="badge badge-sm gap-1 text-xs leading-4"
+    class="badge badge-sm gap-1 whitespace-nowrap text-xs leading-4"
     :class="
       tone === 'green'
         ? 'badge-success'

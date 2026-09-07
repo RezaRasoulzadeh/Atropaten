@@ -12,6 +12,7 @@ import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import RegisterList from '../../components/ui/RegisterList.vue';
 import RegisterRow from '../../components/ui/RegisterRow.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
+import InspectorSection from '../../components/layout/InspectorSection.vue';
 import FormSection from '../../components/ui/FormSection.vue';
 import EmptyState from '../../components/ui/EmptyState.vue';
 import LoadingState from '../../components/ui/LoadingState.vue';
@@ -311,6 +312,7 @@ watch(() => props.refreshKey, load, { immediate: true });
           </button></template
         >
         <div class="space-y-4">
+          <InspectorSection title="Contact details">
           <section class="grid gap-2 rounded-box border border-base-300 bg-base-200/35 p-3 text-sm">
             <div class="flex items-start gap-2">
               <Phone :size="15" class="mt-0.5 shrink-0 text-base-content/60" /><span>{{
@@ -329,12 +331,12 @@ watch(() => props.refreshKey, load, { immediate: true });
               }}</span>
             </div>
           </section>
-          <section v-if="selected.notes" class="rounded-box border border-base-300 p-3">
-            <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/60">
-              Notes
-            </h3>
-            <p class="mt-2 whitespace-pre-wrap text-sm">{{ selected.notes }}</p>
+          </InspectorSection>
+          <InspectorSection v-if="selected.notes" title="Notes">
+          <section class="rounded-box border border-base-300 p-3">
+            <p class="whitespace-pre-wrap text-sm">{{ selected.notes }}</p>
           </section>
+          </InspectorSection>
           <p class="text-xs text-base-content/55">
             Updated {{ formatDateTime(selected.updatedAt) }}
           </p>

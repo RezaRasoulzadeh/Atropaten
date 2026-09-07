@@ -9,6 +9,7 @@ import EmptyState from '../../components/ui/EmptyState.vue'
 import InlineAlert from '../../components/ui/InlineAlert.vue';
 import FormGrid from '../../components/ui/FormGrid.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
+import InspectorSection from '../../components/layout/InspectorSection.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import DataTableCell from '../../components/ui/DataTableCell.vue';
@@ -244,6 +245,7 @@ reportError(e);
             :tone="current.active ? 'green' : 'slate'"
           />
         </div>
+        <InspectorSection title="Contact details">
         <dl class="grid min-w-0 gap-2 text-sm">
           <div
             class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-3 border-b border-base-300 py-2 last:border-0"
@@ -274,6 +276,7 @@ reportError(e);
             </dd>
           </div>
         </dl>
+        </InspectorSection>
         <div class="flex flex-wrap items-center gap-2">
           <button class="btn btn-ghost" @click="startEdit"><Edit3 :size="15" /> Edit</button
           ><button class="btn btn-ghost" @click="setActive(!current.active)" :disabled="busy">
