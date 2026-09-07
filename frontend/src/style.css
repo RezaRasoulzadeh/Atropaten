@@ -81,6 +81,27 @@
   align-items: stretch;
 }
 
+.aura {
+  overflow: visible;
+}
+
+.aura::before,
+.aura::after {
+  pointer-events: none;
+}
+
+.table :where(th, td) {
+  padding-block: 0.75rem;
+  padding-inline: 1rem;
+  vertical-align: middle;
+}
+
+.table :where(thead th) {
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .input,
 .select,
 .textarea {

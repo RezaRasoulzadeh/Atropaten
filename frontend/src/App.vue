@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, type Component } from 'vue'
 import {
   BarChart3,
+  BellRing,
   BriefcaseBusiness,
   Calculator,
   CircleDollarSign,
@@ -103,6 +104,7 @@ const activeView = ref('Dashboard')
 const isSidebarCollapsed = ref(false)
 const searchQuery = ref('')
 const currencyUnit = ref<CurrencyUnit>('Toman')
+const hasNotifications = ref(false)
 const selectedOrderId = ref<string | null>(null)
 const selectedQuoteId = ref<string | null>(null)
 const orders = ref<OrderRecord[]>([])
@@ -192,13 +194,18 @@ function showToast(message: string) {
   else toast.success(message)
 }
 
+function openNotifications() {
+  hasNotifications.value = false
+  toast.info('You are all caught up.')
+}
+
 </script>
 
 <template>
-  <div class="drawer lg:drawer-open min-h-screen min-h-0 bg-base-200 font-sans text-base-content">
+  <div class="drawer lg:drawer-open h-screen min-h-0 overflow-hidden bg-base-200 font-sans text-base-content">
     <input id="atropaten-drawer" type="checkbox" class="drawer-toggle" />
 
-    <div class="drawer-content grid min-h-screen min-w-0 grid-rows-[auto_minmax(0,1fr)_auto]">
+    <div class="drawer-content grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)]">
       <AppToolbar
         class="sticky top-0 z-20"
         :collapsed="isSidebarCollapsed"
@@ -207,10 +214,11 @@ function showToast(message: string) {
         @toggle-sidebar="isSidebarCollapsed = !isSidebarCollapsed"
         @update:search-query="searchQuery = $event"
         @update:currency-unit="currencyUnit = $event"
-      @notifications="toast.info('You are all caught up.')"
+        @new-order="openNewOrder"
+        @navigate="selectView"
       />
 
-      <main class="min-h-0 min-w-0 overflow-y-auto bg-base-200 p-4 lg:p-6" tabindex="-1">
+      <main class="min-h-0 min-w-0 overflow-y-auto bg-base-200 p-4 pt-0 lg:p-6 lg:pt-0" tabindex="-1">
         <Transition mode="out-in">
         <DashboardView v-if="activeView === 'Dashboard'" key="dashboard" :currency-unit="currencyUnit" @navigate="selectView" @new-order="openNewOrder" @notify="showToast" />
 
@@ -277,16 +285,9 @@ function showToast(message: string) {
         </Transition>
       </main>
 
-      <footer class="flex items-center gap-3 border-t border-base-300 bg-base-100 px-4 py-2 text-xs text-base-content/60" aria-label="Workspace status">
-        <span class="flex items-center gap-2"><span class="size-2 rounded-full bg-success" aria-hidden="true"></span> Local mode</span>
-        <span class="h-4 w-px bg-base-300" aria-hidden="true"></span>
-        <span>Last updated just now</span>
-        <span class="flex-1"></span>
-        <span>Authoritative data</span>
-      </footer>
     </div>
 
-    <div class="drawer-side">
+    <div class="drawer-side z-30">
       <label for="atropaten-drawer" aria-label="Close navigation" class="drawer-overlay"></label>
       <aside
         class="flex h-full min-h-full max-h-full flex-col overflow-hidden border-e border-base-300 bg-base-100"
@@ -299,6 +300,10 @@ function showToast(message: string) {
             <span class="block truncate text-sm font-bold">Atropaten</span>
             <span class="block text-[10px] text-base-content/60">Print shop control</span>
           </div>
+          <button v-if="!isSidebarCollapsed" class="btn btn-ghost btn-square btn-sm relative ms-auto" type="button" aria-label="Notifications" title="Notifications" @click="openNotifications">
+            <BellRing :size="17" :stroke-width="1.8" aria-hidden="true" />
+            <span v-if="hasNotifications" class="absolute end-1 top-1 size-2 rounded-full bg-error ring-2 ring-base-100" aria-hidden="true"></span>
+          </button>
         </div>
 
         <nav class="menu min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-scroll overscroll-contain p-2">

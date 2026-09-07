@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BellRing, ChevronDown, PanelLeftClose, PanelLeftOpen, Search, Store } from 'lucide-vue-next'
+import { BarChart3, ChevronDown, FilePlus2, PanelLeftClose, PanelLeftOpen, Printer, Search, ShoppingCart, Store } from 'lucide-vue-next'
 import type { CurrencyUnit } from '../utils/currency'
 import IconButton from './IconButton.vue'
 
@@ -13,7 +13,8 @@ defineEmits<{
   'toggle-sidebar': []
   'update:search-query': [value: string]
   'update:currency-unit': [value: CurrencyUnit]
-  notifications: []
+  'new-order': []
+  navigate: [view: string]
 }>()
 </script>
 
@@ -53,10 +54,20 @@ defineEmits<{
             @click="$emit('update:currency-unit', 'Rial')">Rial</button></li>
       </ul>
     </div>
-    <IconButton class="relative" label="Notifications" @click="$emit('notifications')">
-      <BellRing :size="18" :stroke-width="1.8" aria-hidden="true" />
-      <span class="absolute end-2 top-2 size-2 rounded-full bg-error ring-2 ring-base-100" aria-hidden="true"></span>
-    </IconButton>
+    <nav class="hidden items-center gap-1 lg:flex" aria-label="Quick actions">
+      <button class="btn btn-ghost btn-square" type="button" aria-label="Production" title="Production" @click="$emit('navigate', 'Production')">
+        <Printer :size="16" :stroke-width="1.8" aria-hidden="true" />
+      </button>
+      <button class="btn btn-ghost btn-square" type="button" aria-label="Purchases" title="Purchases" @click="$emit('navigate', 'Purchases')">
+        <ShoppingCart :size="16" :stroke-width="1.8" aria-hidden="true" />
+      </button>
+      <button class="btn btn-ghost btn-square" type="button" aria-label="Reports" title="Reports" @click="$emit('navigate', 'Reports')">
+        <BarChart3 :size="16" :stroke-width="1.8" aria-hidden="true" />
+      </button>
+      <button class="btn btn-primary btn-square" type="button" aria-label="New order" title="New order" @click="$emit('new-order')">
+        <FilePlus2 :size="16" :stroke-width="1.8" aria-hidden="true" />
+      </button>
+    </nav>
     <div class="avatar placeholder hidden">
       <div class="w-8 rounded-full bg-primary text-primary-content" aria-hidden="true"><span>RR</span></div>
     </div>

@@ -21,7 +21,6 @@ defineEmits<{ select: [] }>()
     :aria-current="active ? 'page' : undefined"
     @click="$emit('select')"
   >
-    <span v-if="active" class="absolute inset-y-2 inset-s-1 w-0.75 rounded-s-sm bg-primary" aria-hidden="true"></span>
     <component :is="icon" :size="17" :stroke-width="1.8" aria-hidden="true" />
     <span v-if="!collapsed">{{ label }}</span>
   </button>
