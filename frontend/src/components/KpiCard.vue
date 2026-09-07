@@ -29,22 +29,22 @@ withDefaults(defineProps<{
 
 <style scoped>
 .kpi-blue {
-  --kpi-accent: #2f6fca;
-  --kpi-soft: #eaf2fd;
+  --kpi-accent: var(--accent);
+  --kpi-soft: var(--accent-soft);
 }
 
 .kpi-green {
-  --kpi-accent: #16845b;
-  --kpi-soft: #e8f6ef;
+  --kpi-accent: var(--success);
+  --kpi-soft: var(--success-soft);
 }
 
 .kpi-amber {
-  --kpi-accent: #a46b14;
-  --kpi-soft: #fff5df;
+  --kpi-accent: var(--warning);
+  --kpi-soft: var(--warning-soft);
 }
 
 .kpi-red {
-  --kpi-accent: #c34747;
-  --kpi-soft: #fdeeee;
+  --kpi-accent: var(--danger);
+  --kpi-soft: var(--danger-soft);
 }
 </style>

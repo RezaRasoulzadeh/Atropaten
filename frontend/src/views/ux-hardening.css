@@ -1,0 +1,465 @@
+/* M6-004: shared workspace geometry and visual primitives. */
+
+.workspace > *,
+.workspace-view,
+.workspace-view > *,
+.orders-view,
+.order-workspace,
+.customers-view,
+.services-view,
+.materials-view,
+.machines-view,
+.production-view,
+.suppliers-view,
+.purchases-view,
+.accounting-view,
+.checks-view,
+.loans-view,
+.owners-view,
+.reports-view,
+.settings-view,
+.invoices-view {
+  min-width: 0;
+}
+
+.workspace-heading {
+  min-width: 0;
+  margin-bottom: var(--space-4);
+}
+
+.workspace-heading > div,
+.heading-actions,
+.heading-actions > *,
+.panel-heading > div,
+.panel-header > div {
+  min-width: 0;
+}
+
+.workspace-heading .heading-description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel,
+.kpi-card,
+.workspace-bottom-actions {
+  border-color: var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+}
+
+.panel-heading,
+.panel-header {
+  min-height: 60px;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-title {
+  font-size: var(--font-size-section);
+}
+
+.workspace .icon-button,
+.workspace .sidebar-toggle,
+.topbar .icon-button,
+.topbar .sidebar-toggle {
+  width: var(--icon-button-size);
+  height: var(--icon-button-size);
+  flex-basis: var(--icon-button-size);
+}
+
+.workspace .button-danger {
+  border-color: transparent;
+  background: var(--danger);
+  color: var(--accent-on);
+}
+
+.workspace .button-danger:hover {
+  background: var(--danger-strong);
+}
+
+.workspace .button-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-soft);
+}
+
+.workspace .button-ghost:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.workspace .button-compact {
+  height: var(--control-height-compact);
+  padding-right: var(--space-3);
+  padding-left: var(--space-3);
+  font-size: var(--font-size-label);
+}
+
+.workspace .button:disabled,
+.workspace .icon-button:disabled,
+.topbar button:disabled {
+  border-color: var(--border-subtle);
+  background: var(--disabled-bg);
+  color: var(--disabled-text);
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 1;
+}
+
+.workspace input:not([type='checkbox']):not([type='radio']),
+.workspace select,
+.workspace textarea {
+  box-sizing: border-box;
+  min-width: 0;
+  border-color: var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+}
+
+.workspace input:not([type='checkbox']):not([type='radio']),
+.workspace select {
+  height: var(--control-height);
+}
+
+.workspace textarea {
+  min-height: 72px;
+  padding: 9px 10px;
+}
+
+.workspace input:not([type='checkbox']):not([type='radio']):focus,
+.workspace select:focus,
+.workspace textarea:focus {
+  border-color: #9dbde6;
+  background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(47, 111, 202, 0.1);
+  outline: 0;
+}
+
+.workspace input:disabled,
+.workspace select:disabled,
+.workspace textarea:disabled {
+  background: var(--disabled-bg);
+  color: var(--disabled-text);
+  cursor: not-allowed;
+}
+
+.workspace .form-field,
+.workspace .customer-form label,
+.workspace .settings-grid label,
+.workspace .print-controls label,
+.workspace .date-filter label,
+.workspace .backup-path {
+  gap: var(--space-1);
+  min-width: 0;
+  color: var(--text-soft);
+  font-size: var(--font-size-label);
+  font-weight: 800;
+}
+
+.workspace .form-field > span,
+.workspace .filter-control > span:first-child {
+  color: var(--text-soft);
+  font-size: var(--font-size-label);
+}
+
+.workspace .form-grid,
+.workspace .material-form-grid,
+.workspace .service-form-grid,
+.workspace .production-form-grid,
+.workspace .loan-form-grid,
+.workspace .check-form-grid,
+.workspace .owner-form-grid,
+.workspace .settings-grid {
+  min-width: 0;
+}
+
+.workspace .table-wrap {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.workspace .data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.workspace .data-table th {
+  height: var(--table-header-height);
+  padding-right: var(--space-3);
+  padding-left: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.workspace .data-table td {
+  height: var(--table-row-height);
+  padding: 6px var(--space-3);
+  border-top-color: var(--border-subtle);
+}
+
+.workspace .data-table tbody tr:hover,
+.workspace .data-table tbody tr.is-selected {
+  background: var(--accent-hover);
+}
+
+.workspace .data-table tbody tr.is-selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.workspace .numeric-column,
+.workspace .table-money,
+.workspace .data-table th.numeric-column {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.workspace .data-table .table-secondary {
+  color: var(--text-muted);
+}
+
+.workspace .workspace-tabs {
+  min-width: 0;
+  min-height: var(--tab-height);
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: var(--space-4);
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: thin;
+}
+
+.workspace .workspace-tabs button,
+.workspace .workspace-tab {
+  position: relative;
+  display: inline-flex;
+  height: var(--tab-height);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-size-meta);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.workspace .workspace-tabs button:hover,
+.workspace .workspace-tab:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.workspace .workspace-tabs button.is-active,
+.workspace .workspace-tabs button.active,
+.workspace .workspace-tab.is-active,
+.workspace .workspace-tab.active {
+  border-bottom-color: var(--accent);
+  background: transparent;
+  color: var(--accent-strong);
+}
+
+.workspace .workspace-tabs button.is-active::after,
+.workspace .workspace-tabs button.active::after,
+.workspace .workspace-tab.is-active::after,
+.workspace .workspace-tab.active::after {
+  display: none;
+}
+
+/* Register + inspector workspaces share one width model. */
+.workspace .materials-layout,
+.workspace .services-layout,
+.workspace .machines-layout,
+.workspace .suppliers-layout,
+.workspace .purchases-layout,
+.workspace .checks-layout,
+.workspace .loans-layout,
+.workspace .invoices-layout,
+.workspace .customers-layout,
+.workspace .production-layout {
+  grid-template-columns: minmax(0, 1fr) var(--inspector-width);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.customers-layout {
+  margin: 0 0 var(--space-5);
+}
+
+.customers-toolbar,
+.suppliers-filter {
+  margin-top: 0;
+}
+
+.material-inspector,
+.service-inspector,
+.customer-inspector,
+.production-inspector {
+  position: static;
+  min-width: 0;
+  max-width: none;
+}
+
+.material-inspector .panel-body,
+.service-inspector .panel-body,
+.production-inspector .panel-body,
+.customer-inspector {
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.inspector-heading,
+.service-inspector-heading,
+.production-inspector-title {
+  min-width: 0;
+}
+
+.inspector-heading > div:last-child,
+.service-inspector-heading > div:last-child,
+.production-inspector-title > div:last-child,
+.customer-row-copy {
+  min-width: 0;
+}
+
+.inspector-heading h3,
+.service-inspector-heading h3,
+.production-inspector-title h3,
+.customer-inspector h2 {
+  overflow-wrap: anywhere;
+}
+
+.inspector-actions,
+.material-form-actions,
+.service-form-actions,
+.production-actions,
+.production-status-actions,
+.payment-actions,
+.backup-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.inspector-actions {
+  justify-content: flex-end;
+}
+
+.workspace-bottom-actions {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+}
+
+.workspace .empty-table,
+.workspace .workspace-state,
+.workspace .materials-empty,
+.workspace .services-empty,
+.workspace .production-empty {
+  color: var(--text-muted);
+}
+
+.accounting-table,
+.accounting-payments,
+.accounting-extra,
+.reports-view,
+.settings-view,
+.owners-view,
+.checks-view,
+.loans-view {
+  min-width: 0;
+}
+
+.accounting-table,
+.accounting-payments {
+  gap: var(--space-4);
+}
+
+.accounting-table .panel-header,
+.accounting-table > .accounting-row,
+.accounting-table > .journal-entry,
+.accounting-payments .panel-body,
+.accounting-view .accounting-row {
+  min-width: 0;
+}
+
+.accounting-table > .accounting-row,
+.accounting-view .accounting-row {
+  padding-right: var(--space-4);
+  padding-left: var(--space-4);
+  border-bottom-color: var(--border-subtle);
+}
+
+.accounting-metrics div,
+.report-summary-card,
+.owner-card,
+.period-row,
+.backup-status > div {
+  border-color: var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+}
+
+.settings-view > .panel,
+.reports-view > .panel {
+  margin-bottom: var(--space-4);
+}
+
+.settings-view > .panel .panel-body,
+.reports-view > .panel .panel-body {
+  padding: var(--space-4);
+}
+
+@media (max-width: 1120px) {
+  .workspace .materials-layout,
+  .workspace .services-layout,
+  .workspace .machines-layout,
+  .workspace .suppliers-layout,
+  .workspace .purchases-layout,
+  .workspace .checks-layout,
+  .workspace .loans-layout,
+  .workspace .invoices-layout,
+  .workspace .customers-layout,
+  .workspace .production-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .material-inspector,
+  .service-inspector,
+  .customer-inspector,
+  .production-inspector {
+    width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace .workspace-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .workspace .heading-actions,
+  .workspace .heading-actions > .button,
+  .workspace .workspace-heading > .button {
+    width: 100%;
+  }
+
+  .workspace .form-grid,
+  .workspace .material-form-grid,
+  .workspace .service-form-grid,
+  .workspace .production-form-grid,
+  .workspace .loan-form-grid,
+  .workspace .check-form-grid,
+  .workspace .owner-form-grid,
+  .workspace .settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

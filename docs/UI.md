@@ -16,6 +16,55 @@ The interface is Windows-first, information-dense, keyboard-friendly, and optimi
 - Subtle borders and shadows
 - Moderate corner radius
 - Minimal gradients
+
+## Implemented design system
+
+M6-004 uses one semantic token layer in `frontend/src/style.css`, with the shared workspace rules in `frontend/src/views/ux-hardening.css`. Feature views may add domain-specific layout, but shared colors, spacing, control geometry, table density, and sticky surfaces should use these tokens first.
+
+### Tokens
+
+The light theme is built from these semantic groups:
+
+- Surfaces: `--app-bg`, `--surface`, `--surface-raised`, `--surface-subtle`, `--surface-muted`, and `--surface-hover`.
+- Structure: `--border`, `--border-subtle`, `--line`, and `--line-strong`.
+- Text: `--text`, `--text-soft`, and `--text-muted`.
+- Interaction: `--accent`, `--accent-strong`, `--accent-hover`, `--accent-pressed`, and `--focus-ring`.
+- Meaning: `--success`, `--warning`, `--danger`, and `--info`, each with a soft background token.
+- Disabled: `--disabled-bg` and `--disabled-text`.
+
+Green and red remain reserved for meaningful status, financial direction, warnings, and destructive actions. New feature styles should not add arbitrary color values when one of these semantic tokens fits.
+
+### Spacing and typography
+
+The compact desktop rhythm is `--space-1` through `--space-8`: 4, 8, 12, 16, 20, 24, 28, and 32px. Use these for workspace gutters, panel padding, form rows, table cells, tabs, toolbars, and inspector sections. The workspace gutter is responsive within a deliberate 20–40px range so narrow laptop windows do not waste horizontal space.
+
+The UI uses Nunito with a 14px body size. Metadata is 12px, labels are 11px, table text is 12px, section headings are 14px, and page titles are capped at 24px. This preserves a dense ERP/productivity hierarchy rather than introducing marketing-style headings.
+
+### Controls, buttons, badges, and tables
+
+- Standard inputs, selects, date controls, and normal buttons are 36px high (`--control-height`); compact controls are 32px.
+- Icon buttons use a 34px square hit area and must have an accessible label when they have no visible text.
+- Primary, secondary, ghost/text, and danger actions use the shared `.button-*` variants. Destructive actions use `.button-danger`; archive and delete remain visually and semantically distinct.
+- `StatusBadge` uses the same pill geometry and semantic tones across orders, inventory, production, finance, and purchasing.
+- Operational table headers are 36px and normal rows are 48px. Tables use compact 12px text, consistent cell padding, tabular numeric alignment, and deliberate horizontal scrolling only inside `.table-wrap` for genuinely wide registers.
+
+### Panels, inspectors, forms, and workspace geometry
+
+`SectionPanel` is the shared bordered surface. Panel headers use a 60px minimum height and 12/16px padding. Register + inspector screens use `minmax(0, 1fr) var(--inspector-width)`, where the inspector is explicitly sized with `--inspector-width`; both grid children have `min-width: 0` so controls cannot escape their panel. At narrower desktop widths the two columns become one column before clipping begins.
+
+Forms use full-width, border-box controls, consistent label/control gaps, and two-column grids that collapse at the shared desktop threshold. Ordinary forms and inspectors do not create their own horizontal scroll containers. Long table data may scroll inside its table shell, while long labels and values wrap or truncate intentionally.
+
+All major views use the same page-header pattern. `WorkspaceStickyStack` is sticky relative to the workspace scroll container below the global top bar, with the shared background, border, elevation, and z-index. Tabs use the shared `.workspace-tabs`/`.workspace-tab` geometry and remain horizontally scrollable when a desktop window is narrow. `WorkspaceBottomActions` sits above the status strip with the same panel treatment. Feature components should not introduce independent fixed offsets or z-index values.
+
+### Responsive desktop acceptance widths
+
+The target checks are representative desktop widths, not mobile layouts:
+
+- Narrow laptop: approximately 1024px viewport width, including collapsed-sidebar operation.
+- Normal desktop: approximately 1280–1440px, with register panes consuming remaining width beside explicit inspectors.
+- Wide desktop: approximately 1600px and above, with workspace gutters capped rather than leaving a floating narrow column.
+
+At the narrow breakpoint, filter rows wrap, two-column forms collapse, and register/inspector layouts stack before fields clip. Mobile redesign remains out of scope.
 - Approximately 14px normal UI text
 - Compact table rows, approximately 36-42px
 - Strong typographic hierarchy without oversized headings

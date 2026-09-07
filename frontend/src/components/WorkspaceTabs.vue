@@ -8,7 +8,7 @@ defineEmits<{ change: [tab: string] }>()
 </script>
 
 <template>
-  <nav class="workspace-tabs" aria-label="Order workspace tabs">
+  <nav class="workspace-tabs" aria-label="Workspace tabs" role="tablist">
     <button
       v-for="tab in tabs"
       :key="tab"

@@ -8,5 +8,6 @@ import './views/machines.css'
 import './views/customers.css'
 import './views/suppliers.css'
 import './views/purchases.css'
+import './views/ux-hardening.css'
 
 createApp(App).mount('#app')
