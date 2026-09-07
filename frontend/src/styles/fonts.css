@@ -3,9 +3,6 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  ascent-override: 92%;
-  descent-override: 24%;
-  line-gap-override: 0%;
   src: url('../assets/fonts/vazirmatn/Vazirmatn-Regular.woff2') format('woff2');
 }
 
@@ -14,9 +11,6 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  ascent-override: 92%;
-  descent-override: 24%;
-  line-gap-override: 0%;
   src: url('../assets/fonts/vazirmatn/Vazirmatn-SemiBold.woff2') format('woff2');
 }
 
@@ -25,8 +19,5 @@
   font-style: normal;
   font-weight: 700 900;
   font-display: swap;
-  ascent-override: 92%;
-  descent-override: 24%;
-  line-gap-override: 0%;
   src: url('../assets/fonts/vazirmatn/Vazirmatn-Bold.woff2') format('woff2');
 }

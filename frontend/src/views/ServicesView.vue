@@ -310,7 +310,7 @@ function errorMessageFrom(error: unknown, fallback: string): string {
 
     <div v-if="errorMessage" role="alert"><span>{{ errorMessage }}</span><button class="btn btn-ghost" type="button" aria-label="Dismiss services error" @click="errorMessage = ''"><X :size="15" :stroke-width="1.8" aria-hidden="true" /></button></div>
 
-    <section aria-label="Services workspace">
+    <section class="space-y-4" aria-label="Services workspace">
       <SectionPanel title="Service register" subtitle="Select a service to inspect its operator parameters.">
         <template #action><span>{{ filteredServices.length }} shown</span></template>
         <div v-if="isLoading"><SlidersHorizontal :size="21" :stroke-width="1.8" aria-hidden="true" /><p>Loading services…</p></div>

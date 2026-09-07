@@ -339,22 +339,22 @@ function snapshot(item: any, key: string) {
 
 <style scoped>
 .order-workspace-header {
-  align-items: center !important;
+  align-items: center;
 }
 
 .order-workspace-header__main {
-  display: flex !important;
+  display: flex;
   min-width: 0;
   flex: 1 1 auto;
-  flex-direction: row !important;
+  flex-direction: row;
   align-items: center;
   gap: 0.75rem;
 }
 
 .order-workspace-header__title {
-  display: flex !important;
+  display: flex;
   min-width: 0;
-  flex-direction: column !important;
+  flex-direction: column;
   gap: 0.125rem;
 }
 
@@ -377,7 +377,7 @@ function snapshot(item: any, key: string) {
 
 @media (max-width: 48rem) {
   .order-workspace-header {
-    align-items: stretch !important;
+    align-items: stretch;
   }
 
   .order-workspace-header__main {
@@ -389,8 +389,8 @@ function snapshot(item: any, key: string) {
   }
 
   .order-workspace-header__actions {
-    width: 100% !important;
-    justify-content: flex-start !important;
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .order-workspace-header__actions > :deep(.form-control) {

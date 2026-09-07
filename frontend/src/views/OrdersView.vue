@@ -7,6 +7,7 @@ import SearchField from '../components/SearchField.vue'
 import SelectField from '../components/SelectField.vue'
 import SectionPanel from '../components/SectionPanel.vue'
 import WorkspaceStickyStack from '../components/WorkspaceStickyStack.vue'
+import WorkspaceHeader from '../components/WorkspaceHeader.vue'
 import type { OrderRecord } from '../api/orders'
 import { formatMoney, type CurrencyUnit } from '../utils/currency'
 import { formatDateTime } from '../utils/date'
@@ -28,17 +29,12 @@ function clear(){query.value='';commercial.value=fulfillment.value=payment.value
 <template>
   <div class="space-y-4">
     <WorkspaceStickyStack>
-      <header>
-        <div>
-          <p>Sales / operational queue</p>
-          <h1>Orders</h1>
-          <p>Track persisted customer orders and their independent state axes.</p>
-        </div>
+      <WorkspaceHeader eyebrow="Sales / operational queue" title="Orders" description="Track persisted customer orders and their independent state axes.">
         <button class="btn btn-primary gap-2" type="button" @click="emit('new-order')">
           <Plus :size="16" :stroke-width="1.8" aria-hidden="true" />
           <span>New order</span>
         </button>
-      </header>
+      </WorkspaceHeader>
 
       <SearchFilterBar>
         <template #search>
@@ -57,7 +53,7 @@ function clear(){query.value='';commercial.value=fulfillment.value=payment.value
       </SearchFilterBar>
     </WorkspaceStickyStack>
 
-    <SectionPanel title="All orders" subtitle="Open an order to inspect its accepted pricing snapshots.">
+    <SectionPanel title="All orders" subtitle="Open an order to inspect its accepted pricing snapshots." :flush="true">
       <template #action>
         <span class="text-xs text-base-content/60">Independent state axes</span>
       </template>

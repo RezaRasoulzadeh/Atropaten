@@ -4,6 +4,7 @@ import { BarChart3, CircleAlert, FilePlus2, HandCoins, ReceiptText, RefreshCw, T
 import KpiCard from '../components/KpiCard.vue'
 import SectionPanel from '../components/SectionPanel.vue'
 import WorkspaceStickyStack from '../components/WorkspaceStickyStack.vue'
+import WorkspaceHeader from '../components/WorkspaceHeader.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { reportsApi, type DashboardRecord } from '../api/reports'
 import { formatMoney } from '../utils/currency'
@@ -15,20 +16,14 @@ async function load() { loading.value = true; refreshAnimation.value = 'once'; i
 <template>
     <div>
         <WorkspaceStickyStack>
-            <header>
-                <div>
-                    <p>{{ data?.startDate || start }} → {{ data?.endDate || end }}</p>
-                    <h1>Good morning</h1>
-                    <p>Here is what needs your attention today.</p>
-                </div>
-                <div><button class="btn btn-outline btn-primary" type="button" @click="load">
+            <WorkspaceHeader :eyebrow="`${data?.startDate || start} → ${data?.endDate || end}`" title="Good morning" description="Here is what needs your attention today.">
+                <button class="btn btn-outline btn-primary" type="button" @click="load">
                         <RefreshCw
                             :class="{ 'refresh-once': refreshAnimation === 'once', 'animate-spin': refreshAnimation === 'infinite' }"
                             :size="15" /><span>Refresh</span>
                     </button><button class="btn btn-primary gap-2" type="button" @click="emit('newOrder')"><FilePlus2 :size="15" :stroke-width="1.8" aria-hidden="true" /><span>New
                             order</span></button>
-                </div>
-            </header>
+            </WorkspaceHeader>
         </WorkspaceStickyStack>
         <p v-if="error">{{ error }}</p>
         <div class="mt-4 space-y-4">
@@ -44,7 +39,7 @@ async function load() { loading.value = true; refreshAnimation.value = 'once'; i
                     trend="Supplier" :icon="ReceiptText" accent="red" :loading="initialLoading" />
             </section>
             <section class="grid gap-4 xl:grid-cols-2">
-                <SectionPanel title="Needs attention" subtitle="Due obligations and operational exceptions">
+                <SectionPanel title="Needs attention" subtitle="Due obligations and operational exceptions" :flush="true">
                     <div v-if="initialLoading" class="min-h-72 space-y-3 p-4" aria-label="Loading attention items">
                         <div v-for="row in 6" :key="row" class="skeleton h-10 w-full bg-base-300/70"></div>
                     </div>
@@ -64,7 +59,7 @@ async function load() { loading.value = true; refreshAnimation.value = 'once'; i
                         <p v-if="!attention.length" class="px-4 py-6 text-sm text-base-content/60">No attention items from persisted data.</p>
                     </div>
                 </SectionPanel>
-                <SectionPanel title="Production queue" subtitle="Persisted active jobs">
+                <SectionPanel title="Production queue" subtitle="Persisted active jobs" :flush="true">
                     <div class="overflow-x-auto">
                         <table class="table table-zebra w-full text-sm">
                             <thead class="bg-base-200/60 text-xs text-base-content/70">
@@ -98,7 +93,7 @@ async function load() { loading.value = true; refreshAnimation.value = 'once'; i
                 </SectionPanel>
             </section>
             <section class="grid gap-4 xl:grid-cols-2">
-                <SectionPanel title="Low stock" subtitle="Movement-derived availability">
+                <SectionPanel title="Low stock" subtitle="Movement-derived availability" :flush="true">
                     <div v-if="initialLoading" class="min-h-28 space-y-3 p-4" aria-label="Loading low stock items">
                         <div v-for="row in 2" :key="row" class="skeleton h-8 w-full bg-base-300/70"></div>
                     </div>
@@ -112,7 +107,7 @@ async function load() { loading.value = true; refreshAnimation.value = 'once'; i
                         <p v-if="!data?.lowStock?.length" class="px-4 py-6 text-sm text-base-content/60">No low-stock materials.</p>
                     </div>
                 </SectionPanel>
-                <SectionPanel title="Recent payments" subtitle="Latest persisted financial activity">
+                <SectionPanel title="Recent payments" subtitle="Latest persisted financial activity" :flush="true">
                     <div v-if="initialLoading" class="min-h-28 space-y-3 p-4" aria-label="Loading recent payments">
                         <div v-for="row in 2" :key="row" class="skeleton h-8 w-full bg-base-300/70"></div>
                     </div>

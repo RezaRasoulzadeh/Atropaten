@@ -236,7 +236,7 @@ function dateLabel(value: string) {
       <button class="btn btn-ghost" type="button" aria-label="Dismiss materials error" @click="errorMessage = ''"><X :size="15" :stroke-width="1.8" aria-hidden="true" /></button>
     </div>
 
-    <section aria-label="Materials workspace">
+    <section class="space-y-4" aria-label="Materials workspace">
       <SectionPanel title="Material register" subtitle="Select a material to inspect its stock and cost basis.">
         <template #action>
           <span>{{ filteredMaterials.length }} shown</span>

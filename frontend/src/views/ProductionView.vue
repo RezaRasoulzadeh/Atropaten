@@ -68,7 +68,7 @@ function date(v:string){try{return v?formatDateTime(v):'—'}catch{return '—'}
       <section class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem_auto] sm:items-end" aria-label="Production filters"><SearchField v-model="searchQuery" label="Search production jobs" placeholder="Search job, order, customer, or service"/><SelectField v-model="statusFilter" label="Queue" aria-label="Production status" :options="['All', 'Pending', 'Ready', 'In Progress', 'Paused', 'Completed', 'Cancelled'].map((value) => ({ label: value, value }))"/><span class="self-end pb-2">{{ visibleJobs.length }} jobs</span></section>
     </WorkspaceStickyStack>
     <div v-if="error" role="alert"><span>{{ error }}</span><button class="btn btn-ghost" type="button" @click="error=''" aria-label="Dismiss"><X :size="15"/></button></div>
-    <section>
+    <section class="space-y-4">
       <SectionPanel title="Production queue" subtitle="Priority ordered persisted jobs.">
         <div v-if="loading">Loading production queue…</div>
         <div v-else-if="visibleJobs.length"><button v-for="job in visibleJobs" :key="job.id" type="button" :class="{'bg-base-300':selectedId===job.id}" @click="select(job.id)"><span><Factory :size="17"/></span><span><strong>{{ job.jobNumber }} · {{ job.serviceName }}</strong><small>{{ jobOrder(job) }} · {{ job.quantity }} {{ job.quantityUnit }} · {{ jobContext(job) }}</small></span><StatusBadge :label="job.status" :tone="statusTone(job.status)"/></button></div>

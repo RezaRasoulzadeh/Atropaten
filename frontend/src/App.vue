@@ -194,7 +194,7 @@ async function openNewQuote() { activeView.value='Quotes'; try { const quote=awa
 function openConvertedOrder(orderId: string) { selectedQuoteId.value=null; activeView.value='Orders'; loadOrders(); selectedOrderId.value=orderId }
 
 function syncViewport() {
-  isDesktop.value = desktopMediaQuery?.matches ?? window.innerWidth >= 1024
+  isDesktop.value = desktopMediaQuery?.matches ?? window.innerWidth >= 896
 }
 
 function toggleSidebar() {
@@ -211,7 +211,7 @@ function closeDrawerOnOutsideClick(event: MouseEvent) {
 }
 
 onMounted(() => {
-  desktopMediaQuery = window.matchMedia('(min-width: 1024px)')
+  desktopMediaQuery = window.matchMedia('(min-width: 56rem)')
   syncViewport()
   desktopMediaQuery.addEventListener('change', syncViewport)
   document.addEventListener('click', closeDrawerOnOutsideClick)
@@ -237,7 +237,7 @@ function openNotifications() {
 </script>
 
 <template>
-  <div class="drawer lg:drawer-open h-screen min-h-0 overflow-hidden bg-base-200 font-sans text-base-content" :class="{ 'drawer-open': isDrawerOpen }">
+  <div class="drawer lg:drawer-open h-screen min-h-0 overflow-hidden bg-base-200 font-sans text-base-content" :class="{ 'drawer-open': isDesktop || isDrawerOpen }">
     <input id="atropaten-drawer" v-model="isDrawerOpen" type="checkbox" class="drawer-toggle" />
 
     <div class="drawer-content grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)]">
