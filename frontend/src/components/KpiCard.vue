@@ -14,37 +14,17 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <article class="kpi-card" :class="`kpi-${accent}`">
-    <div class="kpi-card-header">
-      <span class="kpi-label">{{ title }}</span>
-      <span class="kpi-icon"><component :is="icon" :size="16" :stroke-width="1.8" aria-hidden="true" /></span>
-    </div>
-    <p class="kpi-value">{{ value }}</p>
-    <div class="kpi-footer">
+  <article class="card border border-base-300 bg-base-100 shadow-none">
+    <div class="card-body gap-2 p-4">
+      <div class="flex items-center justify-between gap-3">
+        <span class="text-sm font-semibold text-base-content/80">{{ title }}</span>
+        <span class="text-primary"><component :is="icon" :size="16" :stroke-width="1.8" aria-hidden="true" /></span>
+      </div>
+      <p class="m-0 text-2xl font-bold">{{ value }}</p>
+      <div class="flex items-center justify-between gap-2 text-xs text-base-content/60">
       <span>{{ detail }}</span>
-      <span class="kpi-trend">{{ trend }}</span>
+      <span class="text-primary">{{ trend }}</span>
+      </div>
     </div>
   </article>
 </template>
-
-<style scoped>
-.kpi-blue {
-  --kpi-accent: var(--accent);
-  --kpi-soft: var(--accent-soft);
-}
-
-.kpi-green {
-  --kpi-accent: var(--success);
-  --kpi-soft: var(--success-soft);
-}
-
-.kpi-amber {
-  --kpi-accent: var(--warning);
-  --kpi-soft: var(--warning-soft);
-}
-
-.kpi-red {
-  --kpi-accent: var(--danger);
-  --kpi-soft: var(--danger-soft);
-}
-</style>

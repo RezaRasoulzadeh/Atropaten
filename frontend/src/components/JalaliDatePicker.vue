@@ -101,11 +101,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="picker" class="jalali-picker">
-    <div class="jalali-picker-control">
-      <input
+  <div ref="picker">
+    <div>
+      <input class="input input-bordered w-full min-w-0"
         :value="displayValue"
-        class="jalali-picker-input"
         type="text"
         readonly
         :placeholder="placeholder"
@@ -116,28 +115,28 @@ onBeforeUnmount(() => {
         @keydown.enter.space.prevent="openPicker"
         @keydown.down.prevent="openPicker"
       />
-      <button class="jalali-picker-trigger" type="button" aria-label="Open Jalali calendar" :aria-expanded="isOpen" @click="openPicker">
+      <button class="btn btn-ghost" type="button" aria-label="Open Jalali calendar" :aria-expanded="isOpen" @click="openPicker">
         <CalendarDays :size="16" :stroke-width="1.8" aria-hidden="true" />
       </button>
     </div>
 
-    <div v-if="isOpen" class="jalali-picker-popover" role="dialog" aria-label="Jalali calendar">
-      <div class="jalali-picker-heading">
-        <button class="jalali-picker-nav" type="button" aria-label="Previous Jalali month" @click="shiftMonth(-1)"><ChevronLeft :size="16" :stroke-width="1.8" aria-hidden="true" /></button>
+    <div v-if="isOpen" role="dialog" aria-label="Jalali calendar">
+      <div>
+        <button class="btn btn-ghost" type="button" aria-label="Previous Jalali month" @click="shiftMonth(-1)"><ChevronLeft :size="16" :stroke-width="1.8" aria-hidden="true" /></button>
         <strong>{{ monthLabel }}</strong>
-        <button class="jalali-picker-nav" type="button" aria-label="Next Jalali month" @click="shiftMonth(1)"><ChevronRight :size="16" :stroke-width="1.8" aria-hidden="true" /></button>
+        <button class="btn btn-ghost" type="button" aria-label="Next Jalali month" @click="shiftMonth(1)"><ChevronRight :size="16" :stroke-width="1.8" aria-hidden="true" /></button>
       </div>
-      <div class="jalali-picker-weekdays" aria-hidden="true">
+      <div aria-hidden="true">
         <span v-for="weekday in jalaliWeekdays" :key="weekday">{{ weekday }}</span>
       </div>
-      <div class="jalali-picker-days" role="grid" :aria-label="monthLabel">
-        <span v-for="(day, index) in dayCells" :key="`${monthLabel}-${index}`" class="jalali-picker-cell">
-          <button v-if="day" class="jalali-picker-day" :class="{ 'is-selected': isSelected(day), 'is-today': isToday(day) }" type="button" role="gridcell" :aria-label="`${day} ${monthLabel}`" :aria-selected="isSelected(day)" @click="selectDay(day)">{{ day }}</button>
+      <div role="grid" :aria-label="monthLabel">
+        <span v-for="(day, index) in dayCells" :key="`${monthLabel}-${index}`">
+          <button v-if="day" :class="{ 'bg-base-300': isSelected(day), 'btn-outline': isToday(day) }" type="button" role="gridcell" :aria-label="`${day} ${monthLabel}`" :aria-selected="isSelected(day)" @click="selectDay(day)">{{ day }}</button>
         </span>
       </div>
-      <div class="jalali-picker-footer">
-        <button class="text-button" type="button" @click="selectToday">Today</button>
-        <button v-if="modelValue" class="jalali-picker-clear" type="button" aria-label="Clear promised date" @click="clearDate"><X :size="14" :stroke-width="1.8" aria-hidden="true" />Clear</button>
+      <div>
+        <button class="btn btn-ghost" type="button" @click="selectToday">Today</button>
+        <button class="btn btn-ghost" v-if="modelValue" type="button" aria-label="Clear promised date" @click="clearDate"><X :size="14" :stroke-width="1.8" aria-hidden="true" />Clear</button>
       </div>
     </div>
   </div>

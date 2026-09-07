@@ -1,54 +1,36 @@
-# Atropaten UI system
+# Atropaten frontend foundation
 
-Atropaten is a dense, Windows-first desktop ERP. The frontend is Vue 3 + Vite and uses Tailwind CSS with DaisyUI 5 as the styling foundation. Domain authority remains in Go/Wails; the frontend owns presentation, local form state, and feedback only.
+The frontend uses Tailwind CSS 4 and DaisyUI 5 with one custom dark `atropaten` theme. The application is dense and desktop-first, while preserving the existing Vue/Wails contracts and Go-owned domain behavior.
 
-## Theme and tokens
+## Theme
 
-The single named DaisyUI theme is `atropaten`, configured at the top of `frontend/src/style.css`. It is a light theme with white work surfaces, a neutral application background, restrained blue primary accent, semantic green/amber/red/info colors, moderate radii, zero depth/noise, and no gradients or inset control shadows.
+`frontend/src/style.css` contains the only theme stylesheet. Surfaces use DaisyUI `base-100`, `base-200`, `base-300`, and `neutral` colors. Amber is the `primary` accent for actions, active navigation, links, and focus emphasis. Containers do not use amber borders, shadows, glows, gradients, bevels, or inset shadows.
 
-The existing semantic CSS tokens remain the application vocabulary: `--app-bg`, `--surface`, `--border`, `--text`, `--text-soft`, `--text-muted`, `--accent`, `--success`, `--warning`, `--danger`, `--info`, and the shared `--space-*` rhythm. Common controls are 36px high; compact actions are 32px; standard icon buttons are 34px.
+Standard controls use DaisyUI classes (`btn`, `input`, `select`, `textarea`, `table`, `badge`, `alert`, `modal`, and `card`) and Tailwind layout utilities. There is no legacy feature CSS import or global control override.
 
-## Reusable component contract
+Vazirmatn is vendored locally in `frontend/src/assets/fonts/vazirmatn/` with only regular, semibold, and bold files. `frontend/src/styles/fonts.css` is the centralized local `@font-face` entry point; `OFL.txt` records the upstream SIL Open Font License notice. No runtime font/CDN request is required.
 
-Shared components live in `frontend/src/components` and are exported from `frontend/src/ui/components.ts`:
+## Shared components and boundaries
 
-- `AppButton` and `IconButton`: primary, secondary, ghost, danger, compact, disabled, and loading states with one icon/text alignment contract.
-- `AppInput`, `AppSelect`, `AppTextarea`, `FormField`, and `FieldMessage`: DaisyUI-backed flat controls with consistent border, radius, padding, focus, disabled, helper, and error behavior.
-- `SearchFilterBar`: one register toolbar geometry. The search slot flexes into remaining width; filters and the count remain compact peers on the same row and wrap before clipping.
-- `DataTable`, `StatusBadge`, and `AppPanel`/`SectionPanel`: shared table shell, semantic status treatment, and compact section surface.
-- `WorkspaceTabs`, `WorkspaceStickyStack`, and `WorkspaceBottomActions`: shared page geometry and sticky behavior.
-- `EmptyState`, `LoadingState`, and `InlineAlert`: compact operational states rather than oversized placeholders.
-- `ConfirmDialog`: shared promise-based confirmation service in `frontend/src/ui/feedback.ts`.
-- `ToastHost`: one shell-level host using the central `useToast()` API.
+Shared DaisyUI wrappers live in `frontend/src/components`: buttons, icon buttons, inputs, selects, textareas, form fields, messages, search/filter bars, tables, panels, badges, empty/loading states, alerts, confirmations, toasts, workspace tabs, sticky regions, and the application toolbar/sidebar primitives.
 
-Special money, quantity, and Jalali date controls continue to use their existing domain utilities/components. When a field is migrated, it receives the same `at-control` geometry without changing parsing, dates, amounts, or posting behavior.
+The frontend boundaries are documented in [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md). Wails bridge modules remain under `frontend/src/api`, presentation utilities under `frontend/src/utils`, feedback services under `frontend/src/ui`, and domain workspaces under `frontend/src/views`.
 
-Feature CSS is limited to workspace layout and domain-specific content. The former M6-004 `ux-hardening.css` control overrides were removed; its replacement contains only shared geometry and toolbar/layout selectors. Do not add broad selectors that restyle every input, select, button, or textarea outside the component contract.
+## Layout rules
 
-## Toolbar and form rules
+- Search/filter bars use a flexing search slot, same-row filters, and a compact result count. Labels are small and secondary when visible.
+- Equivalent controls use the same DaisyUI size, border, radius, padding, and focus behavior.
+- Tables use DaisyUI table primitives inside `overflow-x-auto` only when content is genuinely wide.
+- Panels and inspectors use neutral dark surfaces. Empty states keep icon and text as one compact aligned group.
+- The shell uses Tailwind grid/flex utilities for the sidebar, toolbar, scrollable workspace, sticky page regions, and status strip.
+- Desktop windows remain usable at narrower widths through wrapping and stacking; domain calculations, persistence, accounting, inventory, production, pricing, Jalali dates, money/quantity formatting, and Wails contracts are unchanged.
 
-Every major register uses the same compact surface: search consumes available width, visible labels are small and muted, filters share the control baseline, and result counts align at the end. Oversized uppercase labels and page-specific toolbar geometry are not allowed.
+## Feedback preservation
 
-Equivalent controls use the same height, border, radius, surface, padding, focus ring, disabled treatment, and no shadow. Forms use `min-width: 0`; inspector grids stack before controls clip. Tables may scroll horizontally only inside their table shell when the data is genuinely wide.
+`frontend/src/ui/feedback.ts` remains the central toast, error normalization, and confirmation service. `ToastHost` supports success, error, warning, and info outcomes. Inline page errors and confirmations remain part of the existing behavior; this foundation cleanup does not move domain rules into Vue.
 
-Panels are used for meaningful sections, not for every line of content. Empty states pair one small icon with text and an optional action. Dashed or oversized placeholder boxes are reserved for real drop/edit regions.
+## Cleanup scope
 
-## Feedback and error handling
+M6-008 removes the legacy global stylesheet, feature CSS files, scoped view CSS, old control class names, and obsolete compatibility selectors. The migration is foundation-only; individual page redesign and additional feedback behavior belong to later work.
 
-The shell mounts one `ToastHost`. The central API supports exactly `success`, `error`, `warning`, and `info`, with manual dismiss, severity-based timeout, deduplication, live-region semantics, and readable stacking above the status strip. User-triggered async outcomes must report success or failure. Page-blocking errors remain inline and also produce an error toast.
-
-`normalizeError()` is the one frontend path for unknown thrown values. New feature code must not use `String(error)` for operator-facing messages, swallow a promise rejection, or leave a user-visible failure as a console-only event.
-
-Destructive and financially significant actions use `confirmAction()` and `ConfirmDialog`, including delete draft, archive/reactivate where confirmation is required, post, void/reverse, close period, and backup restore. Browser `window.confirm` is not part of the application UI contract.
-
-## Workspace geometry
-
-The application shell owns the viewport: sidebar, top bar, scrollable workspace, and bottom status strip. `WorkspaceStickyStack` is sticky within the workspace scroll container and uses shared background, border, spacing, and z-index. `WorkspaceBottomActions` stays above the status strip. Register panes flex into remaining width beside deliberate inspectors; nested arbitrary fixed or overflow containers are defects.
-
-Representative desktop acceptance widths are approximately 1024px, 1280–1440px, and 1600px+. Narrow desktop windows wrap filter rows and stack forms/registers before clipping; this is desktop degradation, not a mobile redesign. See [DAISYUI_MIGRATION_AUDIT.md](DAISYUI_MIGRATION_AUDIT.md) for the workspace inventory and remaining visual follow-up.
-
-## Domain preservation
-
-The UI migration does not move business rules into Vue and does not alter accounting, inventory, production, pricing, migrations, backup/restore, Jalali dates, grouped Rial/Toman formatting, or deletion/archive semantics. Existing Wails bindings and Go services remain authoritative.
-
-Print previews retain their dedicated print surface and `@media print` rules. Their entry points use the same page headers, controls, and feedback system around the preview.
+See [FRONTEND_CLEANUP_AUDIT.md](FRONTEND_CLEANUP_AUDIT.md) and [DAISYUI_MIGRATION_AUDIT.md](DAISYUI_MIGRATION_AUDIT.md) for the detailed inventory and validation limits.

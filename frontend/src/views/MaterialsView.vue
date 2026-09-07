@@ -209,102 +209,102 @@ function dateLabel(value: string) {
 </script>
 
 <template>
-  <div class="materials-view">
+  <div>
     <WorkspaceStickyStack>
-      <header class="workspace-heading materials-heading">
+      <header>
         <div>
-          <p class="eyebrow">Catalog / purchasing foundation</p>
+          <p>Catalog / purchasing foundation</p>
           <h1>Materials</h1>
-          <p class="heading-description">Keep physical stock, conversion units, and cost basis ready for production.</p>
+          <p>Keep physical stock, conversion units, and cost basis ready for production.</p>
         </div>
-        <button class="button button-primary" type="button" @click="startCreate">
-          <Plus class="button-icon" :size="16" :stroke-width="1.8" aria-hidden="true" />
+        <button class="btn btn-ghost" type="button" @click="startCreate">
+          <Plus :size="16" :stroke-width="1.8" aria-hidden="true" />
           New material
         </button>
       </header>
 
-      <section class="materials-filter-bar panel" aria-label="Material filters">
-        <label class="materials-search">
-          <span class="sr-only">Search materials</span>
+      <section aria-label="Material filters">
+        <label class="form-control gap-1">
+          <span>Search materials</span>
           <Search :size="16" :stroke-width="1.8" aria-hidden="true" />
-          <input v-model="searchQuery" type="search" placeholder="Search material, SKU, or category" autocomplete="off" />
+          <input class="input input-bordered w-full min-w-0" v-model="searchQuery" type="search" placeholder="Search material, SKU, or category" autocomplete="off" />
         </label>
-        <label class="filter-control materials-status-filter">
+        <label class="form-control gap-1">
           <span>Status</span>
-          <span class="select-control"><select v-model="materialFilter" aria-label="Filter materials by status"><option>Active</option><option>Archived</option><option>All</option></select></span>
+          <span><select class="select select-bordered w-full min-w-0" v-model="materialFilter" aria-label="Filter materials by status"><option>Active</option><option>Archived</option><option>All</option></select></span>
         </label>
-        <span class="filter-result">{{ filteredMaterials.length }} of {{ materials.length }} materials</span>
+        <span>{{ filteredMaterials.length }} of {{ materials.length }} materials</span>
       </section>
     </WorkspaceStickyStack>
 
-    <div v-if="errorMessage" class="materials-error" role="alert">
+    <div v-if="errorMessage" role="alert">
       <span>{{ errorMessage }}</span>
-      <button class="icon-button" type="button" aria-label="Dismiss materials error" @click="errorMessage = ''"><X :size="15" :stroke-width="1.8" aria-hidden="true" /></button>
+      <button class="btn btn-ghost" type="button" aria-label="Dismiss materials error" @click="errorMessage = ''"><X :size="15" :stroke-width="1.8" aria-hidden="true" /></button>
     </div>
 
-    <section class="materials-layout" aria-label="Materials workspace">
-      <SectionPanel title="Material register" subtitle="Select a material to inspect its stock and cost basis." class="materials-table-panel">
+    <section aria-label="Materials workspace">
+      <SectionPanel title="Material register" subtitle="Select a material to inspect its stock and cost basis.">
         <template #action>
-          <span class="materials-table-count">{{ filteredMaterials.length }} shown</span>
+          <span>{{ filteredMaterials.length }} shown</span>
         </template>
-        <div v-if="isLoading" class="materials-empty"><Package :size="21" :stroke-width="1.8" aria-hidden="true" /><p>Loading materials…</p></div>
-        <div v-else-if="filteredMaterials.length" class="table-wrap materials-table-wrap">
-          <table class="data-table materials-table">
+        <div v-if="isLoading"><Package :size="21" :stroke-width="1.8" aria-hidden="true" /><p>Loading materials…</p></div>
+        <div v-else-if="filteredMaterials.length">
+          <table class="table table-zebra w-full">
             <thead>
-              <tr><th scope="col">Material</th><th scope="col">Units</th><th scope="col">Physical</th><th scope="col">Available</th><th scope="col" class="numeric-column">Average cost</th><th scope="col" class="numeric-column">Inventory value</th><th scope="col">Reorder</th><th scope="col">State</th></tr>
+              <tr><th scope="col">Material</th><th scope="col">Units</th><th scope="col">Physical</th><th scope="col">Available</th><th scope="col">Average cost</th><th scope="col">Inventory value</th><th scope="col">Reorder</th><th scope="col">State</th></tr>
             </thead>
             <tbody>
-              <tr v-for="material in filteredMaterials" :key="material.id" :class="{ 'is-selected': selectedId === material.id }" tabindex="0" @click="selectMaterial(material.id)" @keydown.enter="selectMaterial(material.id)">
-                <td><span class="table-primary">{{ material.name }}</span><span class="table-secondary">{{ material.sku || material.category || 'No SKU or category' }}</span></td>
-                <td><span class="table-primary">{{ unitLabel(material.purchaseUnit) }}</span><span class="table-secondary">1 = {{ material.conversionFactor }} {{ material.consumptionUnit }}</span></td>
-                <td><span class="table-primary">{{ material.physicalStock }} {{ material.consumptionUnit }}</span><span class="table-secondary">Current physical</span></td>
-                <td><span class="table-primary">{{ material.availableStock }} {{ material.consumptionUnit }}</span><span class="table-secondary">{{ material.reservedStock }} reserved</span></td>
-                <td class="numeric-column table-money">{{ formatMoney(material.averageUnitCostRial, props.currencyUnit) }}<span class="table-secondary">per {{ material.consumptionUnit }}</span></td>
-                <td class="numeric-column table-money">{{ formatMoney(material.inventoryValueRial, props.currencyUnit) }}</td>
+              <tr v-for="material in filteredMaterials" :key="material.id" :class="{ 'bg-base-300': selectedId === material.id }" tabindex="0" @click="selectMaterial(material.id)" @keydown.enter="selectMaterial(material.id)">
+                <td><span>{{ material.name }}</span><span>{{ material.sku || material.category || 'No SKU or category' }}</span></td>
+                <td><span>{{ unitLabel(material.purchaseUnit) }}</span><span>1 = {{ material.conversionFactor }} {{ material.consumptionUnit }}</span></td>
+                <td><span>{{ material.physicalStock }} {{ material.consumptionUnit }}</span><span>Current physical</span></td>
+                <td><span>{{ material.availableStock }} {{ material.consumptionUnit }}</span><span>{{ material.reservedStock }} reserved</span></td>
+                <td>{{ formatMoney(material.averageUnitCostRial, props.currencyUnit) }}<span>per {{ material.consumptionUnit }}</span></td>
+                <td>{{ formatMoney(material.inventoryValueRial, props.currencyUnit) }}</td>
                 <td>{{ material.reorderLevel }} {{ material.consumptionUnit }}</td>
                 <td><StatusBadge v-if="material.lowStock" label="Low stock" tone="amber" /><StatusBadge v-else :label="material.active ? 'Healthy' : 'Archived'" :tone="material.active ? 'green' : 'slate'" /></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div v-else class="materials-empty materials-empty-register">
-          <div class="empty-workspace-icon" aria-hidden="true"><Package :size="21" :stroke-width="1.8" /></div>
+        <div v-else>
+          <div aria-hidden="true"><Package :size="21" :stroke-width="1.8" /></div>
           <h2>{{ materials.length ? 'No materials match this view' : 'No materials yet' }}</h2>
           <p>{{ materials.length ? 'Try another status or search term.' : 'Create the first material to establish a production stock baseline.' }}</p>
-          <button v-if="!materials.length" class="button button-secondary" type="button" @click="startCreate"><Plus class="button-icon" :size="15" :stroke-width="1.8" aria-hidden="true" />Create material</button>
+          <button class="btn btn-ghost" v-if="!materials.length" type="button" @click="startCreate"><Plus :size="15" :stroke-width="1.8" aria-hidden="true" />Create material</button>
         </div>
       </SectionPanel>
 
-      <SectionPanel v-if="editorMode" :title="editorMode === 'create' ? 'New material' : 'Edit material'" subtitle="Validation and persistence run in the application layer." class="material-inspector material-editor">
-        <template #action><button class="icon-button" type="button" aria-label="Close material editor" @click="cancelEditor"><X :size="16" :stroke-width="1.8" aria-hidden="true" /></button></template>
-        <form class="material-form" @submit.prevent="saveMaterial">
-          <div v-if="formError" class="form-error" role="alert">{{ formError }}</div>
-          <label class="form-field form-field-wide"><span>Name</span><input v-model="form.name" type="text" placeholder="A4 80gsm Paper" autocomplete="off" /></label>
-          <div class="material-form-grid">
-            <label class="form-field"><span>SKU / code</span><input v-model="form.sku" type="text" placeholder="PAPER-A4" autocomplete="off" /></label>
-            <label class="form-field"><span>Category</span><input v-model="form.category" type="text" placeholder="Paper" autocomplete="off" /></label>
+      <SectionPanel v-if="editorMode" :title="editorMode === 'create' ? 'New material' : 'Edit material'" subtitle="Validation and persistence run in the application layer.">
+        <template #action><button class="btn btn-ghost" type="button" aria-label="Close material editor" @click="cancelEditor"><X :size="16" :stroke-width="1.8" aria-hidden="true" /></button></template>
+        <form @submit.prevent="saveMaterial">
+          <div v-if="formError" role="alert">{{ formError }}</div>
+          <label class="form-control gap-1"><span>Name</span><input class="input input-bordered w-full min-w-0" v-model="form.name" type="text" placeholder="A4 80gsm Paper" autocomplete="off" /></label>
+          <div>
+            <label class="form-control gap-1"><span>SKU / code</span><input class="input input-bordered w-full min-w-0" v-model="form.sku" type="text" placeholder="PAPER-A4" autocomplete="off" /></label>
+            <label class="form-control gap-1"><span>Category</span><input class="input input-bordered w-full min-w-0" v-model="form.category" type="text" placeholder="Paper" autocomplete="off" /></label>
           </div>
-          <div class="material-form-grid">
-            <label class="form-field"><span>Purchase unit</span><select v-model="form.purchaseUnit"><option v-for="unit in unitOptions" :key="unit" :value="unit">{{ unitLabel(unit) }}</option></select></label>
-            <label class="form-field"><span>Consumption unit</span><select v-model="form.consumptionUnit"><option v-for="unit in unitOptions" :key="unit" :value="unit">{{ unitLabel(unit) }}</option></select></label>
+          <div>
+            <label class="form-control gap-1"><span>Purchase unit</span><select class="select select-bordered w-full min-w-0" v-model="form.purchaseUnit"><option v-for="unit in unitOptions" :key="unit" :value="unit">{{ unitLabel(unit) }}</option></select></label>
+            <label class="form-control gap-1"><span>Consumption unit</span><select class="select select-bordered w-full min-w-0" v-model="form.consumptionUnit"><option v-for="unit in unitOptions" :key="unit" :value="unit">{{ unitLabel(unit) }}</option></select></label>
           </div>
-          <label class="form-field form-field-wide"><span>Conversion factor</span><input v-model="form.conversionFactor" type="text" inputmode="decimal" placeholder="500" /><small class="field-help">1 {{ form.purchaseUnit }} = {{ form.conversionFactor || '…' }} {{ form.consumptionUnit }}</small></label>
-          <div class="material-form-grid">
-            <label class="form-field"><span>Physical stock</span><input v-model="form.physicalStock" type="text" inputmode="decimal" placeholder="0" :disabled="editorMode === 'edit'" /><small v-if="editorMode === 'edit'" class="field-help">Use Adjust Stock to create a ledger movement.</small></label>
-            <label class="form-field"><span>Reorder level</span><input v-model="form.reorderLevel" type="text" inputmode="decimal" placeholder="0" /></label>
+          <label class="form-control gap-1"><span>Conversion factor</span><input class="input input-bordered w-full min-w-0" v-model="form.conversionFactor" type="text" inputmode="decimal" placeholder="500" /><small>1 {{ form.purchaseUnit }} = {{ form.conversionFactor || '…' }} {{ form.consumptionUnit }}</small></label>
+          <div>
+            <label class="form-control gap-1"><span>Physical stock</span><input class="input input-bordered w-full min-w-0" v-model="form.physicalStock" type="text" inputmode="decimal" placeholder="0" :disabled="editorMode === 'edit'" /><small v-if="editorMode === 'edit'">Use Adjust Stock to create a ledger movement.</small></label>
+            <label class="form-control gap-1"><span>Reorder level</span><input class="input input-bordered w-full min-w-0" v-model="form.reorderLevel" type="text" inputmode="decimal" placeholder="0" /></label>
           </div>
-          <label class="form-field form-field-wide"><span>Average cost / {{ form.consumptionUnit }} ({{ props.currencyUnit }})</span><input :value="costDraft" type="text" inputmode="decimal" placeholder="0" @input="onCostInput" :disabled="editorMode === 'edit'" /><small class="field-help">Stored as integer Rial; edit catalog cost only when establishing opening stock.</small></label>
-          <label class="form-field form-field-wide"><span>Preferred supplier <em>optional</em></span><input v-model="form.preferredSupplier" type="text" placeholder="Pars Paper" autocomplete="off" /></label>
-          <label class="form-field form-field-wide"><span>Notes <em>optional</em></span><textarea v-model="form.notes" rows="3" placeholder="Storage or handling note"></textarea></label>
-          <div class="material-form-actions"><button class="button button-secondary" type="button" @click="cancelEditor">Cancel</button><button class="button button-primary" type="submit" :disabled="isSaving"><Save class="button-icon" :size="15" :stroke-width="1.8" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save material' }}</button></div>
+          <label class="form-control gap-1"><span>Average cost / {{ form.consumptionUnit }} ({{ props.currencyUnit }})</span><input class="input input-bordered w-full min-w-0" :value="costDraft" type="text" inputmode="decimal" placeholder="0" @input="onCostInput" :disabled="editorMode === 'edit'" /><small>Stored as integer Rial; edit catalog cost only when establishing opening stock.</small></label>
+          <label class="form-control gap-1"><span>Preferred supplier <em>optional</em></span><input class="input input-bordered w-full min-w-0" v-model="form.preferredSupplier" type="text" placeholder="Pars Paper" autocomplete="off" /></label>
+          <label class="form-control gap-1"><span>Notes <em>optional</em></span><textarea class="textarea textarea-bordered w-full min-w-0" v-model="form.notes" rows="3" placeholder="Storage or handling note"></textarea></label>
+          <div><button class="btn btn-ghost" type="button" @click="cancelEditor">Cancel</button><button class="btn btn-ghost" type="submit" :disabled="isSaving"><Save :size="15" :stroke-width="1.8" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save material' }}</button></div>
         </form>
       </SectionPanel>
 
-      <SectionPanel v-else-if="selectedMaterial" title="Material inspector" subtitle="Current persisted record" class="material-inspector">
-        <template #action><button class="icon-button" type="button" aria-label="Edit selected material" @click="startEdit"><Edit3 :size="15" :stroke-width="1.8" aria-hidden="true" /></button></template>
-        <div class="inspector-status"><StatusBadge :label="selectedMaterial.active ? 'Active' : 'Archived'" :tone="selectedMaterial.active ? 'green' : 'slate'" /><StatusBadge v-if="selectedMaterial.lowStock" label="Low stock" tone="amber" /></div>
-        <div class="inspector-heading"><div class="material-inspector-icon"><Package :size="19" :stroke-width="1.8" aria-hidden="true" /></div><div><h3>{{ selectedMaterial.name }}</h3><p>{{ selectedMaterial.sku || 'No SKU' }}<span v-if="selectedMaterial.category"> · {{ selectedMaterial.category }}</span></p></div></div>
-        <dl class="inspector-details">
+      <SectionPanel v-else-if="selectedMaterial" title="Material inspector" subtitle="Current persisted record">
+        <template #action><button class="btn btn-ghost" type="button" aria-label="Edit selected material" @click="startEdit"><Edit3 :size="15" :stroke-width="1.8" aria-hidden="true" /></button></template>
+        <div><StatusBadge :label="selectedMaterial.active ? 'Active' : 'Archived'" :tone="selectedMaterial.active ? 'green' : 'slate'" /><StatusBadge v-if="selectedMaterial.lowStock" label="Low stock" tone="amber" /></div>
+        <div><div><Package :size="19" :stroke-width="1.8" aria-hidden="true" /></div><div><h3>{{ selectedMaterial.name }}</h3><p>{{ selectedMaterial.sku || 'No SKU' }}<span v-if="selectedMaterial.category"> · {{ selectedMaterial.category }}</span></p></div></div>
+        <dl>
           <div><dt>Unit conversion</dt><dd>1 {{ selectedMaterial.purchaseUnit }} = {{ selectedMaterial.conversionFactor }} {{ selectedMaterial.consumptionUnit }}</dd></div>
           <div><dt>Physical stock</dt><dd>{{ selectedMaterial.physicalStock }} {{ selectedMaterial.consumptionUnit }}</dd></div>
           <div><dt>Reserved stock</dt><dd>{{ selectedMaterial.reservedStock }} {{ selectedMaterial.consumptionUnit }}</dd></div>
@@ -313,14 +313,14 @@ function dateLabel(value: string) {
           <div><dt>Average cost</dt><dd>{{ formatMoney(selectedMaterial.averageUnitCostRial, props.currencyUnit) }} <small>per {{ selectedMaterial.consumptionUnit }}</small></dd></div>
           <div><dt>Last updated</dt><dd>{{ dateLabel(selectedMaterial.updatedAt) }}</dd></div>
         </dl>
-        <p v-if="selectedMaterial.notes" class="inspector-note">{{ selectedMaterial.notes }}</p>
-          <div class="inspector-actions"><button v-if="selectedMaterial.active" class="button button-secondary" type="button" @click="setActive(false)"><Archive class="button-icon" :size="15" :stroke-width="1.8" aria-hidden="true" />Archive</button><button v-else class="button button-secondary" type="button" @click="setActive(true)"><RotateCcw class="button-icon" :size="15" :stroke-width="1.8" aria-hidden="true" />Reactivate</button></div>
-        <div class="stock-adjustment"><h3>Adjust stock</h3><p class="field-help">Positive adds stock; negative records a supplier return or correction.</p><div class="material-form-grid"><label class="form-field"><span>Quantity delta</span><input v-model="adjustmentQuantity" placeholder="−1 or 2.5" inputmode="decimal" /></label><label class="form-field"><span>Unit cost ({{ props.currencyUnit }})</span><input v-model="adjustmentCost" inputmode="numeric" /></label></div><label class="form-field"><span>Reason / note</span><input v-model="adjustmentNote" placeholder="Count correction" /></label><button class="button button-secondary" type="button" @click="adjustStock"><RefreshCw :size="15"/> Record movement</button></div>
-        <div class="movement-history"><h3>Recent movements</h3><div v-if="movements.length" v-for="movement in movements.slice(0,6)" :key="movement.id" class="movement-row"><span><strong>{{ movement.movementType }}</strong><small>{{ dateLabel(movement.occurredAt) }}</small></span><span :class="{'text-danger':movement.quantityDelta.startsWith('-')}">{{ movement.quantityDelta }} {{ selectedMaterial.consumptionUnit }}</span><span>{{ formatMoney(movement.totalCostRial, props.currencyUnit) }}</span></div><p v-else class="field-help">No inventory movements yet.</p></div>
+        <p v-if="selectedMaterial.notes">{{ selectedMaterial.notes }}</p>
+          <div><button class="btn btn-ghost" v-if="selectedMaterial.active" type="button" @click="setActive(false)"><Archive :size="15" :stroke-width="1.8" aria-hidden="true" />Archive</button><button class="btn btn-ghost" v-else type="button" @click="setActive(true)"><RotateCcw :size="15" :stroke-width="1.8" aria-hidden="true" />Reactivate</button></div>
+        <div><h3>Adjust stock</h3><p>Positive adds stock; negative records a supplier return or correction.</p><div><label class="form-control gap-1"><span>Quantity delta</span><input class="input input-bordered w-full min-w-0" v-model="adjustmentQuantity" placeholder="−1 or 2.5" inputmode="decimal" /></label><label class="form-control gap-1"><span>Unit cost ({{ props.currencyUnit }})</span><input class="input input-bordered w-full min-w-0" v-model="adjustmentCost" inputmode="numeric" /></label></div><label class="form-control gap-1"><span>Reason / note</span><input class="input input-bordered w-full min-w-0" v-model="adjustmentNote" placeholder="Count correction" /></label><button class="btn btn-ghost" type="button" @click="adjustStock"><RefreshCw :size="15"/> Record movement</button></div>
+        <div><h3>Recent movements</h3><div v-if="movements.length" v-for="movement in movements.slice(0,6)" :key="movement.id"><span><strong>{{ movement.movementType }}</strong><small>{{ dateLabel(movement.occurredAt) }}</small></span><span :class="{'text-danger':movement.quantityDelta.startsWith('-')}">{{ movement.quantityDelta }} {{ selectedMaterial.consumptionUnit }}</span><span>{{ formatMoney(movement.totalCostRial, props.currencyUnit) }}</span></div><p v-else>No inventory movements yet.</p></div>
       </SectionPanel>
 
-      <SectionPanel v-else title="Material inspector" subtitle="Select a row to inspect it." class="material-inspector material-inspector-empty">
-        <div class="inspector-empty-copy"><Check :size="20" :stroke-width="1.8" aria-hidden="true" /><p>Material details will appear here.</p><button class="text-button" type="button" @click="startCreate">Create a material <Plus :size="14" :stroke-width="1.8" aria-hidden="true" /></button></div>
+      <SectionPanel v-else title="Material inspector" subtitle="Select a row to inspect it.">
+        <div><Check :size="20" :stroke-width="1.8" aria-hidden="true" /><p>Material details will appear here.</p><button class="btn btn-ghost" type="button" @click="startCreate">Create a material <Plus :size="14" :stroke-width="1.8" aria-hidden="true" /></button></div>
       </SectionPanel>
     </section>
   </div>

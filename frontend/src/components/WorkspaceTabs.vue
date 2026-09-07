@@ -8,12 +8,12 @@ defineEmits<{ change: [tab: string] }>()
 </script>
 
 <template>
-<nav class="workspace-tabs at-workspace-tabs" aria-label="Workspace tabs" role="tablist">
+<nav class="flex gap-1 overflow-x-auto border-b border-base-300" aria-label="Workspace tabs" role="tablist">
     <button
       v-for="tab in tabs"
       :key="tab"
-      class="workspace-tab"
-      :class="{ 'is-active': tab === activeTab }"
+      class="btn btn-ghost btn-sm shrink-0 rounded-b-none"
+      :class="{ 'btn-primary': tab === activeTab }"
       type="button"
       :aria-selected="tab === activeTab"
       role="tab"

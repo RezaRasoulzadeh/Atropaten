@@ -195,19 +195,19 @@ function showToast(message: string) {
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'sidebar-collapsed': isSidebarCollapsed }">
-    <aside class="sidebar" aria-label="Primary navigation">
-      <div class="brand-block">
-        <div class="brand-mark" aria-hidden="true">A</div>
-        <div class="brand-copy" :class="{ 'is-hidden': isSidebarCollapsed }">
-          <span class="brand-name">Atropaten</span>
-          <span class="brand-caption">Print shop control</span>
+  <div class="grid min-h-screen min-h-0 font-sans bg-base-200 text-base-content" :class="isSidebarCollapsed ? 'lg:grid-cols-[4.5rem_minmax(0,1fr)]' : 'lg:grid-cols-[14.5rem_minmax(0,1fr)]'">
+    <aside class="hidden min-h-0 flex-col border-e border-base-300 bg-base-100 lg:flex" aria-label="Primary navigation">
+      <div class="flex min-h-16 items-center gap-3 border-b border-base-300 px-4">
+        <div class="grid size-8 shrink-0 place-items-center rounded bg-primary font-bold text-primary-content" aria-hidden="true">A</div>
+        <div v-if="!isSidebarCollapsed" class="min-w-0">
+          <span class="block truncate text-sm font-bold">Atropaten</span>
+          <span class="block text-[10px] text-base-content/60">Print shop control</span>
         </div>
       </div>
 
-      <nav class="sidebar-nav">
-        <div v-for="section in navigationSections" :key="section.label" class="nav-section">
-          <p v-if="!isSidebarCollapsed" class="nav-section-label">{{ section.label }}</p>
+      <nav class="min-h-0 flex-1 overflow-y-auto p-3">
+        <div v-for="section in navigationSections" :key="section.label" class="mb-4 last:mb-0">
+          <p v-if="!isSidebarCollapsed" class="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wide text-base-content/50">{{ section.label }}</p>
           <SidebarNavItem
             v-for="item in section.items"
             :key="item.label"
@@ -220,16 +220,16 @@ function showToast(message: string) {
         </div>
       </nav>
 
-      <div class="sidebar-footer">
-        <div class="sync-state">
-          <span class="sync-dot" aria-hidden="true"></span>
-          <span class="sync-copy" :class="{ 'is-hidden': isSidebarCollapsed }">Local workspace · synced</span>
+      <div class="border-t border-base-300 p-3 text-xs text-base-content/60">
+        <div class="flex items-center gap-2">
+          <span class="size-2 shrink-0 rounded-full bg-success" aria-hidden="true"></span>
+          <span v-if="!isSidebarCollapsed">Local workspace · synced</span>
         </div>
-        <div class="sidebar-version" :class="{ 'is-hidden': isSidebarCollapsed }">v0.1 foundation</div>
+        <div v-if="!isSidebarCollapsed" class="mt-1 text-[10px]">v0.1 foundation</div>
       </div>
     </aside>
 
-    <div class="app-frame">
+    <div class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto]">
       <AppToolbar
         :collapsed="isSidebarCollapsed"
         :search-query="searchQuery"
@@ -240,12 +240,12 @@ function showToast(message: string) {
       @notifications="toast.info('You are all caught up.')"
       />
 
-      <main class="workspace" :class="{ 'workspace-dashboard': activeView === 'Dashboard' }" tabindex="-1">
-        <Transition name="workspace-view" mode="out-in">
+      <main class="min-h-0 min-w-0 overflow-y-auto bg-base-200 p-4" tabindex="-1">
+        <Transition mode="out-in">
         <DashboardView v-if="activeView === 'Dashboard'" key="dashboard" :currency-unit="currencyUnit" @navigate="selectView" @new-order="openNewOrder" @notify="showToast" />
 
-        <div v-else-if="activeView === 'Orders'" key="orders" class="orders-view-transition">
-          <Transition name="workspace-view" mode="out-in">
+        <div v-else-if="activeView === 'Orders'" key="orders">
+          <Transition mode="out-in">
             <OrderWorkspaceView
               v-if="selectedOrder"
               :key="selectedOrder.id"
@@ -262,8 +262,8 @@ function showToast(message: string) {
           </Transition>
         </div>
 
-        <div v-else-if="activeView === 'Quotes'" key="quotes" class="orders-view-transition">
-          <Transition name="workspace-view" mode="out-in">
+        <div v-else-if="activeView === 'Quotes'" key="quotes">
+          <Transition mode="out-in">
             <QuoteWorkspaceView v-if="selectedQuote" :key="selectedQuote.id" :quote="selectedQuote" :currency-unit="currencyUnit" :customers="customers" :services="catalogServices" :materials="catalogMaterials" @back="closeQuoteWorkspace" @notify="showToast" @saved="updateQuote" @converted="openConvertedOrder" />
             <QuotesView v-else key="quotes-list" :quotes="quotes" :loading="quotesLoading" :error="quotesError" :currency-unit="currencyUnit" @open-quote="openQuote" @new-quote="openNewQuote" />
           </Transition>
@@ -297,21 +297,21 @@ function showToast(message: string) {
 
         <SettingsView v-else-if="activeView === 'Settings'" key="settings" @notify="showToast" />
 
-        <section v-else key="empty" class="empty-workspace">
-          <div class="empty-workspace-icon" aria-hidden="true"><Sparkles :size="22" :stroke-width="1.8" /></div>
-          <p class="eyebrow">Atropaten workspace</p>
+        <section v-else key="empty" class="flex min-h-full flex-col items-center justify-center gap-3 text-center">
+          <div class="text-primary" aria-hidden="true"><Sparkles :size="22" :stroke-width="1.8" /></div>
+          <p class="text-xs uppercase tracking-wide text-base-content/60">Atropaten workspace</p>
           <h1>{{ currentView.title }}</h1>
           <p>{{ currentView.description }}</p>
-          <button class="button button-secondary" type="button" @click="selectView('Dashboard')">Back to dashboard</button>
+          <button class="btn btn-outline" type="button" @click="selectView('Dashboard')">Back to dashboard</button>
         </section>
         </Transition>
       </main>
 
-      <footer class="status-bar" aria-label="Workspace status">
-        <span class="status-live"><span class="sync-dot" aria-hidden="true"></span> Local mode</span>
-        <span class="status-divider" aria-hidden="true"></span>
+      <footer class="flex items-center gap-3 border-t border-base-300 bg-base-100 px-4 py-2 text-xs text-base-content/60" aria-label="Workspace status">
+        <span class="flex items-center gap-2"><span class="size-2 rounded-full bg-success" aria-hidden="true"></span> Local mode</span>
+        <span class="h-4 w-px bg-base-300" aria-hidden="true"></span>
         <span>Last updated just now</span>
-        <span class="status-spacer"></span>
+        <span class="flex-1"></span>
         <span>Authoritative data</span>
       </footer>
     </div>

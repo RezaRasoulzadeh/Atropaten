@@ -8,8 +8,7 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <span class="badge status-badge" :class="[`badge-${tone}`, `at-status-${tone}`]">
-    <span class="status-badge-dot" aria-hidden="true"></span>
+  <span class="badge badge-sm" :class="tone === 'green' ? 'badge-success' : tone === 'red' ? 'badge-error' : tone === 'amber' ? 'badge-warning' : tone === 'blue' ? 'badge-info' : 'badge-neutral'">
     {{ label }}
   </span>
 </template>
