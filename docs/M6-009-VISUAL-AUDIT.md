@@ -8,6 +8,8 @@ The shared shell and Dashboard were rendered in standalone Chrome at 1024, 1280,
 
 Every workspace below was inspected in source and through its shared component structure. “Not inspected” means not live-rendered in a backend-connected runtime; it does not mean the view was omitted from the corrective review.
 
+The shared-control visual check also covers normal and focused states for the AppToolbar search input, currency select, `SelectField`, `AppTextarea`, date-picker input, and configurator inputs. The central contract is a 1px solid `base-300` border at rest and a 1px dashed Amber primary border on focus, with `outline: none` and `box-shadow: none`; the error/success color classes remain visible on focus. Ordinary buttons, cards, and containers are outside this selector set.
+
 | Workspace | Live render | State checked | Header / toolbar | Forms / controls | Tables / panels | Inspector | Deferred page-specific design work |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Dashboard | Inspected: 1024 / 1280 / 1600 | Empty/error state; populated M6-006 unavailable | Checked | Checked | Checked | N/A | Real populated attention density and backend-connected KPI values |
@@ -35,7 +37,8 @@ Every workspace below was inspected in source and through its shared component s
 
 - Vazirmatn is still locally vendored and now uses its actual font metrics. The `ascent-override`, `descent-override`, and `line-gap-override` declarations were removed. The asymmetric control padding and global metric compensation were removed as well.
 - `SelectField` is now the one ordinary-select pattern: a native DaisyUI `select select-bordered` with shared height, typography, border, focus behavior, and `text-start` value alignment. The old custom trigger and generic `.btn`/`:has()` centering rules are gone.
-- `frontend/src/style.css` is 117 lines versus 209 before this pass: 92 lines removed, a 44% reduction. It now contains theme/font/shell/infrastructure rules only. Feature and control geometry remains in DaisyUI and local Tailwind structure.
+- Editable controls now override DaisyUI’s default focus outline/ring centrally: 1px dashed Amber primary border, no outline or shadow, and no box-size change. Validation state colors remain visible, and ordinary buttons are not included.
+- The base cleanup reduced `frontend/src/style.css` from 209 to 117 lines (92 lines, 44%) before the shared focus contract was added. It is now 168 lines: still 41 lines smaller than the original, with only the centrally shared editable-control focus rules added back. Feature and other control geometry remains in DaisyUI and local Tailwind structure.
 - The existing toast, confirmation, date, currency, and Wails API paths were preserved. No Go/domain files were changed.
 
 ## Remaining verification

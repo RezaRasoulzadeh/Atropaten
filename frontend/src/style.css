@@ -92,6 +92,57 @@
   }
 }
 
+/* Shared editable-control contract. Keep this separate from buttons/cards so
+   their DaisyUI focus treatment is unaffected. The dashed border is the
+   keyboard-visible focus indicator and does not change the control box. */
+.input,
+.select,
+.textarea,
+.select-field-trigger {
+  border-width: var(--border);
+  border-style: solid;
+  border-color: var(--color-base-300);
+}
+
+.input:focus,
+.input:focus-visible,
+.select:focus,
+.select:focus-visible,
+.textarea:focus,
+.textarea:focus-visible,
+.select-field-trigger:focus,
+.select-field-trigger:focus-visible {
+  border-width: var(--border);
+  border-style: dashed;
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: none;
+}
+
+/* Keep validation semantics visible while using the same no-layout-shift
+   focus treatment. DaisyUI's state classes remain authoritative for color. */
+.input-error:focus,
+.input-error:focus-visible,
+.select-error:focus,
+.select-error:focus-visible,
+.textarea-error:focus,
+.textarea-error:focus-visible,
+.select-field-trigger.input-error:focus,
+.select-field-trigger.input-error:focus-visible {
+  border-color: var(--color-error);
+}
+
+.input-success:focus,
+.input-success:focus-visible,
+.select-success:focus,
+.select-success:focus-visible,
+.textarea-success:focus,
+.textarea-success:focus-visible,
+.select-field-trigger.input-success:focus,
+.select-field-trigger.input-success:focus-visible {
+  border-color: var(--color-success);
+}
+
 /* The drawer is the application shell, so it may opt out of DaisyUI menu wrapping. */
 .drawer-side {
   overflow: hidden;
