@@ -22,13 +22,21 @@ export function ApplyQuoteDiscount(arg1:string,arg2:number):Promise<main.QuoteDT
 
 export function ArchiveCustomer(arg1:string):Promise<main.CustomerDTO>;
 
+export function DeleteCustomer(arg1:string):Promise<void>;
+
 export function ArchiveMachine(arg1:string):Promise<main.MachineDTO>;
 
+export function DeleteMachine(arg1:string):Promise<void>;
+
 export function ArchiveMaterial(arg1:string):Promise<main.MaterialDTO>;
+
+export function DeleteMaterial(arg1:string):Promise<void>;
 
 export function ArchiveOwner(arg1:string):Promise<void>;
 
 export function ArchiveService(arg1:string):Promise<main.ServiceDTO>;
+
+export function DeleteService(arg1:string):Promise<void>;
 
 export function ArchiveSupplier(arg1:string):Promise<main.SupplierDTO>;
 

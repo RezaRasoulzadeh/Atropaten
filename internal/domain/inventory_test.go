@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestInventoryMathIsFixedScaleAndDeterministic(t *testing.T) {
 	q := Quantity(1_250_000)
@@ -36,5 +39,17 @@ func TestWeightedAverageZeroAndMultiplePurchases(t *testing.T) {
 func TestPurchaseConversionRejectsLossyFixedScaleResult(t *testing.T) {
 	if _, err := ConvertPurchaseQuantity(1, 1); err == nil {
 		t.Fatal("lossy conversion was silently truncated")
+	}
+}
+
+func TestInventoryMathRejectsInt64IntermediateOverflow(t *testing.T) {
+	if _, err := AllocateLandedCosts([]int64{1}, 0, math.MaxInt64, 1, 0); err == nil {
+		t.Fatal("landed-cost intermediate overflow was accepted")
+	}
+	if _, err := WeightedAverage(InventorySummary{PhysicalStock: Quantity(math.MaxInt64), InventoryValueRial: 1}, 1, 1); err == nil {
+		t.Fatal("quantity overflow was accepted")
+	}
+	if _, err := WeightedAverage(InventorySummary{PhysicalStock: 1, InventoryValueRial: math.MaxInt64}, 1, 1); err == nil {
+		t.Fatal("inventory-value overflow was accepted")
 	}
 }

@@ -1,6 +1,7 @@
 import {
   ArchiveService,
   CreateService,
+  DeleteService,
   GetService,
   ListServices,
   ReactivateService,
@@ -79,6 +80,9 @@ export const servicesApi = {
   },
   reactivate(id: string): Promise<ServiceRecord> {
     return ReactivateService(id)
+  },
+  remove(id: string): Promise<void> {
+    return DeleteService(id)
   },
   addComponent(id: string, input: ServiceCostComponentPayload): Promise<ServiceRecord> { return AddServiceCostComponent(id, input as unknown as mainTypes.ServiceCostComponentInput) },
   updateComponent(id: string, componentId: string, input: ServiceCostComponentPayload): Promise<ServiceRecord> { return UpdateServiceCostComponent(id, componentId, input as unknown as mainTypes.ServiceCostComponentInput) },

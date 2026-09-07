@@ -85,12 +85,22 @@ func (s *BackupService) Create(ctx context.Context) (BackupInfo, error) {
 	}
 	manifest := BackupManifest{FormatVersion: BackupFormatVersion, ApplicationVersion: ApplicationVersion, Database: "database.sqlite", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), Files: []BackupFile{}}
 	for _, source := range paths {
+		fileInfo, statErr := os.Lstat(source)
+		if statErr != nil {
+			return BackupInfo{}, fmt.Errorf("managed file %q: %w", source, statErr)
+		}
+		if fileInfo.Mode()&os.ModeSymlink != 0 {
+			return BackupInfo{}, fmt.Errorf("managed file %q is a symbolic link", source)
+		}
+		if fileInfo.IsDir() {
+			return BackupInfo{}, fmt.Errorf("managed file %q is a directory", source)
+		}
 		if _, err = os.Stat(source); err != nil {
 			return BackupInfo{}, fmt.Errorf("managed file %q: %w", source, err)
 		}
 		rel, ok := s.managedRelative(source)
 		if !ok {
-			continue
+			return BackupInfo{}, fmt.Errorf("managed file %q is outside the application attachments directory", source)
 		}
 		target := filepath.Join(tmp, rel)
 		if err = os.MkdirAll(filepath.Dir(target), 0o700); err != nil {

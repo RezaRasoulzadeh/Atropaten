@@ -75,6 +75,10 @@ func (s *MetadataService) ListProofs(ctx context.Context, ownerType, ownerID str
 }
 func (s *MetadataService) CreateProof(ctx context.Context, ownerType, ownerID, attachmentID, status, version, approverNote, internalNote string) (ProofView, error) {
 	now := s.now().UTC()
+	requestedStatus := domain.ProofStatus(status)
+	if requestedStatus != domain.ProofDraft && requestedStatus != domain.ProofReady {
+		return ProofView{}, fmt.Errorf("a new proof version must start in Draft or Ready")
+	}
 	p := domain.Proof{OwnerType: domain.AttachmentOwnerType(ownerType), OwnerID: strings.TrimSpace(ownerID), AttachmentID: strings.TrimSpace(attachmentID), Status: domain.ProofStatus(status), VersionLabel: strings.TrimSpace(version), ApproverNote: strings.TrimSpace(approverNote), InternalNote: strings.TrimSpace(internalNote), CreatedAt: now}
 	setProofTimestamp(&p, now)
 	id, e := randomID("PRF-")

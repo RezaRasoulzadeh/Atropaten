@@ -3,10 +3,12 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"Atropaten/internal/application"
 	"Atropaten/internal/domain"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -236,5 +238,12 @@ func TestAttachmentAndProofHistoryPersistence(t *testing.T) {
 	invalid.ApprovedAt = nil
 	if err := store.SaveProof(ctx, invalid); err == nil {
 		t.Fatal("approved proof without timestamp accepted")
+	}
+	if err := store.DeleteAttachment(ctx, a.ID); !errors.Is(err, domain.ErrAttachmentProtected) {
+		t.Fatalf("proof-linked attachment delete error=%v", err)
+	}
+	metadata := application.NewMetadataService(store, store)
+	if _, err := metadata.CreateProof(ctx, "quote", "QUOTE-1", a.ID, string(domain.ProofApproved), "v2", "", ""); err == nil {
+		t.Fatal("new proof version bypassed workflow")
 	}
 }

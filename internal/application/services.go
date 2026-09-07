@@ -226,6 +226,15 @@ func (s *ServicesService) Archive(ctx context.Context, id string) (ServiceView, 
 func (s *ServicesService) Reactivate(ctx context.Context, id string) (ServiceView, error) {
 	return s.setActive(ctx, id, true)
 }
+func (s *ServicesService) Delete(ctx context.Context, id string) error {
+	repository, ok := s.repository.(interface {
+		DeleteService(context.Context, string) error
+	})
+	if !ok {
+		return fmt.Errorf("service deletion is not supported")
+	}
+	return repository.DeleteService(ctx, strings.TrimSpace(id))
+}
 
 func (s *ServicesService) setActive(ctx context.Context, id string, active bool) (ServiceView, error) {
 	service, err := s.repository.GetService(ctx, strings.TrimSpace(id))

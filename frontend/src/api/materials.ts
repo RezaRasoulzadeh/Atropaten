@@ -1,6 +1,7 @@
 import {
   ArchiveMaterial,
   CreateMaterial,
+  DeleteMaterial,
   GetMaterial,
   ListMaterials,
   ReactivateMaterial,
@@ -29,5 +30,8 @@ export const materialsApi = {
   },
   reactivate(id: string): Promise<MaterialRecord> {
     return ReactivateMaterial(id)
+  },
+  remove(id: string): Promise<void> {
+    return DeleteMaterial(id)
   },
 }

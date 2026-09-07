@@ -211,6 +211,14 @@ func (a *App) ReactivateService(id string) (ServiceDTO, error) {
 	return serviceDTO(view), nil
 }
 
+func (a *App) DeleteService(id string) error {
+	service, err := a.serviceService()
+	if err != nil {
+		return err
+	}
+	return service.Delete(a.materialContext(), id)
+}
+
 func (a *App) AddServiceParameter(id string, input ServiceParameterInput) (ServiceDTO, error) {
 	service, err := a.serviceService()
 	if err != nil {

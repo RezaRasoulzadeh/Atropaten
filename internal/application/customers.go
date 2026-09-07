@@ -81,6 +81,15 @@ func (s *CustomersService) Archive(ctx context.Context, id string) (CustomerView
 func (s *CustomersService) Reactivate(ctx context.Context, id string) (CustomerView, error) {
 	return s.setActive(ctx, id, true)
 }
+func (s *CustomersService) Delete(ctx context.Context, id string) error {
+	repository, ok := s.repository.(interface {
+		DeleteCustomer(context.Context, string) error
+	})
+	if !ok {
+		return fmt.Errorf("customer deletion is not supported")
+	}
+	return repository.DeleteCustomer(ctx, strings.TrimSpace(id))
+}
 func (s *CustomersService) setActive(ctx context.Context, id string, active bool) (CustomerView, error) {
 	row, err := s.repository.GetCustomer(ctx, strings.TrimSpace(id))
 	if err != nil {

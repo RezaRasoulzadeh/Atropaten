@@ -271,6 +271,13 @@ func (s *Store) SaveAttachment(ctx context.Context, a domain.Attachment) error {
 	return nil
 }
 func (s *Store) DeleteAttachment(ctx context.Context, id string) error {
+	var references int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM proofs WHERE attachment_id=?`, id).Scan(&references); err != nil {
+		return err
+	}
+	if references > 0 {
+		return domain.ErrAttachmentProtected
+	}
 	r, e := s.db.ExecContext(ctx, `DELETE FROM attachments WHERE id=?`, id)
 	if e != nil {
 		return e

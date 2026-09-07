@@ -103,6 +103,15 @@ func (s *MachinesService) Archive(ctx context.Context, id string) (MachineView, 
 func (s *MachinesService) Reactivate(ctx context.Context, id string) (MachineView, error) {
 	return s.setActive(ctx, id, true)
 }
+func (s *MachinesService) Delete(ctx context.Context, id string) error {
+	repository, ok := s.repository.(interface {
+		DeleteMachine(context.Context, string) error
+	})
+	if !ok {
+		return fmt.Errorf("machine deletion is not supported")
+	}
+	return repository.DeleteMachine(ctx, strings.TrimSpace(id))
+}
 
 func (s *MachinesService) setActive(ctx context.Context, id string, active bool) (MachineView, error) {
 	machine, err := s.repository.GetMachine(ctx, strings.TrimSpace(id))

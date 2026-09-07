@@ -42,12 +42,24 @@ export function ArchiveCustomer(arg1) {
   return window['go']['main']['App']['ArchiveCustomer'](arg1);
 }
 
+export function DeleteCustomer(arg1) {
+  return window['go']['main']['App']['DeleteCustomer'](arg1);
+}
+
 export function ArchiveMachine(arg1) {
   return window['go']['main']['App']['ArchiveMachine'](arg1);
 }
 
+export function DeleteMachine(arg1) {
+  return window['go']['main']['App']['DeleteMachine'](arg1);
+}
+
 export function ArchiveMaterial(arg1) {
   return window['go']['main']['App']['ArchiveMaterial'](arg1);
+}
+
+export function DeleteMaterial(arg1) {
+  return window['go']['main']['App']['DeleteMaterial'](arg1);
 }
 
 export function ArchiveOwner(arg1) {
@@ -56,6 +68,10 @@ export function ArchiveOwner(arg1) {
 
 export function ArchiveService(arg1) {
   return window['go']['main']['App']['ArchiveService'](arg1);
+}
+
+export function DeleteService(arg1) {
+  return window['go']['main']['App']['DeleteService'](arg1);
 }
 
 export function ArchiveSupplier(arg1) {

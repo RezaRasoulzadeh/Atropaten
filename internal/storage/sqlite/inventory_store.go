@@ -52,11 +52,19 @@ func (s *Store) SaveSupplier(ctx context.Context, v domain.Supplier) error {
 }
 func (s *Store) DeleteSupplier(ctx context.Context, id string) error {
 	var n int
-	if e := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM purchases WHERE supplier_id=?`, id).Scan(&n); e != nil {
-		return e
-	}
-	if n > 0 {
-		return domain.ErrSupplierDeleteProtected
+	for _, query := range []string{
+		`SELECT COUNT(*) FROM purchases WHERE supplier_id=?`,
+		`SELECT COUNT(*) FROM payments WHERE supplier_id=?`,
+		`SELECT COUNT(*) FROM checks WHERE supplier_id=?`,
+		`SELECT COUNT(*) FROM loans WHERE supplier_id=?`,
+		`SELECT COUNT(*) FROM production_jobs WHERE outsource_supplier_id=?`,
+	} {
+		if e := s.db.QueryRowContext(ctx, query, id).Scan(&n); e != nil {
+			return e
+		}
+		if n > 0 {
+			return domain.ErrSupplierDeleteProtected
+		}
 	}
 	res, e := s.db.ExecContext(ctx, `DELETE FROM suppliers WHERE id=?`, id)
 	if e != nil {
@@ -310,6 +318,25 @@ func (s *Store) CancelPurchase(ctx context.Context, id string) error {
 		movements = append(movements, v)
 	}
 	rows.Close()
+	// Cancellation removes physical stock but does not release unrelated
+	// reservations. Preflight the complete batch so the transaction cannot
+	// leave active reservations above physical stock.
+	cancelByMaterial := map[string]int64{}
+	for _, v := range movements {
+		if v.q < 0 || cancelByMaterial[v.m] > int64(^uint64(0)>>1)-v.q {
+			return fail(domain.ErrInsufficientStock)
+		}
+		cancelByMaterial[v.m] += v.q
+	}
+	for materialID, cancelQty := range cancelByMaterial {
+		state, stateErr := inventoryStateTx(ctx, tx, materialID)
+		if stateErr != nil {
+			return fail(stateErr)
+		}
+		if domain.Quantity(cancelQty) > state.PhysicalStock || state.ReservedStock > state.PhysicalStock-domain.Quantity(cancelQty) {
+			return fail(domain.ErrInsufficientStock)
+		}
+	}
 	remaining := map[string]int64{}
 	for _, v := range movements {
 		var stock int64
@@ -367,7 +394,8 @@ func (s *Store) AdjustInventory(ctx context.Context, materialID string, qty doma
 	if e = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(quantity_delta_units),0) FROM inventory_movements WHERE material_id=?`, materialID).Scan(&stock); e != nil {
 		return fail(e)
 	}
-	if stock+int64(qty) < 0 {
+	newStock := new(big.Int).Add(big.NewInt(stock), big.NewInt(int64(qty)))
+	if !newStock.IsInt64() || newStock.Sign() < 0 {
 		return fail(domain.ErrInsufficientStock)
 	}
 	if qty < 0 && cost == 0 {

@@ -1,4 +1,4 @@
-import { ArchiveCustomer, CreateCustomer, GetCustomer, ListCustomers, ReactivateCustomer, UpdateCustomer } from '../../wailsjs/go/main/App'
+import { ArchiveCustomer, CreateCustomer, DeleteCustomer, GetCustomer, ListCustomers, ReactivateCustomer, UpdateCustomer } from '../../wailsjs/go/main/App'
 export interface CustomerRecord { id:string; name:string; phone:string; email:string; address:string; notes:string; active:boolean; createdAt:string; updatedAt:string }
 export interface CustomerPayload { name:string; phone:string; email:string; address:string; notes:string }
 export const customersApi = {
@@ -8,4 +8,5 @@ export const customersApi = {
   update(id:string,input:CustomerPayload): Promise<CustomerRecord> { return UpdateCustomer(id,input) as Promise<CustomerRecord> },
   archive(id:string): Promise<CustomerRecord> { return ArchiveCustomer(id) as Promise<CustomerRecord> },
   reactivate(id:string): Promise<CustomerRecord> { return ReactivateCustomer(id) as Promise<CustomerRecord> },
+  remove(id:string): Promise<void> { return DeleteCustomer(id) },
 }

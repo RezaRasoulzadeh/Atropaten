@@ -6,7 +6,10 @@ import (
 	"time"
 )
 
-var ErrCustomerNotFound = errors.New("customer not found")
+var (
+	ErrCustomerNotFound        = errors.New("customer not found")
+	ErrCustomerDeleteProtected = errors.New("customer has authoritative history; archive it instead")
+)
 
 type Customer struct {
 	ID        string

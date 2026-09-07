@@ -11,9 +11,10 @@ import (
 )
 
 var (
-	ErrServiceNotFound       = errors.New("service not found")
-	ErrParameterNotFound     = errors.New("service parameter not found")
-	ErrCostComponentNotFound = errors.New("service cost component not found")
+	ErrServiceNotFound        = errors.New("service not found")
+	ErrServiceDeleteProtected = errors.New("service has quote or order history; archive it instead")
+	ErrParameterNotFound      = errors.New("service parameter not found")
+	ErrCostComponentNotFound  = errors.New("service cost component not found")
 )
 
 type ParameterType string

@@ -1,4 +1,4 @@
-import { ArchiveMachine, CreateMachine, ListMachines, ReactivateMachine, UpdateMachine } from '../../wailsjs/go/main/App'
+import { ArchiveMachine, CreateMachine, DeleteMachine, ListMachines, ReactivateMachine, UpdateMachine } from '../../wailsjs/go/main/App'
 import type { main as mainTypes } from '../../wailsjs/go/models'
 
 export type MachineRecord = mainTypes.MachineDTO
@@ -18,4 +18,5 @@ export const machinesApi = {
   update(id: string, input: MachinePayload): Promise<MachineRecord> { return UpdateMachine(id, input as unknown as mainTypes.MachineInput) },
   archive(id: string): Promise<MachineRecord> { return ArchiveMachine(id) },
   reactivate(id: string): Promise<MachineRecord> { return ReactivateMachine(id) },
+  remove(id: string): Promise<void> { return DeleteMachine(id) },
 }

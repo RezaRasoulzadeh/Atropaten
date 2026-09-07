@@ -352,4 +352,28 @@ func TestRestoreFailureLeavesLiveDataUsableAndRollsBackFailedReopen(t *testing.T
 	}
 }
 
+func TestBackupRejectsExternalManagedFilesInsteadOfSilentlyDroppingThem(t *testing.T) {
+	root := t.TempDir()
+	paths := platform.DataPaths{Root: root, Database: filepath.Join(root, "db"), Attachments: filepath.Join(root, "attachments"), Backups: filepath.Join(root, "backups")}
+	if err := paths.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	store, err := Open(paths.Database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	external := filepath.Join(t.TempDir(), "external-proof.pdf")
+	if err = os.WriteFile(external, []byte("external"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = store.db.Exec(`INSERT INTO attachments(id,owner_type,owner_id,file_name,path,mime_type,size_bytes,checksum,category,notes,created_at) VALUES('ATT-external','quote','QUO-external','external-proof.pdf',?,'application/pdf',8,'','proof','',?)`, external, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	service := platform.NewBackupService(paths, store, ValidateDatabaseFile)
+	if _, err = service.Create(context.Background()); err == nil || !strings.Contains(err.Error(), "outside the application attachments directory") {
+		t.Fatalf("external managed file error=%v", err)
+	}
+}
+
 func itoa(v int) string { return strconv.Itoa(v) }

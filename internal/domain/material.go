@@ -14,7 +14,8 @@ import (
 const QuantityScale = 1_000_000
 
 var (
-	ErrMaterialNotFound = errors.New("material not found")
+	ErrMaterialNotFound        = errors.New("material not found")
+	ErrMaterialDeleteProtected = errors.New("material has inventory or production history; archive it instead")
 )
 
 // Quantity is a fixed-scale decimal quantity. Six fractional digits are

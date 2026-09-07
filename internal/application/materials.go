@@ -166,6 +166,15 @@ func (s *MaterialsService) Archive(ctx context.Context, id string) (MaterialView
 func (s *MaterialsService) Reactivate(ctx context.Context, id string) (MaterialView, error) {
 	return s.setActive(ctx, id, true)
 }
+func (s *MaterialsService) Delete(ctx context.Context, id string) error {
+	repository, ok := s.repository.(interface {
+		Delete(context.Context, string) error
+	})
+	if !ok {
+		return fmt.Errorf("material deletion is not supported")
+	}
+	return repository.Delete(ctx, strings.TrimSpace(id))
+}
 
 func (s *MaterialsService) setActive(ctx context.Context, id string, active bool) (MaterialView, error) {
 	material, err := s.repository.Get(ctx, strings.TrimSpace(id))

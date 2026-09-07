@@ -6,7 +6,10 @@ import (
 	"time"
 )
 
-var ErrAttachmentNotFound = errors.New("attachment not found")
+var (
+	ErrAttachmentNotFound  = errors.New("attachment not found")
+	ErrAttachmentProtected = errors.New("attachment is referenced by proof history")
+)
 
 type AttachmentOwnerType string
 

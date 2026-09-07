@@ -62,8 +62,12 @@ func TestReportsReconcileJournalLinesAndPersistedSettings(t *testing.T) {
 	if err != nil || saved.ShopName != "Reconciled Shop" {
 		t.Fatalf("settings=%+v err=%v", saved, err)
 	}
-	if _, err = s.Dashboard(ctx, when.Add(-time.Hour), when.Add(time.Hour)); err != nil {
+	dashboard, err := s.Dashboard(ctx, when.Add(-time.Hour), when.Add(time.Hour))
+	if err != nil {
 		t.Fatal("dashboard query: ", err)
+	}
+	if dashboard.RevenueRial != 1000 || dashboard.GrossProfitRial != 800 {
+		t.Fatalf("dashboard financial totals=%+v, want journal-derived revenue/profit", dashboard)
 	}
 	for _, kind := range []string{"receivables", "payables", "expenses", "sales_by_service", "customer_sales", "material_usage", "production"} {
 		if _, err = s.Report(ctx, kind, when.Add(-time.Hour), when.Add(time.Hour)); err != nil {
@@ -105,5 +109,37 @@ func TestInventoryReportUsesMovementLedger(t *testing.T) {
 	}
 	if report.Rows[0].QuantityUnits != 2000000 || report.Rows[0].AmountRial != 100 || report.Rows[0].SecondaryAmountRial != 50 {
 		t.Fatalf("movement-derived row=%+v", report.Rows[0])
+	}
+}
+
+func TestMaterialUsageReportAppliesCompensatingConsumptionMovements(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "usage-correction-report.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	now := time.Date(2026, 2, 12, 8, 0, 0, 0, time.UTC)
+	stamp := now.Format(time.RFC3339Nano)
+	if _, err = s.db.ExecContext(ctx, `INSERT INTO materials(id,name,purchase_unit,consumption_unit,conversion_factor_units,physical_stock_units,reorder_level_units,average_unit_cost_rial,created_at,updated_at) VALUES('MAT-usage-correction','Paper','pack','sheet',1000000,0,0,0,?,?)`, stamp, stamp); err != nil {
+		t.Fatal(err)
+	}
+	for _, movement := range []struct {
+		id, typ        string
+		quantity, cost int64
+	}{
+		{"MOV-usage-original", "production_consumption", -2 * domain.QuantityScale, -200},
+		{"MOV-usage-correction", "production_consumption", domain.QuantityScale, 100},
+	} {
+		if _, err = s.db.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, movement.id, "MAT-usage-correction", stamp, movement.typ, movement.quantity, 100, movement.cost, "production_correction", movement.id, "audit", stamp); err != nil {
+			t.Fatal(err)
+		}
+	}
+	report, err := s.Report(ctx, "material_usage", now.Add(-time.Hour), now.Add(time.Hour))
+	if err != nil || len(report.Rows) != 1 {
+		t.Fatalf("report=%+v err=%v", report, err)
+	}
+	if report.Rows[0].QuantityUnits != domain.QuantityScale || report.Rows[0].AmountRial != 100 {
+		t.Fatalf("correction-aware usage row=%+v", report.Rows[0])
 	}
 }

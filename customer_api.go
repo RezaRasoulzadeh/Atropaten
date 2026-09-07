@@ -85,6 +85,13 @@ func (a *App) ArchiveCustomer(id string) (CustomerDTO, error) { return a.setCust
 func (a *App) ReactivateCustomer(id string) (CustomerDTO, error) {
 	return a.setCustomerActive(id, true)
 }
+func (a *App) DeleteCustomer(id string) error {
+	s, e := a.customerService()
+	if e != nil {
+		return e
+	}
+	return s.Delete(a.materialContext(), id)
+}
 func (a *App) setCustomerActive(id string, active bool) (CustomerDTO, error) {
 	s, e := a.customerService()
 	if e != nil {

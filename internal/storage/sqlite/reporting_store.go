@@ -259,7 +259,7 @@ func (s *Store) reportInventory(ctx context.Context, r domain.Report) (domain.Re
 }
 
 func (s *Store) reportSalesByService(ctx context.Context, r domain.Report, from, until string) (domain.Report, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT COALESCE(ii.service_id,''),ii.description_snapshot,SUM(ii.quantity_units),SUM(ii.line_total_rial),COALESCE(SUM(oi.estimated_cost_rial),0),COALESCE(SUM(pc.actual_cost_rial),0),COUNT(DISTINCT i.id) FROM invoice_items ii JOIN invoices i ON i.id=ii.invoice_id AND i.status IN ('Posted','Partially Paid','Paid') LEFT JOIN (SELECT id AS order_item_id,estimated_cost_rial FROM order_items) oi ON oi.order_item_id=ii.order_item_id LEFT JOIN (SELECT pj.order_item_id,SUM(pc.material_cost_rial+pc.waste_cost_rial) actual_cost_rial FROM production_jobs pj JOIN production_consumptions pc ON pc.production_job_id=pj.id GROUP BY pj.order_item_id) pc ON pc.order_item_id=ii.order_item_id WHERE i.issue_date>=? AND i.issue_date<? GROUP BY ii.service_id,ii.description_snapshot ORDER BY ii.description_snapshot,ii.service_id`, from, until)
+	rows, err := s.db.QueryContext(ctx, `SELECT COALESCE(ii.service_id,''),ii.description_snapshot,SUM(ii.quantity_units),SUM(ii.line_total_rial),COALESCE(SUM(oi.estimated_cost_rial),0),COALESCE(SUM(pc.actual_cost_rial),0),COUNT(DISTINCT i.id) FROM invoice_items ii JOIN invoices i ON i.id=ii.invoice_id AND i.status IN ('Posted','Partially Paid','Paid') LEFT JOIN (SELECT id AS order_item_id,estimated_cost_rial FROM order_items) oi ON oi.order_item_id=ii.order_item_id LEFT JOIN (SELECT pj.order_item_id,SUM(-im.total_cost_rial) actual_cost_rial FROM production_jobs pj JOIN production_consumptions pc ON pc.production_job_id=pj.id JOIN inventory_movements im ON im.reference_id=pc.id AND im.reference_type IN ('production_consumption','production_correction') GROUP BY pj.order_item_id) pc ON pc.order_item_id=ii.order_item_id WHERE i.issue_date>=? AND i.issue_date<? GROUP BY ii.service_id,ii.description_snapshot ORDER BY ii.description_snapshot,ii.service_id`, from, until)
 	if err != nil {
 		return r, err
 	}
@@ -299,7 +299,10 @@ func (s *Store) reportCustomerSales(ctx context.Context, r domain.Report, from, 
 }
 
 func (s *Store) reportMaterialUsage(ctx context.Context, r domain.Report, from, until string) (domain.Report, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT COALESCE(pc.material_id,''),COALESCE(m.name,'Unknown material'),SUM(pc.consumed_quantity_units),SUM(pc.waste_quantity_units),SUM(pc.material_cost_rial),SUM(pc.waste_cost_rial) FROM production_consumptions pc LEFT JOIN materials m ON m.id=pc.material_id WHERE pc.created_at>=? AND pc.created_at<? GROUP BY pc.material_id,m.name ORDER BY m.name,pc.material_id`, from, until)
+	// Original consumption rows remain immutable; corrected quantities are
+	// represented by compensating inventory movements, so reports use that
+	// authoritative movement ledger.
+	rows, err := s.db.QueryContext(ctx, `SELECT COALESCE(im.material_id,''),COALESCE(m.name,'Unknown material'),SUM(CASE WHEN im.movement_type='production_consumption' THEN -im.quantity_delta_units ELSE 0 END),SUM(CASE WHEN im.movement_type='waste' THEN -im.quantity_delta_units ELSE 0 END),SUM(CASE WHEN im.movement_type='production_consumption' THEN -im.total_cost_rial ELSE 0 END),SUM(CASE WHEN im.movement_type='waste' THEN -im.total_cost_rial ELSE 0 END) FROM inventory_movements im LEFT JOIN materials m ON m.id=im.material_id WHERE im.reference_type IN ('production_consumption','production_correction') AND im.occurred_at>=? AND im.occurred_at<? GROUP BY im.material_id,m.name ORDER BY m.name,im.material_id`, from, until)
 	if err != nil {
 		return r, err
 	}
@@ -318,7 +321,7 @@ func (s *Store) reportMaterialUsage(ctx context.Context, r domain.Report, from, 
 }
 
 func (s *Store) reportProduction(ctx context.Context, r domain.Report, from, until string) (domain.Report, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,COALESCE(order_id,''),service_name_snapshot,status,estimated_cost_rial,COALESCE(actual_material_cost_rial+actual_waste_cost_rial+actual_outsourced_cost_rial,0),created_at FROM production_jobs WHERE created_at>=? AND created_at<? ORDER BY created_at,id`, from, until)
+	rows, err := s.db.QueryContext(ctx, `SELECT pj.id,COALESCE(pj.order_id,''),pj.service_name_snapshot,pj.status,pj.estimated_cost_rial,COALESCE((SELECT SUM(-im.total_cost_rial) FROM production_consumptions pc JOIN inventory_movements im ON im.reference_id=pc.id AND im.reference_type IN ('production_consumption','production_correction') WHERE pc.production_job_id=pj.id),0)+pj.actual_outsourced_cost_rial,pj.created_at FROM production_jobs pj WHERE pj.created_at>=? AND pj.created_at<? ORDER BY pj.created_at,pj.id`, from, until)
 	if err != nil {
 		return r, err
 	}
@@ -345,9 +348,6 @@ func addSummaries(r domain.Report, values ...domain.ReportSummary) domain.Report
 func (s *Store) Dashboard(ctx context.Context, start, end time.Time) (domain.Dashboard, error) {
 	from, until := reportWindow(start, end)
 	d := domain.Dashboard{StartDate: start.Format("2006-01-02"), EndDate: end.Format("2006-01-02"), Attention: []domain.DashboardAttention{}, LowStock: []domain.DashboardLowStock{}, Production: []domain.DashboardProduction{}, RecentActivity: []domain.DashboardActivity{}}
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(total_rial),0) FROM invoices WHERE status IN ('Posted','Partially Paid','Paid') AND issue_date>=? AND issue_date<?`, from, until).Scan(&d.RevenueRial); err != nil {
-		return d, err
-	}
 	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(jl.debit_rial-jl.credit_rial),0) FROM journal_lines jl JOIN journal_entries je ON je.id=jl.journal_entry_id WHERE jl.account_id='ACC-CASH'`).Scan(&d.CashRial); err != nil {
 		return d, err
 	}
@@ -367,6 +367,7 @@ func (s *Store) Dashboard(ctx context.Context, start, end time.Time) (domain.Das
 	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(debit_rial-credit_rial),0) FROM journal_lines jl JOIN journal_entries je ON je.id=jl.journal_entry_id WHERE jl.account_id='ACC-COGS' AND je.posted_at>=? AND je.posted_at<?`, from, until).Scan(&cogs); err != nil {
 		return d, err
 	}
+	d.RevenueRial = revenue
 	d.GrossProfitRial = revenue - cogs
 	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM invoices WHERE status IN ('Posted','Partially Paid')`).Scan(&d.OpenInvoiceCount)
 	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM orders WHERE promised_at>=? AND promised_at<? AND commercial_status<>'Cancelled'`, from, until).Scan(&d.DueOrderCount)

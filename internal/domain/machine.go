@@ -6,7 +6,10 @@ import (
 	"time"
 )
 
-var ErrMachineNotFound = errors.New("machine not found")
+var (
+	ErrMachineNotFound        = errors.New("machine not found")
+	ErrMachineDeleteProtected = errors.New("machine has production history; archive it instead")
+)
 
 const (
 	RatePerUnit   = "unit"

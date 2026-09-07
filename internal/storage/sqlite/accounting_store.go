@@ -464,6 +464,8 @@ func (s *Store) CreatePayment(ctx context.Context, p domain.Payment) (domain.Pay
 	}
 	var allocTotal int64
 	allocatedByTarget := map[string]int64{}
+	var incomingTargetCustomer string
+	var incomingTargetSet bool
 	for i := range p.Allocations {
 		a := &p.Allocations[i]
 		if (p.Direction == domain.PaymentIncoming && a.TargetType != "order" && a.TargetType != "invoice") || (p.Direction == domain.PaymentOutgoing && a.TargetType != "purchase") {
@@ -486,9 +488,25 @@ func (s *Store) CreatePayment(ctx context.Context, p domain.Payment) (domain.Pay
 				tx.Rollback()
 				return domain.Payment{}, domain.ErrAllocationTarget
 			}
-			if p.Direction == domain.PaymentIncoming && p.CustomerID != "" && customer != p.CustomerID {
-				tx.Rollback()
-				return domain.Payment{}, domain.ErrPaymentInvalidParty
+			if p.Direction == domain.PaymentIncoming {
+				// The journal party is taken from the payment, not from the
+				// allocation row. Derive it for a single-party payment so a
+				// caller cannot create an unowned AR entry by omitting it; a
+				// cross-customer payment remains explicitly rejected.
+				if incomingTargetSet && customer != incomingTargetCustomer {
+					tx.Rollback()
+					return domain.Payment{}, domain.ErrPaymentInvalidParty
+				}
+				if !incomingTargetSet {
+					incomingTargetCustomer = customer
+					incomingTargetSet = true
+				}
+				if p.CustomerID == "" {
+					p.CustomerID = customer
+				} else if customer != p.CustomerID {
+					tx.Rollback()
+					return domain.Payment{}, domain.ErrPaymentInvalidParty
+				}
 			}
 			var already int64
 			if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='order' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, a.TargetID).Scan(&already); err != nil {
@@ -507,9 +525,21 @@ func (s *Store) CreatePayment(ctx context.Context, p domain.Payment) (domain.Pay
 				tx.Rollback()
 				return domain.Payment{}, domain.ErrAllocationTarget
 			}
-			if p.CustomerID != "" && customer != p.CustomerID {
-				tx.Rollback()
-				return domain.Payment{}, domain.ErrPaymentInvalidParty
+			if p.Direction == domain.PaymentIncoming {
+				if incomingTargetSet && customer != incomingTargetCustomer {
+					tx.Rollback()
+					return domain.Payment{}, domain.ErrPaymentInvalidParty
+				}
+				if !incomingTargetSet {
+					incomingTargetCustomer = customer
+					incomingTargetSet = true
+				}
+				if p.CustomerID == "" {
+					p.CustomerID = customer
+				} else if customer != p.CustomerID {
+					tx.Rollback()
+					return domain.Payment{}, domain.ErrPaymentInvalidParty
+				}
 			}
 			var already int64
 			if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='invoice' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, a.TargetID).Scan(&already); err != nil {

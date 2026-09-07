@@ -138,6 +138,14 @@ func (a *App) ReactivateMaterial(id string) (MaterialDTO, error) {
 	return materialDTO(view), nil
 }
 
+func (a *App) DeleteMaterial(id string) error {
+	service, err := a.materialService()
+	if err != nil {
+		return err
+	}
+	return service.Delete(a.materialContext(), id)
+}
+
 func materialDTO(view application.MaterialView) MaterialDTO {
 	return MaterialDTO{
 		ID: view.ID, Name: view.Name, SKU: view.SKU, Category: view.Category,

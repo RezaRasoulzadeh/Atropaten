@@ -115,6 +115,14 @@ func (a *App) ReactivateMachine(id string) (MachineDTO, error) {
 	return machineDTO(view), nil
 }
 
+func (a *App) DeleteMachine(id string) error {
+	service, err := a.machineService()
+	if err != nil {
+		return err
+	}
+	return service.Delete(a.materialContext(), id)
+}
+
 func machineDTO(view application.MachineView) MachineDTO {
 	return MachineDTO{ID: view.ID, Name: view.Name, Code: view.Code, Category: view.Category, RateBasis: view.RateBasis, RateRial: view.RateRial, SetupCostRial: view.SetupCostRial, Notes: view.Notes, Active: view.Active, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt}
 }

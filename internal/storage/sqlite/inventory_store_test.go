@@ -130,3 +130,45 @@ func TestDraftDeleteAndManualAdjustmentUseLedger(t *testing.T) {
 		t.Fatalf("adjusted stock=%d err=%v", got.PhysicalStock, err)
 	}
 }
+
+func TestPurchaseCancellationCannotBreakActiveReservationAvailability(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "reserved-cancel.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	ctx := context.Background()
+	now := time.Date(2026, 1, 5, 8, 0, 0, 0, time.UTC)
+	supplier := domain.Supplier{ID: "SUP-reserved-cancel", Name: "Supplier", Active: true, CreatedAt: now, UpdatedAt: now}
+	if err = store.SaveSupplier(ctx, supplier); err != nil {
+		t.Fatal(err)
+	}
+	m, err := domain.NewMaterial("MAT-reserved-cancel", domain.MaterialDraft{Name: "Stock", PurchaseUnit: "pack", ConsumptionUnit: "piece", ConversionFactor: domain.QuantityScale, PhysicalStock: 2 * domain.QuantityScale, AverageUnitCostRial: 10}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = store.Create(ctx, m); err != nil {
+		t.Fatal(err)
+	}
+	p := domain.Purchase{ID: "PUR-reserved-cancel", SupplierID: supplier.ID, SupplierNameSnapshot: supplier.Name, PurchaseDate: now, Status: domain.PurchaseDraft, CreatedAt: now, UpdatedAt: now, Items: []domain.PurchaseItem{{ID: "PITM-reserved-cancel", MaterialID: m.ID, MaterialNameSnapshot: m.Name, PurchaseUnitSnapshot: m.PurchaseUnit, ConsumptionUnitSnapshot: m.ConsumptionUnit, PurchaseQuantity: 5 * domain.QuantityScale, ConversionFactorSnapshot: domain.QuantityScale, ConsumptionQuantity: 5 * domain.QuantityScale, UnitAcquisitionCostRial: 20, LineTotalRial: 100}}, SubtotalRial: 100, TotalRial: 100}
+	if err = store.SavePurchase(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.PostPurchase(ctx, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.CreateReservation(ctx, domain.InventoryReservation{ID: "RES-reserved-cancel", MaterialID: m.ID, Quantity: 6 * domain.QuantityScale, Status: domain.ReservationActive}); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.CancelPurchase(ctx, p.ID); !errors.Is(err, domain.ErrInsufficientStock) {
+		t.Fatalf("cancellation reservation protection error=%v", err)
+	}
+	got, err := store.GetPurchase(ctx, p.ID)
+	if err != nil || got.Status != domain.PurchasePosted {
+		t.Fatalf("failed cancellation changed purchase: %+v, %v", got, err)
+	}
+	state, err := store.InventoryState(ctx, m.ID)
+	if err != nil || state.PhysicalStock != 7*domain.QuantityScale || state.ReservedStock != 6*domain.QuantityScale {
+		t.Fatalf("failed cancellation changed stock: %+v, %v", state, err)
+	}
+}

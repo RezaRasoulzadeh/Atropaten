@@ -130,13 +130,23 @@ func AllocateLandedCosts(lineTotals []int64, discount, shipping, tax, additional
 	if discount > subtotal {
 		return nil, fmt.Errorf("discount cannot exceed subtotal")
 	}
-	landedExtra := shipping + tax + additional - discount
+	// Keep the intermediate calculation wide. The public contract is int64 Rial,
+	// so an overflowing intermediate must be rejected rather than wrapped into a
+	// plausible-looking landed cost.
+	landedExtraBig := new(big.Int).SetInt64(shipping)
+	landedExtraBig.Add(landedExtraBig, big.NewInt(tax))
+	landedExtraBig.Add(landedExtraBig, big.NewInt(additional))
+	landedExtraBig.Sub(landedExtraBig, big.NewInt(discount))
+	if !landedExtraBig.IsInt64() {
+		return nil, fmt.Errorf("landed cost is too large")
+	}
+	landedExtra := landedExtraBig.Int64()
 	alloc := make([]int64, len(lineTotals))
 	if landedExtra == 0 || subtotal == 0 {
 		return alloc, nil
 	}
 	first := -1
-	var assigned int64
+	assigned := new(big.Int)
 	for i, line := range lineTotals {
 		if line > 0 && first < 0 {
 			first = i
@@ -147,10 +157,15 @@ func AllocateLandedCosts(lineTotals []int64, discount, shipping, tax, additional
 			return nil, fmt.Errorf("allocation is too large")
 		}
 		alloc[i] = n.Int64()
-		assigned += alloc[i]
+		assigned.Add(assigned, n)
 	}
 	if first >= 0 {
-		alloc[first] += landedExtra - assigned
+		remainder := new(big.Int).Sub(landedExtraBig, assigned)
+		firstAllocation := new(big.Int).Add(big.NewInt(alloc[first]), remainder)
+		if !firstAllocation.IsInt64() {
+			return nil, fmt.Errorf("allocation is too large")
+		}
+		alloc[first] = firstAllocation.Int64()
 	}
 	return alloc, nil
 }
@@ -162,10 +177,11 @@ func WeightedAverage(existing InventorySummary, incomingQty Quantity, incomingVa
 	if incomingQty == 0 {
 		return existing, nil
 	}
-	newQty := int64(existing.PhysicalStock) + int64(incomingQty)
-	if newQty < 0 {
+	newQtyBig := new(big.Int).Add(big.NewInt(int64(existing.PhysicalStock)), big.NewInt(int64(incomingQty)))
+	if !newQtyBig.IsInt64() {
 		return InventorySummary{}, fmt.Errorf("quantity overflow")
 	}
+	newQty := newQtyBig.Int64()
 	oldValue := existing.InventoryValueRial
 	if oldValue < 0 {
 		return InventorySummary{}, fmt.Errorf("inventory value cannot be negative")
@@ -174,6 +190,9 @@ func WeightedAverage(existing InventorySummary, incomingQty Quantity, incomingVa
 	avg := new(big.Int).Mul(total, big.NewInt(QuantityScale))
 	avg.Add(avg, big.NewInt(int64(newQty)/2))
 	avg.Quo(avg, big.NewInt(newQty))
+	if !total.IsInt64() {
+		return InventorySummary{}, fmt.Errorf("inventory value is too large")
+	}
 	value := total.Int64()
 	if !avg.IsInt64() {
 		return InventorySummary{}, fmt.Errorf("average cost is too large")

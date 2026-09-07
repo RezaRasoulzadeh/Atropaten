@@ -734,6 +734,42 @@ func (s *Store) Update(ctx context.Context, material domain.Material) error {
 	return nil
 }
 
+// Delete permanently removes only a material with no authoritative history.
+// Once referenced by inventory, purchasing, production, or a service recipe,
+// archive semantics are required to preserve that history.
+func (s *Store) Delete(ctx context.Context, materialID string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	fail := func(e error) error { _ = tx.Rollback(); return e }
+	var count int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM materials WHERE id=?`, materialID).Scan(&count); err != nil {
+		return fail(err)
+	}
+	if count == 0 {
+		return fail(domain.ErrMaterialNotFound)
+	}
+	for _, query := range []string{
+		`SELECT COUNT(*) FROM purchase_items WHERE material_id=?`,
+		`SELECT COUNT(*) FROM inventory_movements WHERE material_id=?`,
+		`SELECT COUNT(*) FROM inventory_reservations WHERE material_id=?`,
+		`SELECT COUNT(*) FROM production_consumptions WHERE material_id=?`,
+		`SELECT COUNT(*) FROM service_cost_components WHERE component_type='material' AND reference_id=?`,
+	} {
+		if err = tx.QueryRowContext(ctx, query, materialID).Scan(&count); err != nil {
+			return fail(err)
+		}
+		if count > 0 {
+			return fail(domain.ErrMaterialDeleteProtected)
+		}
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM materials WHERE id=?`, materialID); err != nil {
+		return fail(fmt.Errorf("delete material: %w", err))
+	}
+	return tx.Commit()
+}
+
 func (s *Store) withInventorySummary(ctx context.Context, material domain.Material) (domain.Material, error) {
 	summary, err := s.inventorySummary(ctx, material.ID)
 	if err != nil {
@@ -808,6 +844,36 @@ func (s *Store) SaveMachine(ctx context.Context, machine domain.Machine) error {
 		}
 	}
 	return nil
+}
+
+func (s *Store) DeleteMachine(ctx context.Context, machineID string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	fail := func(e error) error { _ = tx.Rollback(); return e }
+	var count int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM machines WHERE id=?`, machineID).Scan(&count); err != nil {
+		return fail(err)
+	}
+	if count == 0 {
+		return fail(domain.ErrMachineNotFound)
+	}
+	for _, query := range []string{
+		`SELECT COUNT(*) FROM production_jobs WHERE assigned_machine_id=?`,
+		`SELECT COUNT(*) FROM service_cost_components WHERE component_type='machine' AND reference_id=?`,
+	} {
+		if err = tx.QueryRowContext(ctx, query, machineID).Scan(&count); err != nil {
+			return fail(err)
+		}
+		if count > 0 {
+			return fail(domain.ErrMachineDeleteProtected)
+		}
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM machines WHERE id=?`, machineID); err != nil {
+		return fail(fmt.Errorf("delete machine: %w", err))
+	}
+	return tx.Commit()
 }
 
 func (s *Store) ListServices(ctx context.Context, includeArchived bool) ([]domain.Service, error) {
@@ -1005,6 +1071,37 @@ func (s *Store) SaveServiceDefinition(ctx context.Context, service domain.Servic
 		return fmt.Errorf("commit service definition: %w", err)
 	}
 	return nil
+}
+
+func (s *Store) DeleteService(ctx context.Context, serviceID string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	fail := func(e error) error { _ = tx.Rollback(); return e }
+	var count int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM services WHERE id=?`, serviceID).Scan(&count); err != nil {
+		return fail(err)
+	}
+	if count == 0 {
+		return fail(domain.ErrServiceNotFound)
+	}
+	for _, query := range []string{
+		`SELECT COUNT(*) FROM quote_items WHERE service_id=?`,
+		`SELECT COUNT(*) FROM order_items WHERE service_id=?`,
+		`SELECT COUNT(*) FROM invoice_items WHERE service_id=?`,
+	} {
+		if err = tx.QueryRowContext(ctx, query, serviceID).Scan(&count); err != nil {
+			return fail(err)
+		}
+		if count > 0 {
+			return fail(domain.ErrServiceDeleteProtected)
+		}
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM services WHERE id=?`, serviceID); err != nil {
+		return fail(fmt.Errorf("delete service: %w", err))
+	}
+	return tx.Commit()
 }
 
 type scanner interface {
@@ -1249,6 +1346,40 @@ func (s *Store) SaveCustomer(ctx context.Context, customer domain.Customer) erro
 		return fmt.Errorf("save customer: %w", err)
 	}
 	return nil
+}
+
+func (s *Store) DeleteCustomer(ctx context.Context, customerID string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	fail := func(e error) error { _ = tx.Rollback(); return e }
+	var count int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM customers WHERE id=?`, customerID).Scan(&count); err != nil {
+		return fail(err)
+	}
+	if count == 0 {
+		return fail(domain.ErrCustomerNotFound)
+	}
+	for _, query := range []string{
+		`SELECT COUNT(*) FROM quotes WHERE customer_id=?`,
+		`SELECT COUNT(*) FROM orders WHERE customer_id=?`,
+		`SELECT COUNT(*) FROM invoices WHERE customer_id=?`,
+		`SELECT COUNT(*) FROM payments WHERE customer_id=?`,
+		`SELECT COUNT(*) FROM checks WHERE customer_id=?`,
+		`SELECT COUNT(*) FROM loans WHERE customer_id=?`,
+	} {
+		if err = tx.QueryRowContext(ctx, query, customerID).Scan(&count); err != nil {
+			return fail(err)
+		}
+		if count > 0 {
+			return fail(domain.ErrCustomerDeleteProtected)
+		}
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM customers WHERE id=?`, customerID); err != nil {
+		return fail(fmt.Errorf("delete customer: %w", err))
+	}
+	return tx.Commit()
 }
 
 func (s *Store) ListOrders(ctx context.Context) ([]domain.Order, error) {

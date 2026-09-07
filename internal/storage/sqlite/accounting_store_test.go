@@ -113,6 +113,42 @@ func TestSupplierPaymentReducesPayableWithoutMutatingPurchaseHistory(t *testing.
 	}
 }
 
+func TestIncomingPaymentDerivesCustomerPartyFromAllocation(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "payment-party.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	now := time.Date(2026, 1, 4, 8, 0, 0, 0, time.UTC)
+	c, _ := domain.NewCustomer("CUS-derived-party", domain.CustomerDraft{Name: "Derived party"}, now)
+	if err = s.SaveCustomer(ctx, c); err != nil {
+		t.Fatal(err)
+	}
+	o := domain.NewOrder("ORD-derived-party", c.ID, now)
+	o.Items = []domain.OrderItem{{ID: "ITEM-derived-party", OrderID: o.ID, Position: 0, ServiceNameSnapshot: "Work", Quantity: domain.QuantityScale, QuantityUnit: "unit", SellingPriceRial: 1000}}
+	if err = o.RecalculateTotals(); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.CreateOrder(ctx, o); err != nil {
+		t.Fatal(err)
+	}
+	created, err := s.CreatePayment(ctx, domain.Payment{ID: "PAY-derived-party", Direction: domain.PaymentIncoming, Method: domain.PaymentCash, FinancialAccountID: "FIN-CASH", AmountRial: 1000, PostedAt: now, CreatedAt: now, Allocations: []domain.PaymentAllocation{{TargetType: "order", TargetID: o.ID, AmountRial: 1000}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.CustomerID != c.ID {
+		t.Fatalf("payment customer=%q, want %q", created.CustomerID, c.ID)
+	}
+	var party string
+	if err = s.db.QueryRow(`SELECT party_id FROM journal_lines WHERE journal_entry_id=? AND account_id='ACC-AR'`, "JE-PAY-"+created.ID).Scan(&party); err != nil {
+		t.Fatal(err)
+	}
+	if party != c.ID {
+		t.Fatalf("AR party=%q, want %q", party, c.ID)
+	}
+}
+
 func mustAccounts(t *testing.T, s *Store, ctx context.Context) []domain.Account {
 	t.Helper()
 	v, e := s.ListAccounts(ctx)
