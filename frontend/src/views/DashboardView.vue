@@ -10,7 +10,7 @@ import { formatMoney } from '../utils/currency'
 import { formatDate, formatDateTime, currentCanonicalDate } from '../utils/date'
 import { normalizeError } from '../ui/feedback'
 const props = defineProps<{ currencyUnit: 'Rial' | 'Toman' }>(); const emit = defineEmits<{ navigate: [view: string]; newOrder: []; notify: [message: string] }>(); const data = ref<DashboardRecord | null>(null); const loading = ref(false); const error = ref(''); const refreshAnimation = ref<'once' | 'infinite' | ''>(''); let refreshTimer: ReturnType<typeof setTimeout> | undefined; let refreshClearTimer: ReturnType<typeof setTimeout> | undefined; const end = currentCanonicalDate(); const start = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10); const money = (v: number) => formatMoney(v, props.currencyUnit)
-async function load() { loading.value = true; refreshAnimation.value = 'once'; if (refreshTimer) clearTimeout(refreshTimer); if (refreshClearTimer) clearTimeout(refreshClearTimer); refreshTimer = setTimeout(() => { if (loading.value) refreshAnimation.value = 'infinite' }, 700); const startedAt = Date.now(); try { data.value = await reportsApi.dashboard(start, end) } catch (e) { error.value = normalizeError(e).message } finally { loading.value = false; if (refreshTimer) clearTimeout(refreshTimer); refreshTimer = undefined; const remaining = Math.max(0, 700 - (Date.now() - startedAt)); refreshClearTimer = setTimeout(() => { refreshAnimation.value = '' }, remaining) } }; onMounted(load); watch(() => props.currencyUnit, load); onBeforeUnmount(() => { if (refreshTimer) clearTimeout(refreshTimer); if (refreshClearTimer) clearTimeout(refreshClearTimer) }); const attention = computed(() => data.value?.attention ?? [])
+async function load() { loading.value = true; refreshAnimation.value = 'once'; if (refreshTimer) clearTimeout(refreshTimer); if (refreshClearTimer) clearTimeout(refreshClearTimer); refreshTimer = setTimeout(() => { if (loading.value) refreshAnimation.value = 'infinite' }, 700); const startedAt = Date.now(); try { data.value = await reportsApi.dashboard(start, end) } catch (e) { error.value = normalizeError(e).message } finally { loading.value = false; if (refreshTimer) clearTimeout(refreshTimer); refreshTimer = undefined; const remaining = Math.max(0, 700 - (Date.now() - startedAt)); refreshClearTimer = setTimeout(() => { refreshAnimation.value = '' }, remaining) } }; onMounted(load); watch(() => props.currencyUnit, load); onBeforeUnmount(() => { if (refreshTimer) clearTimeout(refreshTimer); if (refreshClearTimer) clearTimeout(refreshClearTimer) }); const initialLoading = computed(() => loading.value && !data.value); const attention = computed(() => data.value?.attention ?? [])
 </script>
 <template>
     <div>
@@ -34,18 +34,21 @@ async function load() { loading.value = true; refreshAnimation.value = 'once'; i
         <div class="mt-4 space-y-4">
             <section class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <KpiCard :value="money(data?.revenueRial || 0)" detail="Posted invoices in period" title="Sales"
-                    :trend="loading ? 'Loading' : 'Persisted'" :icon="TrendingUp" accent="blue" />
+                    :trend="loading ? 'Loading' : 'Persisted'" :icon="TrendingUp" accent="blue" :loading="initialLoading" />
                 <KpiCard :value="money(data?.grossProfitRial || 0)" detail="Journal-derived P&L" title="Gross profit"
-                    trend="Journal" :icon="BarChart3" accent="green" />
+                    trend="Journal" :icon="BarChart3" accent="green" :loading="initialLoading" />
                 <KpiCard :value="money(data?.receivableRial || 0)"
                     :detail="`${data?.openInvoiceCount || 0} open invoices`" title="Receivables" trend="Authoritative"
-                    :icon="HandCoins" accent="amber" />
+                    :icon="HandCoins" accent="amber" :loading="initialLoading" />
                 <KpiCard :value="money(data?.payableRial || 0)" detail="Journal-derived" title="Payables"
-                    trend="Supplier" :icon="ReceiptText" accent="red" />
+                    trend="Supplier" :icon="ReceiptText" accent="red" :loading="initialLoading" />
             </section>
             <section class="grid gap-4 xl:grid-cols-2">
                 <SectionPanel title="Needs attention" subtitle="Due obligations and operational exceptions">
-                    <div class="divide-y divide-base-300">
+                    <div v-if="initialLoading" class="min-h-72 space-y-3 p-4" aria-label="Loading attention items">
+                        <div v-for="row in 6" :key="row" class="skeleton h-10 w-full bg-base-300/70"></div>
+                    </div>
+                    <div v-else class="divide-y divide-base-300">
                         <button v-for="item in attention" :key="`${item.kind}-${item.detail}`"
                             class="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-base-200"
                             type="button" @click="emit('notify', item.detail)">
@@ -72,7 +75,12 @@ async function load() { loading.value = true; refreshAnimation.value = 'once'; i
                                     <th class="whitespace-nowrap">Status</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody v-if="initialLoading">
+                                <tr v-for="row in 3" :key="row">
+                                    <td colspan="4"><div class="skeleton h-5 w-full bg-base-300/70"></div></td>
+                                </tr>
+                            </tbody>
+                            <tbody v-else>
                                 <tr v-for="job in data?.production" :key="job.id">
                                     <td class="whitespace-nowrap font-semibold">{{ job.orderNumber || job.id }}</td>
                                     <td class="max-w-40 truncate">{{ job.customer || '—' }}</td>
@@ -91,7 +99,10 @@ async function load() { loading.value = true; refreshAnimation.value = 'once'; i
             </section>
             <section class="grid gap-4 xl:grid-cols-2">
                 <SectionPanel title="Low stock" subtitle="Movement-derived availability">
-                    <div class="divide-y divide-base-300">
+                    <div v-if="initialLoading" class="min-h-28 space-y-3 p-4" aria-label="Loading low stock items">
+                        <div v-for="row in 2" :key="row" class="skeleton h-8 w-full bg-base-300/70"></div>
+                    </div>
+                    <div v-else class="divide-y divide-base-300">
                         <div v-for="item in data?.lowStock" :key="item.id" class="flex items-center gap-3 px-4 py-3">
                             <TriangleAlert class="shrink-0 text-warning" :size="16" />
                             <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ item.name }}</span>
@@ -102,7 +113,10 @@ async function load() { loading.value = true; refreshAnimation.value = 'once'; i
                     </div>
                 </SectionPanel>
                 <SectionPanel title="Recent payments" subtitle="Latest persisted financial activity">
-                    <div class="divide-y divide-base-300">
+                    <div v-if="initialLoading" class="min-h-28 space-y-3 p-4" aria-label="Loading recent payments">
+                        <div v-for="row in 2" :key="row" class="skeleton h-8 w-full bg-base-300/70"></div>
+                    </div>
+                    <div v-else class="divide-y divide-base-300">
                         <div v-for="item in data?.recentActivity" :key="item.id" class="flex items-center gap-3 px-4 py-3">
                             <span class="shrink-0 text-info"><HandCoins :size="16" /></span>
                             <span class="min-w-0 flex-1">

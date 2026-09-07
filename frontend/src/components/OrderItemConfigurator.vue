@@ -1,17 +1,233 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { AlertTriangle, Calculator, ChevronDown, Plus } from 'lucide-vue-next'
+import { AlertTriangle, Calculator, Plus } from 'lucide-vue-next'
+import FieldMessage from './FieldMessage.vue'
+import SelectField from './SelectField.vue'
 import { pricingApi, type PricingRecord } from '../api/pricing'
 import type { OrderItemPayload } from '../api/orders'
 import { formatMoney, formatMoneyInput, parseMoneyInput, type CurrencyUnit } from '../utils/currency'
-const props=withDefaults(defineProps<{services:any[];materials:any[];currencyUnit:CurrencyUnit;initial?:any;documentLabel?:string}>(),{documentLabel:'order'});const emit=defineEmits<{configured:[payload:OrderItemPayload];cancel:[]}>()
-const serviceId=ref('');const values=ref<Record<string,string>>({});const quantity=ref('');const unit=ref('unit');const notes=ref('');const overrideText=ref('');const manualTexts=ref<Record<string,string>>({});const pricing=ref<PricingRecord|null>(null);const error=ref('');const calculating=ref(false)
-const service=computed(()=>props.services.find(s=>s.id===serviceId.value));const activeParams=computed(()=>service.value?.parameters?.filter((p:any)=>p.active!==false)||[]);const manualComponents=computed(()=>service.value?.components?.filter((c:any)=>c.enabled&&c.type==='manual')||[]);const manualCosts=ref<Record<string,number>>({})
-function initialize(){const initial=props.initial;serviceId.value=initial?.serviceId||props.services.find(s=>s.active)?.id||'';values.value={};if(initial?.resolvedParametersJson){try{for(const p of JSON.parse(initial.resolvedParametersJson)){values.value[p.key]=p.value}}catch{}};quantity.value=initial?.quantity||'';unit.value=initial?.quantityUnit||'unit';notes.value=initial?.notes||'';overrideText.value='';manualTexts.value={};pricing.value=null}
-watch(()=>[props.initial,props.services],initialize,{immediate:true});watch(serviceId,()=>{values.value={};pricing.value=null})
-function setValue(key:string,event:Event){values.value[key]=(event.target as HTMLInputElement).value}
-function updateMoneyText(event:Event, key:string){const text=(event.target as HTMLInputElement).value;if(key==='override'){overrideText.value=text;const parsed=parseMoneyInput(text,props.currencyUnit);if(parsed!==null)overrideText.value=formatMoneyInput(parsed,props.currencyUnit);return}manualTexts.value[key]=text;const parsed=parseMoneyInput(text,props.currencyUnit);if(parsed!==null)manualCosts.value[key]=parsed}
-async function calculate(){error.value='';calculating.value=true;try{const override=overrideText.value.trim()?parseMoneyInput(overrideText.value,props.currencyUnit):null;if(overrideText.value.trim()&&override===null)throw new Error('Enter a valid selling price');pricing.value=await pricingApi.calculate({serviceId:serviceId.value,parameters:values.value,manualCosts:manualCosts.value,sellingPriceOverrideRial:override})}catch(e){error.value=String(e).replace(/^Error:\s*/,'')}finally{calculating.value=false}}
-function save(){if(!pricing.value){error.value='Calculate the item before adding it';return}const override=overrideText.value.trim()?parseMoneyInput(overrideText.value,props.currencyUnit):null;emit('configured',{serviceId:serviceId.value,parameters:{...values.value},manualCosts:{...manualCosts.value},sellingPriceOverrideRial:override,quantity:quantity.value,quantityUnit:unit.value,notes:notes.value})}
+
+const props = withDefaults(defineProps<{
+  services: any[]
+  materials: any[]
+  currencyUnit: CurrencyUnit
+  initial?: any
+  documentLabel?: string
+}>(), {
+  documentLabel: 'order',
+})
+
+const emit = defineEmits<{
+  configured: [payload: OrderItemPayload]
+  cancel: []
+}>()
+
+const serviceId = ref('')
+const values = ref<Record<string, string>>({})
+const quantity = ref('')
+const unit = ref('unit')
+const notes = ref('')
+const overrideText = ref('')
+const manualTexts = ref<Record<string, string>>({})
+const pricing = ref<PricingRecord | null>(null)
+const error = ref('')
+const calculating = ref(false)
+const manualCosts = ref<Record<string, number>>({})
+
+const service = computed(() => props.services.find((value) => value.id === serviceId.value))
+const serviceOptions = computed(() => props.services
+  .filter((value) => value.active || value.id === serviceId.value)
+  .map((value) => ({ label: value.code ? `${value.name} · ${value.code}` : value.name, value: value.id })))
+const activeParams = computed(() => service.value?.parameters?.filter((value: any) => value.active !== false) || [])
+const manualComponents = computed(() => service.value?.components?.filter((value: any) => value.enabled && value.type === 'manual') || [])
+
+function initialize() {
+  const initial = props.initial
+  serviceId.value = initial?.serviceId || props.services.find((value) => value.active)?.id || ''
+  values.value = {}
+  if (initial?.resolvedParametersJson) {
+    try {
+      for (const parameter of JSON.parse(initial.resolvedParametersJson)) values.value[parameter.key] = parameter.value
+    } catch {
+      // Invalid historical snapshots are ignored; the editor starts empty.
+    }
+  }
+  quantity.value = initial?.quantity || ''
+  unit.value = initial?.quantityUnit || 'unit'
+  notes.value = initial?.notes || ''
+  overrideText.value = ''
+  manualTexts.value = {}
+  manualCosts.value = {}
+  pricing.value = null
+  error.value = ''
+}
+
+watch(() => [props.initial, props.services], initialize, { immediate: true })
+watch(serviceId, () => {
+  values.value = {}
+  pricing.value = null
+})
+
+function setValue(key: string, value: string) {
+  values.value[key] = value
+  pricing.value = null
+}
+
+function updateMoneyText(event: Event, key: string) {
+  const text = (event.target as HTMLInputElement).value
+  if (key === 'override') {
+    overrideText.value = text
+    const parsed = parseMoneyInput(text, props.currencyUnit)
+    if (parsed !== null) overrideText.value = formatMoneyInput(parsed, props.currencyUnit)
+    return
+  }
+  manualTexts.value[key] = text
+  const parsed = parseMoneyInput(text, props.currencyUnit)
+  if (parsed !== null) manualCosts.value[key] = parsed
+}
+
+async function calculate() {
+  error.value = ''
+  calculating.value = true
+  try {
+    const override = overrideText.value.trim() ? parseMoneyInput(overrideText.value, props.currencyUnit) : null
+    if (overrideText.value.trim() && override === null) throw new Error('Enter a valid selling price')
+    pricing.value = await pricingApi.calculate({
+      serviceId: serviceId.value,
+      parameters: values.value,
+      manualCosts: manualCosts.value,
+      sellingPriceOverrideRial: override,
+    })
+  } catch (value) {
+    error.value = String(value).replace(/^Error:\s*/, '')
+  } finally {
+    calculating.value = false
+  }
+}
+
+function save() {
+  if (!pricing.value) {
+    error.value = 'Calculate the item before adding it'
+    return
+  }
+  const override = overrideText.value.trim() ? parseMoneyInput(overrideText.value, props.currencyUnit) : null
+  emit('configured', {
+    serviceId: serviceId.value,
+    parameters: { ...values.value },
+    manualCosts: { ...manualCosts.value },
+    sellingPriceOverrideRial: override,
+    quantity: quantity.value,
+    quantityUnit: unit.value,
+    notes: notes.value,
+  })
+}
 </script>
-<template><section><header><div><p>{{ initial?'Reconfigure item':'Add service item' }}</p><h2>Configure service</h2><p>Pricing is calculated by the persisted service definition.</p></div><button class="btn btn-ghost" @click="emit('cancel')">Cancel</button></header><div><label class="form-control gap-1">Service<span><select class="select select-bordered w-full min-w-0" v-model="serviceId"><option value="" disabled>Select active service</option><option v-for="item in services.filter((s:any)=>s.active||s.id===serviceId)" :key="item.id" :value="item.id">{{ item.name }}<template v-if="item.code"> · {{ item.code }}</template></option></select><ChevronDown :size="14"/></span></label><div v-if="activeParams.length"><label class="form-control gap-1" v-for="parameter in activeParams" :key="parameter.id">{{ parameter.label }}<select class="select select-bordered w-full min-w-0" v-if="parameter.type==='choice'" :value="values[parameter.key]||parameter.defaultValue" @change="setValue(parameter.key,$event)"><option value="">Select…</option><option v-for="option in parameter.options" :key="option">{{ option }}</option></select><input class="checkbox" v-else-if="parameter.type==='boolean'" type="checkbox" :checked="values[parameter.key]==='true'" @change="values[parameter.key]=($event.target as HTMLInputElement).checked?'true':'false'"><select class="select select-bordered w-full min-w-0" v-else-if="parameter.type==='material-reference'" :value="values[parameter.key]" @change="setValue(parameter.key,$event)"><option value="">Select material…</option><option v-for="material in materials.filter((m:any)=>m.active)" :key="material.id" :value="material.id">{{ material.name }}</option></select><input class="input input-bordered w-full min-w-0" v-else :value="values[parameter.key]" :type="parameter.type==='integer'?'number':'text'" :placeholder="parameter.defaultValue||parameter.type" @input="setValue(parameter.key,$event)"><small v-if="parameter.unit">{{ parameter.unit }}</small></label></div><p v-else>This service has no dynamic parameters.</p><div><label class="form-control gap-1">Item quantity<input class="input input-bordered w-full min-w-0" v-model="quantity" placeholder="Defaults from quantity parameter"/></label><label class="form-control gap-1">Unit<input class="input input-bordered w-full min-w-0" v-model="unit" placeholder="unit"/></label></div><div v-if="manualComponents.length"><label class="form-control gap-1" v-for="component in manualComponents" :key="component.id">{{ component.name }}<input class="input input-bordered w-full min-w-0" :value="manualTexts[component.id]||''" @input="updateMoneyText($event,component.id)" :placeholder="`Amount in ${currencyUnit}`"/></label></div><label class="form-control gap-1">Notes<textarea class="textarea textarea-bordered w-full min-w-0" v-model="notes" rows="2" placeholder="Item-specific notes"/></label><div><label class="form-control gap-1">Selling price override<input class="input input-bordered w-full min-w-0" :value="overrideText" inputmode="decimal" @input="updateMoneyText($event,'override')" :placeholder="`Optional ${currencyUnit} price`"/></label><button class="btn btn-ghost" type="button" :disabled="calculating||!serviceId" @click="calculate"><Calculator :size="15"/>{{ calculating?'Calculating…':'Calculate price' }}</button></div></div><div v-if="error"><AlertTriangle :size="15"/>{{ error }}</div><div v-if="pricing"><div><strong>Accepted pricing preview</strong><span v-if="pricing.belowCost"><AlertTriangle :size="14"/>Below cost</span></div><div><span>Estimated cost<strong>{{ formatMoney(pricing.estimatedCostRial,currencyUnit) }}</strong></span><span>Suggested price<strong>{{ formatMoney(pricing.suggestedSellingPriceRial,currencyUnit) }}</strong></span><span>Effective price<strong>{{ formatMoney(pricing.effectiveSellingPriceRial,currencyUnit) }}</strong></span><span>Profit / margin<strong>{{ formatMoney(pricing.profitRial,currencyUnit) }} · {{ pricing.marginPercentage }}%</strong></span></div><div><div v-for="component in pricing.components" :key="component.id"><span>{{ component.name }}</span><strong>{{ component.enabled?formatMoney(component.amountRial,currencyUnit):'Disabled' }}</strong></div></div><button class="btn btn-ghost" type="button" @click="save"><Plus :size="15"/>{{ initial?'Replace item':`Add item to ${documentLabel}` }}</button></div></section></template>
+
+<template>
+  <div class="border-t border-base-300 bg-base-200/40 p-4">
+    <header class="mb-4 flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wide text-primary">{{ initial ? 'Reconfigure item' : 'Add service item' }}</p>
+        <h3 class="text-base font-semibold">Configure service</h3>
+        <p class="text-xs text-base-content/60">Pricing is calculated by the persisted service definition.</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" type="button" @click="emit('cancel')">Cancel</button>
+    </header>
+
+    <div class="grid gap-4 lg:grid-cols-2">
+      <SelectField v-model="serviceId" label="Service" :options="serviceOptions" aria-label="Service" />
+
+      <template v-for="parameter in activeParams" :key="parameter.id">
+        <SelectField
+          v-if="parameter.type === 'choice'"
+          :model-value="values[parameter.key] || parameter.defaultValue || ''"
+          :label="parameter.label"
+          :options="[{ label: 'Select…', value: '' }, ...parameter.options.map((option: string) => ({ label: option, value: option }))]"
+          :aria-label="parameter.label"
+          @update:model-value="setValue(parameter.key, $event)"
+        />
+        <label v-else-if="parameter.type === 'boolean'" class="form-control justify-center gap-1">
+          <span class="text-xs text-base-content/60">{{ parameter.label }}</span>
+          <span class="flex h-10 items-center gap-2 rounded-field border border-base-300 bg-base-100 px-3 text-sm">
+            <input class="checkbox checkbox-sm" type="checkbox" :checked="values[parameter.key] === 'true'" @change="values[parameter.key] = ($event.target as HTMLInputElement).checked ? 'true' : 'false'" />
+            <span>{{ values[parameter.key] === 'true' ? 'Enabled' : 'Disabled' }}</span>
+          </span>
+        </label>
+        <SelectField
+          v-else-if="parameter.type === 'material-reference'"
+          :model-value="values[parameter.key] || ''"
+          :label="parameter.label"
+          :options="[{ label: 'Select material…', value: '' }, ...materials.filter((value: any) => value.active).map((value: any) => ({ label: value.name, value: value.id }))]"
+          :aria-label="parameter.label"
+          @update:model-value="setValue(parameter.key, $event)"
+        />
+        <label v-else class="form-control gap-1">
+          <span class="text-xs text-base-content/60">{{ parameter.label }}</span>
+          <input class="input input-bordered w-full min-w-0" :value="values[parameter.key] || ''" :type="parameter.type === 'integer' ? 'number' : 'text'" :placeholder="parameter.defaultValue || parameter.type" @input="setValue(parameter.key, ($event.target as HTMLInputElement).value)" />
+          <small v-if="parameter.unit" class="text-xs text-base-content/50">{{ parameter.unit }}</small>
+        </label>
+      </template>
+
+      <p v-if="!activeParams.length" class="text-xs text-base-content/60 lg:col-span-2">This service has no dynamic parameters.</p>
+
+      <label class="form-control gap-1">
+        <span class="text-xs text-base-content/60">Item quantity</span>
+        <input class="input input-bordered w-full min-w-0" v-model="quantity" placeholder="Defaults from quantity parameter" />
+      </label>
+      <label class="form-control gap-1">
+        <span class="text-xs text-base-content/60">Unit</span>
+        <input class="input input-bordered w-full min-w-0" v-model="unit" placeholder="unit" />
+      </label>
+
+      <template v-if="manualComponents.length">
+        <label v-for="component in manualComponents" :key="component.id" class="form-control gap-1">
+          <span class="text-xs text-base-content/60">{{ component.name }}</span>
+          <input class="input input-bordered w-full min-w-0" :value="manualTexts[component.id] || ''" :placeholder="`Amount in ${currencyUnit}`" @input="updateMoneyText($event, component.id)" />
+        </label>
+      </template>
+
+      <label class="form-control gap-1 lg:col-span-2">
+        <span class="text-xs text-base-content/60">Notes</span>
+        <textarea class="textarea textarea-bordered w-full min-w-0" v-model="notes" rows="2" placeholder="Item-specific notes" />
+      </label>
+
+      <div class="flex flex-wrap items-end gap-3 lg:col-span-2">
+        <label class="form-control min-w-52 flex-1 gap-1">
+          <span class="text-xs text-base-content/60">Selling price override</span>
+          <input class="input input-bordered w-full min-w-0" :value="overrideText" inputmode="decimal" :placeholder="`Optional ${currencyUnit} price`" @input="updateMoneyText($event, 'override')" />
+        </label>
+        <button class="btn btn-primary gap-2" type="button" :disabled="calculating || !serviceId" @click="calculate">
+          <Calculator :size="15" aria-hidden="true" />
+          <span>{{ calculating ? 'Calculating…' : 'Calculate price' }}</span>
+        </button>
+      </div>
+    </div>
+
+    <FieldMessage :message="error" tone="error" class="mt-3" />
+
+    <div v-if="pricing" class="mt-4 rounded-box border border-base-300 bg-base-100 p-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <strong>Accepted pricing preview</strong>
+        <span v-if="pricing.belowCost" class="flex items-center gap-1 text-xs text-warning"><AlertTriangle :size="14" aria-hidden="true" />Below cost</span>
+      </div>
+      <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div><span class="block text-xs text-base-content/60">Estimated cost</span><strong class="block text-sm">{{ formatMoney(pricing.estimatedCostRial, currencyUnit) }}</strong></div>
+        <div><span class="block text-xs text-base-content/60">Suggested price</span><strong class="block text-sm">{{ formatMoney(pricing.suggestedSellingPriceRial, currencyUnit) }}</strong></div>
+        <div><span class="block text-xs text-base-content/60">Effective price</span><strong class="block text-sm text-primary">{{ formatMoney(pricing.effectiveSellingPriceRial, currencyUnit) }}</strong></div>
+        <div><span class="block text-xs text-base-content/60">Profit / margin</span><strong class="block text-sm">{{ formatMoney(pricing.profitRial, currencyUnit) }} · {{ pricing.marginPercentage }}%</strong></div>
+      </div>
+      <div class="mt-4 divide-y divide-base-300 rounded-box border border-base-300">
+        <div v-for="component in pricing.components" :key="component.id" class="flex items-center justify-between gap-3 px-3 py-2 text-xs">
+          <span>{{ component.name }}</span>
+          <strong>{{ component.enabled ? formatMoney(component.amountRial, currencyUnit) : 'Disabled' }}</strong>
+        </div>
+      </div>
+      <div class="mt-4 flex justify-end">
+        <button class="btn btn-primary gap-2" type="button" @click="save">
+          <Plus :size="15" aria-hidden="true" />
+          <span>{{ initial ? 'Replace item' : `Add item to ${documentLabel}` }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</template>

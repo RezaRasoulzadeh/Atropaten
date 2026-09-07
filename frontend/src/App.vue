@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, type Component } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, type Component } from 'vue'
 import {
   BarChart3,
   BellRing,
@@ -102,6 +102,12 @@ const navigationSections: { label: string; items: NavigationItem[] }[] = [
 
 const activeView = ref('Dashboard')
 const isSidebarCollapsed = ref(false)
+const isDrawerOpen = ref(false)
+const isDesktop = ref(false)
+const drawerPanel = ref<HTMLElement | null>(null)
+let desktopMediaQuery: MediaQueryList | undefined
+const sidebarCollapsed = computed(() => isDesktop.value && isSidebarCollapsed.value)
+const toolbarCollapsed = computed(() => isDesktop.value ? isSidebarCollapsed.value : !isDrawerOpen.value)
 const searchQuery = ref('')
 const currencyUnit = ref<CurrencyUnit>('Toman')
 const hasNotifications = ref(false)
@@ -129,6 +135,7 @@ const currentView = computed(() => ({
 
 function selectView(label: string) {
   activeView.value = label
+  isDrawerOpen.value = false
   selectedOrderId.value = null
   selectedQuoteId.value = null
   if (label === 'Orders') { loadOrders(); loadOrderCatalog() }
@@ -186,7 +193,35 @@ function updateQuote(quote: QuoteRecord) { quotes.value=quotes.value.some(item=>
 async function openNewQuote() { activeView.value='Quotes'; try { const quote=await quotesApi.create({customerId:'',expiryDate:null,notes:'',discountRial:0}); quotes.value=[quote,...quotes.value]; selectedQuoteId.value=quote.id } catch(error) { toast.error(error, 'New quote') } }
 function openConvertedOrder(orderId: string) { selectedQuoteId.value=null; activeView.value='Orders'; loadOrders(); selectedOrderId.value=orderId }
 
-onMounted(() => { loadOrderCatalog(); loadOrders(); loadQuotes(); loadSuppliers(); loadPurchases() })
+function syncViewport() {
+  isDesktop.value = desktopMediaQuery?.matches ?? window.innerWidth >= 1024
+}
+
+function toggleSidebar() {
+  if (isDesktop.value) isSidebarCollapsed.value = !isSidebarCollapsed.value
+  else isDrawerOpen.value = !isDrawerOpen.value
+}
+
+function closeDrawerOnOutsideClick(event: MouseEvent) {
+  if (isDesktop.value || !isDrawerOpen.value) return
+  const target = event.target
+  if (!(target instanceof Element)) return
+  if (drawerPanel.value?.contains(target) || target.closest('[data-drawer-toggle]')) return
+  isDrawerOpen.value = false
+}
+
+onMounted(() => {
+  desktopMediaQuery = window.matchMedia('(min-width: 1024px)')
+  syncViewport()
+  desktopMediaQuery.addEventListener('change', syncViewport)
+  document.addEventListener('click', closeDrawerOnOutsideClick)
+  loadOrderCatalog(); loadOrders(); loadQuotes(); loadSuppliers(); loadPurchases()
+})
+
+onBeforeUnmount(() => {
+  desktopMediaQuery?.removeEventListener('change', syncViewport)
+  document.removeEventListener('click', closeDrawerOnOutsideClick)
+})
 
 function showToast(message: string) {
   const isFailure = /^(error:|failed|unable|could not|cannot|invalid|not found|conflict|required)/i.test(message.trim())
@@ -202,16 +237,16 @@ function openNotifications() {
 </script>
 
 <template>
-  <div class="drawer lg:drawer-open h-screen min-h-0 overflow-hidden bg-base-200 font-sans text-base-content">
-    <input id="atropaten-drawer" type="checkbox" class="drawer-toggle" />
+  <div class="drawer lg:drawer-open h-screen min-h-0 overflow-hidden bg-base-200 font-sans text-base-content" :class="{ 'drawer-open': isDrawerOpen }">
+    <input id="atropaten-drawer" v-model="isDrawerOpen" type="checkbox" class="drawer-toggle" />
 
     <div class="drawer-content grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)]">
       <AppToolbar
         class="sticky top-0 z-20"
-        :collapsed="isSidebarCollapsed"
         :search-query="searchQuery"
         :currency-unit="currencyUnit"
-        @toggle-sidebar="isSidebarCollapsed = !isSidebarCollapsed"
+        :collapsed="toolbarCollapsed"
+        @toggle-sidebar="toggleSidebar"
         @update:search-query="searchQuery = $event"
         @update:currency-unit="currencyUnit = $event"
         @new-order="openNewOrder"
@@ -288,19 +323,20 @@ function openNotifications() {
     </div>
 
     <div class="drawer-side z-30">
-      <label for="atropaten-drawer" aria-label="Close navigation" class="drawer-overlay"></label>
+      <label for="atropaten-drawer" aria-label="Close navigation" class="drawer-overlay" @click.prevent="isDrawerOpen = false"></label>
       <aside
+        ref="drawerPanel"
         class="flex h-full min-h-full max-h-full flex-col overflow-hidden border-e border-base-300 bg-base-100"
-        :class="isSidebarCollapsed ? 'w-[4.5rem]' : 'w-[14.5rem]'"
+        :class="sidebarCollapsed ? 'w-[4.5rem]' : 'w-[14.5rem]'"
         aria-label="Primary navigation"
       >
-        <div class="navbar min-h-16 shrink-0 border-b border-base-300 bg-base-100" :class="isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-4'">
+        <div class="navbar min-h-16 shrink-0 border-b border-base-300 bg-base-100" :class="sidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-4'">
           <div class="grid size-8 shrink-0 place-items-center rounded bg-primary font-bold text-primary-content" aria-hidden="true">A</div>
-          <div v-if="!isSidebarCollapsed" class="min-w-0">
+          <div v-if="!sidebarCollapsed" class="min-w-0">
             <span class="block truncate text-sm font-bold">Atropaten</span>
             <span class="block text-[10px] text-base-content/60">Print shop control</span>
           </div>
-          <button v-if="!isSidebarCollapsed" class="btn btn-ghost btn-square btn-sm relative ms-auto" type="button" aria-label="Notifications" title="Notifications" @click="openNotifications">
+          <button v-if="!sidebarCollapsed" class="btn btn-ghost btn-square btn-sm relative ms-auto" type="button" aria-label="Notifications" title="Notifications" @click="openNotifications">
             <BellRing :size="17" :stroke-width="1.8" aria-hidden="true" />
             <span v-if="hasNotifications" class="absolute end-1 top-1 size-2 rounded-full bg-error ring-2 ring-base-100" aria-hidden="true"></span>
           </button>
@@ -308,14 +344,14 @@ function openNotifications() {
 
         <nav class="menu min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-scroll overscroll-contain p-2">
           <div v-for="section in navigationSections" :key="section.label" class="mb-3 last:mb-0">
-            <p v-if="!isSidebarCollapsed" class="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-base-content/50">{{ section.label }}</p>
+            <p v-if="!sidebarCollapsed" class="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-base-content/50">{{ section.label }}</p>
             <SidebarNavItem
               v-for="item in section.items"
               :key="item.label"
               :label="item.label"
               :icon="item.icon"
               :active="activeView === item.label"
-              :collapsed="isSidebarCollapsed"
+              :collapsed="sidebarCollapsed"
               @select="selectView(item.label)"
             />
           </div>
@@ -324,9 +360,9 @@ function openNotifications() {
         <div class="shrink-0 border-t border-base-300 p-3 text-xs text-base-content/60">
           <div class="flex items-center gap-2">
             <span class="size-2 shrink-0 rounded-full bg-success" aria-hidden="true"></span>
-            <span v-if="!isSidebarCollapsed">Local workspace · synced</span>
+            <span v-if="!sidebarCollapsed">Local workspace · synced</span>
           </div>
-          <div v-if="!isSidebarCollapsed" class="mt-1 text-[10px]">v0.1 foundation</div>
+          <div v-if="!sidebarCollapsed" class="mt-1 text-[10px]">v0.1 foundation</div>
         </div>
       </aside>
     </div>

@@ -115,7 +115,15 @@
 }
 
 .select {
+  appearance: none;
+  -webkit-appearance: none;
   padding-inline-end: 2.5rem;
+}
+
+select.select {
+  color: var(--color-base-content);
+  background-color: var(--color-base-100);
+  background-repeat: no-repeat;
 }
 
 .input:focus,
