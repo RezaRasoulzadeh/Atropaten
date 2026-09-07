@@ -5,6 +5,7 @@ import type { ServiceRecord } from '../api/services'
 import type { MaterialRecord } from '../api/materials'
 import { pricingApi, type PricingRecord } from '../api/pricing'
 import { formatMoney, formatMoneyInput, parseMoneyInput, type CurrencyUnit } from '../utils/currency'
+import SelectField from './SelectField.vue'
 
 const props = defineProps<{ service: ServiceRecord; materials: MaterialRecord[]; currencyUnit: CurrencyUnit }>()
 const values = ref<Record<string, string>>({})
@@ -90,8 +91,8 @@ function typeLabel(type: string) { return ({ integer: 'Integer', decimal: 'Decim
         <div v-if="service.parameters.length">
           <label class="form-control gap-1" v-for="parameter in service.parameters" :key="parameter.id"><span>{{ parameter.label }}<em v-if="parameter.required">required</em></span>
             <input class="input input-bordered w-full min-w-0" v-if="parameter.type === 'integer' || parameter.type === 'decimal'" v-model="values[parameter.key]" type="text" inputmode="decimal" :placeholder="parameter.defaultValue || 'Enter value'" />
-            <select class="select select-bordered w-full min-w-0" v-else-if="parameter.type === 'choice'" v-model="values[parameter.key]"><option value="">Select {{ parameter.label.toLowerCase() }}</option><option v-for="option in parameter.options" :key="option" :value="option">{{ option }}</option></select>
-            <select class="select select-bordered w-full min-w-0" v-else-if="parameter.type === 'material-reference'" v-model="values[parameter.key]"><option value="">Select material</option><option v-for="material in materials" :key="material.id" :value="material.id">{{ material.name }}{{ material.sku ? ` · ${material.sku}` : '' }}</option></select>
+            <SelectField v-else-if="parameter.type === 'choice'" v-model="values[parameter.key]" :label="parameter.label" :options="[{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...parameter.options.map((option) => ({ label: option, value: option }))]" />
+            <SelectField v-else-if="parameter.type === 'material-reference'" v-model="values[parameter.key]" :label="parameter.label" :options="[{ label: 'Select material', value: '' }, ...materials.map((material) => ({ label: `${material.name}${material.sku ? ` · ${material.sku}` : ''}`, value: material.id }))]" />
             <span v-else><input class="checkbox" :checked="values[parameter.key] === 'true'" type="checkbox" @change="updateBoolean(parameter.key, $event)" /> Enabled</span>
             <small v-if="parameter.unit || parameter.minValue || parameter.maxValue">{{ parameter.unit }}<span v-if="parameter.minValue"> · min {{ parameter.minValue }}</span><span v-if="parameter.maxValue"> · max {{ parameter.maxValue }}</span></small>
           </label>

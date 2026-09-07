@@ -101,9 +101,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="picker">
-    <div>
-      <input class="input input-bordered w-full min-w-0"
+  <div ref="picker" class="relative w-full">
+    <div class="relative">
+      <input
+        class="input input-bordered w-full min-w-0 pe-11"
         :value="displayValue"
         type="text"
         readonly
@@ -115,28 +116,43 @@ onBeforeUnmount(() => {
         @keydown.enter.space.prevent="openPicker"
         @keydown.down.prevent="openPicker"
       />
-      <button class="btn btn-ghost" type="button" aria-label="Open Jalali calendar" :aria-expanded="isOpen" @click="openPicker">
+      <button
+        class="btn btn-ghost btn-square btn-sm absolute inset-e-1 top-1/2 -translate-y-1/2"
+        type="button"
+        aria-label="Open Jalali calendar"
+        :aria-expanded="isOpen"
+        @click="openPicker"
+      >
         <CalendarDays :size="16" :stroke-width="1.8" aria-hidden="true" />
       </button>
     </div>
 
-    <div v-if="isOpen" role="dialog" aria-label="Jalali calendar">
-      <div>
-        <button class="btn btn-ghost" type="button" aria-label="Previous Jalali month" @click="shiftMonth(-1)"><ChevronLeft :size="16" :stroke-width="1.8" aria-hidden="true" /></button>
-        <strong>{{ monthLabel }}</strong>
-        <button class="btn btn-ghost" type="button" aria-label="Next Jalali month" @click="shiftMonth(1)"><ChevronRight :size="16" :stroke-width="1.8" aria-hidden="true" /></button>
+    <div v-if="isOpen" class="absolute inset-x-0 top-full z-40 mt-2 min-w-72 rounded-box border border-base-300 bg-base-100 p-3 shadow-xl" role="dialog" aria-label="Jalali calendar">
+      <div class="flex items-center justify-between gap-2">
+        <button class="btn btn-ghost btn-square btn-sm" type="button" aria-label="Previous Jalali month" @click="shiftMonth(-1)"><ChevronLeft :size="16" :stroke-width="1.8" aria-hidden="true" /></button>
+        <strong class="text-sm">{{ monthLabel }}</strong>
+        <button class="btn btn-ghost btn-square btn-sm" type="button" aria-label="Next Jalali month" @click="shiftMonth(1)"><ChevronRight :size="16" :stroke-width="1.8" aria-hidden="true" /></button>
       </div>
-      <div aria-hidden="true">
+      <div class="mt-2 grid grid-cols-7 gap-1 text-center text-[10px] text-base-content/50" aria-hidden="true">
         <span v-for="weekday in jalaliWeekdays" :key="weekday">{{ weekday }}</span>
       </div>
-      <div role="grid" :aria-label="monthLabel">
-        <span v-for="(day, index) in dayCells" :key="`${monthLabel}-${index}`">
-          <button v-if="day" :class="{ 'bg-base-300': isSelected(day), 'btn-outline': isToday(day) }" type="button" role="gridcell" :aria-label="`${day} ${monthLabel}`" :aria-selected="isSelected(day)" @click="selectDay(day)">{{ day }}</button>
+      <div class="mt-1 grid grid-cols-7 gap-1" role="grid" :aria-label="monthLabel">
+        <span v-for="(day, index) in dayCells" :key="`${monthLabel}-${index}`" class="grid place-items-center">
+          <button
+            v-if="day"
+            class="btn btn-ghost btn-square btn-sm h-8 min-h-8 w-8 p-0 text-xs"
+            :class="{ 'btn-primary': isSelected(day), 'ring-1 ring-primary': isToday(day) && !isSelected(day) }"
+            type="button"
+            role="gridcell"
+            :aria-label="`${day} ${monthLabel}`"
+            :aria-selected="isSelected(day)"
+            @click="selectDay(day)"
+          >{{ day }}</button>
         </span>
       </div>
-      <div>
-        <button class="btn btn-ghost" type="button" @click="selectToday">Today</button>
-        <button class="btn btn-ghost" v-if="modelValue" type="button" aria-label="Clear promised date" @click="clearDate"><X :size="14" :stroke-width="1.8" aria-hidden="true" />Clear</button>
+      <div class="mt-3 flex items-center justify-between border-t border-base-300 pt-2">
+        <button class="btn btn-ghost btn-sm" type="button" @click="selectToday">Today</button>
+        <button v-if="modelValue" class="btn btn-ghost btn-sm gap-1" type="button" aria-label="Clear promised date" @click="clearDate"><X :size="14" :stroke-width="1.8" aria-hidden="true" />Clear</button>
       </div>
     </div>
   </div>

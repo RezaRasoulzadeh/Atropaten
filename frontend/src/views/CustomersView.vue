@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Mail, MapPin, Pencil, Phone, Plus, Search, Trash2, UserRound, X } from 'lucide-vue-next'
+import { Mail, MapPin, Pencil, Phone, Plus, Trash2, UserRound, X } from 'lucide-vue-next'
 import WorkspaceStickyStack from '../components/WorkspaceStickyStack.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { customersApi, type CustomerPayload, type CustomerRecord } from '../api/customers'
 import { formatDateTime } from '../utils/date'
 import { confirmAction, normalizeError } from '../ui/feedback'
 import SearchFilterBar from '../components/SearchFilterBar.vue'
+import SearchField from '../components/SearchField.vue'
+import SelectField from '../components/SelectField.vue'
 
 const props = defineProps<{ refreshKey?: number }>()
 const emit = defineEmits<{ notify: [message: string] }>()
@@ -75,7 +77,7 @@ watch(() => props.refreshKey, load, { immediate: true })
   <div>
     <WorkspaceStickyStack>
       <header><div><p>Workspace / relationships</p><h1>Customers</h1><p>Keep customer contacts ready for every commercial workflow.</p></div><button class="btn btn-primary" type="button" @click="newCustomer"><Plus :size="16" aria-hidden="true" />New customer</button></header>
-      <SearchFilterBar><template #search><label class="form-control gap-1"><Search :size="16" aria-hidden="true" /><span>Search customers</span><input class="input input-bordered w-full min-w-0" v-model="query" placeholder="Search name, phone, or email" /></label></template><template #filters><label class="form-control gap-1"><span>Status</span><select class="select select-bordered w-full min-w-0" v-model="filter" aria-label="Customer status"><option>Active</option><option>Archived</option><option>All</option></select></label></template><template #count><span>{{ visible.length }} customers</span></template></SearchFilterBar>
+      <SearchFilterBar><template #search><SearchField v-model="query" label="Search customers" placeholder="Search name, phone, or email" /></template><template #filters><SelectField v-model="filter" label="Status" aria-label="Customer status" :options="['Active', 'Archived', 'All'].map((value) => ({ label: value, value }))" /></template><template #count><span>{{ visible.length }} customers</span></template></SearchFilterBar>
     </WorkspaceStickyStack>
     <div>
       <section><div v-if="loading">Loading customers…</div><div v-else-if="error">{{ error }}</div><div v-else-if="!visible.length"><UserRound :size="22" /><strong>No customers in this view</strong><button class="btn btn-ghost" @click="newCustomer">Add customer</button></div><button v-for="customer in visible" v-else :key="customer.id" :class="{ 'bg-base-300': selectedId === customer.id }" @click="select(customer)"><span><UserRound :size="16" /></span><span><strong>{{ customer.name }}</strong><small>{{ customer.phone || customer.email || 'No contact details' }}</small></span><StatusBadge :label="customer.active ? 'Active' : 'Archived'" :tone="customer.active ? 'green' : 'slate'" /></button></section>

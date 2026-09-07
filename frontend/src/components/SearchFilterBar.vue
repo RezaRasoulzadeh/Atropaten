@@ -1,5 +1,5 @@
 <template>
-  <section class="flex min-w-0 flex-wrap items-end gap-2 rounded-box border border-base-300 bg-base-100 p-3">
+  <section class="search-filter-bar flex min-w-0 flex-wrap items-end gap-2 rounded-box border border-base-300 bg-base-100 p-3">
     <div class="min-w-[220px] flex-1">
       <slot name="search" />
     </div>

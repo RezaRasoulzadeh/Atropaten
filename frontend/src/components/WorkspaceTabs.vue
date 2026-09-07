@@ -12,8 +12,8 @@ defineEmits<{ change: [tab: string] }>()
     <button
       v-for="tab in tabs"
       :key="tab"
-      class="btn btn-ghost btn-sm shrink-0 rounded-b-none"
-      :class="{ 'btn-primary': tab === activeTab }"
+      class="btn btn-sm shrink-0 rounded-b-none"
+      :class="tab === activeTab ? 'btn-primary' : 'btn-ghost'"
       type="button"
       :aria-selected="tab === activeTab"
       role="tab"

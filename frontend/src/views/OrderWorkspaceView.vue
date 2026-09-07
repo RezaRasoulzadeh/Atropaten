@@ -47,7 +47,6 @@ const saving = ref(false)
 
 const tabs = ['Overview', 'Items', 'Production', 'Payments', 'Invoices', 'Files', 'History']
 const commercialOptions = ['Draft', 'Confirmed', 'Closed', 'Cancelled'].map((value) => ({ label: value, value }))
-const fulfillmentOptions = ['Pending', 'In Production', 'Ready', 'Delivered'].map((value) => ({ label: value, value }))
 const priorityOptions = ['Urgent', 'High', 'Normal', 'Low'].map((value) => ({ label: value, value }))
 const customer = computed(() => props.customers.find((value) => value.id === customerId.value))
 const customerOptions = computed(() => [
@@ -169,15 +168,6 @@ async function changeCommercial(value: string) {
   }
 }
 
-async function changeFulfillment(value: string) {
-  try {
-    emit('saved', await ordersApi.fulfillmentStatus(props.order.id, value))
-    emit('notify', 'Fulfillment status updated')
-  } catch (error) {
-    emit('notify', String(error))
-  }
-}
-
 function snapshot(item: any, key: string) {
   try {
     return JSON.parse(item[key] || '[]')
@@ -190,22 +180,23 @@ function snapshot(item: any, key: string) {
 <template>
   <div class="space-y-4">
     <WorkspaceStickyStack :flush="true">
-      <header>
-        <button class="btn btn-ghost gap-2" type="button" @click="emit('back')">
-          <ArrowLeft :size="16" aria-hidden="true" />
-          <span>Orders</span>
-        </button>
-
-        <div class="min-w-0">
-          <p>Sales / order workspace</p>
-          <div class="flex min-w-0 flex-wrap items-center gap-2">
-            <h1 class="truncate">{{ order.orderNumber }}</h1>
-            <StatusBadge :label="order.commercialStatus" :tone="tone(order.commercialStatus)" />
+      <header class="order-workspace-header">
+        <div class="order-workspace-header__main">
+          <button class="btn btn-ghost gap-2" type="button" @click="emit('back')">
+            <ArrowLeft :size="16" aria-hidden="true" />
+            <span>Orders</span>
+          </button>
+          <div class="order-workspace-header__title min-w-0">
+            <p>Sales / order workspace</p>
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
+              <h1 class="truncate">{{ order.orderNumber }}</h1>
+              <StatusBadge :label="order.commercialStatus" :tone="tone(order.commercialStatus)" />
+            </div>
+            <p class="truncate">{{ order.customerName || 'Walk-in customer' }} · {{ order.items.length }} line items</p>
           </div>
-          <p class="truncate">{{ order.customerName || 'Walk-in customer' }} · {{ order.items.length }} line items</p>
         </div>
 
-        <div class="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+        <div class="order-workspace-header__actions flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
           <SelectField
             class="w-40"
             :model-value="order.commercialStatus"
@@ -240,20 +231,7 @@ function snapshot(item: any, key: string) {
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2 border-x border-base-300 bg-base-100 px-3 pb-3 text-xs">
-        <span class="text-base-content/50">Order states</span>
-        <StatusBadge :label="order.commercialStatus" :tone="tone(order.commercialStatus)" />
-        <SelectField
-          class="w-36"
-          :model-value="order.fulfillmentStatus"
-          :options="fulfillmentOptions"
-          aria-label="Fulfillment status"
-          @update:model-value="changeFulfillment"
-        />
-        <StatusBadge :label="order.paymentStatus" :tone="tone(order.paymentStatus)" />
-      </div>
-
-      <WorkspaceTabs :tabs="tabs" :active-tab="tab" @change="tab = $event" />
+      <WorkspaceTabs class="mt-2" :tabs="tabs" :active-tab="tab" @change="tab = $event" />
     </WorkspaceStickyStack>
 
     <section v-if="tab === 'Overview'" class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)]">
@@ -358,3 +336,65 @@ function snapshot(item: any, key: string) {
     </SectionPanel>
   </div>
 </template>
+
+<style scoped>
+.order-workspace-header {
+  align-items: center !important;
+}
+
+.order-workspace-header__main {
+  display: flex !important;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.order-workspace-header__title {
+  display: flex !important;
+  min-width: 0;
+  flex-direction: column !important;
+  gap: 0.125rem;
+}
+
+.order-workspace-header__title > p:first-child {
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.order-workspace-header__title > p:last-child {
+  color: color-mix(in oklab, var(--color-base-content) 65%, transparent);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.order-workspace-header__actions {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 48rem) {
+  .order-workspace-header {
+    align-items: stretch !important;
+  }
+
+  .order-workspace-header__main {
+    width: 100%;
+  }
+
+  .order-workspace-header__title {
+    flex: 1 1 auto;
+  }
+
+  .order-workspace-header__actions {
+    width: 100% !important;
+    justify-content: flex-start !important;
+  }
+
+  .order-workspace-header__actions > :deep(.form-control) {
+    flex: 1 1 10rem;
+  }
+}
+</style>

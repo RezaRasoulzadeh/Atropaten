@@ -45,8 +45,57 @@
 
 .btn {
   font-family: inherit;
-  line-height: 1.25;
+  line-height: 1.3;
   box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.btn > span:not([aria-hidden="true"]) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.25;
+  margin-block: 0;
+  text-align: center;
+}
+
+/* Keep a labelled icon button's label on the button's visual centre. The
+   icon occupies the balancing space on the leading side instead of pushing
+   the label off-centre. Select triggers are excluded because their label is
+   intentionally left-aligned. */
+.btn:not(.select-field-trigger):has(> svg + span:not([aria-hidden="true"])) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  column-gap: 0.5rem;
+}
+
+.btn:not(.select-field-trigger):has(> svg + span:not([aria-hidden="true"])) > svg {
+  grid-column: 1;
+  justify-self: end;
+}
+
+.btn:not(.select-field-trigger):has(> svg + span:not([aria-hidden="true"])) > span:not([aria-hidden="true"]) {
+  grid-column: 2;
+}
+
+.select-field-trigger {
+  justify-content: space-between !important;
+  text-align: start;
+}
+
+.select-field-trigger > span:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+  text-align: start;
+}
+
+.select-field-trigger > svg {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
 }
 
 .btn:focus,
@@ -64,13 +113,12 @@
   border-color: var(--color-primary);
 }
 
-.btn > span:not([aria-hidden="true"]) {
-  position: relative;
-  top: 0.125rem;
-}
-
 .drawer-side {
   overflow: hidden;
+}
+
+.drawer-side .btn.justify-start {
+  justify-content: flex-start;
 }
 
 /* DaisyUI menus wrap into columns by default. The application sidebar is a
@@ -102,6 +150,12 @@
   white-space: nowrap;
 }
 
+@media (max-width: 767px) {
+  .table {
+    min-width: 38rem;
+  }
+}
+
 .input,
 .select,
 .textarea {
@@ -118,6 +172,23 @@
   appearance: none;
   -webkit-appearance: none;
   padding-inline-end: 2.5rem;
+}
+
+@media (max-width: 48rem) {
+  .search-filter-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .search-filter-bar > div {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .search-filter-bar > div:has(> .form-control) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 select.select {

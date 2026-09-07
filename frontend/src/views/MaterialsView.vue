@@ -8,13 +8,14 @@ import {
   Plus,
   RotateCcw,
   Save,
-  Search,
   X,
   RefreshCw,
 } from 'lucide-vue-next'
 import SectionPanel from '../components/SectionPanel.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import WorkspaceStickyStack from '../components/WorkspaceStickyStack.vue'
+import SearchField from '../components/SearchField.vue'
+import SelectField from '../components/SelectField.vue'
 import { materialsApi, type MaterialPayload, type MaterialRecord } from '../api/materials'
 import { purchasesApi } from '../api/purchases'
 import { formatMoney, formatMoneyInput, parseMoneyInput, type CurrencyUnit } from '../utils/currency'
@@ -223,17 +224,10 @@ function dateLabel(value: string) {
         </button>
       </header>
 
-      <section aria-label="Material filters">
-        <label class="form-control gap-1">
-          <span>Search materials</span>
-          <Search :size="16" :stroke-width="1.8" aria-hidden="true" />
-          <input class="input input-bordered w-full min-w-0" v-model="searchQuery" type="search" placeholder="Search material, SKU, or category" autocomplete="off" />
-        </label>
-        <label class="form-control gap-1">
-          <span>Status</span>
-          <span><select class="select select-bordered w-full min-w-0" v-model="materialFilter" aria-label="Filter materials by status"><option>Active</option><option>Archived</option><option>All</option></select></span>
-        </label>
-        <span>{{ filteredMaterials.length }} of {{ materials.length }} materials</span>
+      <section class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end" aria-label="Material filters">
+        <SearchField v-model="searchQuery" label="Search materials" placeholder="Search material, SKU, or category" />
+        <SelectField v-model="materialFilter" label="Status" aria-label="Filter materials by status" :options="['Active', 'Archived', 'All'].map((value) => ({ label: value, value }))" />
+        <span class="self-end pb-2">{{ filteredMaterials.length }} of {{ materials.length }} materials</span>
       </section>
     </WorkspaceStickyStack>
 
@@ -285,8 +279,8 @@ function dateLabel(value: string) {
             <label class="form-control gap-1"><span>Category</span><input class="input input-bordered w-full min-w-0" v-model="form.category" type="text" placeholder="Paper" autocomplete="off" /></label>
           </div>
           <div>
-            <label class="form-control gap-1"><span>Purchase unit</span><select class="select select-bordered w-full min-w-0" v-model="form.purchaseUnit"><option v-for="unit in unitOptions" :key="unit" :value="unit">{{ unitLabel(unit) }}</option></select></label>
-            <label class="form-control gap-1"><span>Consumption unit</span><select class="select select-bordered w-full min-w-0" v-model="form.consumptionUnit"><option v-for="unit in unitOptions" :key="unit" :value="unit">{{ unitLabel(unit) }}</option></select></label>
+            <SelectField v-model="form.purchaseUnit" label="Purchase unit" :options="unitOptions.map((unit) => ({ label: unitLabel(unit), value: unit }))" />
+            <SelectField v-model="form.consumptionUnit" label="Consumption unit" :options="unitOptions.map((unit) => ({ label: unitLabel(unit), value: unit }))" />
           </div>
           <label class="form-control gap-1"><span>Conversion factor</span><input class="input input-bordered w-full min-w-0" v-model="form.conversionFactor" type="text" inputmode="decimal" placeholder="500" /><small>1 {{ form.purchaseUnit }} = {{ form.conversionFactor || '…' }} {{ form.consumptionUnit }}</small></label>
           <div>
