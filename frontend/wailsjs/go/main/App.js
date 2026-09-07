@@ -150,6 +150,10 @@ export function CreateQuote(arg1) {
   return window['go']['main']['App']['CreateQuote'](arg1);
 }
 
+export function CreateBackup() {
+  return window['go']['main']['App']['CreateBackup']();
+}
+
 export function CreateService(arg1) {
   return window['go']['main']['App']['CreateService'](arg1);
 }
@@ -192,6 +196,14 @@ export function GetCheck(arg1) {
 
 export function GetCustomer(arg1) {
   return window['go']['main']['App']['GetCustomer'](arg1);
+}
+
+export function GetDataPaths() {
+  return window['go']['main']['App']['GetDataPaths']();
+}
+
+export function GetLastBackup() {
+  return window['go']['main']['App']['GetLastBackup']();
 }
 
 export function GetCustomerFinancialSummary(arg1) {
@@ -256,6 +268,14 @@ export function GetService(arg1) {
 
 export function GetShopSettings() {
   return window['go']['main']['App']['GetShopSettings']();
+}
+
+export function RestoreBackup(arg1) {
+  return window['go']['main']['App']['RestoreBackup'](arg1);
+}
+
+export function SelectBackupFile() {
+  return window['go']['main']['App']['SelectBackupFile']();
 }
 
 export function GetSupplier(arg1) {
@@ -500,6 +520,10 @@ export function ReverseTransfer(arg1, arg2) {
 
 export function SaveShopSettings(arg1) {
   return window['go']['main']['App']['SaveShopSettings'](arg1);
+}
+
+export function VerifyBackup(arg1) {
+  return window['go']['main']['App']['VerifyBackup'](arg1);
 }
 
 export function TransitionCheck(arg1, arg2, arg3, arg4) {

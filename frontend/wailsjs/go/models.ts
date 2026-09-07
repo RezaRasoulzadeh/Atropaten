@@ -2099,6 +2099,16 @@ export namespace main {
 	        this.lineTotalRial = source["lineTotalRial"];
 	    }
 	}
+	export class DataPathsDTO {
+	    root: string; database: string; attachments: string; backups: string; applicationVersion: string; schemaVersion: number;
+	    static createFrom(source: any = {}) { return new DataPathsDTO(source); }
+	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.root = source["root"]; this.database = source["database"]; this.attachments = source["attachments"]; this.backups = source["backups"]; this.applicationVersion = source["applicationVersion"]; this.schemaVersion = source["schemaVersion"]; }
+	}
+	export class BackupInfoDTO {
+	    path: string; createdAt: string; applicationVersion: string; schemaVersion: number; sizeBytes: number; managedFileCount: number;
+	    static createFrom(source: any = {}) { return new BackupInfoDTO(source); }
+	    constructor(source: any = {}) { if ('string' === typeof source) source = JSON.parse(source); this.path = source["path"]; this.createdAt = source["createdAt"]; this.applicationVersion = source["applicationVersion"]; this.schemaVersion = source["schemaVersion"]; this.sizeBytes = source["sizeBytes"]; this.managedFileCount = source["managedFileCount"]; }
+	}
 	export class ShopSettingsDTO {
 	    shopName: string;
 	    shopSubtitle: string;

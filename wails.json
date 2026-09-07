@@ -6,6 +6,13 @@
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
+  "info": {
+    "companyName": "Atropaten",
+    "productName": "Atropaten Print Shop",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright © Atropaten",
+    "comments": "Local print-shop operations and accounting"
+  },
   "author": {
     "name": "Reza Rasoulzadeh",
     "email": "95174132+RezaRasoulzadeh@users.noreply.github.com"

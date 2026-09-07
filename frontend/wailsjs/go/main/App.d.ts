@@ -75,6 +75,7 @@ export function CreateProof(arg1:string,arg2:string,arg3:string,arg4:string,arg5
 export function CreatePurchase(arg1:main.PurchaseInput):Promise<main.PurchaseDTO>;
 
 export function CreateQuote(arg1:main.QuoteInput):Promise<main.QuoteDTO>;
+export function CreateBackup():Promise<main.BackupInfoDTO>;
 
 export function CreateService(arg1:main.ServiceInput):Promise<main.ServiceDTO>;
 
@@ -97,6 +98,8 @@ export function DeleteSupplier(arg1:string):Promise<void>;
 export function GetCheck(arg1:string):Promise<main.CheckDTO>;
 
 export function GetCustomer(arg1:string):Promise<main.CustomerDTO>;
+export function GetDataPaths():Promise<main.DataPathsDTO>;
+export function GetLastBackup():Promise<main.BackupInfoDTO>;
 
 export function GetCustomerFinancialSummary(arg1:string):Promise<main.CustomerFinancialDTO>;
 
@@ -251,6 +254,9 @@ export function ReverseProductionConsumption(arg1:string,arg2:string):Promise<vo
 export function ReverseTransfer(arg1:string,arg2:string):Promise<main.TransferDTO>;
 
 export function SaveShopSettings(arg1:main.ShopSettingsDTO):Promise<void>;
+export function RestoreBackup(arg1:string):Promise<main.BackupInfoDTO>;
+export function SelectBackupFile():Promise<string>;
+export function VerifyBackup(arg1:string):Promise<main.BackupInfoDTO>;
 
 export function TransitionCheck(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.CheckDTO>;
 

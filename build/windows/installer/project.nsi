@@ -108,7 +108,8 @@ SectionEnd
 Section "uninstall"
     !insertmacro wails.setShellContext
 
-    RMDir /r "$AppData\${PRODUCT_EXECUTABLE}" # Remove the WebView2 DataPath
+    # Keep user data. Atropaten stores the database, backups, and managed files
+    # under the OS application-data directory, never under $INSTDIR.
 
     RMDir /r $INSTDIR
 

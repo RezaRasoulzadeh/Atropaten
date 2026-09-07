@@ -3,10 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"Atropaten/internal/application"
+	"Atropaten/internal/platform"
 	"Atropaten/internal/storage/sqlite"
 )
 
@@ -30,6 +29,8 @@ type App struct {
 	loans        *application.LoansService
 	owners       *application.OwnersService
 	reporting    *application.ReportingService
+	paths        platform.DataPaths
+	backup       *platform.BackupService
 	database     *sqlite.Store
 	startupError error
 }
@@ -43,16 +44,27 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	configDir, err := os.UserConfigDir()
+	paths, err := platform.ResolveDataPaths("Atropaten")
 	if err != nil {
-		a.startupError = fmt.Errorf("find application data directory: %w", err)
+		a.startupError = fmt.Errorf("resolve application data directory: %w", err)
 		return
 	}
-	database, err := sqlite.Open(filepath.Join(configDir, "Atropaten", "atropaten.db"))
+	if err = paths.Ensure(); err != nil {
+		a.startupError = fmt.Errorf("create application data directory: %w", err)
+		return
+	}
+	database, err := sqlite.Open(paths.Database)
 	if err != nil {
 		a.startupError = err
 		return
 	}
+	a.database = database
+	a.paths = paths
+	a.configureServices(database)
+	a.backup = platform.NewBackupService(paths, database, sqlite.ValidateDatabaseFile)
+}
+
+func (a *App) configureServices(database *sqlite.Store) {
 	a.database = database
 	a.materials = application.NewMaterialsService(database)
 	a.machines = application.NewMachinesService(database)
@@ -71,6 +83,27 @@ func (a *App) startup(ctx context.Context) {
 	a.loans = application.NewLoansService(database)
 	a.owners = application.NewOwnersService(database)
 	a.reporting = application.NewReportingService(database)
+}
+
+func (a *App) closeForRestore() error {
+	if a.database == nil {
+		return nil
+	}
+	err := a.database.Close()
+	a.database = nil
+	return err
+}
+
+func (a *App) reopenAfterRestore() error {
+	database, err := sqlite.Open(a.paths.Database)
+	if err != nil {
+		return err
+	}
+	a.configureServices(database)
+	if a.backup != nil {
+		a.backup.SetRepository(database)
+	}
+	return nil
 }
 
 func (a *App) shutdown(_ context.Context) {

@@ -449,6 +449,13 @@ h1 { margin-bottom: 4px; color: var(--text); font-size: clamp(23px, 2.4vw, 30px)
 .settings-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
 .settings-wide { grid-column:1/-1; }
 .settings-grid input, .settings-grid textarea { width:100%; min-width:0; }
+.backup-status { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:16px; }
+.backup-status > div { min-width:0; display:grid; gap:4px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--surface-subtle); }
+.backup-status span, .backup-meta { color:var(--text-muted); font-size:11px; }
+.backup-status strong { min-width:0; overflow-wrap:anywhere; font-size:12px; }
+.backup-actions { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+.backup-path { display:flex; flex-direction:column; gap:6px; min-width:0; font-size:11px; font-weight:700; color:var(--text-muted); }
+.backup-path input { width:100%; min-width:0; }
 @media (max-width:1100px) { .report-summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
-@media (max-width:720px) { .report-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .date-filter,.print-controls { width:100%; grid-template-columns:1fr; flex-direction:column; } .settings-grid { grid-template-columns:1fr; } .settings-wide { grid-column:auto; } .print-header { flex-direction:column; } .print-meta { align-items:flex-start; } }
+@media (max-width:720px) { .report-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .date-filter,.print-controls { width:100%; grid-template-columns:1fr; flex-direction:column; } .settings-grid,.backup-status { grid-template-columns:1fr; } .settings-wide { grid-column:auto; } .print-header { flex-direction:column; } .print-meta { align-items:flex-start; } }
 @media print { body * { visibility:hidden !important; } .print-preview, .print-preview * { visibility:visible !important; } .print-preview { position:absolute; inset:0; width:210mm; min-height:297mm; margin:0; padding:16mm; background:white; color:#172033; } }

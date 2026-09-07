@@ -125,6 +125,23 @@ identity is persisted as small key/value metadata; logo paths are references,
 not SQLite blobs. The frontend uses a dedicated print surface and browser or
 WebView printing with A4 print CSS.
 
+For M6-002, application data resolves through `internal/platform` to the OS
+application-data directory (or the explicit `ATROPATEN_DATA_DIR` test/support
+override), never beside the executable. Backups are versioned ZIP archives
+containing an SQLite Online Backup snapshot, a manifest, SHA-256 checksums, and
+files under the managed attachment root. Verification performs archive safety,
+database integrity, foreign-key, migration, schema-version, and managed-file
+checks before restore. Restore stages and validates into a temporary directory,
+switches the database and managed tree together, and retains rollback data
+until the reopened store succeeds. The Windows installer deliberately leaves
+the user data directory untouched on uninstall. Windows artifacts still require
+native-host validation before release.
+
+Atropaten-owned bytes are the files physically below the resolved
+`attachments` directory. Existing metadata paths outside that directory remain
+external references and are not copied into a backup; backup creation still
+reports any missing referenced path so an operator can repair it explicitly.
+
 ## Inventory boundary
 
 Inventory quantity is derived from movements. Business modules request inventory operations; they do not directly edit a current-stock number as the source of truth.

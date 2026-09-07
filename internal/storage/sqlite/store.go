@@ -66,6 +66,9 @@ func (s *Store) migrate(ctx context.Context) error {
 	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(version), 0) FROM schema_migrations`).Scan(&current); err != nil {
 		return fmt.Errorf("read migration version: %w", err)
 	}
+	if current > CurrentSchemaVersion {
+		return fmt.Errorf("unsupported future schema version %d", current)
+	}
 	for _, migration := range migrations {
 		if migration.version <= current {
 			continue
