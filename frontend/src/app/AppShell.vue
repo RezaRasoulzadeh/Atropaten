@@ -566,7 +566,7 @@ function openNotifications() {
           </div>
           <div v-if="!sidebarCollapsed" class="min-w-0">
             <span class="block truncate text-sm font-bold">Atropaten</span>
-            <span class="block text-[10px] text-base-content/60">Print shop control</span>
+            <span class="block text-xs leading-4 text-base-content/60">Print shop control</span>
           </div>
           <button
             v-if="!sidebarCollapsed"
@@ -591,7 +591,7 @@ function openNotifications() {
           <div v-for="section in navigationSections" :key="section.label" class="mb-3 last:mb-0">
             <p
               v-if="!sidebarCollapsed"
-              class="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-base-content/50"
+              class="mb-1 px-2 text-xs font-semibold leading-4 uppercase tracking-wide text-base-content/50"
             >
               {{ section.label }}
             </p>
@@ -612,7 +612,7 @@ function openNotifications() {
             <span class="size-2 shrink-0 rounded-full bg-success" aria-hidden="true"></span>
             <span v-if="!sidebarCollapsed">Local workspace</span>
           </div>
-          <div v-if="!sidebarCollapsed" class="mt-1 text-[10px]">v0.1</div>
+          <div v-if="!sidebarCollapsed" class="mt-1 text-xs leading-4">v0.1</div>
         </div>
       </aside>
     </div>

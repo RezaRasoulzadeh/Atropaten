@@ -33,7 +33,7 @@ defineExpose({ focus });
 
 <template>
   <label class="form-control min-w-0 gap-1">
-    <span v-if="label" class="text-xs text-base-content/60">{{ label }}</span>
+    <span v-if="label" class="text-xs leading-4 text-base-content/60">{{ label }}</span>
     <span class="relative block min-w-0">
       <Search
         class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 text-base-content/70"
@@ -43,7 +43,7 @@ defineExpose({ focus });
       />
       <input
         ref="input"
-        class="input input-bordered w-full min-w-0 ps-9"
+        class="input input-bordered w-full min-w-0 ps-9 leading-5"
         :class="shortcut ? 'pe-16' : ''"
         :value="modelValue"
         type="search"

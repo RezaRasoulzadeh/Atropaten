@@ -18,11 +18,14 @@ defineProps<{ label?: string }>();
   color: var(--color-base-content);
   font-size: 0.75rem;
   font-weight: 600;
+  line-height: 1rem;
   white-space: nowrap;
   background: var(--color-base-200);
 }
 .data-table :deep(th),
 .data-table :deep(td) {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   padding: 0.625rem 0.75rem;
   border-bottom: 1px solid var(--color-base-300);
   vertical-align: middle;

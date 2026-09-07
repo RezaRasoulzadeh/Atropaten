@@ -4,8 +4,8 @@ defineProps<{ title: string; subtitle?: string }>();
 <template>
   <header class="flex min-w-0 items-start justify-between gap-3 border-b border-base-300 px-4 py-3">
     <div class="min-w-0">
-      <h2 class="text-sm font-semibold wrap-anywhere">{{ title }}</h2>
-      <p v-if="subtitle" class="mt-1 text-xs leading-5 text-base-content/60 wrap-anywhere">
+      <h2 class="text-sm font-semibold leading-5 wrap-anywhere">{{ title }}</h2>
+      <p v-if="subtitle" class="mt-1 text-xs leading-4 text-base-content/60 wrap-anywhere">
         {{ subtitle }}
       </p>
     </div>

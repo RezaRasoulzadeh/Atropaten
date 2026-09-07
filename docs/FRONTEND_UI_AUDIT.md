@@ -1,6 +1,6 @@
-# Frontend UI geometry audit
+# Frontend UI geometry and typography audit
 
-Audit date: 2026-09-08. This audit covers M6-011 only: position, widths, heights, spacing, sticky placement, workspace gutters, panel geometry, master/detail proportions, inspector sizing, bottom actions, overflow, and responsive collapse.
+Audit date: 2026-09-08. This audit preserves the accepted M6-011 geometry baseline and adds the M6-012 repository-wide typography and control-metrics evidence.
 
 ## Runtime and dataset
 
@@ -13,6 +13,8 @@ The checks used the repository's opt-in `ui_preview` bridge against the isolated
 - Render widths: 1024, 1280, and 1600 CSS pixels; viewport height 1000 for the audit harness.
 - Register screenshots: `/tmp/atropaten-m6-011-ui-audit-final/{width}-{workspace}.png`.
 - Order workspace screenshots: `/tmp/atropaten-m6-011-order/{width}-{overview|items}.png`.
+- M6-012 control screenshots: `/tmp/atropaten-m6-012-controls-final/{width}-{dashboard|customer-form|material-form|order-detail|jalali-calendar|inspector-jalali-calendar|confirmation-dialog}.png`.
+- M6-012 metric results: `/tmp/atropaten-m6-012-controls-final/results.json`.
 
 The browser harness navigated every major workspace at all three widths and measured `documentElement` and `main` overflow. All 51 register renders reported `overflow: false` and `mainOverflow: false`. Native select measurements reported `text-align: start` for every rendered select.
 
@@ -62,6 +64,32 @@ The interaction harness rendered customer form focus/error states, the material 
 
 The full interaction harness reached the print-preview assertion but stopped because the existing assertion expected two `.print-document` nodes while the rendered preview did not expose that count. This is recorded as an existing print-preview test limitation; no print CSS or document structure was changed in M6-011.
 
+## M6-012 typography and control metrics
+
+The same populated M6-006 browser bridge rendered the representative control states at 1024px, 1280px, and 1600px. The control audit collected `getBoundingClientRect()` and computed styles for each state, then screenshots were inspected for Vazirmatn optical centering and mixed-row baseline alignment.
+
+| Representative control | Rendered metric at all three widths | Visual result |
+| --- | --- | --- |
+| Toolbar search, currency select, and icon action | 40px height; 14px / 20px; 1px solid neutral border at rest | Aligned on one row; select values remain start-aligned. |
+| Normal form input and select | 40px height; 14px / 20px | Matches toolbar controls and shared field labels. |
+| Textarea | 80px baseline fixture height; 14px / 20px | Natural row sizing remains intact without font compensation. |
+| Jalali date field | 40px height; 14px / 20px | Calendar icon is centered with the shared small-button geometry. |
+| Money / quantity field | 40px height; 14px / 20px | Numeric values align with adjacent fields without offsets. |
+| Focused editable control | 40px; 1px dashed primary border; no outline or shadow | No layout shift; validation color selectors remain authoritative. |
+| Dialog controls and register rows | Dialog buttons use the shared 14px / 20px button text; register rows preserve the compact list baseline | Keyboard-visible dialog focus and register action alignment remain readable. |
+
+Shared type scale now uses a 24px / 32px workspace title, 14px / 20px section and body text, and 12px / 16px labels, metadata, help text, table headers, and status badges. Standard controls use the shared 40px density; small buttons/tabs use 32px. The normal button line-height now matches fields without changing M6-011 workspace gutters or master/detail widths.
+
+The local Vazirmatn files use their natural font metrics. The earlier vertical drift came from `ascent-override`, `descent-override`, and `line-gap-override` declarations that changed the browser's font box; those declarations remain absent, and no transform, negative margin, or asymmetric padding compensation was added.
+
+The focused-control check covered inputs, selects, textareas, search fields, date fields, money/quantity fields, inspector controls, dialog buttons, and register/table contexts. Native selects reported `text-align: start` at every workspace and width. Ordinary buttons/cards/containers do not receive the dashed editable-control treatment.
+
+`InspectorShell` was explicitly tested with the Checks editor's Jalali calendar at all three widths. The M6-011 footer clearance and 24rem/30rem geometry remain unchanged; the shell no longer clips floating content, and the shared calendar is portaled to the document layer with viewport collision positioning. Native select menus remain browser top-layer UI, while the confirmation dialog remains a native top-layer dialog.
+
+Every major workspace in the M6-011 table was re-rendered after the shared metric changes. The populated Dashboard and Orders register remain the visual baseline; Customers, Materials, order detail/editor, production, services, machines, purchases, suppliers, accounting tabs, invoices, checks, loans, owners, reports, and settings were checked for shared header/control/table type alignment at all required widths. No page-level overflow or select alignment regression was observed.
+
+Remaining exceptions are intentional or page-specific: textarea heights still follow their requested row counts, some dense table/register content wraps at narrow widths, the existing print-preview interaction assertion still needs separate investigation, and detailed workflow/page redesign remains outside M6-012.
+
 ## Validation and remaining geometry work
 
 Completed for this task:
@@ -72,4 +100,4 @@ Completed for this task:
 - No page-level horizontal overflow in 51 register renders
 - Shared select alignment remained start-aligned in all rendered workspaces
 
-Remaining geometry limitations are intentionally outside M6-011: the 1024px stacked master/detail layout requires page scrolling for long inspectors; dense Materials tables use local horizontal scrolling at narrow master widths; the print-preview interaction assertion needs separate investigation; and native Wails/WebView window chrome was not rendered because the browser preview is the available runtime. Typography, color, table styling, and workflow redesign remain out of scope for this task.
+Remaining geometry limitations are intentionally outside these tasks: the 1024px stacked master/detail layout requires page scrolling for long inspectors; dense Materials tables use local horizontal scrolling at narrow master widths; the print-preview interaction assertion needs separate investigation; and native Wails/WebView window chrome was not rendered because the browser preview is the available runtime. Information architecture and workflow redesign remain out of scope for M6-012.

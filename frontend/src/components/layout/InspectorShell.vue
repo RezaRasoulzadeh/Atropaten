@@ -3,7 +3,7 @@ import InspectorHeader from './InspectorHeader.vue';
 defineProps<{ title: string; subtitle?: string }>();
 </script>
 <template>
-  <aside class="min-w-0 overflow-hidden rounded-box border border-base-300 bg-base-100" :aria-label="title">
+  <aside class="min-w-0 overflow-visible rounded-box border border-base-300 bg-base-100" :aria-label="title">
     <InspectorHeader :title="title" :subtitle="subtitle"
       ><slot name="header" /><slot name="action"
     /></InspectorHeader>

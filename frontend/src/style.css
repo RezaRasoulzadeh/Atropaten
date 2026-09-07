@@ -43,11 +43,23 @@
   --noise: 0;
 }
 
-/* Shell and the shared editable-control contract only. */
+/* Shell and the shared typography/control infrastructure only. */
 @layer base {
   :root { font-family: var(--font-sans); font-synthesis: none; text-rendering: optimizeLegibility; }
   html, body, #app { width: 100%; height: 100%; }
-  body { overflow: hidden; background: var(--color-base-200); color: var(--color-base-content); font-size: .875rem; line-height: 1.5; }
+  body { overflow: hidden; background: var(--color-base-200); color: var(--color-base-content); font-size: .875rem; line-height: 1.25rem; }
+}
+
+/* Keep the shared control density aligned with the 40px fields. */
+.btn:not(.btn-sm):not(.btn-xs):not(.btn-lg) {
+  height: 2.5rem;
+  min-height: 2.5rem;
+  line-height: 1.25rem;
+}
+.btn.btn-sm {
+  height: 2rem;
+  min-height: 2rem;
+  line-height: 1rem;
 }
 
 /* The width stays at 1px in every state, including validation failures. */
@@ -56,6 +68,15 @@
   outline: none;
   box-shadow: none;
   text-align: start;
+  font-size: .875rem;
+  line-height: 1.25rem;
+}
+.input, .select {
+  height: 2.5rem;
+  min-height: 2.5rem;
+}
+.textarea {
+  min-height: 5rem;
 }
 .input:focus, .input:focus-visible,
 .select:focus, .select:focus-visible,
@@ -63,6 +84,16 @@
   border: 1px dashed var(--color-primary);
   outline: none;
   box-shadow: none;
+}
+.input.input-error:focus, .input.input-error:focus-visible,
+.select.select-error:focus, .select.select-error:focus-visible,
+.textarea.textarea-error:focus, .textarea.textarea-error:focus-visible {
+  border-color: var(--color-error);
+}
+.input.input-success:focus, .input.input-success:focus-visible,
+.select.select-success:focus, .select.select-success:focus-visible,
+.textarea.textarea-success:focus, .textarea.textarea-success:focus-visible {
+  border-color: var(--color-success);
 }
 
 /* Only the prepared document participates in printing. */

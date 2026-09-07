@@ -10,7 +10,7 @@ defineProps<{
 </script>
 <template>
   <label
-    class="flex w-full min-w-0 flex-col gap-1 text-xs leading-5 text-base-content/65"
+    class="flex w-full min-w-0 flex-col gap-1 text-xs leading-4 text-base-content/65"
     :for="forId"
   >
     <span v-if="label">{{ label }}<span v-if="required" aria-hidden="true"> *</span></span>

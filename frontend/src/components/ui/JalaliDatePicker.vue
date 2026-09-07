@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-vue-next';
 import {
   currentCanonicalDate,
@@ -22,7 +22,9 @@ const emit = defineEmits<{
 }>();
 
 const picker = ref<HTMLElement | null>(null);
+const popover = ref<HTMLElement | null>(null);
 const isOpen = ref(false);
+const popoverStyle = ref({ top: '0px', left: '0px' });
 const today = currentCanonicalDate();
 const calendarMonth = ref<JalaliDate>(toJalaliDate(today));
 
@@ -41,6 +43,21 @@ const dayCells = computed(() => {
 function openPicker() {
   if (!isOpen.value && props.modelValue) calendarMonth.value = toJalaliDate(props.modelValue);
   isOpen.value = !isOpen.value;
+  if (isOpen.value) void nextTick(positionPopover);
+}
+
+function positionPopover() {
+  if (!isOpen.value || !picker.value || !popover.value) return;
+  const anchor = picker.value.getBoundingClientRect();
+  const menu = popover.value.getBoundingClientRect();
+  const edge = 8;
+  const below = anchor.bottom + edge + menu.height <= window.innerHeight - edge;
+  const top = below ? anchor.bottom + edge : Math.max(edge, anchor.top - menu.height - edge);
+  const left = Math.min(
+    Math.max(edge, anchor.left),
+    Math.max(edge, window.innerWidth - menu.width - edge),
+  );
+  popoverStyle.value = { top: `${Math.round(top)}px`, left: `${Math.round(left)}px` };
 }
 
 function shiftMonth(delta: number) {
@@ -92,7 +109,14 @@ function isToday(day: number) {
 }
 
 function onDocumentClick(event: MouseEvent) {
-  if (picker.value && !picker.value.contains(event.target as Node)) isOpen.value = false;
+  const target = event.target as Node;
+  if (
+    picker.value &&
+    !picker.value.contains(target) &&
+    !popover.value?.contains(target)
+  ) {
+    isOpen.value = false;
+  }
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -109,11 +133,15 @@ watch(
 onMounted(() => {
   document.addEventListener('click', onDocumentClick);
   document.addEventListener('keydown', onKeydown);
+  window.addEventListener('resize', positionPopover);
+  window.addEventListener('scroll', positionPopover, true);
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocumentClick);
   document.removeEventListener('keydown', onKeydown);
+  window.removeEventListener('resize', positionPopover);
+  window.removeEventListener('scroll', positionPopover, true);
 });
 </script>
 
@@ -121,7 +149,7 @@ onBeforeUnmount(() => {
   <div ref="picker" class="relative w-full">
     <div class="relative">
       <input
-        class="input input-bordered w-full min-w-0 pe-11"
+        class="input input-bordered w-full min-w-0 pe-11 leading-5"
         :value="displayValue"
         type="text"
         readonly
@@ -144,12 +172,15 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <div
-      v-if="isOpen"
-      class="absolute inset-x-0 top-full z-40 mt-2 min-w-72 rounded-box border border-base-300 bg-base-100 p-3 shadow-xl"
-      role="dialog"
-      aria-label="Jalali calendar"
-    >
+    <Teleport to="body">
+      <div
+        v-if="isOpen"
+        ref="popover"
+        class="fixed z-50 min-w-72 rounded-box border border-base-300 bg-base-100 p-3 shadow-xl"
+        :style="popoverStyle"
+        role="dialog"
+        aria-label="Jalali calendar"
+      >
       <div class="flex items-center justify-between gap-2">
         <button
           class="btn btn-ghost btn-square btn-sm"
@@ -170,7 +201,7 @@ onBeforeUnmount(() => {
         </button>
       </div>
       <div
-        class="mt-2 grid grid-cols-7 gap-1 text-center text-[10px] text-base-content/50"
+        class="mt-2 grid grid-cols-7 gap-1 text-center text-xs leading-4 text-base-content/50"
         aria-hidden="true"
       >
         <span v-for="weekday in jalaliWeekdays" :key="weekday">{{ weekday }}</span>
@@ -183,7 +214,7 @@ onBeforeUnmount(() => {
         >
           <button
             v-if="day"
-            class="btn btn-ghost btn-square btn-sm h-8 min-h-8 w-8 p-0 text-xs"
+            class="btn btn-ghost btn-square btn-sm h-8 min-h-8 w-8 p-0 text-xs leading-4"
             :class="{
               'btn-primary': isSelected(day),
               'ring-1 ring-primary': isToday(day) && !isSelected(day),
@@ -210,6 +241,7 @@ onBeforeUnmount(() => {
           <X :size="14" :stroke-width="1.8" aria-hidden="true" />Clear
         </button>
       </div>
-    </div>
+      </div>
+    </Teleport>
   </div>
 </template>

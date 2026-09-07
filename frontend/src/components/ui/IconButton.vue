@@ -15,7 +15,7 @@ withDefaults(
     class="btn btn-square"
     :class="[
       variant === 'danger' ? 'btn-error' : variant === 'secondary' ? 'btn-outline' : 'btn-ghost',
-      size === 'sm' ? 'btn-sm' : '',
+      size === 'sm' ? 'btn-sm h-8 min-h-8 w-8' : 'h-10 min-h-10 w-10',
     ]"
     :type="type"
     :aria-label="label"

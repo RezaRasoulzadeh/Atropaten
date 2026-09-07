@@ -16,13 +16,13 @@ const id = useId();
     <label
       v-if="label"
       :for="String($attrs.id || id)"
-      class="text-xs leading-5 text-base-content/65"
+      class="text-xs leading-4 text-base-content/65"
       >{{ label }}</label
     >
     <select
       v-bind="$attrs"
       :id="String($attrs.id || id)"
-      class="select h-10 min-h-10 w-full min-w-0 text-start text-sm font-normal"
+      class="select h-10 min-h-10 w-full min-w-0 text-start text-sm font-normal leading-5"
       :value="modelValue"
       :disabled="disabled || !options.length"
       :aria-label="ariaLabel || label || 'Select an option'"

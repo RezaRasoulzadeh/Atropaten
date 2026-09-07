@@ -4,7 +4,7 @@ withDefaults(defineProps<{ message?: string; tone?: 'error' | 'help' }>(), { ton
 <template>
   <p
     v-if="message"
-    class="text-xs"
+    class="text-xs leading-4"
     :class="tone === 'error' ? 'text-error' : 'text-base-content/60'"
   >
     {{ message }}

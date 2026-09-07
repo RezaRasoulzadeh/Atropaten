@@ -22,7 +22,7 @@ withDefaults(
         <p v-if="subtitle" class="mt-0.5 text-xs text-base-content/60">{{ subtitle }}</p>
       </div>
       <div class="flex shrink-0 items-center gap-2">
-        <span v-if="count !== undefined" class="badge badge-ghost tabular-nums">{{ count }}</span>
+        <span v-if="count !== undefined" class="badge badge-sm badge-ghost text-xs leading-4 tabular-nums">{{ count }}</span>
         <slot name="action" />
       </div>
     </header>

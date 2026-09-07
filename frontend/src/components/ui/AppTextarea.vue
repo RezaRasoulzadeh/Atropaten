@@ -4,7 +4,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 </script>
 <template>
   <textarea
-    class="textarea w-full min-w-0 text-start text-sm text-base-content"
+    class="textarea w-full min-w-0 text-start text-sm leading-5 text-base-content"
     :value="modelValue"
     @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
   />
