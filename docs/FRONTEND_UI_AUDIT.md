@@ -1,39 +1,75 @@
-# Frontend UI audit
+# Frontend UI geometry audit
 
-Audit started 2026-09-08. Baseline: Dashboard and Orders register. Existing dirty changes to Customers, Materials, Order workspace and four primitives were present before this task and are preserved.
+Audit date: 2026-09-08. This audit covers M6-011 only: position, widths, heights, spacing, sticky placement, workspace gutters, panel geometry, master/detail proportions, inspector sizing, bottom actions, overflow, and responsive collapse.
 
-## System findings
+## Runtime and dataset
 
-Many former layout classes were removed without replacing their structure. The result is ungrouped forms, inline primary/secondary metadata and stacked inspectors. `form-control`, `label-text`, and `*-bordered` are stale DaisyUI-era classes. `WorkspaceStickyStack` styles arbitrary descendant headers, coupling typography to DOM position. `SectionPanel` merely proxies `AppPanel`. Table wrappers do not enforce density, keyboard selection or numeric alignment. Several finance workflows are compressed into one source line, concealing large components. Several failures only set local strings; some rejected promises are unhandled. Confirmation lacks native focus containment. Select attributes land on a wrapper rather than the control. Panels clip calendar popovers.
+The checks used the repository's opt-in `ui_preview` bridge against the isolated M6-006 dataset:
 
-## Page inventory and target
+- Demo root: `/tmp/atropaten-m6-010-demo`
+- Seed: `6006`
+- Reference date: `2026-03-21`
+- Records: 4 orders, 5 quotes, 4 customers, 3 services, 4 materials, 3 machines, 3 purchases, 3 suppliers, 2 production jobs, 2 invoices, 2 checks, 1 loan, 2 owners, 1 fiscal period, and populated accounting/report data.
+- Render widths: 1024, 1280, and 1600 CSS pixels; viewport height 1000 for the audit harness.
+- Register screenshots: `/tmp/atropaten-m6-011-ui-audit-final/{width}-{workspace}.png`.
+- Order workspace screenshots: `/tmp/atropaten-m6-011-order/{width}-{overview|items}.png`.
 
-All rows are source-audited. Render and remaining-defect columns will be updated with actual browser evidence, not inferred from compilation.
+The browser harness navigated every major workspace at all three widths and measured `documentElement` and `main` overflow. All 51 register renders reported `overflow: false` and `mainOverflow: false`. Native select measurements reported `text-align: start` for every rendered select.
 
-| Context | Baseline problems | Chosen pattern / reuse | Remove or replace | Rendered in this task | Remaining |
-| --- | --- | --- | --- | --- | --- |
-| Dashboard | Preserve density; date/filter overflow risk | KPI grid, AppPanel, WorkspaceHeader | Header descendant CSS | Pending | Browser pass |
-| Orders | Good reference; duplicated register structure | Rich register, SearchFilterBar, StatusBadge | One-off row wrappers | Pending | Browser pass |
-| New order / editor | Large coordinator; mixed summary/form geometry | Full editor, FormSection, InspectorShell, sticky actions | Nested summary containers | Pending | Browser pass |
-| Quotes / editor | Raw header, zebra table, ungrouped editor | Rich register; full editor with summary | Zebra table, raw header | Pending | Rebuild |
-| Production | Unstyled queue buttons; stacked forms; queue filter not wired | Rich register + inspector sections | Ad hoc queue and inspector wrappers | Pending | Rebuild |
-| Customers | Existing register refactor; form metrics/overflow | Rich register + inspector | Repeated contact fields | Pending | Browser pass |
-| Services | Large definition/parameter/component editor | Dense catalog + feature-owned editors | Giant single workflow view | Pending | Split and render |
-| Materials | Existing table refactor; local editor groups | Dense numeric table + inspector | Repeated inventory field geometry | Pending | Browser pass |
-| Machines | Zebra table; no inspector geometry | Dense rate table + inspector | Raw form/header wrappers | Pending | Rebuild |
-| Purchases | Wide table; stacked editor; many line controls | Dense table + editor | Zebra, unstyled lines | Pending | Rebuild |
-| Suppliers | Raw forms and metadata; no busy guard | Rich contact register + inspector | One-off contact editor | Pending | Rebuild |
-| Accounting | Raw accounts/journal/payments | Dense ledger tables, tabs, KPI overview | Unstyled ledger divs | Pending | Rebuild |
-| Invoices | Zebra; unreadable detail hierarchy | Dense table + snapshot inspector | Raw line/summary wrappers | Pending | Rebuild |
-| Expenses | Placeholder-only fields; raw history | Dense history + compact form | Repeated posting form geometry | Pending | Rebuild |
-| Treasury / transfers | Raw history and posting form | Dense history + compact form | Raw wrappers | Pending | Rebuild |
-| Checks | Duplicate labels; unstyled lifecycle actions | Dense table + lifecycle inspector | Zebra and ad hoc detail wrappers | Pending | Rebuild |
-| Loans | No load state; raw schedules/payment fields | Dense table + schedule inspector | Zebra, placeholder-only fields | Pending | Rebuild |
-| Owners | Oversized multiflow view; unhandled reversal | Dense table + feature-owned finance panels | Raw rows/forms | Pending | Split and render |
-| Reports | Wide raw tables; flat summaries | Dense table + compact filters/KPIs | Zebra; raw tabs | Pending | Rebuild |
-| Settings | Ungrouped identity; silent backup errors | Grouped settings form + backup panel | Raw field stacks | Pending | Rebuild |
-| Print entry / preview | ID input; unstyled document; whole-shell printing risk | Neutral preview entry + dedicated document | Raw print article | Pending | Browser print emulation; native unavailable |
+## Shared geometry decisions
 
-## Verification plan
+- `MasterDetail` now converges at the `xl` breakpoint (1280px): 24rem inspector by default and 30rem for wide editors. At 1024px it remains a single-column stack; this keeps the master column usable at the narrow desktop width.
+- `InspectorShell` keeps the existing sticky footer placement but reserves bottom space in its body, so a long inspector cannot hide its last fields or movement/history content underneath the action bar.
+- `WorkspaceStickyStack` was verified at `top: 65px` in the order editor at 1024, 1280, and 1600px, directly below the fixed-height application toolbar.
+- Existing workspace gutters remain 1rem below the large-desktop shell breakpoint and 1.5rem at 1024px and above. No page-level horizontal overflow was introduced by the breakpoint change.
+- Dense tables keep local horizontal scrolling where required. The Materials table measured 850px scroll width against a 710px master column at 1024px and 566px at 1280px; at 1600px it fit its 886px column. This is intentional local table overflow, not document overflow.
 
-Render at 1024, 1280 and 1600 CSS pixels with the M6-006 dataset. Check long names, large money, decimal quantities, filters, empty/loading/error states, forms, focus borders, inspector overflow, dialogs and toasts. Run `go test ./...`, `npm run build` and `git diff --check`. There is no frontend test script in the baseline package.json.
+## Rendered workspace evidence
+
+| Workspace/context | 1024px | 1280px | 1600px | Geometry result / remaining issue |
+| --- | --- | --- | --- | --- |
+| Dashboard | Rendered, populated | Rendered, populated | Rendered, populated | Two-column KPI and attention regions hold; no page overflow. |
+| Orders register | Rendered, 4 records | Rendered, 4 records | Rendered, 4 records | Preserved as the baseline; register width and filter row converge cleanly. |
+| New order / order overview | Rendered, ORD-1004 | Rendered, ORD-1004 | Rendered, ORD-1004 | Header, metadata strip, tabs, details, and totals use stable gutters; overview becomes two columns at 1280px. |
+| Order items | Rendered, populated | Rendered, populated | Rendered, populated | Item list and persistent workspace header stay within the main column; no overflow. |
+| Quotes / quote editor entry | Rendered, populated register | Rendered, populated register | Rendered, populated register | Register geometry converges; editor state was additionally exercised at 1024px by the interaction harness. |
+| Production | Rendered, 2 jobs | Rendered, 2 jobs | Rendered, 2 jobs | Stacked at 1024px, master/detail at 1280px and 1600px; 24rem inspector remains readable. |
+| Customers | Rendered, 3 active records | Rendered, 3 active records | Rendered, 3 active records | Master/detail now uses the same 1280px convergence point; 1024px remains stacked. |
+| Services | Rendered, 3 records | Rendered, 3 records | Rendered, 3 records | Table and inspector align at 1280px; fixture emitted an existing timestamp alert, not a layout error. |
+| Materials | Rendered, 4 records | Rendered, 4 records | Rendered, 4 records | Local table scroll at 1024/1280; inspector column aligns at 1280/1600 and reserves footer space. |
+| Machines | Rendered, 3 records | Rendered, 3 records | Rendered, 3 records | Register/inspector collapse and side-by-side proportions are consistent. |
+| Purchases | Rendered, 3 records | Rendered, 3 records | Rendered, 3 records | Wide register remains locally contained; master/detail converges at 1280px. |
+| Suppliers | Rendered, 3 records | Rendered, 3 records | Rendered, 3 records | Contact register and inspector use the shared breakpoint and no page overflow. |
+| Accounting | Rendered, populated overview | Rendered, populated overview | Rendered, populated overview | Tabs remain in the sticky workspace header; ledger width remains contained. |
+| Invoices | Rendered, 2 records | Rendered, 2 records | Rendered, 2 records | Register and inspector stack at 1024 and split from 1280; no page overflow. |
+| Expenses | Rendered through Accounting / Expenses tab | Rendered through Accounting / Expenses tab | Rendered through Accounting / Expenses tab | Tab content remains inside the Accounting workspace geometry. |
+| Treasury / transfers | Rendered through Accounting / Transfers tab | Rendered through Accounting / Transfers tab | Rendered through Accounting / Transfers tab | Tab content remains inside the Accounting workspace geometry. |
+| Checks | Rendered, 2 records | Rendered, 2 records | Rendered, 2 records | Filter row, register, and inspector remain contained; 1280 uses side-by-side detail. |
+| Loans | Rendered with register/inspector state | Rendered with register/inspector state | Rendered with register/inspector state | 1024 stack is intentional; 1280/1600 use the shared inspector width. |
+| Owners / fiscal periods | Rendered with populated tables | Rendered with populated tables | Rendered with populated tables | Multiple tables stay within their panels; no document overflow. |
+| Reports / print entry | Rendered, populated reports | Rendered, populated reports | Rendered, populated reports | Report tables remain locally contained; print preview geometry was entered by the interaction harness. |
+| Settings | Rendered, populated settings | Rendered, populated settings | Rendered, populated settings | Settings master/detail uses the same responsive boundary. |
+
+## Additional interaction geometry checks
+
+The interaction harness rendered customer form focus/error states, the material editor, order overview/items, quote editor entry, accounting tabs, loan/check/service forms, Jalali calendar, confirmation dialog, and toast states. Order overview/items were independently rendered at all three widths. The focused order measurements were:
+
+| Width | Sticky stack top | Sticky stack width | Document overflow | Main overflow |
+| --- | ---: | ---: | --- | --- |
+| 1024 | 65px | 744px | false | false |
+| 1280 | 65px | 1000px | false | false |
+| 1600 | 65px | 1320px | false | false |
+
+The full interaction harness reached the print-preview assertion but stopped because the existing assertion expected two `.print-document` nodes while the rendered preview did not expose that count. This is recorded as an existing print-preview test limitation; no print CSS or document structure was changed in M6-011.
+
+## Validation and remaining geometry work
+
+Completed for this task:
+
+- `npm run build`
+- Populated visual audit at 1024/1280/1600 for every listed workspace
+- Populated order overview/items render at 1024/1280/1600
+- No page-level horizontal overflow in 51 register renders
+- Shared select alignment remained start-aligned in all rendered workspaces
+
+Remaining geometry limitations are intentionally outside M6-011: the 1024px stacked master/detail layout requires page scrolling for long inspectors; dense Materials tables use local horizontal scrolling at narrow master widths; the print-preview interaction assertion needs separate investigation; and native Wails/WebView window chrome was not rendered because the browser preview is the available runtime. Typography, color, table styling, and workflow redesign remain out of scope for this task.

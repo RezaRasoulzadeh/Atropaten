@@ -3,11 +3,11 @@ defineProps<{ wide?: boolean }>();
 </script>
 <template>
   <div
-    class="grid min-w-0 items-start gap-4"
+    class="master-detail grid min-w-0 items-start gap-4"
     :class="
       wide
-        ? 'min-[1440px]:grid-cols-[minmax(0,1fr)_30rem]'
-        : 'min-[1440px]:grid-cols-[minmax(0,1fr)_24rem]'
+        ? 'xl:grid-cols-[minmax(0,1fr)_30rem]'
+        : 'xl:grid-cols-[minmax(0,1fr)_24rem]'
     "
   >
     <slot />
