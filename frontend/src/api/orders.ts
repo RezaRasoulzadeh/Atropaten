@@ -1,23 +1,131 @@
-import { AddOrderItem, ApplyOrderDiscount, CreateOrder, GetOrder, ListOrders, RemoveOrderItem, ReplaceOrderItem, ReorderOrderItems, UpdateOrder, UpdateOrderCommercialStatus, UpdateOrderFulfillmentStatus } from '../../wailsjs/go/main/App'
-export interface OrderItemRecord { id:string; position:number; serviceId:string; serviceName:string; serviceCode:string; quantity:string; quantityUnit:string; resolvedParametersJson:string; costBreakdownJson:string; pricingSnapshotJson:string; estimatedCostRial:number; suggestedPriceRial:number; sellingPriceRial:number; notes:string }
-export interface OrderRecord { id:string; orderNumber:string; customerId:string; customerName:string; customerPhone:string; notes:string; createdAt:string; updatedAt:string; promisedAt:string|null; priority:string; commercialStatus:string; fulfillmentStatus:string; paymentStatus:string; invoiceId?:string; invoiceStatus?:string; invoicedTotalRial?:number; subtotalRial:number; discountRial:number; totalRial:number; estimatedCostRial:number; productionJobCount:number; completedProductionJobs:number; inProgressProductionJobs:number; items:OrderItemRecord[] }
-export interface OrderPayload { customerId:string; promisedAt:string|null; priority:string; notes:string; discountRial:number }
-export interface OrderItemPayload { serviceId:string; parameters:Record<string,string>; manualCosts:Record<string,number>; sellingPriceOverrideRial:number|null; quantity:string; quantityUnit:string; notes:string }
+import {
+  AddOrderItem,
+  ApplyOrderDiscount,
+  CreateOrder,
+  GetOrder,
+  ListOrders,
+  RemoveOrderItem,
+  ReplaceOrderItem,
+  ReorderOrderItems,
+  UpdateOrder,
+  UpdateOrderCommercialStatus,
+  UpdateOrderFulfillmentStatus,
+} from '../../wailsjs/go/main/App'
+export interface OrderItemRecord {
+  id: string
+  position: number
+  serviceId: string
+  serviceName: string
+  serviceCode: string
+  quantity: string
+  quantityUnit: string
+  resolvedParametersJson: string
+  costBreakdownJson: string
+  pricingSnapshotJson: string
+  estimatedCostRial: number
+  suggestedPriceRial: number
+  sellingPriceRial: number
+  notes: string
+}
+export interface OrderRecord {
+  id: string
+  orderNumber: string
+  customerId: string
+  customerName: string
+  customerPhone: string
+  notes: string
+  createdAt: string
+  updatedAt: string
+  promisedAt: string | null
+  priority: string
+  commercialStatus: string
+  fulfillmentStatus: string
+  paymentStatus: string
+  invoiceId?: string
+  invoiceStatus?: string
+  invoicedTotalRial?: number
+  subtotalRial: number
+  discountRial: number
+  totalRial: number
+  estimatedCostRial: number
+  productionJobCount: number
+  completedProductionJobs: number
+  inProgressProductionJobs: number
+  items: OrderItemRecord[]
+}
+export interface OrderPayload {
+  customerId: string
+  promisedAt: string | null
+  priority: string
+  notes: string
+  discountRial: number
+}
+export interface OrderItemPayload {
+  serviceId: string
+  parameters: Record<string, string>
+  manualCosts: Record<string, number>
+  sellingPriceOverrideRial: number | null
+  quantity: string
+  quantityUnit: string
+  notes: string
+}
 
 function normalizeOrder(record: OrderRecord): OrderRecord {
   return { ...record, items: Array.isArray(record.items) ? record.items : [] }
 }
 
 export const ordersApi = {
-  list():Promise<OrderRecord[]> { return (ListOrders() as Promise<OrderRecord[]>).then(rows => rows.map(normalizeOrder)) },
-  get(id:string):Promise<OrderRecord> { return (GetOrder(id) as Promise<OrderRecord>).then(normalizeOrder) },
-  create(input:OrderPayload):Promise<OrderRecord> { return (CreateOrder(input as unknown as import('../../wailsjs/go/models').main.OrderInput) as Promise<OrderRecord>).then(normalizeOrder) },
-  update(id:string,input:OrderPayload):Promise<OrderRecord> { return (UpdateOrder(id,input as unknown as import('../../wailsjs/go/models').main.OrderInput) as Promise<OrderRecord>).then(normalizeOrder) },
-  addItem(id:string,input:OrderItemPayload):Promise<OrderRecord> { return (AddOrderItem(id,input as unknown as import('../../wailsjs/go/models').main.OrderItemInput) as Promise<OrderRecord>).then(normalizeOrder) },
-  replaceItem(id:string,itemId:string,input:OrderItemPayload):Promise<OrderRecord> { return (ReplaceOrderItem(id,itemId,input as unknown as import('../../wailsjs/go/models').main.OrderItemInput) as Promise<OrderRecord>).then(normalizeOrder) },
-  removeItem(id:string,itemId:string):Promise<OrderRecord> { return (RemoveOrderItem(id,itemId) as Promise<OrderRecord>).then(normalizeOrder) },
-  reorderItems(id:string,ids:string[]):Promise<OrderRecord> { return (ReorderOrderItems(id,ids) as Promise<OrderRecord>).then(normalizeOrder) },
-  discount(id:string,amount:number):Promise<OrderRecord> { return (ApplyOrderDiscount(id,amount) as Promise<OrderRecord>).then(normalizeOrder) },
-  commercialStatus(id:string,status:string):Promise<OrderRecord> { return (UpdateOrderCommercialStatus(id,status) as Promise<OrderRecord>).then(normalizeOrder) },
-  fulfillmentStatus(id:string,status:string):Promise<OrderRecord> { return (UpdateOrderFulfillmentStatus(id,status) as Promise<OrderRecord>).then(normalizeOrder) },
+  list(): Promise<OrderRecord[]> {
+    return (ListOrders() as Promise<OrderRecord[]>).then((rows) => rows.map(normalizeOrder))
+  },
+  get(id: string): Promise<OrderRecord> {
+    return (GetOrder(id) as Promise<OrderRecord>).then(normalizeOrder)
+  },
+  create(input: OrderPayload): Promise<OrderRecord> {
+    return (
+      CreateOrder(
+        input as unknown as import('../../wailsjs/go/models').main.OrderInput,
+      ) as Promise<OrderRecord>
+    ).then(normalizeOrder)
+  },
+  update(id: string, input: OrderPayload): Promise<OrderRecord> {
+    return (
+      UpdateOrder(
+        id,
+        input as unknown as import('../../wailsjs/go/models').main.OrderInput,
+      ) as Promise<OrderRecord>
+    ).then(normalizeOrder)
+  },
+  addItem(id: string, input: OrderItemPayload): Promise<OrderRecord> {
+    return (
+      AddOrderItem(
+        id,
+        input as unknown as import('../../wailsjs/go/models').main.OrderItemInput,
+      ) as Promise<OrderRecord>
+    ).then(normalizeOrder)
+  },
+  replaceItem(id: string, itemId: string, input: OrderItemPayload): Promise<OrderRecord> {
+    return (
+      ReplaceOrderItem(
+        id,
+        itemId,
+        input as unknown as import('../../wailsjs/go/models').main.OrderItemInput,
+      ) as Promise<OrderRecord>
+    ).then(normalizeOrder)
+  },
+  removeItem(id: string, itemId: string): Promise<OrderRecord> {
+    return (RemoveOrderItem(id, itemId) as Promise<OrderRecord>).then(normalizeOrder)
+  },
+  reorderItems(id: string, ids: string[]): Promise<OrderRecord> {
+    return (ReorderOrderItems(id, ids) as Promise<OrderRecord>).then(normalizeOrder)
+  },
+  discount(id: string, amount: number): Promise<OrderRecord> {
+    return (ApplyOrderDiscount(id, amount) as Promise<OrderRecord>).then(normalizeOrder)
+  },
+  commercialStatus(id: string, status: string): Promise<OrderRecord> {
+    return (UpdateOrderCommercialStatus(id, status) as Promise<OrderRecord>).then(normalizeOrder)
+  },
+  fulfillmentStatus(id: string, status: string): Promise<OrderRecord> {
+    return (UpdateOrderFulfillmentStatus(id, status) as Promise<OrderRecord>).then(normalizeOrder)
+  },
 }

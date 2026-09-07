@@ -24,11 +24,24 @@ function cleanMessage(value: string): string {
   return value.replace(/^Error:\s*/i, '').trim() || 'The operation could not be completed.'
 }
 
-export function normalizeError(error: unknown, fallback = 'The operation could not be completed.'): NormalizedError {
+export function normalizeError(
+  error: unknown,
+  fallback = 'The operation could not be completed.',
+): NormalizedError {
   if (error && typeof error === 'object') {
     const source = error as Record<string, unknown>
-    const message = typeof source.message === 'string' ? source.message : typeof source.error === 'string' ? source.error : ''
-    if (message) return { message: cleanMessage(message), code: typeof source.code === 'string' ? source.code : undefined, detail: typeof source.detail === 'string' ? source.detail : undefined }
+    const message =
+      typeof source.message === 'string'
+        ? source.message
+        : typeof source.error === 'string'
+          ? source.error
+          : ''
+    if (message)
+      return {
+        message: cleanMessage(message),
+        code: typeof source.code === 'string' ? source.code : undefined,
+        detail: typeof source.detail === 'string' ? source.detail : undefined,
+      }
   }
   if (error instanceof Error) return { message: cleanMessage(error.message), detail: error.stack }
   if (typeof error === 'string') return { message: cleanMessage(error) }
@@ -36,7 +49,8 @@ export function normalizeError(error: unknown, fallback = 'The operation could n
 }
 
 function push(kind: ToastKind, message: unknown, title?: string) {
-  const normalized = typeof message === 'string' ? cleanMessage(message) : normalizeError(message).message
+  const normalized =
+    typeof message === 'string' ? cleanMessage(message) : normalizeError(message).message
   const key = `${kind}:${normalized}`
   const now = Date.now()
   if ((recent.get(key) ?? 0) > now - 800) return
@@ -44,7 +58,8 @@ function push(kind: ToastKind, message: unknown, title?: string) {
   const item: ToastItem = { id: nextToastId++, kind, message: normalized, title, dismissible: true }
   state.items.push(item)
   if (state.items.length > 5) state.items.shift()
-  const timeout = kind === 'error' ? 9000 : kind === 'warning' ? 7000 : kind === 'info' ? 5000 : 3600
+  const timeout =
+    kind === 'error' ? 9000 : kind === 'warning' ? 7000 : kind === 'info' ? 5000 : 3600
   window.setTimeout(() => dismiss(item.id), timeout)
 }
 
@@ -74,11 +89,31 @@ interface ConfirmState {
   resolve?: (value: boolean) => void
 }
 
-export const confirmState = reactive<ConfirmState>({ open: false, title: '', message: '', confirmLabel: 'Confirm', cancelLabel: 'Cancel', danger: false })
+export const confirmState = reactive<ConfirmState>({
+  open: false,
+  title: '',
+  message: '',
+  confirmLabel: 'Confirm',
+  cancelLabel: 'Cancel',
+  danger: false,
+})
 
-export function confirmAction(options: { title: string; message: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean }): Promise<boolean> {
+export function confirmAction(options: {
+  title: string
+  message: string
+  confirmLabel?: string
+  cancelLabel?: string
+  danger?: boolean
+}): Promise<boolean> {
   return new Promise((resolve) => {
-    Object.assign(confirmState, { ...options, confirmLabel: options.confirmLabel ?? 'Confirm', cancelLabel: options.cancelLabel ?? 'Cancel', danger: options.danger ?? false, open: true, resolve })
+    Object.assign(confirmState, {
+      ...options,
+      confirmLabel: options.confirmLabel ?? 'Confirm',
+      cancelLabel: options.cancelLabel ?? 'Cancel',
+      danger: options.danger ?? false,
+      open: true,
+      resolve,
+    })
   })
 }
 

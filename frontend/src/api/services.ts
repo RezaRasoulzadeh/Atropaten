@@ -84,8 +84,24 @@ export const servicesApi = {
   remove(id: string): Promise<void> {
     return DeleteService(id)
   },
-  addComponent(id: string, input: ServiceCostComponentPayload): Promise<ServiceRecord> { return AddServiceCostComponent(id, input as unknown as mainTypes.ServiceCostComponentInput) },
-  updateComponent(id: string, componentId: string, input: ServiceCostComponentPayload): Promise<ServiceRecord> { return UpdateServiceCostComponent(id, componentId, input as unknown as mainTypes.ServiceCostComponentInput) },
-  removeComponent(id: string, componentId: string): Promise<ServiceRecord> { return RemoveServiceCostComponent(id, componentId) },
-  reorderComponents(id: string, componentIds: string[]): Promise<ServiceRecord> { return ReorderServiceCostComponents(id, componentIds) },
+  addComponent(id: string, input: ServiceCostComponentPayload): Promise<ServiceRecord> {
+    return AddServiceCostComponent(id, input as unknown as mainTypes.ServiceCostComponentInput)
+  },
+  updateComponent(
+    id: string,
+    componentId: string,
+    input: ServiceCostComponentPayload,
+  ): Promise<ServiceRecord> {
+    return UpdateServiceCostComponent(
+      id,
+      componentId,
+      input as unknown as mainTypes.ServiceCostComponentInput,
+    )
+  },
+  removeComponent(id: string, componentId: string): Promise<ServiceRecord> {
+    return RemoveServiceCostComponent(id, componentId)
+  },
+  reorderComponents(id: string, componentIds: string[]): Promise<ServiceRecord> {
+    return ReorderServiceCostComponents(id, componentIds)
+  },
 }

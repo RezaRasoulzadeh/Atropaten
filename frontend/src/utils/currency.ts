@@ -16,7 +16,9 @@ export function convertRial(amountRial: number, unit: CurrencyUnit): number {
 export function formatMoney(amountRial: number, unit: CurrencyUnit): string {
   const amount = convertRial(amountRial, unit)
   const hasFractionalToman = unit === 'Toman' && amountRial % 10 !== 0
-  const formatted = new Intl.NumberFormat('en-US', { maximumFractionDigits: hasFractionalToman ? 1 : 0 }).format(amount)
+  const formatted = new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: hasFractionalToman ? 1 : 0,
+  }).format(amount)
   return `${formatted} ${currencyLabels[unit]}`
 }
 

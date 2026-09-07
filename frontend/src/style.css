@@ -43,126 +43,32 @@
   --noise: 0;
 }
 
-/* Infrastructure only. DaisyUI owns component geometry and states. */
+/* Shell and the shared editable-control contract only. */
 @layer base {
-  :root {
-    font-family: "Vazirmatn", "Segoe UI", sans-serif;
-    font-synthesis: none;
-    text-rendering: optimizeLegibility;
-  }
-
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
-
-  html,
-  body,
-  #app {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-  }
-
-  body {
-    min-width: 56rem;
-    overflow: hidden;
-    background: var(--color-base-200);
-    color: var(--color-base-content);
-    font-family: inherit;
-    font-size: 0.875rem;
-    line-height: 1.5;
-  }
-
-  button,
-  input,
-  select,
-  textarea {
-    font: inherit;
-  }
-
-  button,
-  select {
-    cursor: pointer;
-  }
-
-  textarea {
-    resize: vertical;
-  }
+  :root { font-family: var(--font-sans); font-synthesis: none; text-rendering: optimizeLegibility; }
+  html, body, #app { width: 100%; height: 100%; }
+  body { overflow: hidden; background: var(--color-base-200); color: var(--color-base-content); font-size: .875rem; line-height: 1.5; }
 }
 
-/* Shared editable-control contract. Keep this separate from buttons/cards so
-   their DaisyUI focus treatment is unaffected. The dashed border is the
-   keyboard-visible focus indicator and does not change the control box. */
-.input,
-.select,
-.textarea,
-.select-field-trigger {
-  border-width: var(--border);
-  border-style: solid;
-  border-color: var(--color-base-300);
+/* The width stays at 1px in every state, including validation failures. */
+.input, .select, .textarea {
+  border: 1px solid var(--color-base-300);
+  outline: none;
+  box-shadow: none;
+  text-align: start;
 }
-
-.input:focus,
-.input:focus-visible,
-.select:focus,
-.select:focus-visible,
-.textarea:focus,
-.textarea:focus-visible,
-.select-field-trigger:focus,
-.select-field-trigger:focus-visible {
-  border-width: var(--border);
-  border-style: dashed;
-  border-color: var(--color-primary);
+.input:focus, .input:focus-visible,
+.select:focus, .select:focus-visible,
+.textarea:focus, .textarea:focus-visible {
+  border: 1px dashed var(--color-primary);
   outline: none;
   box-shadow: none;
 }
 
-/* Keep validation semantics visible while using the same no-layout-shift
-   focus treatment. DaisyUI's state classes remain authoritative for color. */
-.input-error:focus,
-.input-error:focus-visible,
-.select-error:focus,
-.select-error:focus-visible,
-.textarea-error:focus,
-.textarea-error:focus-visible,
-.select-field-trigger.input-error:focus,
-.select-field-trigger.input-error:focus-visible {
-  border-color: var(--color-error);
-}
-
-.input-success:focus,
-.input-success:focus-visible,
-.select-success:focus,
-.select-success:focus-visible,
-.textarea-success:focus,
-.textarea-success:focus-visible,
-.select-field-trigger.input-success:focus,
-.select-field-trigger.input-success:focus-visible {
-  border-color: var(--color-success);
-}
-
-/* The drawer is the application shell, so it may opt out of DaisyUI menu wrapping. */
-.drawer-side {
-  overflow: hidden;
-}
-
-.drawer-side .menu {
-  width: 100%;
-  flex-flow: column nowrap;
-  align-items: stretch;
-}
-
-.aura,
-.aura::before,
-.aura::after {
-  overflow: visible;
-  pointer-events: none;
-}
-
-@media (max-width: 48rem) {
-  body {
-    min-width: 0;
-  }
+/* Only the prepared document participates in printing. */
+.print-output { display: none; }
+@media print {
+  #app { display: none; }
+  body { overflow: visible; height: auto; background: white; }
+  .print-output { display: block; }
 }

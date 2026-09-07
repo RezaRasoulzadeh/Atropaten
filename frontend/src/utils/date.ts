@@ -50,14 +50,22 @@ function parseDateOnly(value: CanonicalDate): { year: number; month: number; day
   return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) }
 }
 
-function canonicalParts(value: CanonicalDate): { year: number; month: number; day: number; hour: number; minute: number } {
+function canonicalParts(value: CanonicalDate): {
+  year: number
+  month: number
+  day: number
+  hour: number
+  minute: number
+} {
   const dateOnly = parseDateOnly(value)
   if (dateOnly) return { ...dateOnly, hour: 0, minute: 0 }
 
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) throw new Error(`Invalid canonical date: ${value}`)
 
-  const parts = Object.fromEntries(tehranDateParts.formatToParts(date).map(({ type, value: partValue }) => [type, partValue]))
+  const parts = Object.fromEntries(
+    tehranDateParts.formatToParts(date).map(({ type, value: partValue }) => [type, partValue]),
+  )
   return {
     year: Number(parts.year),
     month: Number(parts.month),
@@ -78,9 +86,7 @@ export function formatDateTime(value: CanonicalDate): string {
 }
 
 export function parseJalaliDate(value: string): CanonicalDate | null {
-  const normalized = value
-    .trim()
-    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+  const normalized = value.trim().replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
   const match = /^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/.exec(normalized)
   if (!match) return null
 

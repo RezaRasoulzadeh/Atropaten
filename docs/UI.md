@@ -8,6 +8,8 @@ The frontend uses Tailwind CSS 4 and DaisyUI 5 with one custom dark `atropaten` 
 
 Standard controls use DaisyUI classes (`btn`, `input`, `select`, `textarea`, `table`, `badge`, `alert`, `modal`, and `card`) and Tailwind layout utilities. There is no legacy feature CSS import or global control override.
 
+Editable controls keep a solid neutral border at rest and use a same-width 1px dashed primary border on focus. Inputs, textareas, native selects, and custom select triggers have no outline, focus ring, shadow, glow, or layout shift; validation colors remain visible. This contract does not apply to cards, containers, or ordinary buttons.
+
 Vazirmatn is vendored locally in `frontend/src/assets/fonts/vazirmatn/` with only regular, semibold, and bold files. `frontend/src/styles/fonts.css` is the centralized local `@font-face` entry point; `OFL.txt` records the upstream SIL Open Font License notice. No runtime font/CDN request is required.
 
 ## Shared components and boundaries
@@ -22,6 +24,8 @@ The frontend boundaries are documented in [FRONTEND_ARCHITECTURE.md](FRONTEND_AR
 - Equivalent controls use the same DaisyUI size, border, radius, padding, and focus behavior.
 - Tables use DaisyUI table primitives inside `overflow-x-auto` only when content is genuinely wide.
 - Panels and inspectors use neutral dark surfaces. Empty states keep icon and text as one compact aligned group.
+- Register/list rows, dense data tables, inspector shells, and compact form sections are local reusable primitives. They provide consistent workspace geometry without moving page-specific business layout into global CSS.
+- Dense tables use aligned numeric cells, explicit dividers, and no zebra striping when stock, cost, or ledger values must be compared across rows.
 - The shell uses Tailwind grid/flex utilities for the sidebar, toolbar, scrollable workspace, sticky page regions, and status strip.
 - Desktop windows remain usable at narrower widths through wrapping and stacking; domain calculations, persistence, accounting, inventory, production, pricing, Jalali dates, money/quantity formatting, and Wails contracts are unchanged.
 
