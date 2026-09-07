@@ -43,6 +43,7 @@ The UI uses Nunito with a 14px body size. Metadata is 12px, labels are 11px, tab
 ### Controls, buttons, badges, and tables
 
 - Standard inputs, selects, date controls, and normal buttons are 36px high (`--control-height`); compact controls are 32px.
+- Controls use a flat surface with a subtle border and restrained focus ring. Recessed/inset treatment is not part of the visual language.
 - Icon buttons use a 34px square hit area and must have an accessible label when they have no visible text.
 - Primary, secondary, ghost/text, and danger actions use the shared `.button-*` variants. Destructive actions use `.button-danger`; archive and delete remain visually and semantically distinct.
 - `StatusBadge` uses the same pill geometry and semantic tones across orders, inventory, production, finance, and purchasing.
@@ -65,6 +66,8 @@ The target checks are representative desktop widths, not mobile layouts:
 - Wide desktop: approximately 1600px and above, with workspace gutters capped rather than leaving a floating narrow column.
 
 At the narrow breakpoint, filter rows wrap, two-column forms collapse, and register/inspector layouts stack before fields clip. Mobile redesign remains out of scope.
+
+Search/filter bars use the same explicit toolbar contract across registers: the search field flexes into remaining width, labeled filters keep a compact secondary label above the control, and the result count remains aligned with the controls. Toolbar tabs used as filters are compact segmented choices and do not inherit the full page-tab strip geometry.
 - Approximately 14px normal UI text
 - Compact table rows, approximately 36-42px
 - Strong typographic hierarchy without oversized headings

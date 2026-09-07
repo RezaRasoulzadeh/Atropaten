@@ -28,6 +28,8 @@
   --accent-pressed: #194f93;
   --accent-on: #ffffff;
   --focus-ring: rgba(47, 111, 202, 0.22);
+  --focus-border: #9dbde6;
+  --focus-ring-soft: rgba(47, 111, 202, 0.1);
   --success: #16845b;
   --success-soft: #e8f6ef;
   --warning: #a46b14;
@@ -247,7 +249,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .topbar-search { position: relative; width: min(380px, 40%); min-width: 210px; }
 .topbar-search input { width: 100%; height: 36px; padding: 0 36px; border: 1px solid var(--line); border-radius: var(--radius-sm); outline: 0; background: var(--surface-subtle); color: var(--text); font-size: 13px; }
 .topbar-search input::placeholder { color: #99a4af; }
-.topbar-search input:focus { border-color: #9dbde6; background: var(--surface); box-shadow: 0 0 0 3px rgba(47, 111, 202, 0.1); }
+.topbar-search input:focus { border-color: var(--focus-border); background: var(--surface); box-shadow: 0 0 0 3px var(--focus-ring-soft); }
 .search-icon, .search-shortcut { position: absolute; top: 50%; transform: translateY(-50%); }
 .search-icon { left: 12px; color: var(--text-muted); }
 .search-shortcut { right: 9px; padding: 2px 5px; border: 1px solid var(--line); border-radius: 4px; color: var(--text-muted); font-size: 10px; line-height: 15px; }
@@ -261,7 +263,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .toolbar-currency { position: relative; display: inline-flex; align-items: center; }
 .toolbar-currency select { height: 34px; padding: 0 27px 0 10px; appearance: none; border: 1px solid var(--line); border-radius: var(--radius-sm); outline: 0; background: var(--surface); color: var(--text-soft); font-size: 11px; font-weight: 800; }
 .toolbar-currency select:hover { border-color: var(--line-strong); background: var(--surface-subtle); }
-.toolbar-currency select:focus { border-color: #9dbde6; box-shadow: 0 0 0 3px rgba(47, 111, 202, 0.1); }
+.toolbar-currency select:focus { border-color: var(--focus-border); box-shadow: 0 0 0 3px var(--focus-ring-soft); }
 .toolbar-currency-chevron { position: absolute; right: 8px; color: var(--text-muted); pointer-events: none; }
 .notification-button { position: relative; }
 .notification-dot { position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border: 1px solid white; border-radius: 50%; background: var(--danger); }
@@ -286,7 +288,7 @@ h1 { margin-bottom: 4px; color: var(--text); font-size: clamp(22px, 2vw, var(--f
 .heading-actions, .quick-action-buttons { display: flex; align-items: center; gap: 9px; }
 
 .select-control { position: relative; display: inline-flex; align-items: center; }
-.select-control select { height: 38px; padding: 0 31px 0 12px; appearance: none; border: 1px solid var(--line); border-radius: var(--radius-sm); outline: 0; background: var(--surface); color: var(--text-soft); font-size: 12px; }
+.select-control select { height: var(--control-height); padding: 0 31px 0 12px; appearance: none; border: 1px solid var(--line); border-radius: var(--radius-sm); outline: 0; background: var(--surface); color: var(--text-soft); font-size: 12px; box-shadow: none; }
 .select-chevron { position: absolute; right: 10px; color: var(--text-muted); pointer-events: none; }
 .select-control select:hover { border-color: var(--line-strong); }
 
@@ -313,7 +315,7 @@ h1 { margin-bottom: 4px; color: var(--text); font-size: clamp(22px, 2vw, var(--f
 
 .button { display: inline-flex; min-width: 0; height: var(--control-height); align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border: 1px solid transparent; border-radius: var(--radius-sm); font-size: var(--font-size-meta); font-weight: 800; transition: background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard); }
 .button:active, .quick-action:active { transform: translateY(1px); }
-.button-primary { background: var(--accent); color: white; box-shadow: 0 2px 5px rgba(47, 111, 202, 0.16); }
+.button-primary { background: var(--accent); color: var(--accent-on); box-shadow: 0 2px 5px rgba(47, 111, 202, 0.16); }
 .button-primary:hover { background: var(--accent-strong); box-shadow: 0 3px 8px rgba(47, 111, 202, 0.22); }
 .button-secondary { border-color: var(--line-strong); background: var(--surface); color: var(--text-soft); }
 .button-secondary:hover { border-color: #b8c4d0; background: var(--surface-subtle); }

@@ -56,3 +56,15 @@ These checks require running the packaged application in the target native envir
 - Toast, loading, confirmation, and validation/error-state behavior beyond preserving the existing markup and functionality; these belong to M6-005.
 - Mobile-specific redesign.
 - Any accounting, inventory, production, pricing, reporting, posting, persistence, or other domain-semantic changes.
+
+## Corrective follow-up after the initial M6-004 pass
+
+The first M6-004 implementation exposed three visual regressions during screenshot review:
+
+- The shared page-tab selector also styled tabs nested inside Checks and Loans filter bars, making those toolbars too tall and misaligned.
+- The shared control rule used `surface-subtle` for every input/select/textarea, which made ordinary controls look recessed beside older scoped rules.
+- Production retained a one-off unlabeled Queue span, so its filter row did not use the same labeled-control geometry as the reference toolbar.
+
+The corrective pass gave the existing toolbar classes one explicit shared contract, migrated Production’s Queue field into a labeled filter control, made controls flat with one focus treatment, and reduced Parameters/Cost Components empty states to compact icon-text groups. The repair removes the conflicting empty-state and control declarations rather than adding another page-specific exception.
+
+No browser, screenshot harness, Wails runtime, or Windows WebView2 environment is available in this workspace. I therefore verified the DOM/CSS structure and production build, but did not claim live visual inspection at the requested desktop widths; those remain manual checks for the native/browser environment.

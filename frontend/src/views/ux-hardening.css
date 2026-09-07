@@ -115,7 +115,8 @@
   min-width: 0;
   border-color: var(--border);
   border-radius: var(--radius-sm);
-  background: var(--surface-subtle);
+  background: var(--surface);
+  box-shadow: none;
 }
 
 .workspace input:not([type='checkbox']):not([type='radio']),
@@ -131,9 +132,9 @@
 .workspace input:not([type='checkbox']):not([type='radio']):focus,
 .workspace select:focus,
 .workspace textarea:focus {
-  border-color: #9dbde6;
+  border-color: var(--focus-border);
   background: var(--surface);
-  box-shadow: 0 0 0 3px rgba(47, 111, 202, 0.1);
+  box-shadow: 0 0 0 3px var(--focus-ring-soft);
   outline: 0;
 }
 
@@ -218,6 +219,243 @@
 
 .workspace .data-table .table-secondary {
   color: var(--text-muted);
+}
+
+.workspace .form-field input:not([type='checkbox']):not([type='radio']),
+.workspace .form-field select,
+.workspace .form-field textarea,
+.workspace .configurator-form input:not([type='checkbox']):not([type='radio']),
+.workspace .configurator-form select,
+.workspace .configurator-form textarea,
+.workspace .parameter-grid input:not([type='checkbox']):not([type='radio']),
+.workspace .parameter-grid select,
+.workspace .parameter-grid textarea,
+.workspace .manual-costs input:not([type='checkbox']):not([type='radio']),
+.workspace .manual-costs select,
+.workspace .manual-costs textarea {
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.workspace .form-field input:not([type='checkbox']):not([type='radio']):focus,
+.workspace .form-field select:focus,
+.workspace .form-field textarea:focus,
+.workspace .configurator-form input:not([type='checkbox']):not([type='radio']):focus,
+.workspace .configurator-form select:focus,
+.workspace .configurator-form textarea:focus,
+.workspace .parameter-grid input:not([type='checkbox']):not([type='radio']):focus,
+.workspace .parameter-grid select:focus,
+.workspace .parameter-grid textarea:focus,
+.workspace .manual-costs input:not([type='checkbox']):not([type='radio']):focus,
+.workspace .manual-costs select:focus,
+.workspace .manual-costs textarea:focus {
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 3px var(--focus-ring-soft);
+}
+
+/* One explicit toolbar primitive. Existing feature names are retained so the
+   visual contract can be migrated without changing view behavior. */
+.workspace :is(
+  .orders-filter-bar,
+  .materials-filter-bar,
+  .services-filter-bar,
+  .machines-filter-bar,
+  .production-filter-bar,
+  .customers-toolbar,
+  .suppliers-filter
+) {
+  display: flex;
+  min-width: 0;
+  min-height: 60px;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: var(--space-3) var(--space-4);
+  overflow: visible;
+}
+
+.workspace :is(
+  .orders-filter-bar,
+  .materials-filter-bar,
+  .services-filter-bar,
+  .machines-filter-bar,
+  .production-filter-bar,
+  .customers-toolbar,
+  .suppliers-filter
+) > :is(.orders-search, .materials-search, .services-search, .production-search, .workspace-search) {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.workspace :is(.orders-search, .materials-search, .services-search, .production-search, .workspace-search) input {
+  width: 100%;
+  min-width: 0;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.workspace :is(
+  .orders-filter-bar,
+  .materials-filter-bar,
+  .services-filter-bar,
+  .machines-filter-bar,
+  .production-filter-bar,
+  .customers-toolbar,
+  .suppliers-filter
+) .filter-control {
+  display: grid;
+  min-width: 124px;
+  flex: 0 0 136px;
+  align-self: stretch;
+  align-content: center;
+  gap: var(--space-1);
+}
+
+.workspace :is(
+  .orders-filter-bar,
+  .materials-filter-bar,
+  .services-filter-bar,
+  .machines-filter-bar,
+  .production-filter-bar,
+  .customers-toolbar,
+  .suppliers-filter
+) .filter-control > span:first-child {
+  padding: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-label);
+  font-weight: 700;
+  letter-spacing: normal;
+  line-height: 1.1;
+  text-transform: none;
+}
+
+.workspace :is(
+  .orders-filter-bar,
+  .materials-filter-bar,
+  .services-filter-bar,
+  .machines-filter-bar,
+  .production-filter-bar,
+  .customers-toolbar,
+  .suppliers-filter
+) > .select-control,
+.workspace :is(
+  .orders-filter-bar,
+  .materials-filter-bar,
+  .services-filter-bar,
+  .machines-filter-bar,
+  .production-filter-bar,
+  .customers-toolbar,
+  .suppliers-filter
+) .filter-control .select-control,
+.workspace :is(
+  .orders-filter-bar,
+  .materials-filter-bar,
+  .services-filter-bar,
+  .machines-filter-bar,
+  .production-filter-bar,
+  .customers-toolbar,
+  .suppliers-filter
+) .filter-control > select {
+  width: 100%;
+  min-width: 0;
+}
+
+.workspace :is(
+  .orders-filter-bar,
+  .materials-filter-bar,
+  .services-filter-bar,
+  .machines-filter-bar,
+  .production-filter-bar,
+  .customers-toolbar,
+  .suppliers-filter
+) > .select-control {
+  flex: 0 0 136px;
+}
+
+.workspace :is(
+  .orders-filter-bar,
+  .materials-filter-bar,
+  .services-filter-bar,
+  .machines-filter-bar,
+  .production-filter-bar,
+  .customers-toolbar,
+  .suppliers-filter
+) > .filter-result,
+.workspace .suppliers-filter > span:last-child {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--font-size-label);
+  white-space: nowrap;
+}
+
+/* Checks and loans use tabs as filter choices inside the same toolbar. Keep
+   them compact instead of inheriting full workspace-tab geometry. */
+.workspace .orders-filter-bar > .workspace-tabs {
+  min-width: 0;
+  min-height: var(--control-height);
+  flex: 0 1 auto;
+  margin: 0;
+  border: 0;
+  overflow-x: auto;
+}
+
+.workspace .orders-filter-bar > .workspace-tabs button {
+  height: var(--control-height-compact);
+  min-width: auto;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-size-label);
+}
+
+.workspace .orders-filter-bar > .workspace-tabs button:hover,
+.workspace .orders-filter-bar > .workspace-tabs button.is-active {
+  border-color: var(--border);
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.workspace .button .button-icon {
+  flex: 0 0 16px;
+}
+
+.workspace .configurator-form > label,
+.workspace .parameter-grid label,
+.workspace .manual-costs label {
+  color: var(--text-soft);
+  font-size: var(--font-size-label);
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.workspace .configurator-empty {
+  display: flex;
+  min-height: 0;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) 0;
+  border: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-meta);
+  line-height: 1.35;
+  text-align: left;
+}
+
+.workspace .configurator-empty svg {
+  flex: 0 0 17px;
+  color: var(--accent);
+}
+
+.parameter-empty-inline svg {
+  flex: 0 0 17px;
+  color: var(--accent);
 }
 
 .workspace .workspace-tabs {
@@ -419,6 +657,57 @@
 }
 
 @media (max-width: 1120px) {
+  .workspace :is(
+    .orders-filter-bar,
+    .materials-filter-bar,
+    .services-filter-bar,
+    .machines-filter-bar,
+    .production-filter-bar,
+    .customers-toolbar,
+    .suppliers-filter
+  ) {
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .workspace :is(
+    .orders-filter-bar,
+    .materials-filter-bar,
+    .services-filter-bar,
+    .machines-filter-bar,
+    .production-filter-bar,
+    .customers-toolbar,
+    .suppliers-filter
+  ) > :is(.orders-search, .materials-search, .services-search, .production-search, .workspace-search) {
+    min-width: min(260px, 100%);
+    flex: 1 1 calc(50% - var(--space-2));
+  }
+
+  .workspace :is(
+    .orders-filter-bar,
+    .materials-filter-bar,
+    .services-filter-bar,
+    .machines-filter-bar,
+    .production-filter-bar,
+    .customers-toolbar,
+    .suppliers-filter
+  ) .filter-control {
+    flex: 1 1 132px;
+  }
+
+  .workspace :is(
+    .orders-filter-bar,
+    .materials-filter-bar,
+    .services-filter-bar,
+    .machines-filter-bar,
+    .production-filter-bar,
+    .customers-toolbar,
+    .suppliers-filter
+  ) > .filter-result,
+  .workspace .suppliers-filter > span:last-child {
+    margin-left: 0;
+  }
+
   .workspace .materials-layout,
   .workspace .services-layout,
   .workspace .machines-layout,
@@ -441,6 +730,18 @@
 }
 
 @media (max-width: 760px) {
+  .workspace :is(
+    .orders-filter-bar,
+    .materials-filter-bar,
+    .services-filter-bar,
+    .machines-filter-bar,
+    .production-filter-bar,
+    .customers-toolbar,
+    .suppliers-filter
+  ) > :is(.orders-search, .materials-search, .services-search, .production-search, .workspace-search) {
+    flex-basis: 100%;
+  }
+
   .workspace .workspace-heading {
     align-items: flex-start;
     flex-direction: column;
