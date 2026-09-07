@@ -1387,20 +1387,26 @@ func (s *Store) ListOrders(ctx context.Context) ([]domain.Order, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list orders: %w", err)
 	}
-	defer rows.Close()
 	var result []domain.Order
 	for rows.Next() {
 		order, scanErr := scanOrder(rows)
 		if scanErr != nil {
+			rows.Close()
 			return nil, scanErr
-		}
-		if err := s.loadOrderItems(ctx, &order); err != nil {
-			return nil, err
 		}
 		result = append(result, order)
 	}
 	if err := rows.Err(); err != nil {
+		rows.Close()
 		return nil, fmt.Errorf("read orders: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close orders: %w", err)
+	}
+	for i := range result {
+		if err := s.loadOrderItems(ctx, &result[i]); err != nil {
+			return nil, err
+		}
 	}
 	return result, nil
 }

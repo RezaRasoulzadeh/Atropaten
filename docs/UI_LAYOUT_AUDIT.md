@@ -68,3 +68,15 @@ The first M6-004 implementation exposed three visual regressions during screensh
 The corrective pass gave the existing toolbar classes one explicit shared contract, migrated Production’s Queue field into a labeled filter control, made controls flat with one focus treatment, and reduced Parameters/Cost Components empty states to compact icon-text groups. The repair removes the conflicting empty-state and control declarations rather than adding another page-specific exception.
 
 No browser, screenshot harness, Wails runtime, or Windows WebView2 environment is available in this workspace. I therefore verified the DOM/CSS structure and production build, but did not claim live visual inspection at the requested desktop widths; those remain manual checks for the native/browser environment.
+
+## M6-006 populated-data audit
+
+The development fixture was generated in an isolated temporary root with the fixed `6006` seed and `2026-03-21` reference date. Its intended visual audit coverage includes:
+
+- populated multi-page registers and sorting/filtering with long fictional names and notes;
+- large Rial values and six-decimal quantity values;
+- mixed quote, order, production, invoice, payment, check, loan, and inventory statuses;
+- low/zero-stock and due/overdue attention states;
+- order/quote inspectors, production and finance detail tabs, attachments/proofs, reports, and print-document entry points.
+
+No new product UI defect was safely attributed to the generator itself. The actionable limitation found during this audit is environmental: standalone Vite cannot populate these screens because Wails-bound services are unavailable, and the Wails CLI/native WebView2 runtime is unavailable in this workspace. Therefore live populated-page geometry, native print handoff, and Windows/WebView rendering remain explicitly unverified rather than being inferred from a successful build. This is a verification gap, not a request to add M6-005 behavior or another global CSS patch.

@@ -18,19 +18,28 @@ func (s *Store) ListQuotes(ctx context.Context) ([]domain.Quote, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list quotes: %w", err)
 	}
-	defer rows.Close()
 	var result []domain.Quote
 	for rows.Next() {
 		q, scanErr := scanQuote(rows)
 		if scanErr != nil {
+			rows.Close()
 			return nil, scanErr
-		}
-		if err := s.loadQuoteItems(ctx, &q); err != nil {
-			return nil, err
 		}
 		result = append(result, q)
 	}
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	for i := range result {
+		if err := s.loadQuoteItems(ctx, &result[i]); err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
 }
 
 const quoteSelect = `SELECT id,quote_number,customer_id,customer_name_snapshot,customer_phone_snapshot,created_at,expiry_date,status,notes,subtotal_rial,discount_rial,total_rial,estimated_cost_rial,updated_at,converted_order_id FROM quotes`

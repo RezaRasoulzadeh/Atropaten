@@ -152,6 +152,10 @@ Every major page must be checked at representative desktop window widths, includ
 
 The screenshot pattern to avoid is a register that stops early while unused workspace remains beside it, combined with an inspector whose form controls extend beyond and get clipped by the panel/window boundary.
 
+## Demo-data audit handoff
+
+M6-006 provides a reproducible, isolated fixture for checking the visual system against populated tables, long labels, inspectors, status badges, dashboard attention states, and print-document inputs. It is intentionally separate from the production Wails API and does not add M6-005 notification or confirmation behavior. The exact lifecycle and environment limitations are documented in [DEMO_DATA.md](DEMO_DATA.md); observed UI findings are recorded in [UI_LAYOUT_AUDIT.md](UI_LAYOUT_AUDIT.md).
+
 ## Interaction patterns
 
 Prefer:
