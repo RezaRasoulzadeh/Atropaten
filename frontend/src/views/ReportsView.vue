@@ -8,12 +8,13 @@ import StatusBadge from '../components/StatusBadge.vue'
 import { reportsApi, type PrintDocumentRecord, type ReportRecord } from '../api/reports'
 import { formatMoney } from '../utils/currency'
 import { formatDate, formatDateTime, currentCanonicalDate } from '../utils/date'
+import { normalizeError } from '../ui/feedback'
 const props=defineProps<{currencyUnit:'Rial'|'Toman'}>();const emit=defineEmits<{notify:[message:string]}>()
 const tabs=[['profit_loss','P&L'],['cash_bank','Cash / Bank'],['receivables','Receivables'],['payables','Payables'],['expenses','Expenses'],['inventory','Inventory'],['sales_by_service','Sales by service'],['customer_sales','Customer sales'],['material_usage','Material use / waste'],['production','Production']]
 const activeTab=ref('profit_loss');const end=ref<string|null>(currentCanonicalDate());const start=ref<string|null>(new Date(Date.now()-30*86400000).toISOString().slice(0,10));const report=ref<ReportRecord|null>(null);const loading=ref(false);const error=ref('');const printKind=ref('invoice');const printID=ref('');const partyID=ref('');const printDoc=ref<PrintDocumentRecord|null>(null)
 const summary=computed(()=>report.value?.summaries??[]);const money=(v:number)=>formatMoney(v,props.currencyUnit);const quantity=(v:number)=>v?String(v/1000000):'0'
-async function load(){loading.value=true;error.value='';try{report.value=await reportsApi.report(activeTab.value,start.value||'',end.value||'')}catch(e){error.value=String(e)}finally{loading.value=false}}
-async function loadPrint(){if(!printID.value&&!printKind.value.includes('statement')){emit('notify','Enter a source record ID first.');return}try{printDoc.value=await reportsApi.print(printKind.value,printID.value,start.value||'',end.value||'',partyID.value)}catch(e){emit('notify',String(e))}}
+async function load(){loading.value=true;error.value='';try{report.value=await reportsApi.report(activeTab.value,start.value||'',end.value||'')}catch(e){error.value=normalizeError(e).message}finally{loading.value=false}}
+async function loadPrint(){if(!printID.value&&!printKind.value.includes('statement')){emit('notify','Enter a source record ID first.');return}try{printDoc.value=await reportsApi.print(printKind.value,printID.value,start.value||'',end.value||'',partyID.value)}catch(e){emit('notify',`Error: ${normalizeError(e).message}`)}}
 function print(){if(printDoc.value)window.print()};onMounted(load);watch([activeTab,start,end],load)
 </script>
 <template>

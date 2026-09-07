@@ -8,6 +8,7 @@ import { invoicesApi, type InvoiceRecord } from '../api/invoices'
 import type { OrderRecord } from '../api/orders'
 import { formatMoney, type CurrencyUnit } from '../utils/currency'
 import { formatDateTime } from '../utils/date'
+import { confirmAction, normalizeError } from '../ui/feedback'
 
 const props = defineProps<{ currencyUnit: CurrencyUnit; orders: OrderRecord[] }>()
 const emit = defineEmits<{ notify: [string]; refreshOrders: [] }>()
@@ -20,12 +21,12 @@ const loading = ref(false)
 const current = computed(() => rows.value.find((v) => v.id === selected.value) ?? null)
 const filtered = computed(() => rows.value.filter((v) => (status.value === 'All' || v.status === status.value) && (!query.value.trim() || [v.invoiceNumber, v.customerName, v.orderId].join(' ').toLowerCase().includes(query.value.trim().toLowerCase()))))
 function tone(value: string) { return value === 'Paid' || value === 'Posted' ? 'green' : value === 'Partially Paid' ? 'blue' : value === 'Voided' ? 'slate' : 'amber' }
-async function load() { loading.value = true; try { rows.value = await invoicesApi.list(); if (!selected.value && rows.value[0]) selected.value = rows.value[0].id } catch (e) { error.value = String(e) } finally { loading.value = false } }
+async function load() { loading.value = true; try { rows.value = await invoicesApi.list(); if (!selected.value && rows.value[0]) selected.value = rows.value[0].id } catch (e) { error.value = normalizeError(e).message } finally { loading.value = false } }
 onMounted(load)
-async function create(orderId: string) { try { const value = await invoicesApi.createFromOrder(orderId); rows.value = [value, ...rows.value]; selected.value = value.id; emit('notify', 'Draft invoice created from the saved order snapshot.'); emit('refreshOrders') } catch (e) { error.value = String(e) } }
-async function post() { if (!current.value) return; try { const value = await invoicesApi.post(current.value.id); rows.value = rows.value.map((v) => v.id === value.id ? value : v); emit('notify', 'Invoice posted with AR, revenue, and eligible actual COGS.'); emit('refreshOrders') } catch (e) { error.value = String(e) } }
-async function reverse() { if (!current.value || !window.confirm('Void this invoice with reversing journal entries?')) return; try { const value = await invoicesApi.void(current.value.id); rows.value = rows.value.map((v) => v.id === value.id ? value : v); emit('notify', 'Invoice voided with history preserved.'); emit('refreshOrders') } catch (e) { error.value = String(e) } }
-async function remove() { if (!current.value || !window.confirm('Delete this draft invoice permanently?')) return; try { await invoicesApi.deleteDraft(current.value.id); rows.value = rows.value.filter((v) => v.id !== current.value!.id); selected.value = null; emit('notify', 'Draft invoice deleted.') } catch (e) { error.value = String(e) } }
+async function create(orderId: string) { try { const value = await invoicesApi.createFromOrder(orderId); rows.value = [value, ...rows.value]; selected.value = value.id; emit('notify', 'Draft invoice created from the saved order snapshot.'); emit('refreshOrders') } catch (e) { error.value = normalizeError(e).message } }
+async function post() { if (!current.value) return; try { const value = await invoicesApi.post(current.value.id); rows.value = rows.value.map((v) => v.id === value.id ? value : v); emit('notify', 'Invoice posted with AR, revenue, and eligible actual COGS.'); emit('refreshOrders') } catch (e) { error.value = normalizeError(e).message } }
+async function reverse() { if (!current.value || !(await confirmAction({ title: 'Void invoice', message: 'Void this invoice with reversing journal entries?', confirmLabel: 'Void invoice', danger: true }))) return; try { const value = await invoicesApi.void(current.value.id); rows.value = rows.value.map((v) => v.id === value.id ? value : v); emit('notify', 'Invoice voided with history preserved.'); emit('refreshOrders') } catch (e) { error.value = normalizeError(e).message } }
+async function remove() { if (!current.value || !(await confirmAction({ title: 'Delete draft invoice', message: 'Delete this draft invoice permanently?', confirmLabel: 'Delete invoice', danger: true }))) return; try { await invoicesApi.deleteDraft(current.value.id); rows.value = rows.value.filter((v) => v.id !== current.value!.id); selected.value = null; emit('notify', 'Draft invoice deleted.') } catch (e) { error.value = normalizeError(e).message } }
 </script>
 <template>
   <div class="invoices-view">

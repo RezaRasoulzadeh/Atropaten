@@ -3,7 +3,7 @@ withDefaults(defineProps<{ flush?: boolean }>(), { flush: false })
 </script>
 
 <template>
-  <div class="workspace-sticky-stack" :class="{ 'workspace-sticky-stack--flush': flush }">
+  <div class="workspace-sticky-stack at-sticky-stack" :class="{ 'workspace-sticky-stack--flush': flush }">
     <slot />
   </div>
 </template>

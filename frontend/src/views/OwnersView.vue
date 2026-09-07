@@ -9,6 +9,7 @@ import { accountingApi, type FinancialAccountRecord } from '../api/accounting'
 import { formatMoney, formatMoneyInput, parseMoneyInput } from '../utils/currency'
 import { formatDateTime } from '../utils/date'
 import JalaliDatePicker from '../components/JalaliDatePicker.vue'
+import { confirmAction, normalizeError } from '../ui/feedback'
 
 const props = defineProps<{ currencyUnit: 'Rial' | 'Toman' }>()
 const emit = defineEmits<{ notify: [string] }>()
@@ -32,11 +33,11 @@ function startOwner() { ownerForm.value = { name:'', phone:'', email:'', notes:'
 async function saveOwner() { saving.value=true;try { const v=await ownersApi.create(ownerForm.value); owners.value=[v,...owners.value];selectedOwner.value=v.id;editing.value=false;emit('notify','Owner saved.')}catch(e){error.value=String(e)}finally{saving.value=false} }
 async function saveShares(){if(!currentOwner.value)return;try{const v=await ownersApi.updateShares(currentOwner.value.id,shareForm.value);owners.value=owners.value.map(x=>x.id===v.id?v:x);emit('notify','Owner shares updated.')}catch(e){error.value=String(e)}}
 async function setActive(){if(!currentOwner.value)return;try{if(currentOwner.value.active)await ownersApi.archive(currentOwner.value.id);else await ownersApi.reactivate(currentOwner.value.id);await load()}catch(e){error.value=String(e)}}
-async function deleteOwner(){if(!currentOwner.value||!window.confirm('Delete this owner permanently when safe?'))return;try{await ownersApi.delete(currentOwner.value.id);owners.value=owners.value.filter(x=>x.id!==currentOwner.value!.id);selectedOwner.value=owners.value[0]?.id??'';emit('notify','Owner deleted.')}catch(e){error.value=String(e)}}
+async function deleteOwner(){if(!currentOwner.value||!(await confirmAction({title:'Delete owner',message:'Delete this owner permanently when safe?',confirmLabel:'Delete owner',danger:true})))return;try{await ownersApi.delete(currentOwner.value.id);owners.value=owners.value.filter(x=>x.id!==currentOwner.value!.id);selectedOwner.value=owners.value[0]?.id??'';emit('notify','Owner deleted.')}catch(e){error.value=normalizeError(e).message}}
 async function postTransaction() { if (!selectedOwner.value) return; const amount=parseMoneyInput(txForm.value.amountText,props.currencyUnit); if (amount===null||amount<=0){error.value='Enter a valid positive amount.';return} try { await ownersApi.createTransaction({...txForm.value,ownerId:selectedOwner.value,amountRial:amount}); await load(); emit('notify','Owner transaction posted.')} catch(e){error.value=String(e)} }
 async function createPeriod() { try { const v=await ownersApi.createPeriod(periodForm.value);periods.value=[v,...periods.value];selectedPeriod.value=v.id;emit('notify','Fiscal period created.')}catch(e){error.value=String(e)} }
 async function previewPeriod() { if(!selectedPeriod.value)return;try{const v=await ownersApi.previewPeriod(selectedPeriod.value);periods.value=periods.value.map(x=>x.id===v.id?v:x)}catch(e){error.value=String(e)} }
-async function closePeriod() { if(!selectedPeriod.value||!window.confirm('Close this fiscal period permanently?'))return;try{const v=await ownersApi.closePeriod(selectedPeriod.value);periods.value=periods.value.map(x=>x.id===v.id?v:x);emit('notify','Fiscal period closed.')}catch(e){error.value=String(e)} }
+async function closePeriod() { if(!selectedPeriod.value||!(await confirmAction({title:'Close fiscal period',message:'Close this fiscal period permanently?',confirmLabel:'Close period',danger:true})))return;try{const v=await ownersApi.closePeriod(selectedPeriod.value);periods.value=periods.value.map(x=>x.id===v.id?v:x);emit('notify','Fiscal period closed.')}catch(e){error.value=normalizeError(e).message} }
 onMounted(load)
 </script>
 <template>

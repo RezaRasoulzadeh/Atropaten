@@ -8,6 +8,7 @@ import JalaliDatePicker from '../components/JalaliDatePicker.vue'
 import { checksApi, type CheckEventRecord, type CheckRecord } from '../api/checks'
 import { formatMoney, type CurrencyUnit } from '../utils/currency'
 import { currentCanonicalDate, formatDateTime } from '../utils/date'
+import { normalizeError } from '../ui/feedback'
 
 const props = defineProps<{ currencyUnit: CurrencyUnit }>()
 const emit = defineEmits<{ notify: [string] }>()
@@ -17,12 +18,12 @@ const selected = computed(() => rows.value.find(v=>v.id===selectedId.value) ?? n
 const filtered = computed(() => { const q=query.value.trim().toLowerCase(); return rows.value.filter(v=>{const due=Date.parse(v.dueDate)<Date.now()&&!['Cleared','Returned','Cancelled','Rejected'].includes(v.status); const match=tab.value==='All'||(tab.value==='Incoming'&&v.direction==='incoming')||(tab.value==='Outgoing'&&v.direction==='outgoing')||(tab.value==='Due'&&Date.parse(v.dueDate)>=Date.now()&&!['Cleared','Returned','Cancelled','Rejected'].includes(v.status))||(tab.value==='Overdue'&&due)||(tab.value==='Cleared'&&v.status==='Cleared')||(tab.value==='Closed'&&['Returned','Cancelled','Rejected'].includes(v.status)); return match&&(!q||[v.checkNumber,v.bank,v.payerPayee].join(' ').toLowerCase().includes(q))}) })
 const nextStatuses = computed(() => { if(!selected.value)return []; const incoming:{[key:string]:string[]}={Draft:['Received','Cancelled'],Received:['Deposited','Returned','Cancelled'],Deposited:['Cleared','Returned'],Cleared:['Returned'],Returned:['Cancelled']}; const outgoing:{[key:string]:string[]}={Draft:['Issued','Cancelled'],Issued:['Delivered','Returned','Rejected','Cancelled'],Delivered:['Cleared','Returned','Rejected'],Cleared:['Returned','Rejected'],Returned:['Cancelled'],Rejected:['Cancelled']}; return (selected.value.direction==='incoming'?incoming:outgoing)[selected.value.status]??[] })
 onMounted(load)
-async function load(){try{rows.value=await checksApi.list();if(!selectedId.value&&rows.value[0])select(rows.value[0])}catch(e){error.value=String(e)}}
-async function select(v:CheckRecord){selectedId.value=v.id;createMode.value=false;try{history.value=await checksApi.history(v.id)}catch(e){error.value=String(e)}}
+async function load(){try{rows.value=await checksApi.list();if(!selectedId.value&&rows.value[0])select(rows.value[0])}catch(e){error.value=normalizeError(e).message}}
+async function select(v:CheckRecord){selectedId.value=v.id;createMode.value=false;try{history.value=await checksApi.history(v.id)}catch(e){error.value=normalizeError(e).message}}
 function begin(){createMode.value=true;selectedId.value=null;form.value={...form.value,direction:'incoming',checkNumber:'',bank:'',branch:'',accountDescriptor:'',payerPayee:'',amountRial:'0',issueDate:currentCanonicalDate(),dueDate:currentCanonicalDate(),notes:''}}
-async function create(){const amount=Number(form.value.amountRial.replaceAll(',',''));if(!form.value.checkNumber||!form.value.bank||!form.value.payerPayee||!amount){error.value='Check number, bank, payer/payee, and a positive amount are required.';return}try{const v=await checksApi.create({...form.value,amountRial:amount});rows.value=[v,...rows.value];await select(v);emit('notify','Check draft created.')}catch(e){error.value=String(e)}}
-async function transition(to:string){if(!selected.value)return;try{const v=await checksApi.transition(selected.value.id,to);rows.value=rows.value.map(x=>x.id===v.id?v:x);await select(v);emit('notify',`Check moved to ${to}.`)}catch(e){error.value=String(e)}}
-async function removeDraft(){if(!selected.value||selected.value.status!=='Draft')return;try{await checksApi.deleteDraft(selected.value.id);rows.value=rows.value.filter(v=>v.id!==selected.value!.id);selectedId.value=null;history.value=[];emit('notify','Draft check deleted.')}catch(e){error.value=String(e)}}
+async function create(){const amount=Number(form.value.amountRial.replaceAll(',',''));if(!form.value.checkNumber||!form.value.bank||!form.value.payerPayee||!amount){error.value='Check number, bank, payer/payee, and a positive amount are required.';return}try{const v=await checksApi.create({...form.value,amountRial:amount});rows.value=[v,...rows.value];await select(v);emit('notify','Check draft created.')}catch(e){error.value=normalizeError(e).message}}
+async function transition(to:string){if(!selected.value)return;try{const v=await checksApi.transition(selected.value.id,to);rows.value=rows.value.map(x=>x.id===v.id?v:x);await select(v);emit('notify',`Check moved to ${to}.`)}catch(e){error.value=normalizeError(e).message}}
+async function removeDraft(){if(!selected.value||selected.value.status!=='Draft')return;try{await checksApi.deleteDraft(selected.value.id);rows.value=rows.value.filter(v=>v.id!==selected.value!.id);selectedId.value=null;history.value=[];emit('notify','Draft check deleted.')}catch(e){error.value=normalizeError(e).message}}
 function tone(s:string){return s==='Cleared'?'green':s==='Returned'||s==='Rejected'||s==='Cancelled'?'red':s==='Deposited'||s==='Delivered'?'blue':'amber'}
 function date(v:string){try{return formatDateTime(v)}catch{return '—'}}
 </script>

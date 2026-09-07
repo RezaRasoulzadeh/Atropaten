@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Bell, ChevronDown, Menu, Search, Store } from 'lucide-vue-next'
 import type { CurrencyUnit } from '../utils/currency'
+import IconButton from './IconButton.vue'
+import AppInput from './AppInput.vue'
+import AppSelect from './AppSelect.vue'
 
 defineProps<{
   collapsed: boolean
@@ -18,19 +21,13 @@ defineEmits<{
 
 <template>
   <header class="topbar">
-    <button class="sidebar-toggle" type="button" :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'" @click="$emit('toggle-sidebar')">
+    <IconButton class="sidebar-toggle" :label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'" @click="$emit('toggle-sidebar')">
       <Menu :size="18" :stroke-width="1.8" aria-hidden="true" />
-    </button>
+    </IconButton>
     <label class="topbar-search">
       <span class="sr-only">Search</span>
       <Search class="search-icon" :size="16" :stroke-width="1.8" aria-hidden="true" />
-      <input
-        :value="searchQuery"
-        type="search"
-        placeholder="Search orders, customers, materials..."
-        autocomplete="off"
-        @input="$emit('update:search-query', ($event.target as HTMLInputElement).value)"
-      />
+      <AppInput :model-value="searchQuery" type="search" placeholder="Search orders, customers, materials..." autocomplete="off" @update:model-value="$emit('update:search-query', $event)" />
       <span class="search-shortcut">Ctrl K</span>
     </label>
     <span class="topbar-spacer"></span>
@@ -41,16 +38,16 @@ defineEmits<{
     </button>
     <label class="toolbar-currency">
       <span class="sr-only">Display currency</span>
-      <select :value="currencyUnit" aria-label="Display currency" @change="$emit('update:currency-unit', ($event.target as HTMLSelectElement).value as CurrencyUnit)">
+      <AppSelect :model-value="currencyUnit" aria-label="Display currency" @update:model-value="$emit('update:currency-unit', $event as CurrencyUnit)">
         <option value="Toman">Toman</option>
         <option value="Rial">Rial</option>
-      </select>
+      </AppSelect>
       <ChevronDown class="toolbar-currency-chevron" :size="13" :stroke-width="1.8" aria-hidden="true" />
     </label>
-    <button class="icon-button notification-button" type="button" aria-label="Notifications" @click="$emit('notifications')">
+    <IconButton class="notification-button" label="Notifications" @click="$emit('notifications')">
       <Bell :size="17" :stroke-width="1.8" aria-hidden="true" />
       <span class="notification-dot" aria-hidden="true"></span>
-    </button>
+    </IconButton>
     <div class="user-profile">
       <span class="avatar" aria-hidden="true">RR</span>
       <span class="user-copy"><strong>Reza Rasoulzadeh</strong><span>Owner</span></span>

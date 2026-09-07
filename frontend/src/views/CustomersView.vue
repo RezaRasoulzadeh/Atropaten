@@ -5,6 +5,9 @@ import WorkspaceStickyStack from '../components/WorkspaceStickyStack.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { customersApi, type CustomerPayload, type CustomerRecord } from '../api/customers'
 import { formatDateTime } from '../utils/date'
+import { confirmAction, normalizeError } from '../ui/feedback'
+import SearchFilterBar from '../components/SearchFilterBar.vue'
+import AppButton from '../components/AppButton.vue'
 
 const props = defineProps<{ refreshKey?: number }>()
 const emit = defineEmits<{ notify: [message: string] }>()
@@ -30,7 +33,7 @@ async function load() {
   try {
     customers.value = await customersApi.list(true)
     if (!selectedId.value && customers.value.length) select(customers.value[0])
-  } catch (value) { error.value = String(value) } finally { loading.value = false }
+  } catch (value) { error.value = normalizeError(value).message } finally { loading.value = false }
 }
 function select(customer: CustomerRecord) { selectedId.value = customer.id; editing.value = false }
 function newCustomer() { selectedId.value = null; editing.value = true; form.value = { name: '', phone: '', email: '', address: '', notes: '' } }
@@ -47,7 +50,7 @@ async function save() {
     selectedId.value = result.id
     editing.value = false
     emit('notify', 'Customer saved')
-  } catch (value) { emit('notify', String(value)) } finally { saving.value = false }
+  } catch (value) { emit('notify', `Error: ${normalizeError(value).message}`) } finally { saving.value = false }
 }
 async function toggle() {
   if (!selected.value) return
@@ -55,16 +58,16 @@ async function toggle() {
     const result = selected.value.active ? await customersApi.archive(selected.value.id) : await customersApi.reactivate(selected.value.id)
     customers.value = customers.value.map((customer) => customer.id === result.id ? result : customer)
     emit('notify', result.active ? 'Customer reactivated' : 'Customer archived')
-  } catch (value) { emit('notify', String(value)) }
+  } catch (value) { emit('notify', `Error: ${normalizeError(value).message}`) }
 }
 async function remove() {
-  if (!selected.value || !window.confirm('Delete this customer permanently? Only unreferenced customers can be deleted.')) return
+  if (!selected.value || !(await confirmAction({ title: 'Delete customer', message: 'Delete this customer permanently? Only unreferenced customers can be deleted.', confirmLabel: 'Delete customer', danger: true }))) return
   try {
     await customersApi.remove(selected.value.id)
     customers.value = customers.value.filter((customer) => customer.id !== selected.value!.id)
     selectedId.value = null
     emit('notify', 'Customer deleted.')
-  } catch (value) { emit('notify', String(value)) }
+  } catch (value) { emit('notify', `Error: ${normalizeError(value).message}`) }
 }
 watch(() => props.refreshKey, load, { immediate: true })
 </script>
@@ -72,8 +75,8 @@ watch(() => props.refreshKey, load, { immediate: true })
 <template>
   <div class="customers-view">
     <WorkspaceStickyStack>
-      <header class="workspace-heading"><div><p class="eyebrow">Workspace / relationships</p><h1>Customers</h1><p class="heading-description">Keep customer contacts ready for every commercial workflow.</p></div><button class="button button-primary" @click="newCustomer"><Plus :size="16" aria-hidden="true" />New customer</button></header>
-      <section class="customers-toolbar panel"><label class="orders-search"><Search :size="16" aria-hidden="true" /><span class="sr-only">Search customers</span><input v-model="query" placeholder="Search name, phone, or email" /></label><label class="select-control"><select v-model="filter" aria-label="Customer status"><option>Active</option><option>Archived</option><option>All</option></select></label><span class="filter-result">{{ visible.length }} customers</span></section>
+      <header class="workspace-heading"><div><p class="eyebrow">Workspace / relationships</p><h1>Customers</h1><p class="heading-description">Keep customer contacts ready for every commercial workflow.</p></div><AppButton variant="primary" @click="newCustomer"><Plus :size="16" aria-hidden="true" />New customer</AppButton></header>
+      <SearchFilterBar><template #search><label class="orders-search"><Search :size="16" aria-hidden="true" /><span class="sr-only">Search customers</span><input v-model="query" class="at-control" placeholder="Search name, phone, or email" /></label></template><template #filters><label class="filter-control"><span>Status</span><select v-model="filter" class="at-control" aria-label="Customer status"><option>Active</option><option>Archived</option><option>All</option></select></label></template><template #count><span>{{ visible.length }} customers</span></template></SearchFilterBar>
     </WorkspaceStickyStack>
     <div class="customers-layout">
       <section class="customers-list panel"><div v-if="loading" class="workspace-state">Loading customers…</div><div v-else-if="error" class="workspace-state state-error">{{ error }}</div><div v-else-if="!visible.length" class="workspace-state"><UserRound :size="22" /><strong>No customers in this view</strong><button class="button button-secondary" @click="newCustomer">Add customer</button></div><button v-for="customer in visible" v-else :key="customer.id" class="customer-row" :class="{ 'is-selected': selectedId === customer.id }" @click="select(customer)"><span class="customer-avatar"><UserRound :size="16" /></span><span class="customer-row-copy"><strong>{{ customer.name }}</strong><small>{{ customer.phone || customer.email || 'No contact details' }}</small></span><StatusBadge :label="customer.active ? 'Active' : 'Archived'" :tone="customer.active ? 'green' : 'slate'" /></button></section>

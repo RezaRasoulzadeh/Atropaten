@@ -50,6 +50,9 @@ import OwnersView from './views/OwnersView.vue'
 import DashboardView from './views/DashboardView.vue'
 import ReportsView from './views/ReportsView.vue'
 import SettingsView from './views/SettingsView.vue'
+import ToastHost from './components/ToastHost.vue'
+import ConfirmDialog from './components/ConfirmDialog.vue'
+import { normalizeError, useToast } from './ui/feedback'
 
 interface NavigationItem {
   label: string
@@ -114,8 +117,7 @@ const customers = ref<any[]>([])
 const catalogServices = ref<any[]>([])
 const catalogMaterials = ref<any[]>([])
 const catalogMachines = ref<any[]>([])
-const toastMessage = ref('')
-let toastTimer: ReturnType<typeof setTimeout> | undefined
+const toast = useToast()
 
 const currentView = computed(() => ({
   eyebrow: 'Atropaten workspace',
@@ -139,7 +141,7 @@ const selectedQuote = computed(() => quotes.value.find((quote) => quote.id === s
 async function loadOrders() {
   ordersLoading.value = true
   ordersError.value = ''
-  try { orders.value = await ordersApi.list() } catch (error) { ordersError.value = String(error) } finally { ordersLoading.value = false }
+  try { orders.value = await ordersApi.list() } catch (error) { ordersError.value = normalizeError(error).message; toast.error(error, 'Orders') } finally { ordersLoading.value = false }
 }
 
 async function loadOrderCatalog() {
@@ -148,11 +150,11 @@ async function loadOrderCatalog() {
     catalogServices.value = await servicesApi.list(true)
     catalogMaterials.value = await materialsApi.list(true)
     catalogMachines.value = await machinesApi.list(true)
-  } catch (error) { showToast(String(error)) }
+  } catch (error) { toast.error(error, 'Catalog') }
 }
-async function loadQuotes() { quotesLoading.value=true; quotesError.value=''; try { quotes.value=await quotesApi.list() } catch(error) { quotesError.value=String(error) } finally { quotesLoading.value=false } }
-async function loadSuppliers() { try { suppliers.value = await suppliersApi.list(true) } catch (error) { showToast(String(error)) } }
-async function loadPurchases() { try { purchases.value = await purchasesApi.list() } catch (error) { showToast(String(error)) } }
+async function loadQuotes() { quotesLoading.value=true; quotesError.value=''; try { quotes.value=await quotesApi.list() } catch(error) { quotesError.value=normalizeError(error).message; toast.error(error, 'Quotes') } finally { quotesLoading.value=false } }
+async function loadSuppliers() { try { suppliers.value = await suppliersApi.list(true) } catch (error) { toast.error(error, 'Suppliers') } }
+async function loadPurchases() { try { purchases.value = await purchasesApi.list() } catch (error) { toast.error(error, 'Purchases') } }
 
 function openOrder(orderId: string) {
   activeView.value = 'Orders'
@@ -166,7 +168,7 @@ async function openNewOrder() {
     const order = await ordersApi.create({ customerId: '', promisedAt: null, priority: 'Normal', notes: '', discountRial: 0 })
     orders.value = [order, ...orders.value]
     selectedOrderId.value = order.id
-  } catch (error) { showToast(String(error)) }
+  } catch (error) { toast.error(error, 'New order') }
 }
 
 function closeOrderWorkspace() {
@@ -179,17 +181,15 @@ function updateOrder(order: OrderRecord) {
   orders.value = orders.value.some((item) => item.id === order.id) ? orders.value.map((item) => item.id === order.id ? order : item) : [order, ...orders.value]
 }
 function updateQuote(quote: QuoteRecord) { quotes.value=quotes.value.some(item=>item.id===quote.id)?quotes.value.map(item=>item.id===quote.id?quote:item):[quote,...quotes.value] }
-async function openNewQuote() { activeView.value='Quotes'; try { const quote=await quotesApi.create({customerId:'',expiryDate:null,notes:'',discountRial:0}); quotes.value=[quote,...quotes.value]; selectedQuoteId.value=quote.id } catch(error) { showToast(String(error)) } }
+async function openNewQuote() { activeView.value='Quotes'; try { const quote=await quotesApi.create({customerId:'',expiryDate:null,notes:'',discountRial:0}); quotes.value=[quote,...quotes.value]; selectedQuoteId.value=quote.id } catch(error) { toast.error(error, 'New quote') } }
 function openConvertedOrder(orderId: string) { selectedQuoteId.value=null; activeView.value='Orders'; loadOrders(); selectedOrderId.value=orderId }
 
 onMounted(() => { loadOrderCatalog(); loadOrders(); loadQuotes(); loadSuppliers(); loadPurchases() })
 
 function showToast(message: string) {
-  toastMessage.value = message
-  if (toastTimer) clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => {
-    toastMessage.value = ''
-  }, 2800)
+  const isFailure = /^(error:|failed|unable|could not|cannot|invalid|not found|conflict|required)/i.test(message.trim())
+  if (isFailure) toast.error(normalizeError(message), 'Operation failed')
+  else toast.success(message)
 }
 
 </script>
@@ -237,7 +237,7 @@ function showToast(message: string) {
         @toggle-sidebar="isSidebarCollapsed = !isSidebarCollapsed"
         @update:search-query="searchQuery = $event"
         @update:currency-unit="currencyUnit = $event"
-        @notifications="showToast('You are all caught up.')"
+      @notifications="toast.info('You are all caught up.')"
       />
 
       <main class="workspace" :class="{ 'workspace-dashboard': activeView === 'Dashboard' }" tabindex="-1">
@@ -315,9 +315,7 @@ function showToast(message: string) {
         <span>Authoritative data</span>
       </footer>
     </div>
-
-    <Transition name="toast">
-      <div v-if="toastMessage" class="toast" role="status">{{ toastMessage }}</div>
-    </Transition>
+    <ToastHost />
+    <ConfirmDialog />
   </div>
 </template>

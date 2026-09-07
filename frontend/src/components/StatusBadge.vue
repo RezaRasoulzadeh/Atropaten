@@ -8,7 +8,7 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <span class="status-badge" :class="`badge-${tone}`">
+  <span class="badge status-badge" :class="[`badge-${tone}`, `at-status-${tone}`]">
     <span class="status-badge-dot" aria-hidden="true"></span>
     {{ label }}
   </span>

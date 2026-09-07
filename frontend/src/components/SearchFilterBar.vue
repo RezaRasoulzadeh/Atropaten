@@ -1,0 +1,1 @@
+<template><section class="at-search-filter-bar"><div class="at-search-filter-input"><slot name="search" /></div><div class="at-search-filter-fields"><slot name="filters" /></div><div v-if="$slots.count" class="at-search-filter-count"><slot name="count" /></div><div v-if="$slots.actions" class="at-search-filter-actions"><slot name="actions" /></div></section></template>
