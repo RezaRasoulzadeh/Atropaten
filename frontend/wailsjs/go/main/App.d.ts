@@ -26,6 +26,8 @@ export function ArchiveMachine(arg1:string):Promise<main.MachineDTO>;
 
 export function ArchiveMaterial(arg1:string):Promise<main.MaterialDTO>;
 
+export function ArchiveOwner(arg1:string):Promise<void>;
+
 export function ArchiveService(arg1:string):Promise<main.ServiceDTO>;
 
 export function ArchiveSupplier(arg1:string):Promise<main.SupplierDTO>;
@@ -34,21 +36,35 @@ export function CalculateServicePrice(arg1:main.PricingRequest):Promise<main.Pri
 
 export function CancelPurchase(arg1:string):Promise<main.PurchaseDTO>;
 
+export function CloseFiscalPeriod(arg1:string,arg2:string):Promise<main.FiscalPeriodDTO>;
+
 export function ConvertQuoteToOrder(arg1:string):Promise<main.QuoteDTO>;
+
+export function CreateCheck(arg1:main.CheckInputDTO):Promise<main.CheckDTO>;
 
 export function CreateCustomer(arg1:main.CustomerInput):Promise<main.CustomerDTO>;
 
 export function CreateExpense(arg1:main.ExpenseInputDTO):Promise<main.ExpenseDTO>;
 
+export function CreateFiscalPeriod(arg1:main.FiscalPeriodInputDTO):Promise<main.FiscalPeriodDTO>;
+
 export function CreateInventoryReservation(arg1:main.InventoryReservationInput):Promise<main.InventoryReservationDTO>;
 
 export function CreateInvoiceFromOrder(arg1:string):Promise<main.InvoiceDTO>;
+
+export function CreateLoan(arg1:main.LoanInputDTO):Promise<main.LoanDTO>;
+
+export function CreateLoanPayment(arg1:main.LoanPaymentInputDTO):Promise<main.LoanPaymentDTO>;
 
 export function CreateMachine(arg1:main.MachineInput):Promise<main.MachineDTO>;
 
 export function CreateMaterial(arg1:main.MaterialInput):Promise<main.MaterialDTO>;
 
 export function CreateOrder(arg1:main.OrderInput):Promise<main.OrderDTO>;
+
+export function CreateOwner(arg1:main.OwnerInputDTO):Promise<main.OwnerDTO>;
+
+export function CreateOwnerTransaction(arg1:main.OwnerTransactionInputDTO):Promise<main.OwnerTransactionDTO>;
 
 export function CreatePayment(arg1:main.PaymentInputDTO):Promise<main.PaymentDTO>;
 
@@ -66,19 +82,31 @@ export function CreateSupplier(arg1:main.SupplierInput):Promise<main.SupplierDTO
 
 export function CreateTransfer(arg1:main.TransferInputDTO):Promise<main.TransferDTO>;
 
+export function DeleteDraftCheck(arg1:string):Promise<void>;
+
 export function DeleteDraftInvoice(arg1:string):Promise<void>;
 
 export function DeleteDraftPurchase(arg1:string):Promise<void>;
+
+export function DeleteOwner(arg1:string):Promise<void>;
 
 export function DeleteProductionJob(arg1:string):Promise<void>;
 
 export function DeleteSupplier(arg1:string):Promise<void>;
 
+export function GetCheck(arg1:string):Promise<main.CheckDTO>;
+
 export function GetCustomer(arg1:string):Promise<main.CustomerDTO>;
 
 export function GetCustomerFinancialSummary(arg1:string):Promise<main.CustomerFinancialDTO>;
 
+export function GetDashboard(arg1:string,arg2:string):Promise<main.DashboardDTO>;
+
+export function GetFiscalPeriod(arg1:string):Promise<main.FiscalPeriodDTO>;
+
 export function GetInvoice(arg1:string):Promise<main.InvoiceDTO>;
+
+export function GetLoan(arg1:string):Promise<main.LoanDTO>;
 
 export function GetMachine(arg1:string):Promise<main.MachineDTO>;
 
@@ -86,13 +114,21 @@ export function GetMaterial(arg1:string):Promise<main.MaterialDTO>;
 
 export function GetOrder(arg1:string):Promise<main.OrderDTO>;
 
+export function GetOwner(arg1:string):Promise<main.OwnerDTO>;
+
+export function GetPrintDocument(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<main.PrintDocumentDTO>;
+
 export function GetProductionJob(arg1:string):Promise<main.ProductionJobDTO>;
 
 export function GetPurchase(arg1:string):Promise<main.PurchaseDTO>;
 
 export function GetQuote(arg1:string):Promise<main.QuoteDTO>;
 
+export function GetReport(arg1:string,arg2:string,arg3:string):Promise<main.ReportDTO>;
+
 export function GetService(arg1:string):Promise<main.ServiceDTO>;
+
+export function GetShopSettings():Promise<main.ShopSettingsDTO>;
 
 export function GetSupplier(arg1:string):Promise<main.SupplierDTO>;
 
@@ -102,17 +138,27 @@ export function ListAccounts():Promise<Array<main.AccountDTO>>;
 
 export function ListAttachments(arg1:string,arg2:string):Promise<Array<main.AttachmentDTO>>;
 
+export function ListCheckEvents(arg1:string):Promise<Array<main.CheckEventDTO>>;
+
+export function ListChecks(arg1:string,arg2:string):Promise<Array<main.CheckDTO>>;
+
 export function ListCustomers(arg1:boolean):Promise<Array<main.CustomerDTO>>;
 
 export function ListExpenses():Promise<Array<main.ExpenseDTO>>;
 
 export function ListFinancialAccounts():Promise<Array<main.FinancialAccountDTO>>;
 
+export function ListFiscalPeriods():Promise<Array<main.FiscalPeriodDTO>>;
+
 export function ListInventoryReservations(arg1:string,arg2:string,arg3:string):Promise<Array<main.InventoryReservationDTO>>;
 
 export function ListInvoices():Promise<Array<main.InvoiceDTO>>;
 
 export function ListJournalEntries():Promise<Array<main.JournalEntryDTO>>;
+
+export function ListLoanPayments(arg1:string):Promise<Array<main.LoanPaymentDTO>>;
+
+export function ListLoans(arg1:string,arg2:string):Promise<Array<main.LoanDTO>>;
 
 export function ListMachines(arg1:boolean):Promise<Array<main.MachineDTO>>;
 
@@ -121,6 +167,10 @@ export function ListMaterialMovements(arg1:string):Promise<Array<main.InventoryM
 export function ListMaterials(arg1:boolean):Promise<Array<main.MaterialDTO>>;
 
 export function ListOrders():Promise<Array<main.OrderDTO>>;
+
+export function ListOwnerTransactions(arg1:string):Promise<Array<main.OwnerTransactionDTO>>;
+
+export function ListOwners(arg1:boolean):Promise<Array<main.OwnerDTO>>;
 
 export function ListPayments():Promise<Array<main.PaymentDTO>>;
 
@@ -144,11 +194,15 @@ export function PostInvoice(arg1:string):Promise<main.InvoiceDTO>;
 
 export function PostPurchase(arg1:string):Promise<main.PurchaseDTO>;
 
+export function PreviewFiscalPeriod(arg1:string):Promise<main.FiscalPeriodDTO>;
+
 export function ReactivateCustomer(arg1:string):Promise<main.CustomerDTO>;
 
 export function ReactivateMachine(arg1:string):Promise<main.MachineDTO>;
 
 export function ReactivateMaterial(arg1:string):Promise<main.MaterialDTO>;
+
+export function ReactivateOwner(arg1:string):Promise<void>;
 
 export function ReactivateService(arg1:string):Promise<main.ServiceDTO>;
 
@@ -186,11 +240,19 @@ export function ReplaceQuoteItem(arg1:string,arg2:string,arg3:main.OrderItemInpu
 
 export function ReverseExpense(arg1:string,arg2:string):Promise<main.ExpenseDTO>;
 
+export function ReverseLoanPayment(arg1:string,arg2:string):Promise<main.LoanPaymentDTO>;
+
+export function ReverseOwnerTransaction(arg1:string,arg2:string):Promise<main.OwnerTransactionDTO>;
+
 export function ReversePayment(arg1:string,arg2:string):Promise<main.PaymentDTO>;
 
 export function ReverseProductionConsumption(arg1:string,arg2:string):Promise<void>;
 
 export function ReverseTransfer(arg1:string,arg2:string):Promise<main.TransferDTO>;
+
+export function SaveShopSettings(arg1:main.ShopSettingsDTO):Promise<void>;
+
+export function TransitionCheck(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.CheckDTO>;
 
 export function UpdateCustomer(arg1:string,arg2:main.CustomerInput):Promise<main.CustomerDTO>;
 
@@ -205,6 +267,8 @@ export function UpdateOrder(arg1:string,arg2:main.OrderInput):Promise<main.Order
 export function UpdateOrderCommercialStatus(arg1:string,arg2:string):Promise<main.OrderDTO>;
 
 export function UpdateOrderFulfillmentStatus(arg1:string,arg2:string):Promise<main.OrderDTO>;
+
+export function UpdateOwnerShares(arg1:string,arg2:main.OwnerShareInputDTO):Promise<main.OwnerDTO>;
 
 export function UpdateProductionJob(arg1:string,arg2:main.ProductionJobInput):Promise<main.ProductionJobDTO>;
 
@@ -231,35 +295,3 @@ export function UpdateServiceParameter(arg1:string,arg2:string,arg3:main.Service
 export function UpdateSupplier(arg1:string,arg2:main.SupplierInput):Promise<main.SupplierDTO>;
 
 export function VoidInvoice(arg1:string):Promise<main.InvoiceDTO>;
-export function CreateCheck(arg1:main.CheckInputDTO):Promise<main.CheckDTO>;
-export function GetCheck(arg1:string):Promise<main.CheckDTO>;
-export function ListChecks(arg1:string,arg2:string):Promise<Array<main.CheckDTO>>;
-export function TransitionCheck(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.CheckDTO>;
-export function ListCheckEvents(arg1:string):Promise<Array<main.CheckEventDTO>>;
-export function CreateLoan(arg1:main.LoanInputDTO):Promise<main.LoanDTO>;
-export function GetLoan(arg1:string):Promise<main.LoanDTO>;
-export function ListLoans(arg1:string,arg2:string):Promise<Array<main.LoanDTO>>;
-export function ListLoanPayments(arg1:string):Promise<Array<main.LoanPaymentDTO>>;
-export function CreateLoanPayment(arg1:main.LoanPaymentInputDTO):Promise<main.LoanPaymentDTO>;
-export function ReverseLoanPayment(arg1:string,arg2:string):Promise<main.LoanPaymentDTO>;
-export function DeleteDraftCheck(arg1:string):Promise<void>;
-export function ListOwners(arg1:boolean):Promise<Array<main.OwnerDTO>>;
-export function GetOwner(arg1:string):Promise<main.OwnerDTO>;
-export function CreateOwner(arg1:main.OwnerInputDTO):Promise<main.OwnerDTO>;
-export function UpdateOwnerShares(arg1:string,arg2:main.OwnerShareInputDTO):Promise<main.OwnerDTO>;
-export function ArchiveOwner(arg1:string):Promise<void>;
-export function ReactivateOwner(arg1:string):Promise<void>;
-export function DeleteOwner(arg1:string):Promise<void>;
-export function ListOwnerTransactions(arg1:string):Promise<Array<main.OwnerTransactionDTO>>;
-export function CreateOwnerTransaction(arg1:main.OwnerTransactionInputDTO):Promise<main.OwnerTransactionDTO>;
-export function ReverseOwnerTransaction(arg1:string,arg2:string):Promise<main.OwnerTransactionDTO>;
-export function ListFiscalPeriods():Promise<Array<main.FiscalPeriodDTO>>;
-export function GetFiscalPeriod(arg1:string):Promise<main.FiscalPeriodDTO>;
-export function PreviewFiscalPeriod(arg1:string):Promise<main.FiscalPeriodDTO>;
-export function CreateFiscalPeriod(arg1:main.FiscalPeriodInputDTO):Promise<main.FiscalPeriodDTO>;
-export function CloseFiscalPeriod(arg1:string,arg2:string):Promise<main.FiscalPeriodDTO>;
-export function GetReport(arg1:string,arg2:string,arg3:string):Promise<any>;
-export function GetDashboard(arg1:string,arg2:string):Promise<any>;
-export function GetPrintDocument(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<any>;
-export function GetShopSettings():Promise<any>;
-export function SaveShopSettings(arg1:any):Promise<void>;

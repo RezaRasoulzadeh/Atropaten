@@ -50,6 +50,10 @@ export function ArchiveMaterial(arg1) {
   return window['go']['main']['App']['ArchiveMaterial'](arg1);
 }
 
+export function ArchiveOwner(arg1) {
+  return window['go']['main']['App']['ArchiveOwner'](arg1);
+}
+
 export function ArchiveService(arg1) {
   return window['go']['main']['App']['ArchiveService'](arg1);
 }
@@ -66,8 +70,16 @@ export function CancelPurchase(arg1) {
   return window['go']['main']['App']['CancelPurchase'](arg1);
 }
 
+export function CloseFiscalPeriod(arg1, arg2) {
+  return window['go']['main']['App']['CloseFiscalPeriod'](arg1, arg2);
+}
+
 export function ConvertQuoteToOrder(arg1) {
   return window['go']['main']['App']['ConvertQuoteToOrder'](arg1);
+}
+
+export function CreateCheck(arg1) {
+  return window['go']['main']['App']['CreateCheck'](arg1);
 }
 
 export function CreateCustomer(arg1) {
@@ -78,12 +90,24 @@ export function CreateExpense(arg1) {
   return window['go']['main']['App']['CreateExpense'](arg1);
 }
 
+export function CreateFiscalPeriod(arg1) {
+  return window['go']['main']['App']['CreateFiscalPeriod'](arg1);
+}
+
 export function CreateInventoryReservation(arg1) {
   return window['go']['main']['App']['CreateInventoryReservation'](arg1);
 }
 
 export function CreateInvoiceFromOrder(arg1) {
   return window['go']['main']['App']['CreateInvoiceFromOrder'](arg1);
+}
+
+export function CreateLoan(arg1) {
+  return window['go']['main']['App']['CreateLoan'](arg1);
+}
+
+export function CreateLoanPayment(arg1) {
+  return window['go']['main']['App']['CreateLoanPayment'](arg1);
 }
 
 export function CreateMachine(arg1) {
@@ -96,6 +120,14 @@ export function CreateMaterial(arg1) {
 
 export function CreateOrder(arg1) {
   return window['go']['main']['App']['CreateOrder'](arg1);
+}
+
+export function CreateOwner(arg1) {
+  return window['go']['main']['App']['CreateOwner'](arg1);
+}
+
+export function CreateOwnerTransaction(arg1) {
+  return window['go']['main']['App']['CreateOwnerTransaction'](arg1);
 }
 
 export function CreatePayment(arg1) {
@@ -130,12 +162,20 @@ export function CreateTransfer(arg1) {
   return window['go']['main']['App']['CreateTransfer'](arg1);
 }
 
+export function DeleteDraftCheck(arg1) {
+  return window['go']['main']['App']['DeleteDraftCheck'](arg1);
+}
+
 export function DeleteDraftInvoice(arg1) {
   return window['go']['main']['App']['DeleteDraftInvoice'](arg1);
 }
 
 export function DeleteDraftPurchase(arg1) {
   return window['go']['main']['App']['DeleteDraftPurchase'](arg1);
+}
+
+export function DeleteOwner(arg1) {
+  return window['go']['main']['App']['DeleteOwner'](arg1);
 }
 
 export function DeleteProductionJob(arg1) {
@@ -146,6 +186,10 @@ export function DeleteSupplier(arg1) {
   return window['go']['main']['App']['DeleteSupplier'](arg1);
 }
 
+export function GetCheck(arg1) {
+  return window['go']['main']['App']['GetCheck'](arg1);
+}
+
 export function GetCustomer(arg1) {
   return window['go']['main']['App']['GetCustomer'](arg1);
 }
@@ -154,8 +198,20 @@ export function GetCustomerFinancialSummary(arg1) {
   return window['go']['main']['App']['GetCustomerFinancialSummary'](arg1);
 }
 
+export function GetDashboard(arg1, arg2) {
+  return window['go']['main']['App']['GetDashboard'](arg1, arg2);
+}
+
+export function GetFiscalPeriod(arg1) {
+  return window['go']['main']['App']['GetFiscalPeriod'](arg1);
+}
+
 export function GetInvoice(arg1) {
   return window['go']['main']['App']['GetInvoice'](arg1);
+}
+
+export function GetLoan(arg1) {
+  return window['go']['main']['App']['GetLoan'](arg1);
 }
 
 export function GetMachine(arg1) {
@@ -170,6 +226,14 @@ export function GetOrder(arg1) {
   return window['go']['main']['App']['GetOrder'](arg1);
 }
 
+export function GetOwner(arg1) {
+  return window['go']['main']['App']['GetOwner'](arg1);
+}
+
+export function GetPrintDocument(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['GetPrintDocument'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function GetProductionJob(arg1) {
   return window['go']['main']['App']['GetProductionJob'](arg1);
 }
@@ -182,8 +246,16 @@ export function GetQuote(arg1) {
   return window['go']['main']['App']['GetQuote'](arg1);
 }
 
+export function GetReport(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetReport'](arg1, arg2, arg3);
+}
+
 export function GetService(arg1) {
   return window['go']['main']['App']['GetService'](arg1);
+}
+
+export function GetShopSettings() {
+  return window['go']['main']['App']['GetShopSettings']();
 }
 
 export function GetSupplier(arg1) {
@@ -202,6 +274,14 @@ export function ListAttachments(arg1, arg2) {
   return window['go']['main']['App']['ListAttachments'](arg1, arg2);
 }
 
+export function ListCheckEvents(arg1) {
+  return window['go']['main']['App']['ListCheckEvents'](arg1);
+}
+
+export function ListChecks(arg1, arg2) {
+  return window['go']['main']['App']['ListChecks'](arg1, arg2);
+}
+
 export function ListCustomers(arg1) {
   return window['go']['main']['App']['ListCustomers'](arg1);
 }
@@ -214,6 +294,10 @@ export function ListFinancialAccounts() {
   return window['go']['main']['App']['ListFinancialAccounts']();
 }
 
+export function ListFiscalPeriods() {
+  return window['go']['main']['App']['ListFiscalPeriods']();
+}
+
 export function ListInventoryReservations(arg1, arg2, arg3) {
   return window['go']['main']['App']['ListInventoryReservations'](arg1, arg2, arg3);
 }
@@ -224,6 +308,14 @@ export function ListInvoices() {
 
 export function ListJournalEntries() {
   return window['go']['main']['App']['ListJournalEntries']();
+}
+
+export function ListLoanPayments(arg1) {
+  return window['go']['main']['App']['ListLoanPayments'](arg1);
+}
+
+export function ListLoans(arg1, arg2) {
+  return window['go']['main']['App']['ListLoans'](arg1, arg2);
 }
 
 export function ListMachines(arg1) {
@@ -240,6 +332,14 @@ export function ListMaterials(arg1) {
 
 export function ListOrders() {
   return window['go']['main']['App']['ListOrders']();
+}
+
+export function ListOwnerTransactions(arg1) {
+  return window['go']['main']['App']['ListOwnerTransactions'](arg1);
+}
+
+export function ListOwners(arg1) {
+  return window['go']['main']['App']['ListOwners'](arg1);
 }
 
 export function ListPayments() {
@@ -286,6 +386,10 @@ export function PostPurchase(arg1) {
   return window['go']['main']['App']['PostPurchase'](arg1);
 }
 
+export function PreviewFiscalPeriod(arg1) {
+  return window['go']['main']['App']['PreviewFiscalPeriod'](arg1);
+}
+
 export function ReactivateCustomer(arg1) {
   return window['go']['main']['App']['ReactivateCustomer'](arg1);
 }
@@ -296,6 +400,10 @@ export function ReactivateMachine(arg1) {
 
 export function ReactivateMaterial(arg1) {
   return window['go']['main']['App']['ReactivateMaterial'](arg1);
+}
+
+export function ReactivateOwner(arg1) {
+  return window['go']['main']['App']['ReactivateOwner'](arg1);
 }
 
 export function ReactivateService(arg1) {
@@ -370,6 +478,14 @@ export function ReverseExpense(arg1, arg2) {
   return window['go']['main']['App']['ReverseExpense'](arg1, arg2);
 }
 
+export function ReverseLoanPayment(arg1, arg2) {
+  return window['go']['main']['App']['ReverseLoanPayment'](arg1, arg2);
+}
+
+export function ReverseOwnerTransaction(arg1, arg2) {
+  return window['go']['main']['App']['ReverseOwnerTransaction'](arg1, arg2);
+}
+
 export function ReversePayment(arg1, arg2) {
   return window['go']['main']['App']['ReversePayment'](arg1, arg2);
 }
@@ -380,6 +496,14 @@ export function ReverseProductionConsumption(arg1, arg2) {
 
 export function ReverseTransfer(arg1, arg2) {
   return window['go']['main']['App']['ReverseTransfer'](arg1, arg2);
+}
+
+export function SaveShopSettings(arg1) {
+  return window['go']['main']['App']['SaveShopSettings'](arg1);
+}
+
+export function TransitionCheck(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['TransitionCheck'](arg1, arg2, arg3, arg4);
 }
 
 export function UpdateCustomer(arg1, arg2) {
@@ -408,6 +532,10 @@ export function UpdateOrderCommercialStatus(arg1, arg2) {
 
 export function UpdateOrderFulfillmentStatus(arg1, arg2) {
   return window['go']['main']['App']['UpdateOrderFulfillmentStatus'](arg1, arg2);
+}
+
+export function UpdateOwnerShares(arg1, arg2) {
+  return window['go']['main']['App']['UpdateOwnerShares'](arg1, arg2);
 }
 
 export function UpdateProductionJob(arg1, arg2) {
@@ -461,36 +589,3 @@ export function UpdateSupplier(arg1, arg2) {
 export function VoidInvoice(arg1) {
   return window['go']['main']['App']['VoidInvoice'](arg1);
 }
-
-export function CreateCheck(arg1) { return window['go']['main']['App']['CreateCheck'](arg1); }
-export function GetCheck(arg1) { return window['go']['main']['App']['GetCheck'](arg1); }
-export function ListChecks(arg1, arg2) { return window['go']['main']['App']['ListChecks'](arg1, arg2); }
-export function TransitionCheck(arg1, arg2, arg3, arg4) { return window['go']['main']['App']['TransitionCheck'](arg1, arg2, arg3, arg4); }
-export function ListCheckEvents(arg1) { return window['go']['main']['App']['ListCheckEvents'](arg1); }
-export function CreateLoan(arg1) { return window['go']['main']['App']['CreateLoan'](arg1); }
-export function GetLoan(arg1) { return window['go']['main']['App']['GetLoan'](arg1); }
-export function ListLoans(arg1, arg2) { return window['go']['main']['App']['ListLoans'](arg1, arg2); }
-export function ListLoanPayments(arg1) { return window['go']['main']['App']['ListLoanPayments'](arg1); }
-export function CreateLoanPayment(arg1) { return window['go']['main']['App']['CreateLoanPayment'](arg1); }
-export function ReverseLoanPayment(arg1, arg2) { return window['go']['main']['App']['ReverseLoanPayment'](arg1, arg2); }
-export function DeleteDraftCheck(arg1) { return window['go']['main']['App']['DeleteDraftCheck'](arg1); }
-export function ListOwners(arg1) { return window['go']['main']['App']['ListOwners'](arg1); }
-export function GetOwner(arg1) { return window['go']['main']['App']['GetOwner'](arg1); }
-export function CreateOwner(arg1) { return window['go']['main']['App']['CreateOwner'](arg1); }
-export function UpdateOwnerShares(arg1, arg2) { return window['go']['main']['App']['UpdateOwnerShares'](arg1, arg2); }
-export function ArchiveOwner(arg1) { return window['go']['main']['App']['ArchiveOwner'](arg1); }
-export function ReactivateOwner(arg1) { return window['go']['main']['App']['ReactivateOwner'](arg1); }
-export function DeleteOwner(arg1) { return window['go']['main']['App']['DeleteOwner'](arg1); }
-export function ListOwnerTransactions(arg1) { return window['go']['main']['App']['ListOwnerTransactions'](arg1); }
-export function CreateOwnerTransaction(arg1) { return window['go']['main']['App']['CreateOwnerTransaction'](arg1); }
-export function ReverseOwnerTransaction(arg1, arg2) { return window['go']['main']['App']['ReverseOwnerTransaction'](arg1, arg2); }
-export function ListFiscalPeriods() { return window['go']['main']['App']['ListFiscalPeriods'](); }
-export function GetFiscalPeriod(arg1) { return window['go']['main']['App']['GetFiscalPeriod'](arg1); }
-export function PreviewFiscalPeriod(arg1) { return window['go']['main']['App']['PreviewFiscalPeriod'](arg1); }
-export function CreateFiscalPeriod(arg1) { return window['go']['main']['App']['CreateFiscalPeriod'](arg1); }
-export function CloseFiscalPeriod(arg1, arg2) { return window['go']['main']['App']['CloseFiscalPeriod'](arg1, arg2); }
-export function GetReport(arg1, arg2, arg3) { return window['go']['main']['App']['GetReport'](arg1, arg2, arg3); }
-export function GetDashboard(arg1, arg2) { return window['go']['main']['App']['GetDashboard'](arg1, arg2); }
-export function GetPrintDocument(arg1, arg2, arg3, arg4, arg5) { return window['go']['main']['App']['GetPrintDocument'](arg1, arg2, arg3, arg4, arg5); }
-export function GetShopSettings() { return window['go']['main']['App']['GetShopSettings'](); }
-export function SaveShopSettings(arg1) { return window['go']['main']['App']['SaveShopSettings'](arg1); }
