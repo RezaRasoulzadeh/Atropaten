@@ -22,21 +22,13 @@ export function ApplyQuoteDiscount(arg1:string,arg2:number):Promise<main.QuoteDT
 
 export function ArchiveCustomer(arg1:string):Promise<main.CustomerDTO>;
 
-export function DeleteCustomer(arg1:string):Promise<void>;
-
 export function ArchiveMachine(arg1:string):Promise<main.MachineDTO>;
 
-export function DeleteMachine(arg1:string):Promise<void>;
-
 export function ArchiveMaterial(arg1:string):Promise<main.MaterialDTO>;
-
-export function DeleteMaterial(arg1:string):Promise<void>;
 
 export function ArchiveOwner(arg1:string):Promise<void>;
 
 export function ArchiveService(arg1:string):Promise<main.ServiceDTO>;
-
-export function DeleteService(arg1:string):Promise<void>;
 
 export function ArchiveSupplier(arg1:string):Promise<main.SupplierDTO>;
 
@@ -47,6 +39,8 @@ export function CancelPurchase(arg1:string):Promise<main.PurchaseDTO>;
 export function CloseFiscalPeriod(arg1:string,arg2:string):Promise<main.FiscalPeriodDTO>;
 
 export function ConvertQuoteToOrder(arg1:string):Promise<main.QuoteDTO>;
+
+export function CreateBackup():Promise<main.BackupInfoDTO>;
 
 export function CreateCheck(arg1:main.CheckInputDTO):Promise<main.CheckDTO>;
 
@@ -83,7 +77,6 @@ export function CreateProof(arg1:string,arg2:string,arg3:string,arg4:string,arg5
 export function CreatePurchase(arg1:main.PurchaseInput):Promise<main.PurchaseDTO>;
 
 export function CreateQuote(arg1:main.QuoteInput):Promise<main.QuoteDTO>;
-export function CreateBackup():Promise<main.BackupInfoDTO>;
 
 export function CreateService(arg1:main.ServiceInput):Promise<main.ServiceDTO>;
 
@@ -91,31 +84,41 @@ export function CreateSupplier(arg1:main.SupplierInput):Promise<main.SupplierDTO
 
 export function CreateTransfer(arg1:main.TransferInputDTO):Promise<main.TransferDTO>;
 
+export function DeleteCustomer(arg1:string):Promise<void>;
+
 export function DeleteDraftCheck(arg1:string):Promise<void>;
 
 export function DeleteDraftInvoice(arg1:string):Promise<void>;
 
 export function DeleteDraftPurchase(arg1:string):Promise<void>;
 
+export function DeleteMachine(arg1:string):Promise<void>;
+
+export function DeleteMaterial(arg1:string):Promise<void>;
+
 export function DeleteOwner(arg1:string):Promise<void>;
 
 export function DeleteProductionJob(arg1:string):Promise<void>;
+
+export function DeleteService(arg1:string):Promise<void>;
 
 export function DeleteSupplier(arg1:string):Promise<void>;
 
 export function GetCheck(arg1:string):Promise<main.CheckDTO>;
 
 export function GetCustomer(arg1:string):Promise<main.CustomerDTO>;
-export function GetDataPaths():Promise<main.DataPathsDTO>;
-export function GetLastBackup():Promise<main.BackupInfoDTO>;
 
 export function GetCustomerFinancialSummary(arg1:string):Promise<main.CustomerFinancialDTO>;
 
 export function GetDashboard(arg1:string,arg2:string):Promise<main.DashboardDTO>;
 
+export function GetDataPaths():Promise<main.DataPathsDTO>;
+
 export function GetFiscalPeriod(arg1:string):Promise<main.FiscalPeriodDTO>;
 
 export function GetInvoice(arg1:string):Promise<main.InvoiceDTO>;
+
+export function GetLastBackup():Promise<main.BackupInfoDTO>;
 
 export function GetLoan(arg1:string):Promise<main.LoanDTO>;
 
@@ -249,6 +252,8 @@ export function ReplaceOrderItem(arg1:string,arg2:string,arg3:main.OrderItemInpu
 
 export function ReplaceQuoteItem(arg1:string,arg2:string,arg3:main.OrderItemInput):Promise<main.QuoteDTO>;
 
+export function RestoreBackup(arg1:string):Promise<main.BackupInfoDTO>;
+
 export function ReverseExpense(arg1:string,arg2:string):Promise<main.ExpenseDTO>;
 
 export function ReverseLoanPayment(arg1:string,arg2:string):Promise<main.LoanPaymentDTO>;
@@ -262,9 +267,8 @@ export function ReverseProductionConsumption(arg1:string,arg2:string):Promise<vo
 export function ReverseTransfer(arg1:string,arg2:string):Promise<main.TransferDTO>;
 
 export function SaveShopSettings(arg1:main.ShopSettingsDTO):Promise<void>;
-export function RestoreBackup(arg1:string):Promise<main.BackupInfoDTO>;
+
 export function SelectBackupFile():Promise<string>;
-export function VerifyBackup(arg1:string):Promise<main.BackupInfoDTO>;
 
 export function TransitionCheck(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.CheckDTO>;
 
@@ -307,5 +311,7 @@ export function UpdateServiceCostComponent(arg1:string,arg2:string,arg3:main.Ser
 export function UpdateServiceParameter(arg1:string,arg2:string,arg3:main.ServiceParameterInput):Promise<main.ServiceDTO>;
 
 export function UpdateSupplier(arg1:string,arg2:main.SupplierInput):Promise<main.SupplierDTO>;
+
+export function VerifyBackup(arg1:string):Promise<main.BackupInfoDTO>;
 
 export function VoidInvoice(arg1:string):Promise<main.InvoiceDTO>;

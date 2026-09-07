@@ -42,24 +42,12 @@ export function ArchiveCustomer(arg1) {
   return window['go']['main']['App']['ArchiveCustomer'](arg1);
 }
 
-export function DeleteCustomer(arg1) {
-  return window['go']['main']['App']['DeleteCustomer'](arg1);
-}
-
 export function ArchiveMachine(arg1) {
   return window['go']['main']['App']['ArchiveMachine'](arg1);
 }
 
-export function DeleteMachine(arg1) {
-  return window['go']['main']['App']['DeleteMachine'](arg1);
-}
-
 export function ArchiveMaterial(arg1) {
   return window['go']['main']['App']['ArchiveMaterial'](arg1);
-}
-
-export function DeleteMaterial(arg1) {
-  return window['go']['main']['App']['DeleteMaterial'](arg1);
 }
 
 export function ArchiveOwner(arg1) {
@@ -68,10 +56,6 @@ export function ArchiveOwner(arg1) {
 
 export function ArchiveService(arg1) {
   return window['go']['main']['App']['ArchiveService'](arg1);
-}
-
-export function DeleteService(arg1) {
-  return window['go']['main']['App']['DeleteService'](arg1);
 }
 
 export function ArchiveSupplier(arg1) {
@@ -92,6 +76,10 @@ export function CloseFiscalPeriod(arg1, arg2) {
 
 export function ConvertQuoteToOrder(arg1) {
   return window['go']['main']['App']['ConvertQuoteToOrder'](arg1);
+}
+
+export function CreateBackup() {
+  return window['go']['main']['App']['CreateBackup']();
 }
 
 export function CreateCheck(arg1) {
@@ -166,10 +154,6 @@ export function CreateQuote(arg1) {
   return window['go']['main']['App']['CreateQuote'](arg1);
 }
 
-export function CreateBackup() {
-  return window['go']['main']['App']['CreateBackup']();
-}
-
 export function CreateService(arg1) {
   return window['go']['main']['App']['CreateService'](arg1);
 }
@@ -180,6 +164,10 @@ export function CreateSupplier(arg1) {
 
 export function CreateTransfer(arg1) {
   return window['go']['main']['App']['CreateTransfer'](arg1);
+}
+
+export function DeleteCustomer(arg1) {
+  return window['go']['main']['App']['DeleteCustomer'](arg1);
 }
 
 export function DeleteDraftCheck(arg1) {
@@ -194,12 +182,24 @@ export function DeleteDraftPurchase(arg1) {
   return window['go']['main']['App']['DeleteDraftPurchase'](arg1);
 }
 
+export function DeleteMachine(arg1) {
+  return window['go']['main']['App']['DeleteMachine'](arg1);
+}
+
+export function DeleteMaterial(arg1) {
+  return window['go']['main']['App']['DeleteMaterial'](arg1);
+}
+
 export function DeleteOwner(arg1) {
   return window['go']['main']['App']['DeleteOwner'](arg1);
 }
 
 export function DeleteProductionJob(arg1) {
   return window['go']['main']['App']['DeleteProductionJob'](arg1);
+}
+
+export function DeleteService(arg1) {
+  return window['go']['main']['App']['DeleteService'](arg1);
 }
 
 export function DeleteSupplier(arg1) {
@@ -214,14 +214,6 @@ export function GetCustomer(arg1) {
   return window['go']['main']['App']['GetCustomer'](arg1);
 }
 
-export function GetDataPaths() {
-  return window['go']['main']['App']['GetDataPaths']();
-}
-
-export function GetLastBackup() {
-  return window['go']['main']['App']['GetLastBackup']();
-}
-
 export function GetCustomerFinancialSummary(arg1) {
   return window['go']['main']['App']['GetCustomerFinancialSummary'](arg1);
 }
@@ -230,12 +222,20 @@ export function GetDashboard(arg1, arg2) {
   return window['go']['main']['App']['GetDashboard'](arg1, arg2);
 }
 
+export function GetDataPaths() {
+  return window['go']['main']['App']['GetDataPaths']();
+}
+
 export function GetFiscalPeriod(arg1) {
   return window['go']['main']['App']['GetFiscalPeriod'](arg1);
 }
 
 export function GetInvoice(arg1) {
   return window['go']['main']['App']['GetInvoice'](arg1);
+}
+
+export function GetLastBackup() {
+  return window['go']['main']['App']['GetLastBackup']();
 }
 
 export function GetLoan(arg1) {
@@ -284,14 +284,6 @@ export function GetService(arg1) {
 
 export function GetShopSettings() {
   return window['go']['main']['App']['GetShopSettings']();
-}
-
-export function RestoreBackup(arg1) {
-  return window['go']['main']['App']['RestoreBackup'](arg1);
-}
-
-export function SelectBackupFile() {
-  return window['go']['main']['App']['SelectBackupFile']();
 }
 
 export function GetSupplier(arg1) {
@@ -510,6 +502,10 @@ export function ReplaceQuoteItem(arg1, arg2, arg3) {
   return window['go']['main']['App']['ReplaceQuoteItem'](arg1, arg2, arg3);
 }
 
+export function RestoreBackup(arg1) {
+  return window['go']['main']['App']['RestoreBackup'](arg1);
+}
+
 export function ReverseExpense(arg1, arg2) {
   return window['go']['main']['App']['ReverseExpense'](arg1, arg2);
 }
@@ -538,8 +534,8 @@ export function SaveShopSettings(arg1) {
   return window['go']['main']['App']['SaveShopSettings'](arg1);
 }
 
-export function VerifyBackup(arg1) {
-  return window['go']['main']['App']['VerifyBackup'](arg1);
+export function SelectBackupFile() {
+  return window['go']['main']['App']['SelectBackupFile']();
 }
 
 export function TransitionCheck(arg1, arg2, arg3, arg4) {
@@ -624,6 +620,10 @@ export function UpdateServiceParameter(arg1, arg2, arg3) {
 
 export function UpdateSupplier(arg1, arg2) {
   return window['go']['main']['App']['UpdateSupplier'](arg1, arg2);
+}
+
+export function VerifyBackup(arg1) {
+  return window['go']['main']['App']['VerifyBackup'](arg1);
 }
 
 export function VoidInvoice(arg1) {
