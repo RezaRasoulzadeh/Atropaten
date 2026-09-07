@@ -1,12 +1,10 @@
-# M6-004 — UI system unification and UX hardening
+# M6-004 — UI system unification and layout hardening
 
 ## Objective
 
-Unify Atropaten’s entire desktop UI into one coherent design system and remove accumulated layout, spacing, sizing, theme, state-feedback, and interaction inconsistencies across all workspaces.
+Unify Atropaten’s visual system and desktop workspace geometry across the entire product. This task is strictly about layout, theme, spacing, sizing, density, shared visual primitives, responsive desktop behavior, and removal of accumulated one-off CSS/layout inconsistencies.
 
-This task is a product-wide UI/UX hardening pass, not a visual redesign and not a feature milestone. Preserve the existing information-dense Windows-first direction while making every screen feel like the same application.
-
-The implementation must reduce one-off CSS and page-specific interaction behavior by introducing shared tokens, shared primitives, shared state patterns, and consistent workspace geometry.
+Do not redesign the product from scratch and do not change business/accounting/inventory semantics.
 
 ## Scope
 
@@ -33,83 +31,68 @@ Audit and update all major workspaces and shared surfaces:
 - print-preview entry surfaces where applicable
 - global shell, sidebar, top bar, status bar, sticky headers, tabs, inspectors, forms, tables, and bottom action surfaces
 
-## 1. Establish a single visual token system
+## 1. Establish one semantic visual token system
 
-Create or consolidate shared CSS variables/tokens for at least:
+Consolidate shared CSS variables/tokens for:
 
 ### Color
 
 - application background
-- surface
-- raised surface
-- subtle surface
-- border
-- stronger border/divider
-- primary text
-- secondary text
-- muted text
-- accent
-- accent hover/pressed
+- surface / raised surface / subtle surface
+- border / divider
+- primary / secondary / muted text
+- accent / hover / pressed
 - focus ring
-- success
-- warning
-- danger/error
-- informational
-- disabled foreground/background/border
-- selected row/control state
-- hover row/control state
+- success / warning / danger / info
+- disabled states
+- hover / selected states
 
-Use semantic tokens. Feature components should not invent arbitrary hex/rgb colors when an existing semantic token fits.
+Use semantic tokens. Feature components should not invent arbitrary color values when an existing token fits.
 
-Green/red should remain semantic and not become decorative theme colors.
+Keep green/red primarily semantic.
 
 ### Spacing
 
-Define a compact spacing scale and use it consistently for:
+Define one compact spacing scale used consistently for:
 
-- page/workspace gutters
-- panel padding
-- card padding
+- workspace gutters
+- panel/card padding
 - section gaps
-- form row gaps
-- field label/control gaps
-- table cell padding
-- button icon/text gaps
-- toolbar/action spacing
+- form rows
+- labels/controls
+- tables
+- buttons
+- toolbars
 - tabs
-- dialogs/confirmations
+- inspectors
 
-Remove arbitrary near-duplicate values where they create visible inconsistency.
+Remove near-duplicate arbitrary spacing values that create visible inconsistency.
 
 ### Typography
 
 Centralize:
 
 - font family
-- base size
-- compact metadata size
+- base text size
+- metadata size
 - labels
 - table text
-- titles
+- page titles
 - section headings
 - numerical/financial emphasis
-- line heights
-- font weights
+- line heights / weights
 
-Avoid oversized marketing-style headings. Keep the dense desktop ERP character documented in `docs/UI.md`.
+Preserve the dense desktop ERP direction. No oversized marketing-style headings.
 
 ### Shape/elevation
 
 Centralize:
 
-- border radius scale
+- border-radius scale
 - shadow/elevation scale
-- border treatment
-- separators
+- separators and borders
 
-Do not use different card radii/shadows per feature without a functional reason.
-
-### Sizing
+### Control sizing
 
 Centralize dimensions for:
 
@@ -123,484 +106,228 @@ Centralize dimensions for:
 - sticky surfaces
 - status bar
 - inspectors
-- modals/confirmation panels if any
 
-Controls serving the same purpose should have the same height throughout the application.
+Equivalent controls must have equivalent heights everywhere.
 
 ## 2. Unify global workspace geometry
 
-Apply the documented workspace/sticky rules consistently everywhere.
+Apply the documented workspace/sticky rules consistently:
 
-Requirements:
-
-- one shared workspace gutter system
+- one workspace gutter system
 - one page-header pattern
 - one coordinated sticky-header/tab pattern
 - one bottom-action pattern
+- one z-index hierarchy
+- consistent sticky border/background/elevation
+- no unexplained top gaps
 - no page-specific fixed positioning when shared sticky primitives suffice
 - no content hidden under sticky surfaces
-- no unexplained large top gaps
-- no nested vertical scrolling unless required by a specific component
-- consistent z-index hierarchy
-- consistent sticky borders/background/elevation
-- correct scrolling/focus behavior
+- no accidental nested vertical scrolling
 
-Refactor shared primitives where necessary rather than patching each page independently.
+Refactor shared primitives rather than patching each page independently where possible.
 
 ## 3. Width, padding, margin, overflow and responsive desktop cleanup
 
-Audit every major page at representative widths:
+Audit every major page at:
 
 - narrow laptop-like desktop
-- ordinary desktop
+- normal desktop
 - wide desktop
 
 Fix:
 
 - unused workspace width
-- register/table panes that stop too early
-- oversized inspectors
-- undersized inspectors
-- clipped inputs/selects/textareas
-- controls extending outside panels
+- table/register panes that stop too early
+- bad inspector widths
+- clipped controls
+- controls outside panels
 - accidental horizontal scroll in forms
-- table overflow without deliberate scroll behavior
-- inconsistent page margins
-- inconsistent panel padding
-- inconsistent section spacing
-- two-column forms that do not collapse soon enough
-- long labels/values/badges overflowing
-- sticky surfaces overlapping content
-- action bars hidden behind status bar
+- bad two-column form collapse
+- inconsistent page/panel padding
+- inconsistent margins/gaps
+- long labels/values/badges overflow
+- sticky overlap
+- hidden bottom action surfaces
+- table overflow without intentional scrolling
 
-Use `min-width: 0`, `box-sizing: border-box`, sensible min/max widths, and responsive grid/flex behavior consistently.
+Use `min-width: 0`, border-box sizing, deliberate min/max widths, and responsive grid/flex behavior consistently.
 
-Mobile redesign is out of scope; narrow desktop windows must still degrade gracefully.
+Mobile redesign is out of scope.
 
-## 4. Shared form-control system
+## 4. Standardize shared visual primitives
 
-Introduce or consolidate reusable field patterns for:
+Consolidate and migrate shared components/styles for:
+
+- WorkspaceHeader
+- WorkspaceTabs
+- WorkspaceStickyStack
+- WorkspaceBottomActions
+- SectionPanel
+- AppButton / icon button variants
+- form controls
+- StatusBadge
+- table shell
+- inspector shell
+- toolbar/filter rows
+- compact cards
+
+Do not over-componentize trivial markup. The goal is visible consistency and removal of repeated conflicting CSS.
+
+## 5. Forms and controls — visual consistency only
+
+Standardize visual treatment for:
 
 - text input
 - numeric input
 - money input
 - quantity input
 - select
-- searchable select where already needed
 - textarea
 - checkbox/toggle
 - Jalali date/date-time picker
 - grouped fields
-- field help/description
-- inline action field
 
-Every field must support a coherent state model:
+Ensure:
 
-- default
-- hover
-- focus
-- populated
-- disabled
-- readonly
-- required
-- invalid
-- warning where relevant
-- success/confirmed only when meaningful
+- one control height system
+- consistent label spacing
+- consistent focus state
+- consistent disabled/readonly appearance
+- consistent required marker treatment
+- all controls fit their panels
+- two-column layouts collapse before clipping
 
-### Validation UX
+Detailed validation/error UX belongs to M6-005.
 
-Do not rely on raw backend errors dumped at page level when a specific field can be identified.
+## 6. Tables and density
 
-Implement a consistent model for:
-
-- field-level validation messages directly beneath or adjacent to the field
-- error border/state
-- error icon only if useful and consistent
-- preserving entered values after validation failure
-- focusing or scrolling to the first invalid field on submit when practical
-- clearing stale field errors after correction
-- distinguishing client-side obvious validation from server/domain validation
-- translating technical/backend validation messages into concise operator-facing text where the mapping is safe and unambiguous
-
-Do not duplicate authoritative business rules in Vue. Frontend validation may catch obvious input-shape errors; backend/domain validation remains authoritative.
-
-Examples of client-side validation suitable for UI:
-
-- required field empty
-- invalid numeric text
-- malformed basic date range before submit
-- zero/negative amount when the operation explicitly requires positive input
-
-Examples that remain backend-authoritative:
-
-- accounting balance/invariant
-- lifecycle transitions
-- ownership share coherence
-- stock availability/reservation rules
-- protected deletion
-- closed fiscal periods
-- historical reference protection
-
-## 5. Application feedback and toast system
-
-Replace inconsistent ad-hoc success/error notifications with one shared feedback system.
-
-Support at least:
-
-- success
-- error
-- warning
-- informational
-
-Requirements:
-
-- consistent placement
-- consistent sizing and spacing
-- concise title/message hierarchy where useful
-- semantic iconography
-- appropriate duration
-- errors should remain long enough to read
-- destructive/important failures should not disappear too quickly
-- duplicate rapid-fire toasts should be collapsed/deduplicated where practical
-- allow manual dismissal
-- success toasts should not obscure important controls
-- screen-reader-friendly live-region behavior if practical in the current stack
-
-Do not use toast as the only representation of a persistent page-blocking error.
-
-## 6. Loading, submitting and async states
-
-Every async user action must communicate progress coherently.
-
-Standardize:
-
-- initial page loading
-- table loading
-- inspector/detail loading
-- submit/save loading
-- destructive action loading
-- backup/restore loading
-- report loading
-- print-document loading
-
-Requirements:
-
-- prevent duplicate submissions
-- disable only the controls that must be disabled
-- preserve context while loading
-- use shared spinner/progress treatment
-- do not replace entire complex screens with blank content for small background refreshes
-- clearly distinguish loading from empty data
-- never leave buttons stuck in loading state after failure
-
-## 7. Empty, no-result and unavailable states
-
-Provide consistent empty states for:
-
-- truly empty domain
-- filtered search with no matches
-- unavailable due to prerequisite/configuration
-- selected row removed/archived
-- no report data in date range
-- no transactions/history
-
-Each state should explain what happened and provide the obvious next action when one exists.
-
-Avoid decorative oversized illustrations; keep states compact and operational.
-
-## 8. Error-state hierarchy
-
-Implement a consistent hierarchy:
-
-### Field error
-For validation tied to one input.
-
-### Form/operation error
-For a failed save/post/action that affects the current form or panel.
-
-### Page error
-For failure to load the page’s core data.
-
-### Toast error
-For transient action feedback when page context remains valid.
-
-### Critical confirmation/error
-For destructive, financial, restore, close-period, reversal, cancellation, or other high-impact operations.
-
-Raw Go/SQLite/Wails error strings should not normally be rendered directly to users when a safe friendly message can be produced. Keep enough technical detail available for debugging when necessary, but separate it from the primary operator-facing message.
-
-## 9. Confirmation and destructive-action UX
-
-Unify confirmation behavior for:
-
-- Delete
-- Cancel
-- Void
-- Reverse
-- Restore backup
-- Close fiscal period
-- destructive status transitions where applicable
-
-Requirements:
-
-- action-specific title
-- concise consequence description
-- identify the affected record when available
-- destructive primary button clearly styled as danger
-- safe cancel/default focus behavior
-- no generic `window.confirm` remaining on major workflows unless there is a documented reason
-- disabled/protected delete should explain why when possible rather than simply fail silently
-
-Archive and Delete must remain visually and semantically distinct.
-
-## 10. Tables and data-density consistency
-
-Unify all operational tables:
+Unify operational tables:
 
 - header height
 - row density
+- cell padding
 - typography
-- numeric alignment
-- money alignment
-- hover state
-- selected state
-- status badges
-- empty rows/state
-- loading state
-- sort affordance
-- filter/action toolbar geometry
-- horizontal overflow treatment
+- numeric/money alignment
+- selected/hover state
+- status badge placement
+- toolbar geometry
+- horizontal overflow behavior
 
-Money should align consistently and use grouped formatting.
+Money remains grouped consistently. User-facing dates remain Jalali.
 
-Dates must use Jalali presentation through shared utilities.
+## 7. Buttons, badges, actions
 
-Do not create page-specific status color mappings when shared semantic status primitives can cover them.
-
-## 11. Buttons and actions
-
-Define shared variants such as:
+Standardize button variants:
 
 - primary
 - secondary
-- subtle/ghost
+- ghost/subtle
 - danger
 - icon-only
 - compact table action
 
-Standardize:
+Standardize height, padding, icon size, gap, focus, hover, disabled, and pressed states.
 
-- height
-- padding
-- icon size
-- icon/text gap
-- hover
-- pressed
-- focus
-- disabled
-- loading
+Consolidate status badge sizing, radius, weight, spacing, and semantic visual grammar across all domains.
 
-Primary actions should be visually obvious but not excessively large.
+## 8. Theme consistency
 
-Avoid multiple competing primary buttons in the same action group.
-
-## 12. Status badges and semantic states
-
-Consolidate status badge styling across commercial, fulfillment, payment, production, check, loan, fiscal-period and other domain states.
-
-Do not force unrelated meanings into identical colors if that would mislead the operator, but use one shared visual grammar.
-
-Badge size, padding, radius, text weight and icon handling must be consistent.
-
-## 13. Accessibility and keyboard UX
-
-Without turning this task into a full accessibility certification, fix obvious desktop usability defects:
-
-- visible keyboard focus
-- sensible tab order
-- labels associated with inputs
-- icon-only buttons have accessible labels/tooltips
-- disabled controls visually clear
-- buttons use buttons, not clickable generic divs
-- destructive confirmations keyboard-operable
-- Escape closes dismissible transient surfaces where appropriate
-- Enter submits forms only where predictable/safe
-- color must not be the sole indicator of errors/status
-- sufficient contrast for text, borders, disabled states, error messages and focus rings
-
-Preserve reduced-motion support.
-
-## 14. Theme consistency
-
-Keep the product primarily light-themed for this release.
-
-Unify all surfaces against the documented visual language:
+Keep the release primarily light-themed:
 
 - neutral/warm gray shell background
-- white/subtle work surfaces
+- white/subtle surfaces
 - restrained shadows
 - subtle borders
 - one accent
-- minimal gradient usage
+- minimal gradients
 
-Remove local styles that visually contradict the rest of the application unless a domain-specific reason exists.
+Remove local styles that visibly contradict the system unless there is a domain-specific reason.
 
-A dark theme is out of scope unless already implemented and trivial to keep consistent.
+## 9. Accessibility basics related to layout/components
 
-## 15. Centralize recurring UI primitives
+Fix obvious shared-component issues:
 
-Prefer shared components/utilities rather than repeated markup/CSS.
+- visible keyboard focus
+- labels associated with fields
+- icon buttons have accessible labels/tooltips
+- disabled state visually clear
+- buttons use actual button elements
+- sufficient contrast
+- reduced-motion preserved
 
-Audit whether the project should consolidate components such as:
+Full UX/error-state behavior is M6-005.
 
-- AppButton
-- IconButton
-- FormField / FieldMessage
-- TextInput / SelectInput wrappers if useful
-- MoneyInput
-- QuantityInput
-- StatusBadge
-- AppToast / ToastHost
-- InlineAlert
-- EmptyState
-- LoadingState / Spinner
-- ConfirmDialog
-- SectionPanel
-- WorkspaceHeader
-- WorkspaceTabs
-- WorkspaceStickyStack
-- WorkspaceBottomActions
-- DataTable shell
+## 10. Audit every major screen
 
-Do not over-componentize trivial one-off markup. The goal is removal of visible/systemic inconsistency, not abstraction for its own sake.
+Do not stop after introducing tokens/components. Migrate every major workspace and verify:
 
-## 16. Frontend error normalization
-
-Add one central error-normalization utility for Wails/backend failures.
-
-It should:
-
-- accept unknown thrown values
-- extract a stable readable message
-- identify known validation/domain categories where safely possible
-- map known protected-delete/conflict/not-found/validation cases to friendly UI copy
-- preserve a fallback message
-- avoid scattering `String(e)` throughout feature components
-
-Do not parse unstable backend strings into new business logic. If backend error typing must be minimally improved to make UI handling reliable, keep that change narrow and preserve domain authority.
-
-## 17. Audit every major screen
-
-Do not stop after creating shared components. Migrate and inspect every major workspace.
-
-For each workspace verify:
-
-- header geometry
+- page header geometry
 - tabs
 - primary/secondary actions
 - page padding
 - panel padding
 - form alignment
-- input/control heights
+- control heights
 - table density
 - inspector width
-- empty state
-- loading state
-- error state
-- toast behavior
-- delete/archive confirmation
 - responsive desktop behavior
 - no clipping/overflow
-- Jalali date formatting
-- grouped Rial/Toman formatting
+- no accidental unused width
+- no sticky overlap
+- grouped Rial/Toman
+- Jalali dates
 
-## 18. Preserve domain and application behavior
-
-This task must not rewrite accounting, inventory, production, pricing or persistence behavior merely to simplify the UI.
+## 11. Preserve behavior
 
 Do not:
 
-- move authoritative calculations into Vue
 - change accounting semantics
 - change inventory semantics
 - change posting/idempotency behavior
-- change migrations unless narrowly required for a UI setting that already belongs in persistence
-- replace controlled backend transitions with frontend guesses
-- weaken confirmation/protection rules
+- move authoritative calculations into Vue
+- rewrite backend domain behavior to simplify layout
 
-## 19. Tests and verification
+## 12. Documentation
 
-Add focused frontend tests where the project already has an appropriate testing mechanism, especially for shared utilities/components and error normalization.
-
-At minimum, verify through implementation/build inspection:
-
-- representative field validation
-- failed submit preserves values
-- loading prevents duplicate submit
-- success/error/warning/info toast states
-- protected delete shows useful failure
-- destructive confirmation can cancel safely
-- empty vs loading states are distinct
-- money/date formatting uses shared utilities
-- no known page still uses raw `String(error)` as its primary user-facing error path
-- no major workflow still uses `window.confirm`
-
-Do not add a large new frontend testing framework solely for this task unless clearly justified.
-
-## 20. Documentation
-
-Update `docs/UI.md` so the implemented design system is explicit rather than aspirational.
-
-Document:
+Update `docs/UI.md` so the implemented design system is explicit:
 
 - token philosophy
 - spacing scale
 - typography hierarchy
 - control sizes
 - button variants
-- feedback hierarchy
-- form validation behavior
-- toast behavior
-- confirmation behavior
-- loading/empty/error patterns
-- shared workspace geometry
+- panel/table/inspector geometry
+- sticky/workspace rules
 - responsive desktop acceptance widths
 
-Create `docs/UI_UX_AUDIT.md` summarizing:
+Create `docs/UI_LAYOUT_AUDIT.md` documenting:
 
 - screens audited
-- shared primitives introduced/refactored
-- major inconsistencies removed
-- deferred visual/non-blocking issues
-- any remaining manual Windows/WebView-specific UI checks
+- visual primitives introduced/refactored
+- layout inconsistencies fixed
+- remaining manual Windows/WebView layout checks
+- intentionally deferred visual issues
 
 ## Acceptance criteria
 
 M6-004 is complete only when:
 
-1. Major workspaces visibly share one layout/spacing/sizing system.
+1. Major workspaces visibly share one layout/spacing/sizing/theme system.
 2. Page headers, tabs, panels, tables, forms and inspectors use consistent geometry.
-3. Equivalent controls have equivalent sizes and states everywhere.
+3. Equivalent controls have equivalent sizes everywhere.
 4. No major page has obvious unused-width, clipping, overflow or sticky-overlap defects at representative desktop widths.
-5. Field-level validation is visually consistent and errors appear near the relevant input when possible.
-6. Backend/domain failures use a central normalization path rather than ad-hoc `String(e)` rendering throughout the application.
-7. Toasts use one shared success/error/warning/info system.
-8. Loading/submitting states prevent duplicate actions and remain visually consistent.
-9. Empty/no-result states are distinct from loading and failure states.
-10. Major destructive workflows use the shared confirmation experience instead of browser `window.confirm`.
-11. Archive and Delete remain distinct.
-12. Money and user-facing dates remain consistently grouped and Jalali formatted.
-13. Keyboard focus is visible and obvious accessibility defects in shared controls are corrected.
-14. No accounting, inventory, production, reporting or persistence authority is moved into the frontend.
-15. `docs/UI.md` reflects the final implemented rules.
-16. `docs/UI_UX_AUDIT.md` records the product-wide pass.
-17. Existing Go tests continue to pass.
-18. Frontend production build passes.
-19. `git diff --check` passes.
+5. One semantic token system is used across the product instead of feature-local visual values.
+6. Tables use consistent density and alignment.
+7. Buttons/badges use shared variants and dimensions.
+8. Money/date presentation remains grouped and Jalali.
+9. No accounting/inventory/production/reporting authority moves into the frontend.
+10. `docs/UI.md` reflects the implemented design system.
+11. `docs/UI_LAYOUT_AUDIT.md` records the full pass.
+12. Existing Go tests pass.
+13. Frontend production build passes.
+14. `git diff --check` passes.
 
 ## Validation
-
-Run:
 
 ```bash
 go test ./...
@@ -608,11 +335,9 @@ cd frontend && npm run build
 cd .. && git diff --check
 ```
 
-If the existing frontend test suite is available, run it as well.
+Run existing frontend tests if available.
 
-If Wails CLI is available, run an appropriate local Wails build/validation. If it is unavailable, state that explicitly.
-
-Do not claim Windows/WebView native validation unless it was actually performed on Windows.
+If Wails CLI is unavailable, state that explicitly. Do not claim Windows/WebView native validation unless actually performed on Windows.
 
 ## Delivery
 
