@@ -489,3 +489,8 @@ export function GetFiscalPeriod(arg1) { return window['go']['main']['App']['GetF
 export function PreviewFiscalPeriod(arg1) { return window['go']['main']['App']['PreviewFiscalPeriod'](arg1); }
 export function CreateFiscalPeriod(arg1) { return window['go']['main']['App']['CreateFiscalPeriod'](arg1); }
 export function CloseFiscalPeriod(arg1, arg2) { return window['go']['main']['App']['CloseFiscalPeriod'](arg1, arg2); }
+export function GetReport(arg1, arg2, arg3) { return window['go']['main']['App']['GetReport'](arg1, arg2, arg3); }
+export function GetDashboard(arg1, arg2) { return window['go']['main']['App']['GetDashboard'](arg1, arg2); }
+export function GetPrintDocument(arg1, arg2, arg3, arg4, arg5) { return window['go']['main']['App']['GetPrintDocument'](arg1, arg2, arg3, arg4, arg5); }
+export function GetShopSettings() { return window['go']['main']['App']['GetShopSettings'](); }
+export function SaveShopSettings(arg1) { return window['go']['main']['App']['SaveShopSettings'](arg1); }

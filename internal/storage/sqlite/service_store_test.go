@@ -46,8 +46,8 @@ func TestMigrationUpgradeKeepsExistingMaterials(t *testing.T) {
 	if err := store.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil {
 		t.Fatalf("read migration version: %v", err)
 	}
-	if version != 12 {
-		t.Fatalf("migration version = %d, want 12", version)
+	if version != 13 {
+		t.Fatalf("migration version = %d, want 13", version)
 	}
 	material, err := store.Get(context.Background(), "MAT-legacy")
 	if err != nil {

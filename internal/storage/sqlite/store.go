@@ -512,6 +512,26 @@ var migrations = []migration{{
 			('ACC-OWNER-LOAN-RECEIVABLE','1410','Owner Loan Receivable','asset',1,1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 			('ACC-RETAINED-EARNINGS','3400','Retained Earnings','equity',1,1,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now'));`,
 	},
+	{
+		version: 13,
+		sql: `CREATE TABLE shop_settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL DEFAULT '',
+			updated_at TEXT NOT NULL
+		);
+		INSERT INTO shop_settings(key,value,updated_at) VALUES
+			('shop_name','Atropaten','2026-01-01T00:00:00Z'),
+			('shop_subtitle','','2026-01-01T00:00:00Z'),
+			('phone','','2026-01-01T00:00:00Z'),
+			('address','','2026-01-01T00:00:00Z'),
+			('email','','2026-01-01T00:00:00Z'),
+			('website','','2026-01-01T00:00:00Z'),
+			('registration_id','','2026-01-01T00:00:00Z'),
+			('tax_id','','2026-01-01T00:00:00Z'),
+			('logo_path','','2026-01-01T00:00:00Z'),
+			('document_footer','','2026-01-01T00:00:00Z'),
+			('document_notes','','2026-01-01T00:00:00Z');`,
+	},
 }
 
 func (s *Store) seedAccounting(ctx context.Context) error {

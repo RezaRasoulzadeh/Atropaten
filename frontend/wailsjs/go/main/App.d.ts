@@ -258,3 +258,8 @@ export function GetFiscalPeriod(arg1:string):Promise<main.FiscalPeriodDTO>;
 export function PreviewFiscalPeriod(arg1:string):Promise<main.FiscalPeriodDTO>;
 export function CreateFiscalPeriod(arg1:main.FiscalPeriodInputDTO):Promise<main.FiscalPeriodDTO>;
 export function CloseFiscalPeriod(arg1:string,arg2:string):Promise<main.FiscalPeriodDTO>;
+export function GetReport(arg1:string,arg2:string,arg3:string):Promise<any>;
+export function GetDashboard(arg1:string,arg2:string):Promise<any>;
+export function GetPrintDocument(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<any>;
+export function GetShopSettings():Promise<any>;
+export function SaveShopSettings(arg1:any):Promise<void>;

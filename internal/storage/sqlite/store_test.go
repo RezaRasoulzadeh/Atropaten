@@ -28,8 +28,8 @@ func TestFreshDatabaseMigratesAndReopens(t *testing.T) {
 	if err := reopened.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil {
 		t.Fatalf("migration metadata: %v", err)
 	}
-	if version != 12 {
-		t.Fatalf("migration version = %d, want 12", version)
+	if version != 13 {
+		t.Fatalf("migration version = %d, want 13", version)
 	}
 	var foreignKeys int
 	if err := reopened.db.QueryRow(`PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil {

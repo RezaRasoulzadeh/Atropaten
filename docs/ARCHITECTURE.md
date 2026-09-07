@@ -114,6 +114,17 @@ division; the deterministic remainder goes to the final owner in ascending
 owner-ID order. Closing creates one balanced allocation journal and immutable
 allocation rows, and closed-period posting/reversal is rejected.
 
+For M6-001, reporting is a Go-side read/query boundary. Financial reports
+aggregate posted journal lines, inventory reports aggregate immutable movement
+rows, and production reports aggregate persisted jobs and consumption/waste.
+Sales reports use saved invoice/order snapshots. The dashboard is an
+attention-oriented projection of these queries and contains no authoritative
+business totals. Quote, invoice, payment receipt, and party statements use a
+print-document model populated from saved snapshots and transactions. Shop
+identity is persisted as small key/value metadata; logo paths are references,
+not SQLite blobs. The frontend uses a dedicated print surface and browser or
+WebView printing with A4 print CSS.
+
 ## Inventory boundary
 
 Inventory quantity is derived from movements. Business modules request inventory operations; they do not directly edit a current-stock number as the source of truth.
