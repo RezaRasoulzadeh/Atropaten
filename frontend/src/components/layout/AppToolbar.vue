@@ -77,6 +77,7 @@ defineEmits<{
       aria-label="Display currency"
       @update:model-value="$emit('update:currency-unit', $event as CurrencyUnit)"
     />
+    <slot name="notifications" />
     <nav class="hidden items-center gap-1 lg:flex" aria-label="Quick actions">
       <button
         class="btn btn-ghost btn-square"

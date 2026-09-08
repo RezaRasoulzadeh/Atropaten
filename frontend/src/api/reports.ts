@@ -40,7 +40,25 @@ export interface ReportRecord {
   summaries: ReportSummary[]
   rows: ReportRow[]
 }
+export interface DashboardOrderRecord {
+  id: string
+  orderNumber: string
+  customer: string
+  commercialStatus: string
+  fulfillmentStatus: string
+  dueDate: string
+  totalRial: number
+  referenceCount: number
+}
+export interface DashboardTrendRecord {
+  date: string
+  revenueRial: number
+  grossProfitRial: number
+}
 export interface DashboardRecord {
+  ordersNeedingAttention: DashboardOrderRecord[] | null
+  trend: DashboardTrendRecord[] | null
+  pipeline: { status: string; count: number }[] | null
   startDate: string
   endDate: string
   revenueRial: number
@@ -54,10 +72,45 @@ export interface DashboardRecord {
   overdueOrderCount: number
   inProductionCount: number
   readyOrderCount: number
-  attention: any[]
-  lowStock: any[]
-  production: any[]
-  recentActivity: any[]
+  attention:
+    | {
+        label: string
+        detail: string
+        date: string
+        kind: string
+        amountRial: number
+      }[]
+    | null
+  lowStock:
+    | {
+        id: string
+        name: string
+        unit: string
+        availableUnits: number
+        reorderLevelUnits: number
+      }[]
+    | null
+  production:
+    | {
+        id: string
+        orderId: string
+        orderNumber: string
+        customer: string
+        service: string
+        status: string
+        dueDate: string
+      }[]
+    | null
+  recentActivity:
+    | {
+        id: string
+        date: string
+        label: string
+        detail: string
+        direction: string
+        amountRial: number
+      }[]
+    | null
 }
 export interface ShopSettingsRecord {
   shopName: string

@@ -152,7 +152,7 @@ watch(() => props.refreshKey, load, { immediate: true });
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="min-w-0 space-y-4">
     <WorkspaceStickyStack>
       <WorkspaceHeader
         eyebrow="Workspace / relationships"
@@ -186,7 +186,7 @@ watch(() => props.refreshKey, load, { immediate: true });
 
     <InlineAlert v-if="error" :message="error" />
 
-    <MasterDetail>
+    <MasterDetail wide>
       <RegisterList
         title="Customer register"
         subtitle="Select a customer to inspect contact and account details."
@@ -206,28 +206,35 @@ watch(() => props.refreshKey, load, { immediate: true });
           @activate="select(customer)"
         >
           <template #icon><UserRound :size="17" aria-hidden="true" /></template>
-          <template #identity
-            ><strong class="block truncate text-sm">{{ customer.name }}</strong></template
-          >
-          <template #meta>
-            <span
-              class="mt-1 flex min-w-0 flex-wrap gap-x-3 gap-y-0.5 text-xs text-base-content/60"
-            >
-              <span>{{ customer.phone || 'No phone' }}</span>
-              <span>{{ customer.email || 'No email' }}</span>
-            </span>
+          <template #identity>
+            <div class="flex min-w-0 items-center justify-between gap-3">
+              <strong class="block min-w-0 truncate text-sm font-semibold">{{ customer.name }}</strong>
+              <StatusBadge
+                class="shrink-0"
+                :label="customer.active ? 'Active' : 'Archived'"
+                :tone="customer.active ? 'green' : 'slate'"
+              />
+            </div>
           </template>
-          <template #status
-            ><StatusBadge
-              :label="customer.active ? 'Active' : 'Archived'"
-              :tone="customer.active ? 'green' : 'slate'"
-          /></template>
+          <template #meta>
+            <div class="mt-2 grid min-w-0 grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2">
+              <div class="min-w-0">
+                <span class="block text-base-content/50">Phone</span>
+                <span class="block truncate text-base-content/80">{{ customer.phone || 'No phone' }}</span>
+              </div>
+              <div class="min-w-0">
+                <span class="block text-base-content/50">Email</span>
+                <span class="block break-all text-base-content/80">{{ customer.email || 'No email' }}</span>
+              </div>
+            </div>
+          </template>
         </RegisterRow>
       </RegisterList>
 
       <InspectorShell
         v-if="editing"
         :title="selectedId ? 'Edit customer' : 'New customer'"
+        :sticky-footer="false"
         :subtitle="
           selectedId ? 'Update this customer profile.' : 'Add a contact for commercial workflows.'
         "
@@ -288,18 +295,21 @@ watch(() => props.refreshKey, load, { immediate: true });
           </FormSection>
         </form>
         <template #footer>
-          <button class="btn btn-ghost" type="button" :disabled="saving" @click="editing = false">
-            Cancel
-          </button>
-          <button class="btn btn-primary" type="submit" form="customer-editor" :disabled="busy || (saving)" >
-            {{ saving ? 'Saving…' : 'Save customer' }}
-          </button>
+          <div class="flex w-full justify-end gap-2">
+            <button class="btn btn-ghost" type="button" :disabled="saving" @click="editing = false">
+              Cancel
+            </button>
+            <button class="btn btn-primary" type="submit" form="customer-editor" :disabled="busy || saving">
+              {{ saving ? 'Saving…' : 'Save customer' }}
+            </button>
+          </div>
         </template>
       </InspectorShell>
 
       <InspectorShell
         v-else-if="selected"
         :title="selected.name"
+        :sticky-footer="false"
         subtitle="Customer profile and account details."
       >
         <template #header
@@ -341,12 +351,14 @@ watch(() => props.refreshKey, load, { immediate: true });
           </p>
         </div>
         <template #footer>
-          <button class="btn btn-ghost text-error" type="button" @click="remove" :disabled="busy">
-            <Trash2 :size="14" />Delete
-          </button>
-          <button class="btn btn-ghost" type="button" @click="toggle" :disabled="busy">
-            {{ selected.active ? 'Archive customer' : 'Reactivate customer' }}
-          </button>
+          <div class="flex w-full flex-wrap items-center justify-between gap-2">
+            <button class="btn btn-ghost text-error" type="button" @click="remove" :disabled="busy">
+              <Trash2 :size="14" />Delete
+            </button>
+            <button class="btn btn-ghost" type="button" @click="toggle" :disabled="busy">
+              {{ selected.active ? 'Archive customer' : 'Reactivate customer' }}
+            </button>
+          </div>
         </template>
       </InspectorShell>
 

@@ -67,24 +67,46 @@ type DashboardActivityDTO struct {
 	Direction  string `json:"direction"`
 	AmountRial int64  `json:"amountRial"`
 }
+type DashboardOrderDTO struct {
+	ID                string `json:"id"`
+	OrderNumber       string `json:"orderNumber"`
+	Customer          string `json:"customer"`
+	CommercialStatus  string `json:"commercialStatus"`
+	FulfillmentStatus string `json:"fulfillmentStatus"`
+	DueDate           string `json:"dueDate"`
+	TotalRial         int64  `json:"totalRial"`
+	ReferenceCount    int    `json:"referenceCount"`
+}
+type DashboardTrendDTO struct {
+	Date            string `json:"date"`
+	RevenueRial     int64  `json:"revenueRial"`
+	GrossProfitRial int64  `json:"grossProfitRial"`
+}
+type DashboardPipelineDTO struct {
+	Status string `json:"status"`
+	Count  int    `json:"count"`
+}
 type DashboardDTO struct {
-	StartDate         string                   `json:"startDate"`
-	EndDate           string                   `json:"endDate"`
-	RevenueRial       int64                    `json:"revenueRial"`
-	GrossProfitRial   int64                    `json:"grossProfitRial"`
-	CashRial          int64                    `json:"cashRial"`
-	BankRial          int64                    `json:"bankRial"`
-	ReceivableRial    int64                    `json:"receivableRial"`
-	PayableRial       int64                    `json:"payableRial"`
-	OpenInvoiceCount  int                      `json:"openInvoiceCount"`
-	DueOrderCount     int                      `json:"dueOrderCount"`
-	OverdueOrderCount int                      `json:"overdueOrderCount"`
-	InProductionCount int                      `json:"inProductionCount"`
-	ReadyOrderCount   int                      `json:"readyOrderCount"`
-	Attention         []DashboardAttentionDTO  `json:"attention"`
-	LowStock          []DashboardLowStockDTO   `json:"lowStock"`
-	Production        []DashboardProductionDTO `json:"production"`
-	RecentActivity    []DashboardActivityDTO   `json:"recentActivity"`
+	OrdersNeedingAttention []DashboardOrderDTO      `json:"ordersNeedingAttention"`
+	Trend                  []DashboardTrendDTO      `json:"trend"`
+	Pipeline               []DashboardPipelineDTO   `json:"pipeline"`
+	StartDate              string                   `json:"startDate"`
+	EndDate                string                   `json:"endDate"`
+	RevenueRial            int64                    `json:"revenueRial"`
+	GrossProfitRial        int64                    `json:"grossProfitRial"`
+	CashRial               int64                    `json:"cashRial"`
+	BankRial               int64                    `json:"bankRial"`
+	ReceivableRial         int64                    `json:"receivableRial"`
+	PayableRial            int64                    `json:"payableRial"`
+	OpenInvoiceCount       int                      `json:"openInvoiceCount"`
+	DueOrderCount          int                      `json:"dueOrderCount"`
+	OverdueOrderCount      int                      `json:"overdueOrderCount"`
+	InProductionCount      int                      `json:"inProductionCount"`
+	ReadyOrderCount        int                      `json:"readyOrderCount"`
+	Attention              []DashboardAttentionDTO  `json:"attention"`
+	LowStock               []DashboardLowStockDTO   `json:"lowStock"`
+	Production             []DashboardProductionDTO `json:"production"`
+	RecentActivity         []DashboardActivityDTO   `json:"recentActivity"`
 }
 type ShopSettingsDTO struct {
 	ShopName       string `json:"shopName"`
@@ -218,6 +240,15 @@ func reportDTO(v domain.Report) ReportDTO {
 }
 func dashboardDTO(v domain.Dashboard) DashboardDTO {
 	out := DashboardDTO{StartDate: v.StartDate, EndDate: v.EndDate, RevenueRial: v.RevenueRial, GrossProfitRial: v.GrossProfitRial, CashRial: v.CashRial, BankRial: v.BankRial, ReceivableRial: v.ReceivableRial, PayableRial: v.PayableRial, OpenInvoiceCount: v.OpenInvoiceCount, DueOrderCount: v.DueOrderCount, OverdueOrderCount: v.OverdueOrderCount, InProductionCount: v.InProductionCount, ReadyOrderCount: v.ReadyOrderCount}
+	for _, x := range v.OrdersNeedingAttention {
+		out.OrdersNeedingAttention = append(out.OrdersNeedingAttention, DashboardOrderDTO{x.ID, x.OrderNumber, x.Customer, x.CommercialStatus, x.FulfillmentStatus, x.DueDate, x.TotalRial, x.ReferenceCount})
+	}
+	for _, x := range v.Trend {
+		out.Trend = append(out.Trend, DashboardTrendDTO{x.Date, x.RevenueRial, x.GrossProfitRial})
+	}
+	for _, x := range v.Pipeline {
+		out.Pipeline = append(out.Pipeline, DashboardPipelineDTO{x.Status, x.Count})
+	}
 	for _, x := range v.Attention {
 		out.Attention = append(out.Attention, DashboardAttentionDTO{x.Label, x.Detail, x.Date, x.Kind, x.AmountRial})
 	}

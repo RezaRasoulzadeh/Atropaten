@@ -7,3 +7,15 @@ export function formatQuantityUnits(value: string): string {
   const fraction = (absolute % 1000000n).toString().padStart(6, '0').replace(/0+$/, '')
   return `${units < 0n ? '-' : ''}${absolute / 1000000n}${fraction ? `.${fraction}` : ''}`
 }
+
+export function formatQuantityInput(value: string): string {
+  const normalized = value.replace(/,/g, '')
+  if (!normalized || !/^\d*(\.\d*)?$/.test(normalized)) return value
+  const [integer, fraction] = normalized.split('.')
+  const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return fraction !== undefined ? `${grouped || '0'}.${fraction}` : grouped
+}
+
+export function parseQuantityInput(value: string): string {
+  return value.replace(/,/g, '')
+}

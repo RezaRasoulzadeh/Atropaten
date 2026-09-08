@@ -459,7 +459,78 @@ func (s *Store) Dashboard(ctx context.Context, start, end time.Time) (domain.Das
 		d.RecentActivity = append(d.RecentActivity, a)
 	}
 	rows.Close()
+	if err := s.dashboardChartsAndOrders(ctx, start, end, &d); err != nil {
+		return d, err
+	}
 	return d, nil
+}
+
+// Read-only projections: money remains integer Rial and order eligibility is owned here.
+func (s *Store) dashboardChartsAndOrders(ctx context.Context, start, end time.Time, d *domain.Dashboard) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT o.id,o.order_number,o.customer_name_snapshot,o.commercial_status,o.fulfillment_status,COALESCE(o.promised_at,''),o.total_rial,
+ (SELECT COUNT(*) FROM attachments a WHERE a.owner_type='order' AND a.owner_id=o.id AND a.category='reference') AS refs
+ FROM orders o WHERE o.commercial_status NOT IN ('Cancelled','Closed') AND o.fulfillment_status<>'Delivered'
+ AND (o.commercial_status='Confirmed' OR EXISTS(SELECT 1 FROM attachments a WHERE a.owner_type='order' AND a.owner_id=o.id AND a.category='reference'))
+ ORDER BY o.promised_at IS NULL,o.promised_at,o.order_number,o.id`)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var o domain.DashboardOrder
+		if err := rows.Scan(&o.ID, &o.OrderNumber, &o.Customer, &o.CommercialStatus, &o.FulfillmentStatus, &o.DueDate, &o.TotalRial, &o.ReferenceCount); err != nil {
+			rows.Close()
+			return err
+		}
+		d.OrdersNeedingAttention = append(d.OrdersNeedingAttention, o)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	rows, err = s.db.QueryContext(ctx, `SELECT CASE WHEN commercial_status='Draft' THEN 'Draft' ELSE fulfillment_status END,COUNT(*) FROM orders WHERE commercial_status NOT IN ('Cancelled','Closed') AND fulfillment_status<>'Delivered' GROUP BY 1 ORDER BY 1`)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var p domain.DashboardPipeline
+		if err := rows.Scan(&p.Status, &p.Count); err != nil {
+			rows.Close()
+			return err
+		}
+		d.Pipeline = append(d.Pipeline, p)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	from, until := reportWindow(start, end)
+	rows, err = s.db.QueryContext(ctx, `SELECT substr(je.posted_at,1,10),SUM(CASE WHEN jl.account_id='ACC-REVENUE' THEN jl.credit_rial-jl.debit_rial ELSE 0 END),SUM(jl.credit_rial-jl.debit_rial) FROM journal_lines jl JOIN journal_entries je ON je.id=jl.journal_entry_id WHERE jl.account_id IN ('ACC-REVENUE','ACC-COGS') AND je.posted_at>=? AND je.posted_at<? GROUP BY 1 ORDER BY 1`, from, until)
+	if err != nil {
+		return err
+	}
+	daily := map[string]domain.DashboardTrend{}
+	for rows.Next() {
+		var t domain.DashboardTrend
+		if err := rows.Scan(&t.Date, &t.RevenueRial, &t.GrossProfitRial); err != nil {
+			rows.Close()
+			return err
+		}
+		daily[t.Date] = t
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	for date := start; !date.After(end); date = date.AddDate(0, 0, 1) {
+		key := date.Format("2006-01-02")
+		t := daily[key]
+		t.Date = key
+		d.Trend = append(d.Trend, t)
+	}
+	return nil
 }
 
 func (s *Store) PrintDocument(ctx context.Context, kind, id, start, end, partyID string) (domain.PrintDocument, error) {

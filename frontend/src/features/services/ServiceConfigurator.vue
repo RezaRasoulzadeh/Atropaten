@@ -141,24 +141,30 @@ function typeLabel(type: string) {
 </script>
 
 <template>
-  <section aria-label="Service pricing configurator" class="min-w-0 space-y-4">
-    <header class="flex min-w-0 flex-wrap items-start justify-between gap-3">
-      <div class="min-w-0 space-y-3">
-        <p>Live pricing preview</p>
-        <h2 class="text-base font-semibold">
-          <Calculator :size="17" :stroke-width="1.8" aria-hidden="true" />{{ service.name }}
+  <section aria-label="Service pricing configurator" class="min-w-0 space-y-5">
+    <header class="flex min-w-0 flex-wrap items-start justify-between gap-3 border-b border-base-300 pb-4">
+      <div class="min-w-0">
+        <p class="text-xs font-semibold uppercase tracking-wide text-primary">Live pricing preview</p>
+        <h2 class="mt-1 flex min-w-0 items-center gap-2 text-base font-semibold">
+          <Calculator :size="17" :stroke-width="1.8" aria-hidden="true" />
+          <span class="truncate">{{ service.name }}</span>
         </h2>
-        <p>Resolve the persisted parameters and inspect the ordered cost explanation.</p>
+        <p class="mt-1 text-xs leading-5 text-base-content/60">Resolve the persisted parameters and inspect the ordered cost explanation.</p>
       </div>
-      <span v-if="loading"><LoaderCircle :size="15" :stroke-width="1.8" />Calculating</span>
+      <span v-if="loading" class="badge badge-ghost shrink-0 gap-1 text-xs">
+        <LoaderCircle :size="13" :stroke-width="1.8" aria-hidden="true" />Calculating
+      </span>
     </header>
-    <div class="min-w-0 space-y-3">
-      <div class="min-w-0 space-y-3">
-        <div class="min-w-0 space-y-3">
-          <h3 class="text-sm font-semibold">Parameters</h3>
-          <span>{{ service.parameters.length }} inputs</span>
+    <div class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(19rem,0.8fr)]">
+      <div class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-200/25 p-4">
+        <div class="flex min-w-0 items-start justify-between gap-3">
+          <div>
+            <h3 class="text-sm font-semibold">Parameters</h3>
+            <p class="mt-1 text-xs text-base-content/60">Values used to calculate this service.</p>
+          </div>
+          <span class="badge badge-ghost shrink-0 text-xs">{{ service.parameters.length }} inputs</span>
         </div>
-        <div v-if="service.parameters.length">
+        <div v-if="service.parameters.length" class="min-w-0 space-y-3">
           <FormField class="gap-1" v-for="parameter in service.parameters" :key="parameter.id"
             ><span>{{ parameter.label }}<em v-if="parameter.required">required</em></span>
             <AppInput
@@ -208,38 +214,36 @@ function typeLabel(type: string) {
             >
           </FormField>
         </div>
-        <div v-else>This service has no operator parameters.</div>
+        <div v-else class="rounded-box border border-dashed border-base-300 p-3 text-sm text-base-content/60">This service has no operator parameters.</div>
       </div>
-      <div class="min-w-0 space-y-3">
-        <div class="min-w-0 space-y-3">
+      <div class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-200/25 p-4">
+        <div class="flex min-w-0 items-start justify-between gap-3">
+          <div>
           <h3 class="text-sm font-semibold">Price position</h3>
-          <span v-if="result">{{ result.marginPercentage }}% margin</span>
+          <p class="mt-1 text-xs text-base-content/60">Estimated economics for the current inputs.</p>
+          </div>
+          <span v-if="result" class="badge badge-ghost shrink-0 text-xs">{{ result.marginPercentage }}% margin</span>
         </div>
         <InlineAlert v-if="error" role="alert" tone="error"
           ><AlertTriangle :size="15" :stroke-width="1.8" />{{ error }}</InlineAlert
         >
-        <div v-if="result" class="min-w-0 space-y-3">
-          <div class="min-w-0 space-y-3">
-            <span>Estimated cost</span><strong>{{ money(result.estimatedCostRial) }}</strong>
+        <div v-if="result" class="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-1">
+          <div class="rounded-box border border-base-300 bg-base-100 p-3">
+            <span class="block text-xs text-base-content/60">Estimated cost</span><strong class="mt-1 block text-sm">{{ money(result.estimatedCostRial) }}</strong>
           </div>
-          <div class="min-w-0 space-y-3">
-            <span>Suggested price</span
-            ><strong>{{ money(result.suggestedSellingPriceRial) }}</strong>
+          <div class="rounded-box border border-base-300 bg-base-100 p-3">
+            <span class="block text-xs text-base-content/60">Suggested price</span><strong class="mt-1 block text-sm text-primary">{{ money(result.suggestedSellingPriceRial) }}</strong>
           </div>
-          <div class="min-w-0 space-y-3">
-            <span>Effective price</span
-            ><strong>{{ money(result.effectiveSellingPriceRial) }}</strong>
+          <div class="rounded-box border border-primary/30 bg-primary/5 p-3">
+            <span class="block text-xs text-base-content/60">Effective price</span><strong class="mt-1 block text-sm text-primary">{{ money(result.effectiveSellingPriceRial) }}</strong>
           </div>
-          <div class="min-w-0 space-y-3">
-            <span>Profit</span
-            ><strong :class="{ 'text-error': result.profitRial < 0 }">{{
-              signedMoney(result.profitRial)
-            }}</strong>
+          <div class="rounded-box border border-base-300 bg-base-100 p-3">
+            <span class="block text-xs text-base-content/60">Profit</span><strong class="mt-1 block text-sm" :class="{ 'text-error': result.profitRial < 0, 'text-success': result.profitRial > 0 }">{{ signedMoney(result.profitRial) }}</strong>
           </div>
         </div>
-        <div class="space-y-1"
-          ><span>Selling price override <em>optional</em></span>
-          <div class="min-w-0 space-y-3">
+        <div class="rounded-box border border-base-300 bg-base-100 p-3"
+          ><span class="text-xs font-semibold">Selling price override <em class="font-normal text-base-content/55">optional</em></span>
+          <div class="mt-2 flex min-w-0 items-end gap-2">
             <FormField :label="`Use ${typeLabel('fixed')} rule suggestion`"><AppInput
               :model-value="overrideText"
               type="text"
@@ -247,7 +251,7 @@ function typeLabel(type: string) {
               :placeholder="`Use ${typeLabel('fixed')} rule suggestion`"
               @update:model-value="updateOverride"
             /></FormField><button
-              class="btn btn-ghost"
+              class="btn btn-ghost btn-sm"
               v-if="overrideText"
               type="button"
               aria-label="Clear selling price override"
@@ -256,18 +260,18 @@ function typeLabel(type: string) {
               <RotateCcw :size="14" :stroke-width="1.8" />
             </button></div
         ></div>
-        <div v-if="result?.belowCost" class="min-w-0 space-y-3">
+        <div v-if="result?.belowCost" class="flex min-w-0 items-start gap-2 rounded-box bg-error/15 p-3 text-sm text-error">
           <AlertTriangle :size="15" :stroke-width="1.8" /><span
             >Selling price is below estimated cost.</span
           >
         </div>
         <div
           v-if="service.components.some((component) => component.type === 'manual')"
-          class="min-w-0 space-y-3"
+          class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-100 p-3"
         >
-          <div class="min-w-0 space-y-3">
+          <div class="min-w-0">
             <h3 class="text-sm font-semibold">Manual costs</h3>
-            <span>Optional inputs</span>
+            <span class="mt-1 block text-xs text-base-content/60">Optional inputs</span>
           </div>
           <FormField
             class="gap-1"

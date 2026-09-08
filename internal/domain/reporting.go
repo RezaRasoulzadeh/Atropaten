@@ -35,7 +35,24 @@ type DashboardActivity struct {
 	AmountRial                         int64
 }
 
+type DashboardOrder struct {
+	ID, OrderNumber, Customer, CommercialStatus, FulfillmentStatus, DueDate string
+	TotalRial                                                               int64
+	ReferenceCount                                                          int
+}
+type DashboardTrend struct {
+	Date                         string
+	RevenueRial, GrossProfitRial int64
+}
+type DashboardPipeline struct {
+	Status string
+	Count  int
+}
+
 type Dashboard struct {
+	OrdersNeedingAttention                                                                 []DashboardOrder
+	Trend                                                                                  []DashboardTrend
+	Pipeline                                                                               []DashboardPipeline
 	StartDate, EndDate                                                                     string
 	RevenueRial, GrossProfitRial, CashRial, BankRial, ReceivableRial, PayableRial          int64
 	OpenInvoiceCount, DueOrderCount, OverdueOrderCount, InProductionCount, ReadyOrderCount int

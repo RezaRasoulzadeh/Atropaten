@@ -105,9 +105,7 @@ func (s *ProductionService) Update(ctx context.Context, id string, in Production
 	if e != nil {
 		return ProductionJobView{}, e
 	}
-	if in.AssignedMachineID != "" {
-		j.AssignedMachineID = in.AssignedMachineID
-	}
+	j.AssignedMachineID = strings.TrimSpace(in.AssignedMachineID)
 	if in.Priority != "" {
 		j.Priority = in.Priority
 	}

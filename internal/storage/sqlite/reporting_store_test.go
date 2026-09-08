@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -128,5 +129,120 @@ func TestMaterialUsageReportAppliesCompensatingConsumptionMovements(t *testing.T
 	}
 	if report.Rows[0].QuantityUnits != domain.QuantityScale || report.Rows[0].AmountRial != 100 {
 		t.Fatalf("correction-aware usage row=%+v", report.Rows[0])
+	}
+}
+
+func TestDashboardOrderFollowUpAndPipeline(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "dashboard.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	now := time.Date(2026, 3, 21, 0, 0, 0, 0, time.UTC)
+	cases := []struct {
+		id          string
+		commercial  domain.CommercialStatus
+		fulfillment domain.FulfillmentStatus
+		refs        int
+		want        bool
+	}{
+		{"confirmed", domain.CommercialConfirmed, domain.FulfillmentPending, 0, true},
+		{"reference-draft", domain.CommercialDraft, domain.FulfillmentPending, 2, true},
+		{"both", domain.CommercialConfirmed, domain.FulfillmentInProduction, 2, true},
+		{"plain-draft", domain.CommercialDraft, domain.FulfillmentPending, 0, false},
+		{"delivered", domain.CommercialConfirmed, domain.FulfillmentDelivered, 1, false},
+		{"cancelled", domain.CommercialCancelled, domain.FulfillmentPending, 1, false},
+		{"closed", domain.CommercialClosed, domain.FulfillmentPending, 1, false},
+	}
+	for _, tc := range cases {
+		o := domain.NewOrder(tc.id, "", now)
+		o.CommercialStatus = tc.commercial
+		o.FulfillmentStatus = tc.fulfillment
+		if tc.id == "both" {
+			o.PromisedAt = &now
+		}
+		if err := s.CreateOrder(ctx, o); err != nil {
+			t.Fatal(err)
+		}
+		for i := 0; i < tc.refs; i++ {
+			a := domain.Attachment{ID: fmt.Sprintf("%s-%d", tc.id, i), OwnerType: domain.AttachmentOrder, OwnerID: tc.id, FileName: "reference.txt", Path: "reference.txt", Category: domain.AttachmentCategory("reference"), CreatedAt: now}
+			if err := s.SaveAttachment(ctx, a); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	// Artwork alone must not qualify a draft.
+	if err := s.SaveAttachment(ctx, domain.Attachment{ID: "art", OwnerType: domain.AttachmentOrder, OwnerID: "plain-draft", FileName: "art.txt", Path: "art.txt", Category: domain.AttachmentArtwork, CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	d, err := s.Dashboard(ctx, now, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]domain.DashboardOrder{}
+	for _, o := range d.OrdersNeedingAttention {
+		got[o.ID] = o
+	}
+	if len(d.OrdersNeedingAttention) != 3 {
+		t.Fatalf("follow-up rows=%+v", d.OrdersNeedingAttention)
+	}
+	for _, tc := range cases {
+		o, ok := got[tc.id]
+		if ok != tc.want || ok && o.ReferenceCount != tc.refs {
+			t.Errorf("case %s: row=%+v present=%v", tc.id, o, ok)
+		}
+	}
+	if d.OrdersNeedingAttention[0].ID != "both" {
+		t.Fatal("scheduled orders should precede unscheduled orders")
+	}
+	counts := map[string]int{}
+	for _, p := range d.Pipeline {
+		counts[p.Status] = p.Count
+	}
+	if counts["Draft"] != 2 || counts["Pending"] != 1 || counts["In Production"] != 1 {
+		t.Fatalf("pipeline=%v", counts)
+	}
+}
+
+func TestDashboardTrendReconcilesAndIncludesZeroDays(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "trend.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	start := time.Date(2026, 3, 21, 0, 0, 0, 0, time.UTC)
+	for i, amount := range []int64{1000, -300, 5000} {
+		date := start.AddDate(0, 0, i*2)
+		id := fmt.Sprintf("trend-%d", i)
+		revenue := domain.JournalLine{ID: id + "-r", JournalEntryID: id, Position: 0, AccountID: "ACC-REVENUE"}
+		cash := domain.JournalLine{ID: id + "-c", JournalEntryID: id, Position: 1, AccountID: "ACC-CASH"}
+		if amount > 0 {
+			revenue.CreditRial = amount
+			cash.DebitRial = amount
+		} else {
+			revenue.DebitRial = -amount
+			cash.CreditRial = -amount
+		}
+		_, err := s.PostJournalEntry(ctx, domain.JournalEntry{ID: id, Description: "Trend and reversal", SourceType: "test", SourceID: id, IdempotencyKey: id, PostedAt: date, CreatedAt: date, Lines: []domain.JournalLine{revenue, cash}})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	d, err := s.Dashboard(ctx, start, start.AddDate(0, 0, 2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Trend) != 3 || d.Trend[1].RevenueRial != 0 || d.Trend[2].RevenueRial != -300 {
+		t.Fatalf("trend=%+v", d.Trend)
+	}
+	var revenue, profit int64
+	for _, point := range d.Trend {
+		revenue += point.RevenueRial
+		profit += point.GrossProfitRial
+	}
+	if revenue != 700 || revenue != d.RevenueRial || profit != d.GrossProfitRial {
+		t.Fatalf("trend does not reconcile: %+v", d)
 	}
 }

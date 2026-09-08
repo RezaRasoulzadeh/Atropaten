@@ -127,7 +127,6 @@ async function loadServices() {
     services.value = serviceData;
     materials.value = materialData;
     machines.value = machineData;
-    if (!selectedId.value && services.value.length) selectedId.value = services.value[0].id;
   } catch (error) {
     errorMessage.value = errorMessageFrom(error, 'Services could not be loaded.');
   } finally {
@@ -160,7 +159,7 @@ function startEdit() {
       type: parameter.type as ParameterType,
       required: parameter.required,
       defaultValue: parameter.defaultValue,
-      options: [...parameter.options],
+      options: Array.isArray(parameter.options) ? [...parameter.options] : [],
       minValue: parameter.minValue ?? null,
       maxValue: parameter.maxValue ?? null,
       unit: parameter.unit,
@@ -199,7 +198,7 @@ function startEdit() {
             props.currencyUnit,
           ),
           parameterKey: service.pricingRule.parameterKey,
-          tiers: service.pricingRule.tiers.map((tier) => ({
+          tiers: (Array.isArray(service.pricingRule.tiers) ? service.pricingRule.tiers : []).map((tier) => ({
             position: tier.position,
             minimumQuantity: tier.minimumQuantity,
             priceRial: tier.priceRial,
@@ -466,7 +465,7 @@ return runAction(async () => {
       : await servicesApi.archive(service.id);
     const index = services.value.findIndex((item) => item.id === updated.id);
     if (index >= 0) services.value.splice(index, 1, updated);
-    emit('notify', active ? 'Service reactivated.' : 'Service archived.');
+    emit('notify', active ? 'Service reactivated.' : 'Service deactivated.');
   } catch (error) {
 reportError(error);
     errorMessage.value = errorMessageFrom(error, 'Service status could not be changed.');

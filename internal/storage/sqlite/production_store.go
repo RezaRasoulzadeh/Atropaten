@@ -325,7 +325,7 @@ func (s *Store) TransitionProductionJob(ctx context.Context, id, status string) 
 			return fail(e)
 		}
 	}
-	if _, e = tx.ExecContext(ctx, `UPDATE production_jobs SET status=?,started_at=COALESCE(?,started_at),completed_at=COALESCE(?,completed_at),updated_at=? WHERE id=?`, status, started, completed, now.Format(time.RFC3339Nano), id); e != nil {
+	if _, e = tx.ExecContext(ctx, `UPDATE production_jobs SET status=?,started_at=COALESCE(?,started_at),completed_at=?,updated_at=? WHERE id=?`, status, started, completed, now.Format(time.RFC3339Nano), id); e != nil {
 		return fail(e)
 	}
 	if status == domain.ProductionCompleted {

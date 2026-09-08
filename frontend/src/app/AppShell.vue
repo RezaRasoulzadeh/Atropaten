@@ -2,7 +2,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, type Component } from 'vue';
 import {
   BarChart3,
-  BellRing,
   BriefcaseBusiness,
   Calculator,
   CircleDollarSign,
@@ -20,6 +19,7 @@ import {
   UserRound,
   Users,
 } from 'lucide-vue-next';
+import NotificationCenter from '../components/ui/NotificationCenter.vue';
 import AppToolbar from '../components/layout/AppToolbar.vue';
 import SidebarNavItem from '../components/layout/SidebarNavItem.vue';
 import { customersApi } from '../api/customers';
@@ -107,7 +107,6 @@ const toolbarCollapsed = computed(() =>
 );
 const searchQuery = ref('');
 const currencyUnit = ref<CurrencyUnit>('Toman');
-const hasNotifications = ref(false);
 const selectedOrderId = ref<string | null>(null);
 const unsavedOrder = ref<OrderRecord | null>(null);
 const orders = ref<OrderRecord[]>([]);
@@ -189,6 +188,11 @@ async function loadPurchases() {
   }
 }
 
+async function openDashboardOrder(orderId: string) {
+  await Promise.all([loadOrders(), loadOrderCatalog()]);
+  if (orders.value.some(order => order.id === orderId)) openOrder(orderId);
+  else toast.error('Unable to open this order. Refresh the dashboard and try again.', 'Orders');
+}
 function openOrder(orderId: string) {
   activeView.value = 'Orders';
   unsavedOrder.value = null;
@@ -291,11 +295,6 @@ function showToast(message: string) {
   if (isFailure) toast.error(normalizeError(message), 'Operation failed');
   else toast.success(message);
 }
-
-function openNotifications() {
-  hasNotifications.value = false;
-  toast.info('You are all caught up.');
-}
 </script>
 
 <template>
@@ -316,7 +315,15 @@ function openNotifications() {
         @update:currency-unit="currencyUnit = $event"
         @new-order="openNewOrder"
         @navigate="selectView"
-      />
+      >
+        <template #notifications>
+          <NotificationCenter
+            :currency-unit="currencyUnit"
+            :refresh-key="activeView"
+            @navigate="selectView"
+          />
+        </template>
+      </AppToolbar>
 
       <main
         class="min-h-0 min-w-0 overflow-y-auto bg-base-200 p-4 pt-0 lg:p-6 lg:pt-0"
@@ -330,6 +337,7 @@ function openNotifications() {
             @navigate="selectView"
             @new-order="openNewOrder"
             @notify="showToast"
+            @open-order="openDashboardOrder"
           />
 
           <div v-else-if="activeView === 'Orders'" key="orders">
@@ -511,21 +519,6 @@ function openNotifications() {
             <span class="block truncate text-sm font-bold">Atropaten</span>
             <span class="block text-xs leading-4 text-base-content/60">Print shop control</span>
           </div>
-          <button
-            v-if="!sidebarCollapsed"
-            class="btn btn-ghost btn-square btn-sm relative ms-auto"
-            type="button"
-            aria-label="Notifications"
-            title="Notifications"
-            @click="openNotifications"
-          >
-            <BellRing :size="17" :stroke-width="1.8" aria-hidden="true" />
-            <span
-              v-if="hasNotifications"
-              class="absolute end-1 top-1 size-2 rounded-full bg-error ring-2 ring-base-100"
-              aria-hidden="true"
-            ></span>
-          </button>
         </div>
 
         <nav

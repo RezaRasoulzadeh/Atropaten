@@ -14,7 +14,7 @@ func TestProductionTransitionsKeepCommercialConcernsSeparate(t *testing.T) {
 	for _, tt := range valid {
 		if !ValidProductionTransition(tt.from, tt.to) { t.Errorf("%s -> %s should be valid", tt.from, tt.to) }
 	}
-	if ValidProductionTransition(ProductionCompleted, ProductionInProgress) || ValidProductionTransition(ProductionPending, "Paid") {
+	if !ValidProductionTransition(ProductionCompleted, ProductionInProgress) || ValidProductionTransition(ProductionPending, "Paid") {
 		t.Fatal("invalid production transition accepted")
 	}
 	if ValidProductionStatus("Paid") { t.Fatal("commercial status accepted as production status") }

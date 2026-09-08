@@ -12,7 +12,7 @@ const iconFor = (kind: ToastKind) => icons[kind];
 </script>
 <template>
   <div
-    class="toast toast-end toast-bottom bottom-24 z-50 w-[min(24rem,calc(100vw-2rem))]"
+    class="toast toast-end toast-bottom right-3 bottom-3 z-50 w-[min(24rem,calc(100vw-1.5rem))]"
     aria-live="polite"
     aria-atomic="false"
   >
@@ -20,23 +20,28 @@ const iconFor = (kind: ToastKind) => icons[kind];
       ><div
         v-for="item in toastItems"
         :key="item.id"
-        class="alert"
-        :class="`alert-${item.kind}`"
+        class="toast-card"
+        :class="`toast-card-${item.kind}`"
         :role="item.kind === 'error' ? 'alert' : 'status'"
       >
-        <component :is="iconFor(item.kind)" :size="17" aria-hidden="true" />
-        <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-          <strong v-if="item.title" class="text-xs">{{ item.title }}</strong
-          ><span class="text-xs">{{ item.message }}</span>
+        <div class="flex min-w-0 items-start gap-3 p-3">
+          <span class="toast-icon mt-0.5 shrink-0" aria-hidden="true">
+            <component :is="iconFor(item.kind)" :size="16" />
+          </span>
+          <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <strong v-if="item.title" class="text-xs font-semibold leading-4">{{ item.title }}</strong
+            ><span class="text-xs leading-5">{{ item.message }}</span>
+          </div>
+          <button
+            class="toast-close btn btn-ghost btn-xs btn-square -me-1 -mt-1 shrink-0"
+            type="button"
+            aria-label="Dismiss notification"
+            @click="dismiss(item.id)"
+          >
+            <X :size="15" />
+          </button>
         </div>
-        <button
-          class="btn btn-ghost btn-xs btn-square"
-          type="button"
-          aria-label="Dismiss notification"
-          @click="dismiss(item.id)"
-        >
-          <X :size="15" />
-        </button></div
+      </div
     ></TransitionGroup>
   </div>
 </template>

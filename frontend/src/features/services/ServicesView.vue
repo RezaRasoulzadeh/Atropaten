@@ -9,7 +9,6 @@ import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceAc
 import FormGrid from '../../components/ui/FormGrid.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
 import InspectorSection from '../../components/layout/InspectorSection.vue';
-import MasterDetail from '../../components/layout/MasterDetail.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import RegisterList from '../../components/ui/RegisterList.vue';
 import RegisterRow from '../../components/ui/RegisterRow.vue';
@@ -17,9 +16,10 @@ import FormField from '../../components/ui/FormField.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import {
   Archive,
+  ArrowLeft,
   ChevronDown,
   ChevronUp,
   Edit3,
@@ -52,46 +52,58 @@ const emit = defineEmits<{ notify: [message: string] }>();
 const props = defineProps<{ currencyUnit: CurrencyUnit }>();
 import {useServicesWorkspace} from './useServicesWorkspace'
 const {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,errorMessage,formError,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,typeLabel,dateLabel,errorMessageFrom}=useServicesWorkspace(props,emit)
+function backToServices() {
+  selectedId.value = null;
+  cancelEditor();
+}
+watch(
+  [() => selectedId.value, () => editorMode.value],
+  () => {
+    void nextTick(() => {
+      document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' });
+    });
+  },
+);
 </script>
 
 <template>
   <div class="min-w-0 space-y-3">
-    <WorkspaceStickyStack>
-      <WorkspaceHeader
-        title="Services"
-        eyebrow="Catalog / sellable operations"
-        description="Define reusable work with operator-facing parameters for future pricing."
-        ><button class="btn btn-primary" type="button" @click="startCreate">
-          <Plus :size="16" :stroke-width="1.8" aria-hidden="true" />New service
-        </button></WorkspaceHeader
-      >
-      <SearchFilterBar><template #search><SearchField
-          v-model="searchQuery"
-          label="Search services"
-          placeholder="Search service, code, or category"
-        /></template><template #filters><SelectField
-          v-model="serviceFilter"
-          label="Status"
-          aria-label="Filter services by status"
-          :options="['Active', 'Archived', 'All'].map((value) => ({ label: value, value }))"
-        /></template><template #count><span class="self-end pb-2"
-          >{{ filteredServices.length }} of {{ services.length }} services</span
-        ></template></SearchFilterBar>
-    </WorkspaceStickyStack>
+    <div v-if="!selectedService && !editorMode" class="min-w-0 space-y-3">
+      <WorkspaceStickyStack>
+        <WorkspaceHeader
+          title="Services"
+          eyebrow="Catalog / sellable operations"
+          description="Define reusable work with operator-facing parameters for future pricing."
+          ><button class="btn btn-primary" type="button" @click="startCreate">
+            <Plus :size="16" :stroke-width="1.8" aria-hidden="true" />New service
+          </button></WorkspaceHeader
+        >
+        <SearchFilterBar><template #search><SearchField
+            v-model="searchQuery"
+            label="Search services"
+            placeholder="Search service, code, or category"
+          /></template><template #filters><SelectField
+            v-model="serviceFilter"
+            label="Status"
+            aria-label="Filter services by status"
+            :options="['Active', 'Archived', 'All'].map((value) => ({ label: value, value }))"
+          /></template><template #count><span class="whitespace-nowrap"
+            >{{ filteredServices.length }} of {{ services.length }} services</span
+          ></template></SearchFilterBar>
+      </WorkspaceStickyStack>
 
-    <div v-if="errorMessage" role="alert" class="min-w-0 space-y-3">
-      <span>{{ errorMessage }}</span
-      ><button
-        class="btn btn-ghost"
-        type="button"
-        aria-label="Dismiss services error"
-        @click="errorMessage = ''"
-      >
-        <X :size="15" :stroke-width="1.8" aria-hidden="true" />
-      </button>
-    </div>
+      <div v-if="errorMessage" role="alert" class="min-w-0 space-y-3">
+        <span>{{ errorMessage }}</span
+        ><button
+          class="btn btn-ghost"
+          type="button"
+          aria-label="Dismiss services error"
+          @click="errorMessage = ''"
+        >
+          <X :size="15" :stroke-width="1.8" aria-hidden="true" />
+        </button>
+      </div>
 
-    <MasterDetail :wide="!!editorMode" aria-label="Services workspace">
       <RegisterList
         title="Service register"
         subtitle="Select a service to inspect its operator parameters."
@@ -105,13 +117,17 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
             :selected="selectedId === service.id"
             @activate="selectService(service.id)"
           >
+            <template #icon><Package :size="17" :stroke-width="1.8" aria-hidden="true" /></template>
             <template #identity>
               <div class="flex min-w-0 items-center justify-between gap-3">
                 <div class="min-w-0">
                   <strong class="block truncate text-sm">{{ service.name }}</strong>
                   <span class="block truncate text-xs text-base-content/60">{{ service.code || 'No code' }} · {{ service.category || 'Uncategorized' }}</span>
                 </div>
-                <span class="shrink-0 text-xs text-base-content/60">{{ dateLabel(service.updatedAt) }}</span>
+                <div class="flex shrink-0 items-center gap-2">
+                  <StatusBadge :label="service.active ? 'Active' : 'Archived'" :tone="service.active ? 'green' : 'slate'" />
+                  <span class="hidden text-xs text-base-content/60 md:inline">{{ dateLabel(service.updatedAt) }}</span>
+                </div>
               </div>
             </template>
             <template #meta>
@@ -120,7 +136,6 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
                 <div><span class="block text-base-content/50">Pricing inputs</span><span class="block text-base-content/80">{{ service.components.length }} cost {{ service.components.length === 1 ? 'component' : 'components' }}</span></div>
               </div>
             </template>
-            <template #status><StatusBadge :label="service.active ? 'Active' : 'Archived'" :tone="service.active ? 'green' : 'slate'" /></template>
           </RegisterRow>
         </div>
         <div v-else class="min-w-0 space-y-3">
@@ -145,9 +160,48 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
           </button>
         </div>
       </RegisterList>
+    </div>
+
+    <div v-else class="min-w-0 space-y-4" aria-label="Service workspace">
+      <WorkspaceStickyStack>
+        <WorkspaceHeader
+          :title="editorMode === 'create' ? 'New service' : selectedService?.name || 'Service'"
+          eyebrow="Catalog / service workspace"
+          :description="
+            editorMode === 'create'
+              ? 'Create a reusable service for orders and production.'
+              : 'Review the service definition, test its inputs, and manage its lifecycle.'
+          "
+        >
+          <template #leading>
+            <button
+              class="btn btn-ghost btn-sm"
+              type="button"
+              aria-label="Back to services"
+              @click="backToServices"
+            >
+              <ArrowLeft :size="17" :stroke-width="1.8" aria-hidden="true" />
+              <span class="hidden sm:inline">Services</span>
+            </button>
+          </template>
+        </WorkspaceHeader>
+      </WorkspaceStickyStack>
+
+      <div v-if="errorMessage" role="alert" class="min-w-0 space-y-3">
+        <span>{{ errorMessage }}</span
+        ><button
+          class="btn btn-ghost"
+          type="button"
+          aria-label="Dismiss services error"
+          @click="errorMessage = ''"
+        >
+          <X :size="15" :stroke-width="1.8" aria-hidden="true" />
+        </button>
+      </div>
 
       <AppPanel
         v-if="editorMode"
+        class="service-editor-panel"
         :title="editorMode === 'create' ? 'New service' : 'Edit service'"
         subtitle="The full definition saves atomically with its parameters."
       >
@@ -160,8 +214,16 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
           >
             <X :size="16" :stroke-width="1.8" aria-hidden="true" /></button
         ></template>
-        <form @submit.prevent="saveService" class="min-w-0 space-y-3">
-          <div v-if="formError" role="alert">{{ formError }}</div>
+        <form @submit.prevent="saveService" class="min-w-0 space-y-5">
+          <div v-if="formError" role="alert" class="rounded-box border border-error/35 bg-error/10 p-3 text-sm text-error">
+            {{ formError }}
+          </div>
+          <section class="rounded-box border border-base-300 bg-base-200/25 p-4">
+            <div class="mb-4">
+              <h3 class="text-sm font-semibold">Service identity</h3>
+              <p class="mt-1 text-xs text-base-content/60">Give this reusable operation a clear name and catalog reference.</p>
+            </div>
+            <div class="space-y-3">
           <FormField class="gap-1"
             ><span>Name</span
             ><AppInput
@@ -197,50 +259,54 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
               placeholder="What this operation covers"
             />
           </FormField>
-          <div class="min-w-0 space-y-3">
-            <div class="min-w-0 space-y-3">
-              <h3 class="text-sm font-semibold">Parameters</h3>
-              <p>Order is saved as shown and keys are stable references.</p>
             </div>
-            <button class="btn btn-ghost" type="button" @click="addParameter">
-              <ListPlus :size="15" :stroke-width="1.8" aria-hidden="true" />Add parameter
-            </button>
-          </div>
-          <div v-if="form.parameters.length">
+          </section>
+          <section class="min-w-0 space-y-3">
+            <header class="flex min-w-0 flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h3 class="text-sm font-semibold">Parameters</h3>
+                <p class="mt-1 text-xs text-base-content/60">Order is saved as shown and keys are stable references.</p>
+              </div>
+              <button class="btn btn-outline btn-sm shrink-0" type="button" @click="addParameter">
+                <ListPlus :size="14" :stroke-width="1.8" aria-hidden="true" />Add parameter
+              </button>
+            </header>
+          <div v-if="form.parameters.length" class="overflow-hidden rounded-box border border-base-300 bg-base-100">
             <ServiceParameterEditor v-for="(parameter,index) in form.parameters" :key="parameter.id" :parameter="parameter" :index="index" :count="form.parameters.length" :materials="materials" @move="moveParameter(index,$event)" @remove="removeParameter(index)" @normalize="normalizeParameter(parameter)" @add-option="addOption(parameter)" @remove-option="removeOption(parameter,$event)" />
           </div>
-          <div v-else class="min-w-0 space-y-3">
+          <div v-else class="flex min-w-0 items-center gap-2 rounded-box border border-dashed border-base-300 p-4 text-sm text-base-content/60">
             <ListPlus :size="17" :stroke-width="1.8" aria-hidden="true" /><span
               >No parameters yet. Add one when the service needs operator input.</span
             >
           </div>
-          <div class="min-w-0 space-y-3">
-            <div class="min-w-0 space-y-3">
-              <h3 class="text-sm font-semibold">Cost components</h3>
-              <p>Ordered reusable inputs evaluated by the generic pricing preview.</p>
-            </div>
-            <button class="btn btn-ghost" type="button" @click="addComponent">
-              <Plus :size="15" :stroke-width="1.8" aria-hidden="true" />Add component
-            </button>
-          </div>
-          <div v-if="form.components.length">
+          </section>
+
+          <section class="min-w-0 space-y-3">
+            <header class="flex min-w-0 flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h3 class="text-sm font-semibold">Cost components</h3>
+                <p class="mt-1 text-xs text-base-content/60">Ordered reusable inputs evaluated by the generic pricing preview.</p>
+              </div>
+              <button class="btn btn-outline btn-sm shrink-0" type="button" @click="addComponent">
+                <Plus :size="14" :stroke-width="1.8" aria-hidden="true" />Add component
+              </button>
+            </header>
+          <div v-if="form.components.length" class="overflow-hidden rounded-box border border-base-300 bg-base-100">
             <ServiceCostEditor v-for="(component,index) in form.components" :key="component.id" :component="component" :index="index" :count="form.components.length" :materials="materials" :machines="machines" :parameters="numericParameters()" :currency-unit="currencyUnit" @move="moveComponent(index,$event)" @remove="removeComponent(index)" @change-type="updateComponentType(component)" @change-rate="updateComponentRate(component)" />
           </div>
-          <div v-else class="min-w-0 space-y-3">
+          <div v-else class="flex min-w-0 items-center gap-2 rounded-box border border-dashed border-base-300 p-4 text-sm text-base-content/60">
             <Plus :size="17" :stroke-width="1.8" aria-hidden="true" /><span
               >No cost components yet. Add reusable material, machine, labor, or other inputs.</span
             >
           </div>
-          <div>
-            <div class="min-w-0 space-y-3">
+          </section>
+
+          <section v-if="form.pricingRule" class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-200/25 p-4">
+            <div>
               <h3 class="text-sm font-semibold">Selling-price rule</h3>
-              <p>
-                Choose a generic suggestion rule; operators can override it in the live
-                configurator.
-              </p>
+              <p class="mt-1 text-xs text-base-content/60">Choose a generic suggestion rule; operators can override it in the live configurator.</p>
             </div>
-          </div>
-          <div v-if="form.pricingRule" class="min-w-0 space-y-3">
+          <div class="min-w-0 space-y-3">
             <SelectField
               v-model="form.pricingRule.type"
               label="Rule"
@@ -332,9 +398,10 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
               The live configurator will show cost and require an entered selling price.
             </p>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
+          </section>
+          <div class="flex flex-wrap items-center justify-end gap-2 border-t border-base-300 pt-4">
             <button class="btn btn-ghost" type="button" @click="cancelEditor">Cancel</button
-            ><button class="btn btn-primary" type="submit" :disabled="busy || (isSaving)">
+            ><button class="btn btn-primary" type="submit" :disabled="busy || isSaving">
               <Save :size="15" :stroke-width="1.8" aria-hidden="true" />{{
                 isSaving ? 'Saving…' : 'Save service'
               }}
@@ -345,119 +412,120 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
 
       <InspectorShell
         v-else-if="selectedService"
-        title="Service inspector"
-        subtitle="Current persisted definition"
+        title="Service overview"
+        subtitle="Definition used by orders and production."
       >
-        <template #action
-          ><button
-            class="btn btn-ghost"
-            type="button"
-            aria-label="Edit selected service"
-            @click="startEdit"
-          >
-            <Edit3 :size="15" :stroke-width="1.8" aria-hidden="true" /></button
-        ></template>
-        <div class="flex min-w-0 flex-wrap items-center gap-2">
+        <template #action>
           <StatusBadge
             :label="selectedService.active ? 'Active' : 'Archived'"
             :tone="selectedService.active ? 'green' : 'slate'"
-          /><span>{{ selectedService.parameters.length }} parameters</span>
-        </div>
-        <div class="min-w-0 space-y-3">
-          <div><SlidersHorizontal :size="19" :stroke-width="1.8" aria-hidden="true" /></div>
-          <div class="min-w-0 space-y-3">
-            <h3 class="text-sm font-semibold">{{ selectedService.name }}</h3>
-            <p>
-              {{ selectedService.code || 'No code'
-              }}<span v-if="selectedService.category"> · {{ selectedService.category }}</span>
-            </p>
+          />
+          <button class="btn btn-primary btn-sm" type="button" @click="startEdit">
+            <Edit3 :size="14" :stroke-width="1.8" aria-hidden="true" />Edit
+          </button>
+        </template>
+
+        <div class="grid min-w-0 gap-3 sm:grid-cols-3">
+          <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
+            <span class="block text-xs text-base-content/60">Operator inputs</span>
+            <strong class="mt-1 block text-xl leading-6 tabular-nums">{{ selectedService.parameters.length }}</strong>
+            <span class="mt-1 block text-xs text-base-content/55">{{ selectedService.parameters.filter((parameter) => parameter.required).length }} required</span>
+          </div>
+          <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
+            <span class="block text-xs text-base-content/60">Cost components</span>
+            <strong class="mt-1 block text-xl leading-6 tabular-nums">{{ selectedService.components.length }}</strong>
+            <span class="mt-1 block text-xs text-base-content/55">Ordered pricing inputs</span>
+          </div>
+          <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
+            <span class="block text-xs text-base-content/60">Price rule</span>
+            <strong class="mt-1 block truncate text-sm font-semibold">{{ selectedService.pricingRule?.type || 'Manual' }}</strong>
+            <span class="mt-1 block text-xs text-base-content/55">Used in order pricing</span>
           </div>
         </div>
-        <p v-if="selectedService.description">{{ selectedService.description }}</p>
-        <InspectorSection title="Parameters">
-        <div class="min-w-0 space-y-3">
-          <div
-            v-for="parameter in selectedService.parameters"
-            :key="parameter.id"
-            class="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-base-300 py-3 last:border-0"
-          >
-            <span>{{ String(parameter.position + 1).padStart(2, '0') }}</span>
-            <div class="min-w-0 space-y-1">
-              <strong>{{ parameter.label }}</strong
-              ><small class="block text-xs leading-5 text-base-content/60"
-                ><code>{{ parameter.key }}</code> · {{ typeLabel(parameter.type)
-                }}<span v-if="parameter.required"> · required</span></small
-              ><small
-                v-if="parameter.type === 'choice'"
-                class="block text-xs leading-5 text-base-content/60"
-                >{{ parameter.options.join(' / ') }}</small
-              ><small
-                v-if="parameter.type === 'material-reference'"
-                class="block text-xs leading-5 text-base-content/60"
-                >Active material selection</small
-              ><small
-                v-if="parameter.defaultValue"
-                class="block text-xs leading-5 text-base-content/60"
-                >Default:
-                {{
-                  parameter.type === 'material-reference'
-                    ? materials.find((material) => material.id === parameter.defaultValue)?.name ||
-                      parameter.defaultValue
-                    : parameter.defaultValue
-                }}</small
+
+        <div
+          v-if="selectedService.description"
+          class="rounded-box border border-primary/25 bg-primary/5 p-3"
+        >
+          <span class="block text-xs font-semibold text-primary">Service notes</span>
+          <p class="mt-1 text-sm leading-5">{{ selectedService.description }}</p>
+        </div>
+
+        <div class="grid min-w-0 gap-4 xl:grid-cols-2">
+          <InspectorSection title="Operator parameters" description="Inputs available when this service is used in an order.">
+            <div v-if="selectedService.parameters.length" class="min-w-0 space-y-2">
+              <div
+                v-for="parameter in selectedService.parameters"
+                :key="parameter.id"
+                class="flex min-w-0 items-start gap-3 rounded-box border border-base-300 bg-base-200/30 p-3"
               >
+                <span class="grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
+                  {{ String(parameter.position + 1).padStart(2, '0') }}
+                </span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex min-w-0 flex-wrap items-center gap-2">
+                    <strong class="wrap-anywhere">{{ parameter.label || parameter.key }}</strong>
+                    <span v-if="parameter.required" class="text-[0.6875rem] font-semibold text-primary">Required</span>
+                  </div>
+                  <small class="mt-1 block break-words text-xs leading-5 text-base-content/60">
+                    <code>{{ parameter.key }}</code> · {{ typeLabel(parameter.type) }}<span v-if="parameter.unit"> · {{ parameter.unit }}</span>
+                  </small>
+                  <small v-if="parameter.type === 'choice'" class="mt-1 block break-words text-xs leading-5 text-base-content/60">
+                    {{ parameter.options.join(' / ') || 'No choices configured' }}
+                  </small>
+                  <small v-if="parameter.defaultValue" class="mt-1 block break-words text-xs leading-5 text-base-content/60">
+                    Default: {{ parameter.type === 'material-reference' ? materials.find((material) => material.id === parameter.defaultValue)?.name || parameter.defaultValue : parameter.defaultValue }}
+                  </small>
+                </div>
+              </div>
             </div>
-          </div>
-          <p v-if="!selectedService.parameters.length">No parameters configured.</p>
-        </div>
-        </InspectorSection>
-        <InspectorSection title="Cost components">
-        <div class="min-w-0 space-y-3">
-          <div
-            v-for="component in selectedService.components"
-            :key="component.id"
-            class="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-base-300 py-3 last:border-0"
-          >
-            <span>{{ String(component.position + 1).padStart(2, '0') }}</span>
-            <div class="min-w-0 space-y-1">
-              <strong>{{ component.name }}</strong
-              ><small class="block text-xs leading-5 text-base-content/60">{{
-                componentSummary(component)
-              }}</small>
+            <p v-else class="rounded-box border border-dashed border-base-300 p-3 text-sm text-base-content/60">No parameters configured.</p>
+          </InspectorSection>
+
+          <InspectorSection title="Cost components" description="Ordered inputs used by the pricing engine.">
+            <div v-if="selectedService.components.length" class="min-w-0 space-y-2">
+              <div
+                v-for="component in selectedService.components"
+                :key="component.id"
+                class="flex min-w-0 items-start gap-3 rounded-box border border-base-300 bg-base-200/30 p-3"
+              >
+                <span class="grid size-7 shrink-0 place-items-center rounded-full bg-base-300 text-xs font-semibold tabular-nums">
+                  {{ String(component.position + 1).padStart(2, '0') }}
+                </span>
+                <div class="min-w-0 flex-1">
+                  <strong class="block wrap-anywhere">{{ component.name || typeLabel(component.type) }}</strong>
+                  <small class="mt-1 block break-words text-xs leading-5 text-base-content/60">{{ componentSummary(component) }}</small>
+                </div>
+              </div>
             </div>
-          </div>
-          <p v-if="!selectedService.components.length">No cost components configured.</p>
+            <p v-else class="rounded-box border border-dashed border-base-300 p-3 text-sm text-base-content/60">No cost components configured.</p>
+          </InspectorSection>
         </div>
-        </InspectorSection>
-        <div>Updated {{ dateLabel(selectedService.updatedAt) }}</div>
-        <div class="flex flex-wrap items-center gap-2">
+
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-base-300 pt-3">
+          <span class="text-xs text-base-content/55">Updated {{ dateLabel(selectedService.updatedAt) }}</span>
           <button
-            class="btn btn-ghost"
+            class="btn btn-ghost btn-sm"
             v-if="selectedService.active"
             type="button"
             @click="setActive(false)"
-           :disabled="busy">
-            <Archive :size="15" :stroke-width="1.8" aria-hidden="true" />Archive</button
-          ><button class="btn btn-ghost" v-else type="button" @click="setActive(true)" :disabled="busy">
-            <RotateCcw :size="15" :stroke-width="1.8" aria-hidden="true" />Reactivate
+            :disabled="busy"
+          >
+            <Archive :size="14" :stroke-width="1.8" aria-hidden="true" />Deactivate service
+          </button>
+          <button class="btn btn-ghost btn-sm" v-else type="button" @click="setActive(true)" :disabled="busy">
+            <RotateCcw :size="14" :stroke-width="1.8" aria-hidden="true" />Reactivate service
           </button>
         </div>
       </InspectorShell>
 
-      <InspectorShell v-else title="Service inspector" subtitle="Select a row to inspect it."
-        ><div class="min-w-0 space-y-3">
-          <SlidersHorizontal :size="20" :stroke-width="1.8" aria-hidden="true" />
-          <p>Service details will appear here.</p>
-          <button class="btn btn-primary" type="button" @click="startCreate">
-            Create a service <Plus :size="14" :stroke-width="1.8" aria-hidden="true" />
-          </button></div
-      ></InspectorShell>
-    </MasterDetail>
-    <ServiceConfigurator
-      v-if="selectedService && !editorMode && selectedService.active"
-      :service="selectedService"
-      :materials="materials"
-      :currency-unit="props.currencyUnit"
-    />
+      <div v-if="selectedService && !editorMode && selectedService.active" class="min-w-0 rounded-box border border-base-300 bg-base-100 p-4">
+        <ServiceConfigurator
+          :service="selectedService"
+          :materials="materials"
+          :currency-unit="props.currencyUnit"
+        />
+      </div>
+    </div>
   </div>
 </template>

@@ -364,7 +364,66 @@ export namespace main {
 	        this.valueRial = source["valueRial"];
 	    }
 	}
+	export class DashboardPipelineDTO {
+	    status: string;
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DashboardPipelineDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.count = source["count"];
+	    }
+	}
+	export class DashboardTrendDTO {
+	    date: string;
+	    revenueRial: number;
+	    grossProfitRial: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DashboardTrendDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.date = source["date"];
+	        this.revenueRial = source["revenueRial"];
+	        this.grossProfitRial = source["grossProfitRial"];
+	    }
+	}
+	export class DashboardOrderDTO {
+	    id: string;
+	    orderNumber: string;
+	    customer: string;
+	    commercialStatus: string;
+	    fulfillmentStatus: string;
+	    dueDate: string;
+	    totalRial: number;
+	    referenceCount: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DashboardOrderDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.orderNumber = source["orderNumber"];
+	        this.customer = source["customer"];
+	        this.commercialStatus = source["commercialStatus"];
+	        this.fulfillmentStatus = source["fulfillmentStatus"];
+	        this.dueDate = source["dueDate"];
+	        this.totalRial = source["totalRial"];
+	        this.referenceCount = source["referenceCount"];
+	    }
+	}
 	export class DashboardDTO {
+	    ordersNeedingAttention: DashboardOrderDTO[];
+	    trend: DashboardTrendDTO[];
+	    pipeline: DashboardPipelineDTO[];
 	    startDate: string;
 	    endDate: string;
 	    revenueRial: number;
@@ -389,6 +448,9 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ordersNeedingAttention = this.convertValues(source["ordersNeedingAttention"], DashboardOrderDTO);
+	        this.trend = this.convertValues(source["trend"], DashboardTrendDTO);
+	        this.pipeline = this.convertValues(source["pipeline"], DashboardPipelineDTO);
 	        this.startDate = source["startDate"];
 	        this.endDate = source["endDate"];
 	        this.revenueRial = source["revenueRial"];
@@ -426,6 +488,9 @@ export namespace main {
 		    return a;
 		}
 	}
+	
+	
+	
 	
 	
 	export class DataPathsDTO {

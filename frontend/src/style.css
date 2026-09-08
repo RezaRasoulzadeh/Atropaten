@@ -17,7 +17,7 @@
   --color-base-200: #1d2024;
   --color-base-300: #282c31;
   --color-base-content: #e8eaed;
-  --color-primary: #f59e0b;
+  --color-primary: #00b4d8;
   --color-primary-content: #1c1917;
   --color-secondary: #a3aab4;
   --color-secondary-content: #17191c;
@@ -101,6 +101,40 @@
 .textarea.textarea-success:focus, .textarea.textarea-success:focus-visible {
   border-color: var(--color-success);
 }
+
+/* Toasts use a quiet workspace surface with a small semantic accent. */
+.toast-card {
+  --toast-accent: var(--color-primary);
+  --toast-accent-content: var(--color-primary-content);
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  flex-direction: column;
+  gap: 0;
+  color: var(--color-base-content);
+  background: var(--toast-accent);
+  border: 1px solid rgb(0 0 0 / 18%);
+  border-radius: var(--radius-box);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 24%), 0 2px 8px rgb(0 0 0 / 18%);
+}
+.toast-card-success { --toast-accent: var(--color-success); --toast-accent-content: var(--color-success-content); }
+.toast-card-error { --toast-accent: var(--color-error); --toast-accent-content: var(--color-error-content); }
+.toast-card-warning { --toast-accent: var(--color-warning); --toast-accent-content: var(--color-warning-content); }
+.toast-card-info { --toast-accent: var(--color-info); --toast-accent-content: var(--color-info-content); }
+.toast-icon {
+  display: inline-grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  color: var(--toast-accent-content);
+  background: color-mix(in srgb, var(--toast-accent-content) 14%, transparent);
+  border-radius: 999px;
+}
+.toast-card-success, .toast-card-error, .toast-card-warning, .toast-card-info {
+  color: var(--toast-accent-content);
+}
+.toast-close { color: color-mix(in srgb, var(--toast-accent-content) 72%, transparent); }
+.toast-close:hover { color: var(--toast-accent-content); background: color-mix(in srgb, var(--toast-accent-content) 12%, transparent); }
 
 /* Only the prepared document participates in printing. */
 .print-output { display: none; }

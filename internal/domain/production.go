@@ -58,22 +58,7 @@ type ProductionConsumption struct {
 }
 
 func ValidProductionTransition(from, to string) bool {
-	if from == to {
-		return true
-	}
-	switch from {
-	case ProductionPending:
-		return to == ProductionReady || to == ProductionInProgress || to == ProductionCancelled
-	case ProductionReady:
-		return to == ProductionInProgress || to == ProductionCancelled
-	case ProductionInProgress:
-		return to == ProductionPaused || to == ProductionCompleted || to == ProductionCancelled || to == ProductionFailed
-	case ProductionPaused:
-		return to == ProductionInProgress || to == ProductionCancelled
-	case ProductionFailed:
-		return to == ProductionInProgress || to == ProductionCancelled
-	}
-	return false
+	return ValidProductionStatus(from) && ValidProductionStatus(to)
 }
 
 func ValidProductionStatus(status string) bool {

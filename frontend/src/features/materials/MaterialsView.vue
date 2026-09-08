@@ -2,15 +2,15 @@
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 const {busy,runAction}=useWorkspaceActions()
 
-import MasterDetail from '../../components/layout/MasterDetail.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
 import FormField from '../../components/ui/FormField.vue';
 import DataTableCell from '../../components/ui/DataTableCell.vue';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import {
   Archive,
+  ArrowLeft,
   Check,
   Edit3,
   Package,
@@ -133,7 +133,6 @@ async function loadMaterials() {
   errorMessage.value = '';
   try {
     materials.value = await materialsApi.list(true);
-    if (!selectedId.value && materials.value.length) selectedId.value = materials.value[0].id;
   } catch (error) {
     errorMessage.value = errorMessageFrom(error, 'Materials could not be loaded.');
   } finally {
@@ -310,6 +309,20 @@ function dateLabel(value: string) {
     return 'Unknown date';
   }
 }
+
+function backToMaterials() {
+  selectedId.value = null;
+  cancelEditor();
+}
+
+watch(
+  [() => selectedId.value, () => editorMode.value],
+  () => {
+    void nextTick(() => {
+      document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' });
+    });
+  },
+);
 </script>
 
 <template>
