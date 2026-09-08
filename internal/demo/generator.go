@@ -249,10 +249,10 @@ func (g *generator) orders(ctx context.Context) error {
 		qty                                               domain.Quantity
 		cost, price, discount                             int64
 	}{
-		{"ORD-DEMO-01", "CUS-DEMO-01", "", string(domain.CommercialConfirmed), string(domain.FulfillmentPending), string(domain.PriorityUrgent), "سفارش فوری با job در حال تولید و رزرو فعال.", g.now.AddDate(0, 0, -2), "SVC-DEMO-01", "چاپ پوستر رنگی تیراژ متغیر", "POSTER-X", domain.Quantity(120 * domain.QuantityScale), 180000000, 420000000, 10000000},
-		{"ORD-DEMO-02", "CUS-DEMO-02", "", string(domain.CommercialConfirmed), string(domain.FulfillmentPending), string(domain.PriorityHigh), "سفارش آماده تحویل پس از اتمام تولید.", g.now.AddDate(0, 0, -8), "SVC-DEMO-02", "کارت ویزیت لمینت مات با گوشه‌گرد", "CARD-MAT", domain.Quantity(2500 * domain.QuantityScale), 310000000, 690000000, 0},
+		{"ORD-DEMO-01", "CUS-DEMO-01", string(domain.CommercialConfirmed), string(domain.FulfillmentPending), string(domain.PriorityUrgent), "سفارش فوری با job در حال تولید و رزرو فعال.", g.now.AddDate(0, 0, -2), "SVC-DEMO-01", "چاپ پوستر رنگی تیراژ متغیر", "POSTER-X", domain.Quantity(120 * domain.QuantityScale), 180000000, 420000000, 10000000},
+		{"ORD-DEMO-02", "CUS-DEMO-02", string(domain.CommercialConfirmed), string(domain.FulfillmentPending), string(domain.PriorityHigh), "سفارش آماده تحویل پس از اتمام تولید.", g.now.AddDate(0, 0, -8), "SVC-DEMO-02", "کارت ویزیت لمینت مات با گوشه‌گرد", "CARD-MAT", domain.Quantity(2500 * domain.QuantityScale), 310000000, 690000000, 0},
 		{"ORD-DEMO-03", "CUS-DEMO-03", string(domain.CommercialClosed), string(domain.FulfillmentDelivered), string(domain.PriorityNormal), "سفارش تحویل‌شده با فاکتور پرداخت‌شده.", g.now.AddDate(0, -1, -6), "SVC-DEMO-01", "چاپ پوستر رنگی تیراژ متغیر", "POSTER-X", domain.Quantity(500 * domain.QuantityScale), 260000000, 1280000000, 80000000},
-		{"ORD-DEMO-04", "CUS-DEMO-01", "", string(domain.CommercialDraft), string(domain.FulfillmentPending), string(domain.PriorityLow), "پیش‌نویس با یادداشت طولانی برای تست صفحه‌بندی.", g.now.AddDate(0, 0, 25), "SVC-DEMO-03", "خدمت دستی بدون قیمت‌گذاری خودکار", "MANUAL-OPS", domain.Quantity(3 * domain.QuantityScale), 90000000, 150000000, 0},
+		{"ORD-DEMO-04", "CUS-DEMO-01", string(domain.CommercialDraft), string(domain.FulfillmentPending), string(domain.PriorityLow), "پیش‌نویس با یادداشت طولانی برای تست صفحه‌بندی.", g.now.AddDate(0, 0, 25), "SVC-DEMO-03", "خدمت دستی بدون قیمت‌گذاری خودکار", "MANUAL-OPS", domain.Quantity(3 * domain.QuantityScale), 90000000, 150000000, 0},
 	}
 	for _, x := range orders {
 		o := domain.NewOrder(x.id, x.customer, g.now.AddDate(0, 0, -10))
