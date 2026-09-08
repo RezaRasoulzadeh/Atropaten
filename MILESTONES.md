@@ -49,25 +49,29 @@ Acceptance:
 - Below-cost selling price can be detected
 - Pricing calculations have deterministic Go tests
 
-## M2 - Customers, quotes, and orders
+## M2 - Customers and orders
 
-**Goal:** create and preserve real sales work.
+**Goal:** create and preserve real sales work through one Order workflow.
 
 Deliverables:
 
 - Customers
-- Quotes
-- Orders
+- Draft Orders for pre-commitment configuration and pricing
+- Confirmed Orders for accepted customer work
 - Multiple order items
 - Historical configuration/cost/price snapshots
 - Discounts and manual overrides
 - Attachments/proof metadata
+- Safe compatibility/migration handling for legacy quote records
 
 Acceptance:
 
 - An order can contain unrelated services
-- Reopening an old order shows its original calculation even after catalog changes
+- A Draft Order can be configured, priced, saved, reopened, revised, or deleted when safe without creating reservations, production jobs, invoices, or accounting postings merely by being saved
+- Confirming an Order is the explicit customer-commitment boundary
+- Reopening an old confirmed order shows its original calculation even after catalog changes
 - Order commercial/fulfillment/payment states are not collapsed into one enum
+- No separate Quote workspace or target-domain workflow is required
 
 ## M3 - Purchasing, inventory, and production
 
@@ -145,7 +149,8 @@ Deliverables:
 
 - Real dashboard
 - Financial/operational reports
-- Printable quotes/invoices/receipts/statements
+- Printable Draft Order estimates/proposals
+- Printable invoices/receipts/statements
 - Backup/restore
 - Windows installer
 - Upgrade/migration path
