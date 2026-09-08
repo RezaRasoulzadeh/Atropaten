@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import ShopIdentityForm from './ShopIdentityForm.vue'
 import LoadingState from '../../components/ui/LoadingState.vue'
-import InlineAlert from '../../components/ui/InlineAlert.vue'
 import MasterDetail from '../../components/layout/MasterDetail.vue'
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 const {busy,runAction}=useWorkspaceActions()
@@ -19,7 +18,7 @@ import {
   type DataPathsRecord,
   type ShopSettingsRecord,
 } from '../../api/reports';
-import { confirmAction, normalizeError } from '../../ui/feedback';
+import { confirmAction } from '../../ui/feedback';
 const emit = defineEmits<{ notify: [message: string] }>();
 const form = ref<ShopSettingsRecord>({
   shopName: '',
@@ -35,8 +34,6 @@ const form = ref<ShopSettingsRecord>({
   documentNotes: '',
 });
 const loading = ref(true);
-const loadError = ref('');
-const backupError = ref('');
 const backupBusy = ref(false);
 const backupPath = ref('');
 const paths = ref<DataPathsRecord | null>(null);
@@ -51,10 +48,9 @@ onMounted(async () => {
     paths.value = dataPaths;
     try {
       lastBackup.value = await reportsApi.lastBackup();
-    } catch (error) { backupError.value = normalizeError(error).message; }
+    } catch (error) { reportError(error); }
   } catch (e) {
 reportError(e);
-    loadError.value = normalizeError(e).message;
   } finally {
     loading.value = false;
   }
@@ -138,13 +134,12 @@ reportError(e);
 }
 </script>
 <template><div class="space-y-4">
-<WorkspaceStickyStack><WorkspaceHeader eyebrow="Insights & setup" title="Shop settings" description="Document identity, contact details and data safety."><button class="btn btn-primary" type="submit" form="shop-settings" :disabled="loading || busy || !!loadError">Save settings</button></WorkspaceHeader></WorkspaceStickyStack>
-<LoadingState v-if="loading" label="Loading settings…" /><InlineAlert v-else-if="loadError" :message="loadError" />
+<WorkspaceStickyStack><WorkspaceHeader eyebrow="Insights & setup" title="Shop settings" description="Document identity, contact details and data safety."><button class="btn btn-primary" type="submit" form="shop-settings" :disabled="loading || busy">Save settings</button></WorkspaceHeader></WorkspaceStickyStack>
+<LoadingState v-if="loading" label="Loading settings…" />
 <MasterDetail v-else wide>
 <AppPanel title="Document identity"><form id="shop-settings" @submit.prevent="save"><ShopIdentityForm v-model="form" /></form></AppPanel>
 <AppPanel title="Backup & restore" subtitle="Backups include the database and managed files.">
 <dl v-if="paths" class="space-y-3 text-sm"><div v-for="item in [{label:'Data location',value:paths.root},{label:'Database',value:paths.database},{label:'Version / schema',value:paths.applicationVersion+' · v'+paths.schemaVersion},{label:'Backups folder',value:paths.backups}]" :key="item.label"><dt class="text-xs text-base-content/60">{{item.label}}</dt><dd class="mt-1 wrap-anywhere">{{item.value}}</dd></div></dl>
-<InlineAlert v-if="backupError" tone="warning" :message="backupError" />
 <div class="flex flex-wrap gap-2 border-t border-base-300 pt-3"><button class="btn btn-primary" :disabled="backupBusy || busy" @click="createBackup">Create backup</button><button class="btn btn-outline" :disabled="backupBusy || busy" @click="chooseBackup">Choose backup</button></div>
 <FormField label="Selected backup"><AppInput v-model="backupPath" placeholder="Path to a .zip backup" /></FormField>
 <div class="flex flex-wrap gap-2"><button class="btn btn-outline" :disabled="backupBusy || busy || !backupPath" @click="verifyBackup">Verify selected</button><button class="btn btn-ghost text-error" :disabled="backupBusy || busy || !backupPath" @click="restoreBackup">Restore selected</button></div>

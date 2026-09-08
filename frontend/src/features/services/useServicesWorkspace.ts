@@ -1,6 +1,6 @@
 import {componentNeedsRate,componentNeedsReference,componentNeedsPercentage} from './serviceFields'
 import type {ServiceFilter,EditorMode,ParameterType,ParameterForm,ComponentType,ComponentForm,PricingTierForm,PricingRuleForm,ServiceForm} from './types'
-import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
+import {useWorkspaceActions} from '../../composables/useWorkspaceActions'
 import { computed, onMounted, ref, watch } from 'vue';
 import { materialsApi, type MaterialRecord } from '../../api/materials';
 import { servicesApi, type ServiceRecord } from '../../api/services';
@@ -12,9 +12,11 @@ import {
   type CurrencyUnit,
 } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
+import { useToast } from '../../ui/feedback';
 
 export function useServicesWorkspace(props:{ currencyUnit: CurrencyUnit },emit:(event:'notify',message:string)=>void){
 const {busy,runAction}=useWorkspaceActions()
+const toast = useToast();
 const services = ref<ServiceRecord[]>([]);
 const materials = ref<MaterialRecord[]>([]);
 const machines = ref<MachineRecord[]>([]);
@@ -25,8 +27,6 @@ const editorMode = ref<EditorMode>(null);
 const form = ref<ServiceForm>(emptyForm());
 const isLoading = ref(false);
 const isSaving = ref(false);
-const errorMessage = ref('');
-const formError = ref('');
 const selectedService = computed(
   () => services.value.find((service) => service.id === selectedId.value) ?? null,
 );
@@ -117,7 +117,6 @@ function emptyComponent(): ComponentForm {
 }
 async function loadServices() {
   isLoading.value = true;
-  errorMessage.value = '';
   try {
     const [serviceData, materialData, machineData] = await Promise.all([
       servicesApi.list(true),
@@ -128,7 +127,7 @@ async function loadServices() {
     materials.value = materialData;
     machines.value = machineData;
   } catch (error) {
-    errorMessage.value = errorMessageFrom(error, 'Services could not be loaded.');
+    toast.error(errorMessageFrom(error, 'Services could not be loaded.'), 'Services');
   } finally {
     isLoading.value = false;
   }
@@ -136,13 +135,11 @@ async function loadServices() {
 function selectService(id: string) {
   selectedId.value = id;
   editorMode.value = null;
-  formError.value = '';
 }
 function startCreate() {
   editorMode.value = 'create';
   selectedId.value = null;
   form.value = emptyForm();
-  formError.value = '';
 }
 function startEdit() {
   const service = selectedService.value;
@@ -208,7 +205,6 @@ function startEdit() {
       : null,
   };
   editorMode.value = 'edit';
-  formError.value = '';
 }
 function numericParameters() {
   return form.value.parameters.filter(
@@ -326,7 +322,6 @@ function componentSummary(component: {
 }
 function cancelEditor() {
   editorMode.value = null;
-  formError.value = '';
 }
 function addParameter() {
   form.value.parameters.push(emptyParameter());
@@ -390,9 +385,8 @@ function removeOption(parameter: ParameterForm, index: number) {
 }
 async function saveService() {
 return runAction(async () => {
-  formError.value = '';
   if (!form.value.name.trim()) {
-    formError.value = 'Enter a service name.';
+    toast.error('Enter a service name.', 'Services');
     return;
   }
   isSaving.value = true;
@@ -447,8 +441,7 @@ return runAction(async () => {
     editorMode.value = null;
     emit('notify', wasEditing ? 'Service updated.' : 'Service created.');
   } catch (error) {
-reportError(error);
-    formError.value = errorMessageFrom(error, 'Service could not be saved.');
+    toast.error(errorMessageFrom(error, 'Service could not be saved.'), 'Services');
   } finally {
     isSaving.value = false;
   }
@@ -467,8 +460,7 @@ return runAction(async () => {
     if (index >= 0) services.value.splice(index, 1, updated);
     emit('notify', active ? 'Service reactivated.' : 'Service deactivated.');
   } catch (error) {
-reportError(error);
-    errorMessage.value = errorMessageFrom(error, 'Service status could not be changed.');
+    toast.error(errorMessageFrom(error, 'Service status could not be changed.'), 'Services');
   }
 
 });
@@ -498,5 +490,5 @@ function errorMessageFrom(error: unknown, fallback: string): string {
       ? error
       : fallback;
 }
-return {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,errorMessage,formError,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,typeLabel,dateLabel,errorMessageFrom}
+return {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,typeLabel,dateLabel,errorMessageFrom}
 }

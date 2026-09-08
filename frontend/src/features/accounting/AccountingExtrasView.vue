@@ -8,7 +8,6 @@ import DataTable from '../../components/ui/DataTable.vue'
 import DataTableCell from '../../components/ui/DataTableCell.vue'
 import FormGrid from '../../components/ui/FormGrid.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
-import InlineAlert from '../../components/ui/InlineAlert.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { onMounted, ref } from 'vue';
@@ -24,7 +23,6 @@ import {
 import type { CurrencyUnit } from '../../utils/currency';
 import { formatMoney, parseMoneyInput } from '../../utils/currency';
 import { currentCanonicalDate, formatDateTime } from '../../utils/date';
-import { normalizeError } from '../../ui/feedback';
 import SelectField from '../../components/ui/SelectField.vue';
 
 const props = defineProps<{
@@ -37,7 +35,6 @@ const props = defineProps<{
 const emit = defineEmits<{ notify: [string] }>();
 const expenses = ref<ExpenseRecord[]>([]);
 const transfers = ref<TransferRecord[]>([]);
-const error = ref('');
 const expense = ref({
   categoryAccountId: 'ACC-EXP-OTHER',
   financialAccountId: 'FIN-CASH',
@@ -61,7 +58,7 @@ async function load() { return runLoad(async () => {
       accountingApi.transfers(),
     ]);
   } catch (e) {
-    error.value = normalizeError(e).message;
+    reportError(e);
   }
 }); }
 onMounted(load);
@@ -76,7 +73,6 @@ return runAction(async () => {
     emit('notify', 'Expense posted.');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -92,7 +88,6 @@ return runAction(async () => {
     emit('notify', 'Transfer posted.');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -105,7 +100,6 @@ return runAction(async () => {
     emit('notify', 'Expense reversed.');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -118,14 +112,12 @@ return runAction(async () => {
     emit('notify', 'Transfer reversed.');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
 }
 </script>
 <template><div class="space-y-4"><LoadingState v-if="pageLoading" label="Loading records…" /><div v-show="!pageLoading" class="space-y-4">
-<InlineAlert v-if="error" :message="error" />
 <template v-if="tab==='Expenses'"><AppPanel title="Post expense" subtitle="Record the category, payee and funding account."><form @submit.prevent="createExpense" class="min-w-0 space-y-3"><FormGrid>
           <SelectField
             v-model="expense.categoryAccountId"

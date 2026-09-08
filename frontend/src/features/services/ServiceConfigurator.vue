@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import InlineAlert from '../../components/ui/InlineAlert.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import FormField from '../../components/ui/FormField.vue';
 import DataTableCell from '../../components/ui/DataTableCell.vue';
 import DataTable from '../../components/ui/DataTable.vue';
 import { ref, watch } from 'vue';
-import { AlertTriangle, Calculator, LoaderCircle, RotateCcw } from 'lucide-vue-next';
+import { Calculator, LoaderCircle, RotateCcw } from 'lucide-vue-next';
 import type { ServiceRecord } from '../../api/services';
 import type { MaterialRecord } from '../../api/materials';
 import { pricingApi, type PricingRecord } from '../../api/pricing';
@@ -16,6 +15,7 @@ import {
   type CurrencyUnit,
 } from '../../utils/currency';
 import SelectField from '../../components/ui/SelectField.vue';
+import { useToast } from '../../ui/feedback';
 
 const props = defineProps<{
   service: ServiceRecord;
@@ -29,7 +29,8 @@ const manualCosts = ref<Record<string, number>>({});
 const manualTexts = ref<Record<string, string>>({});
 const result = ref<PricingRecord | null>(null);
 const loading = ref(false);
-const error = ref('');
+const toast = useToast();
+let lastWarningSignature = '';
 let requestToken = 0;
 
 function resetValues() {
@@ -42,6 +43,7 @@ function resetValues() {
   manualCosts.value = {};
   manualTexts.value = {};
   result.value = null;
+  lastWarningSignature = '';
   void calculate();
 }
 
@@ -64,7 +66,6 @@ watch(
 async function calculate() {
   const token = ++requestToken;
   loading.value = true;
-  error.value = '';
   try {
     const next = await pricingApi.calculate({
       serviceId: props.service.id,
@@ -72,11 +73,20 @@ async function calculate() {
       manualCosts: manualCosts.value,
       sellingPriceOverrideRial: overrideRial.value,
     });
-    if (token === requestToken) result.value = next;
+    if (token === requestToken) {
+      result.value = next;
+      const warnings = next.warnings ?? [];
+      const signature = [...(next.belowCost ? ['Selling price is below estimated cost.'] : []), ...warnings].join('\u0000');
+      if (signature !== lastWarningSignature) {
+        if (next.belowCost) toast.warning('Selling price is below estimated cost.', 'Pricing');
+        for (const warning of warnings) toast.warning(warning, 'Pricing');
+        lastWarningSignature = signature;
+      }
+    }
   } catch (cause) {
     if (token === requestToken) {
       result.value = null;
-      error.value = cause instanceof Error ? cause.message : 'Pricing could not be calculated.';
+      toast.error(cause instanceof Error ? cause.message : 'Pricing could not be calculated.', 'Pricing');
     }
   } finally {
     if (token === requestToken) loading.value = false;
@@ -224,9 +234,6 @@ function typeLabel(type: string) {
           </div>
           <span v-if="result" class="badge badge-ghost shrink-0 text-xs">{{ result.marginPercentage }}% margin</span>
         </div>
-        <InlineAlert v-if="error" role="alert" tone="error"
-          ><AlertTriangle :size="15" :stroke-width="1.8" />{{ error }}</InlineAlert
-        >
         <div v-if="result" class="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-1">
           <div class="rounded-box border border-base-300 bg-base-100 p-3">
             <span class="block text-xs text-base-content/60">Estimated cost</span><strong class="mt-1 block text-sm">{{ money(result.estimatedCostRial) }}</strong>
@@ -260,11 +267,6 @@ function typeLabel(type: string) {
               <RotateCcw :size="14" :stroke-width="1.8" />
             </button></div
         ></div>
-        <div v-if="result?.belowCost" class="flex min-w-0 items-start gap-2 rounded-box bg-error/15 p-3 text-sm text-error">
-          <AlertTriangle :size="15" :stroke-width="1.8" /><span
-            >Selling price is below estimated cost.</span
-          >
-        </div>
         <div
           v-if="service.components.some((component) => component.type === 'manual')"
           class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-100 p-3"
@@ -327,13 +329,6 @@ function typeLabel(type: string) {
           </tbody></DataTable
         >
       </div>
-    </div>
-    <div v-if="result?.warnings.length" class="min-w-0 space-y-3">
-      <AlertTriangle :size="15" :stroke-width="1.8" /><span
-        v-for="warning in result.warnings"
-        :key="warning"
-        >{{ warning }}</span
-      >
     </div>
   </section>
 </template>

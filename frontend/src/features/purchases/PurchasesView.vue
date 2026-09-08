@@ -3,7 +3,6 @@ import LoadingState from '../../components/ui/LoadingState.vue'
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 const {busy,runAction}=useWorkspaceActions()
 
-import InlineAlert from '../../components/ui/InlineAlert.vue';
 import FormGrid from '../../components/ui/FormGrid.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
@@ -24,7 +23,7 @@ import type { SupplierRecord } from '../../api/suppliers';
 import type { MaterialRecord } from '../../api/materials';
 import { formatMoney, type CurrencyUnit } from '../../utils/currency';
 import { currentCanonicalDate, formatDateTime } from '../../utils/date';
-import { confirmAction, normalizeError } from '../../ui/feedback';
+import { confirmAction, useToast } from '../../ui/feedback';
 
 const props = defineProps<{
   currencyUnit: CurrencyUnit;
@@ -35,7 +34,7 @@ const emit = defineEmits<{ notify: [string] }>();
 const rows = ref<PurchaseRecord[]>([]);
 const selectedId = ref<string | null>(null);
 const loading = ref(false);
-const error = ref('');
+const toast = useToast();
 const editing = ref(false);
 const form = ref<PurchasePayload>(blank());
 const item = ref({
@@ -67,7 +66,7 @@ async function load() {
   try {
     rows.value = await purchasesApi.list();
   } catch (value) {
-    error.value = normalizeError(value).message;
+    reportError(value);
   } finally {
     loading.value = false;
   }
@@ -89,7 +88,7 @@ function select(value: PurchaseRecord) {
 async function create() {
 return runAction(async () => {
   if (!props.suppliers.length) {
-    error.value = 'Create a supplier before recording a purchase.';
+    toast.error('Create a supplier before recording a purchase.', 'Purchases');
     return;
   }
   try {
@@ -99,7 +98,6 @@ return runAction(async () => {
     emit('notify', 'Draft purchase created.');
   } catch (value) {
 reportError(value);
-    error.value = String(value);
   }
 
 });
@@ -112,7 +110,6 @@ return runAction(async () => {
     emit('notify', 'Purchase saved.');
   } catch (value) {
 reportError(value);
-    error.value = String(value);
   }
 
 });
@@ -125,7 +122,6 @@ return runAction(async () => {
     item.value = { materialId: '', purchaseQuantity: '1', unitAcquisitionCostRial: '0', notes: '' };
   } catch (value) {
 reportError(value);
-    error.value = String(value);
   }
 
 });
@@ -137,7 +133,6 @@ return runAction(async () => {
     replace(await purchasesApi.removeItem(current.value.id, id));
   } catch (value) {
 reportError(value);
-    error.value = String(value);
   }
 
 });
@@ -158,7 +153,6 @@ return runAction(async () => {
     );
   } catch (value) {
 reportError(value);
-    error.value = String(value);
   }
 
 });
@@ -180,7 +174,6 @@ return runAction(async () => {
     emit('notify', 'Purchase posted.');
   } catch (value) {
 reportError(value);
-    error.value = normalizeError(value).message;
   }
 
 });
@@ -203,7 +196,6 @@ return runAction(async () => {
     emit('notify', 'Purchase cancelled with history preserved.');
   } catch (value) {
 reportError(value);
-    error.value = normalizeError(value).message;
   }
 
 });
@@ -227,7 +219,6 @@ return runAction(async () => {
     emit('notify', 'Draft deleted.');
   } catch (value) {
 reportError(value);
-    error.value = normalizeError(value).message;
   }
 
 });
@@ -260,11 +251,6 @@ function replace(value: PurchaseRecord) {
         </button></WorkspaceHeader
       ></WorkspaceStickyStack
     >
-    <InlineAlert v-if="error" role="alert" class="flex flex-wrap items-center gap-2" tone="error"
-      >{{ error }}
-      <button class="btn btn-ghost" @click="error = ''" aria-label="Dismiss">
-        <X :size="14" /></button
-    ></InlineAlert>
     <MasterDetail>
       <RegisterList
         title="Purchase register"

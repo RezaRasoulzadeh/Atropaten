@@ -121,20 +121,9 @@
 .toast-card-error { --toast-accent: var(--color-error); --toast-accent-content: var(--color-error-content); }
 .toast-card-warning { --toast-accent: var(--color-warning); --toast-accent-content: var(--color-warning-content); }
 .toast-card-info { --toast-accent: var(--color-info); --toast-accent-content: var(--color-info-content); }
-.toast-icon {
-  display: inline-grid;
-  width: 1.75rem;
-  height: 1.75rem;
-  place-items: center;
-  color: var(--toast-accent-content);
-  background: color-mix(in srgb, var(--toast-accent-content) 14%, transparent);
-  border-radius: 999px;
-}
 .toast-card-success, .toast-card-error, .toast-card-warning, .toast-card-info {
   color: var(--toast-accent-content);
 }
-.toast-close { color: color-mix(in srgb, var(--toast-accent-content) 72%, transparent); }
-.toast-close:hover { color: var(--toast-accent-content); background: color-mix(in srgb, var(--toast-accent-content) 12%, transparent); }
 
 /* Only the prepared document participates in printing. */
 .print-output { display: none; }

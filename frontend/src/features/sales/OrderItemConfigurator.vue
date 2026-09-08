@@ -3,8 +3,7 @@ import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
 import FormField from '../../components/ui/FormField.vue';
 import { computed, nextTick, ref, watch } from 'vue';
-import { AlertTriangle, Calculator, Plus } from 'lucide-vue-next';
-import FieldMessage from '../../components/ui/FieldMessage.vue';
+import { Calculator, Plus } from 'lucide-vue-next';
 import SelectField from '../../components/ui/SelectField.vue';
 import { pricingApi, type PricingRecord } from '../../api/pricing';
 import type { OrderItemPayload } from '../../api/orders';
@@ -14,6 +13,7 @@ import {
   parseMoneyInput,
   type CurrencyUnit,
 } from '../../utils/currency';
+import { useToast } from '../../ui/feedback';
 
 const props = withDefaults(
   defineProps<{
@@ -42,7 +42,8 @@ const notes = ref('');
 const overrideText = ref('');
 const manualTexts = ref<Record<string, string>>({});
 const pricing = ref<PricingRecord | null>(null);
-const error = ref('');
+const toast = useToast();
+let lastWarningSignature = '';
 const calculating = ref(false);
 const manualCosts = ref<Record<string, number>>({});
 const pricingPreview = ref<HTMLElement | null>(null);
@@ -96,7 +97,7 @@ function initialize() {
   manualTexts.value = {};
   manualCosts.value = {};
   pricing.value = null;
-  error.value = '';
+  lastWarningSignature = '';
 }
 
 watch(() => [props.initial, props.services], initialize, { immediate: true });
@@ -123,7 +124,6 @@ function updateMoneyText(text: string, key: string) {
 }
 
 async function calculate() {
-  error.value = '';
   calculating.value = true;
   try {
     const override = overrideText.value.trim()
@@ -131,16 +131,22 @@ async function calculate() {
       : null;
     if (overrideText.value.trim() && override === null)
       throw new Error('Enter a valid selling price');
-    pricing.value = await pricingApi.calculate({
+    const next = await pricingApi.calculate({
       serviceId: serviceId.value,
       parameters: values.value,
       manualCosts: manualCosts.value,
       sellingPriceOverrideRial: override,
     });
+    pricing.value = next;
+    const warning = next.belowCost ? 'Selling price is below estimated cost.' : '';
+    if (warning !== lastWarningSignature) {
+      if (warning) toast.warning(warning, 'Pricing');
+      lastWarningSignature = warning;
+    }
     await nextTick();
     pricingPreview.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (value) {
-    error.value = String(value).replace(/^Error:\s*/, '');
+    toast.error(String(value).replace(/^Error:\s*/, ''), 'Pricing');
   } finally {
     calculating.value = false;
   }
@@ -149,7 +155,7 @@ async function calculate() {
 function save() {
   if (props.busy) return;
   if (!pricing.value) {
-    error.value = 'Calculate the item before adding it';
+    toast.warning('Calculate the item before adding it.', 'Pricing');
     return;
   }
   const override = overrideText.value.trim()
@@ -303,8 +309,6 @@ function save() {
       </div>
     </div>
 
-    <FieldMessage :message="error" tone="error" class="mt-3" />
-
     <div
       v-if="pricing"
       ref="pricingPreview"
@@ -312,9 +316,6 @@ function save() {
     >
       <div class="flex flex-wrap items-center justify-between gap-2">
         <strong>Accepted pricing preview</strong>
-        <span v-if="pricing.belowCost" class="flex items-center gap-1 text-xs text-warning"
-          ><AlertTriangle :size="14" aria-hidden="true" />Below cost</span
-        >
       </div>
       <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div>

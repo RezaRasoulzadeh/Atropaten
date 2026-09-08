@@ -21,7 +21,7 @@ import RegisterRow from '../../components/ui/RegisterRow.vue';
 import { reportsApi, type DashboardRecord } from '../../api/reports';
 import { formatMoney } from '../../utils/currency';
 import { formatDate, currentCanonicalDate } from '../../utils/date';
-import { normalizeError } from '../../ui/feedback';
+import { normalizeError, useToast } from '../../ui/feedback';
 const props = defineProps<{ currencyUnit: 'Rial' | 'Toman' }>();
 const emit = defineEmits<{
   navigate: [view: string];
@@ -31,7 +31,7 @@ const emit = defineEmits<{
 }>();
 const data = ref<DashboardRecord | null>(null);
 const loading = ref(false);
-const error = ref('');
+const toast = useToast();
 const refreshAnimation = ref<'once' | 'infinite' | ''>('');
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 let refreshClearTimer: ReturnType<typeof setTimeout> | undefined;
@@ -46,7 +46,6 @@ const money = (v: number) => formatMoney(v, props.currencyUnit);
 async function load() {
   if (loading.value) return;
   loading.value = true;
-  error.value = '';
   end.value = currentCanonicalDate();
   refreshAnimation.value = 'once';
   if (refreshTimer) clearTimeout(refreshTimer);
@@ -58,7 +57,7 @@ async function load() {
   try {
     data.value = await reportsApi.dashboard(start.value, end.value);
   } catch (e) {
-    error.value = normalizeError(e).message;
+    toast.error(normalizeError(e).message, 'Dashboard');
   } finally {
     loading.value = false;
     if (refreshTimer) clearTimeout(refreshTimer);
@@ -120,9 +119,6 @@ const initialLoading = computed(() => loading.value && !data.value);
         </button>
       </WorkspaceHeader>
     </WorkspaceStickyStack>
-    <p v-if="error" role="alert" class="py-3 text-sm text-error">
-      {{ error }} <span v-if="data">Showing the last loaded dashboard.</span>
-    </p>
     <div class="mt-4 space-y-4">
       <section class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <KpiCard

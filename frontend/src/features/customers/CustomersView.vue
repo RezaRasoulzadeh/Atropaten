@@ -17,11 +17,10 @@ import InspectorSection from '../../components/layout/InspectorSection.vue';
 import FormSection from '../../components/ui/FormSection.vue';
 import EmptyState from '../../components/ui/EmptyState.vue';
 import LoadingState from '../../components/ui/LoadingState.vue';
-import InlineAlert from '../../components/ui/InlineAlert.vue';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import { customersApi, type CustomerPayload, type CustomerRecord } from '../../api/customers';
 import { formatDateTime } from '../../utils/date';
-import { confirmAction, normalizeError } from '../../ui/feedback';
+import { confirmAction } from '../../ui/feedback';
 import SearchFilterBar from '../../components/ui/SearchFilterBar.vue';
 import SearchField from '../../components/ui/SearchField.vue';
 import SelectField from '../../components/ui/SelectField.vue';
@@ -30,7 +29,6 @@ const props = defineProps<{ refreshKey?: number }>();
 const emit = defineEmits<{ notify: [message: string] }>();
 const customers = ref<CustomerRecord[]>([]);
 const loading = ref(true);
-const error = ref('');
 const query = ref('');
 const filter = ref<'Active' | 'Archived' | 'All'>('Active');
 const selectedId = ref<string | null>(null);
@@ -57,12 +55,11 @@ const selected = computed(
 
 async function load() {
   loading.value = true;
-  error.value = '';
   try {
     customers.value = await customersApi.list(true);
     if (!selectedId.value && customers.value.length) select(customers.value[0]);
   } catch (value) {
-    error.value = normalizeError(value).message;
+    reportError(value);
   } finally {
     loading.value = false;
   }
@@ -183,8 +180,6 @@ watch(() => props.refreshKey, load, { immediate: true });
         >
       </SearchFilterBar>
     </WorkspaceStickyStack>
-
-    <InlineAlert v-if="error" :message="error" />
 
     <MasterDetail wide>
       <RegisterList

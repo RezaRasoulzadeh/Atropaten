@@ -3,7 +3,6 @@ import LoadingState from '../../components/ui/LoadingState.vue'
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 const {busy,runAction,pageLoading,runLoad}=useWorkspaceActions()
 
-import InlineAlert from '../../components/ui/InlineAlert.vue';
 import FormGrid from '../../components/ui/FormGrid.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
 import InspectorSection from '../../components/layout/InspectorSection.vue';
@@ -17,7 +16,7 @@ import FormField from '../../components/ui/FormField.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
 import { computed, onMounted, ref } from 'vue';
-import { CircleDollarSign, Plus, RotateCcw, X } from 'lucide-vue-next';
+import { CircleDollarSign, Plus, RotateCcw } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import EmptyState from '../../components/ui/EmptyState.vue';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
@@ -27,6 +26,7 @@ import { loansApi, type LoanPaymentRecord, type LoanRecord } from '../../api/loa
 import { accountingApi, type FinancialAccountRecord } from '../../api/accounting';
 import { formatMoney, type CurrencyUnit } from '../../utils/currency';
 import { currentCanonicalDate, formatDateTime } from '../../utils/date';
+import { useToast } from '../../ui/feedback';
 const props = defineProps<{ currencyUnit: CurrencyUnit }>();
 const emit = defineEmits<{ notify: [string] }>();
 const rows = ref<LoanRecord[]>([]);
@@ -34,7 +34,7 @@ const accounts = ref<FinancialAccountRecord[]>([]);
 const payments = ref<LoanPaymentRecord[]>([]);
 const selectedId = ref<string | null>(null);
 const tab = ref('Active');
-const error = ref('');
+const toast = useToast();
 const createMode = ref(false);
 const form = ref({
   direction: 'payable',
@@ -71,7 +71,6 @@ onMounted(async () => {
     await load();
   } catch (e) {
 reportError(e);
-    error.value = String(e);
   }
 });
 async function load() { return runLoad(async () => {
@@ -85,7 +84,6 @@ async function select(v: LoanRecord) {
     payments.value = await loansApi.payments(v.id);
   } catch (e) {
 reportError(e);
-    error.value = String(e);
   }
 }
 function begin() {
@@ -108,7 +106,7 @@ return runAction(async () => {
   const principal = Number(form.value.principalRial.replaceAll(',', ''));
   const interest = Number(form.value.interestFeeRial.replaceAll(',', ''));
   if (!form.value.counterpartyName || !principal || !form.value.financialAccountId) {
-    error.value = 'Counterparty, account, and positive principal are required.';
+    toast.error('Counterparty, account, and positive principal are required.', 'Loans');
     return;
   }
   try {
@@ -123,7 +121,6 @@ return runAction(async () => {
     emit('notify', 'Loan opened with a balanced journal entry.');
   } catch (e) {
 reportError(e);
-    error.value = String(e);
   }
 
 });
@@ -134,7 +131,7 @@ return runAction(async () => {
   const principal = Number(pay.value.principalRial.replaceAll(',', ''));
   const interest = Number(pay.value.interestRial.replaceAll(',', ''));
   if ((!principal && !interest) || !pay.value.financialAccountId || !pay.value.installmentId) {
-    error.value = 'Select an installment, account, and payment amount.';
+    toast.error('Select an installment, account, and payment amount.', 'Loans');
     return;
   }
   try {
@@ -160,7 +157,6 @@ return runAction(async () => {
     emit('notify', 'Loan payment posted and allocated.');
   } catch (e) {
 reportError(e);
-    error.value = String(e);
   }
 
 });
@@ -173,7 +169,6 @@ return runAction(async () => {
     emit('notify', 'Payment reversed with a compensating entry.');
   } catch (e) {
 reportError(e);
-    error.value = String(e);
   }
 
 });
@@ -214,11 +209,7 @@ function date(v: string) {
         </div>
         <span>{{ filtered.length }} loans</span>
       </section></WorkspaceStickyStack
-    ><LoadingState v-if="pageLoading" label="Loading records…" /><div v-show="!pageLoading" class="space-y-4"><InlineAlert v-if="error" role="alert" class="flex flex-wrap items-center gap-2" tone="error"
-      >{{ error }}
-      <button class="btn btn-ghost" @click="error = ''" aria-label="Dismiss">
-        <X :size="14" /></button></InlineAlert
-    ><MasterDetail
+    ><LoadingState v-if="pageLoading" label="Loading records…" /><div v-show="!pageLoading" class="space-y-4"><MasterDetail
       ><RegisterList
         title="Loan register"
         subtitle="Principal, interest, remaining, and overdue values come from posted allocations."

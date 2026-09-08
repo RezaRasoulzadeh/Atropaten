@@ -2,7 +2,6 @@
 import FieldMessage from './FieldMessage.vue';
 defineProps<{
   label?: string;
-  error?: string;
   help?: string;
   required?: boolean;
   forId?: string;
@@ -14,8 +13,8 @@ defineProps<{
     :for="forId"
   >
     <span v-if="label">{{ label }}<span v-if="required" aria-hidden="true"> *</span></span>
-    <slot /><FieldMessage v-if="error" :message="error" tone="error" /><FieldMessage
-      v-else-if="help"
+    <slot /><FieldMessage
+      v-if="help"
       :message="help"
     />
   </label>

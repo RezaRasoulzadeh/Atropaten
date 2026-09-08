@@ -17,7 +17,6 @@ const props = defineProps<{
   orders: OrderRecord[];
   currencyUnit: CurrencyUnit;
   loading?: boolean;
-  error?: string;
 }>();
 const emit = defineEmits<{ 'open-order': [id: string]; 'new-order': [] }>();
 const query = ref('');
@@ -164,7 +163,6 @@ function clear() {
       </template>
 
       <LoadingState v-if="loading" label="Loading records…" />
-      <div v-else-if="error" class="p-6 text-sm text-error">{{ error }}</div>
       <div
         v-else-if="!filtered.length"
         class="flex min-h-40 flex-col items-center justify-center gap-3 p-6 text-center"

@@ -2,7 +2,6 @@
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 const {busy,runAction}=useWorkspaceActions()
 
-import InlineAlert from '../../components/ui/InlineAlert.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { onMounted, ref } from 'vue';
 import { FileText, Plus, RotateCcw } from 'lucide-vue-next';
@@ -11,16 +10,15 @@ import { invoicesApi, type InvoiceRecord } from '../../api/invoices';
 import { ordersApi, type OrderRecord } from '../../api/orders';
 import type { CurrencyUnit } from '../../utils/currency';
 import { formatMoney } from '../../utils/currency';
-import { confirmAction, normalizeError } from '../../ui/feedback';
+import { confirmAction } from '../../ui/feedback';
 const props = defineProps<{ order: OrderRecord; currencyUnit: CurrencyUnit }>();
 const emit = defineEmits<{ notify: [string]; saved: [order: OrderRecord] }>();
 const invoice = ref<InvoiceRecord | null>(null);
-const error = ref('');
 async function load() {
   try {
     if (props.order.invoiceId) invoice.value = await invoicesApi.get(props.order.invoiceId);
   } catch (e) {
-    error.value = String(e);
+    reportError(e);
   }
 }
 onMounted(load);
@@ -31,8 +29,7 @@ return runAction(async () => {
     emit('notify', 'Draft invoice created from this order.');
     emit('saved', await ordersApi.get(props.order.id));
   } catch (e) {
-reportError(e);
-    error.value = String(e);
+    reportError(e);
   }
 
 });
@@ -45,8 +42,7 @@ return runAction(async () => {
     emit('notify', 'Invoice posted.');
     emit('saved', await ordersApi.get(props.order.id));
   } catch (e) {
-reportError(e);
-    error.value = String(e);
+    reportError(e);
   }
 
 });
@@ -68,8 +64,7 @@ return runAction(async () => {
     emit('notify', 'Invoice voided with history preserved.');
     emit('saved', await ordersApi.get(props.order.id));
   } catch (e) {
-reportError(e);
-    error.value = normalizeError(e).message;
+    reportError(e);
   }
 
 });
@@ -77,7 +72,7 @@ reportError(e);
 </script>
 <template>
   <AppPanel title="Invoice" subtitle="Commercial snapshot and receivable status"
-    ><InlineAlert v-if="error" tone="error">{{ error }}</InlineAlert>
+    >
     <div v-if="invoice" class="min-w-0 space-y-3">
       <div class="min-w-0 space-y-3">
         <div><FileText :size="19" /></div>

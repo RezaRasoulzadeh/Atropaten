@@ -5,7 +5,6 @@ import SearchFilterBar from '../../components/ui/SearchFilterBar.vue'
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 const {busy,runAction}=useWorkspaceActions()
 
-import InlineAlert from '../../components/ui/InlineAlert.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
 import InspectorSection from '../../components/layout/InspectorSection.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
@@ -23,7 +22,7 @@ import { invoicesApi, type InvoiceRecord } from '../../api/invoices';
 import type { OrderRecord } from '../../api/orders';
 import { formatMoney, type CurrencyUnit } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
-import { confirmAction, normalizeError } from '../../ui/feedback';
+import { confirmAction } from '../../ui/feedback';
 import SearchField from '../../components/ui/SearchField.vue';
 import SelectField from '../../components/ui/SelectField.vue';
 
@@ -33,7 +32,6 @@ const rows = ref<InvoiceRecord[]>([]);
 const selected = ref<string | null>(null);
 const query = ref('');
 const status = ref('All');
-const error = ref('');
 const loading = ref(false);
 const current = computed(() => rows.value.find((v) => v.id === selected.value) ?? null);
 const filtered = computed(() =>
@@ -62,7 +60,7 @@ async function load() {
     rows.value = await invoicesApi.list();
     if (!selected.value && rows.value[0]) selected.value = rows.value[0].id;
   } catch (e) {
-    error.value = normalizeError(e).message;
+    reportError(e);
   } finally {
     loading.value = false;
   }
@@ -78,7 +76,6 @@ return runAction(async () => {
     emit('refreshOrders');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -93,7 +90,6 @@ return runAction(async () => {
     emit('refreshOrders');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -117,7 +113,6 @@ return runAction(async () => {
     emit('refreshOrders');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -141,7 +136,6 @@ return runAction(async () => {
     emit('notify', 'Draft invoice deleted.');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -171,11 +165,6 @@ reportError(e);
           "
         /></template><template #count><span class="self-end pb-2">{{ filtered.length }} shown</span></template></SearchFilterBar></WorkspaceStickyStack
     >
-    <InlineAlert v-if="error" role="alert" class="flex flex-wrap items-center gap-2" tone="error"
-      >{{ error }}
-      <button class="btn btn-ghost" @click="error = ''" aria-label="Dismiss">
-        <X :size="14" /></button
-    ></InlineAlert>
     <MasterDetail
       ><RegisterList
         title="Invoice register"

@@ -3,7 +3,6 @@ import LoadingState from '../../components/ui/LoadingState.vue'
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 const {busy,runAction,pageLoading,runLoad}=useWorkspaceActions()
 
-import InlineAlert from '../../components/ui/InlineAlert.vue';
 import FormGrid from '../../components/ui/FormGrid.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
 import InspectorSection from '../../components/layout/InspectorSection.vue';
@@ -17,7 +16,7 @@ import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
 import FormField from '../../components/ui/FormField.vue';
 import { computed, onMounted, ref } from 'vue';
-import { Landmark, Plus, RotateCcw, Trash2, X } from 'lucide-vue-next';
+import { Landmark, Plus, RotateCcw, Trash2 } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import EmptyState from '../../components/ui/EmptyState.vue';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
@@ -25,7 +24,7 @@ import JalaliDatePicker from '../../components/ui/JalaliDatePicker.vue';
 import { checksApi, type CheckEventRecord, type CheckRecord } from '../../api/checks';
 import { formatMoney, type CurrencyUnit } from '../../utils/currency';
 import { currentCanonicalDate, formatDateTime } from '../../utils/date';
-import { normalizeError } from '../../ui/feedback';
+import { useToast } from '../../ui/feedback';
 import SearchField from '../../components/ui/SearchField.vue';
 import SelectField from '../../components/ui/SelectField.vue';
 
@@ -35,7 +34,7 @@ const rows = ref<CheckRecord[]>([]);
 const selectedId = ref<string | null>(null);
 const tab = ref('All');
 const query = ref('');
-const error = ref('');
+const toast = useToast();
 const history = ref<CheckEventRecord[]>([]);
 const createMode = ref(false);
 const form = ref({
@@ -102,7 +101,7 @@ async function load() { return runLoad(async () => {
     rows.value = await checksApi.list();
     if (!selectedId.value && rows.value[0]) select(rows.value[0]);
   } catch (e) {
-    error.value = normalizeError(e).message;
+    reportError(e);
   }
 }); }
 async function select(v: CheckRecord) {
@@ -112,7 +111,6 @@ async function select(v: CheckRecord) {
     history.value = await checksApi.history(v.id);
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 }
 function begin() {
@@ -136,7 +134,7 @@ async function create() {
 return runAction(async () => {
   const amount = Number(form.value.amountRial.replaceAll(',', ''));
   if (!form.value.checkNumber || !form.value.bank || !form.value.payerPayee || !amount) {
-    error.value = 'Check number, bank, payer/payee, and a positive amount are required.';
+    toast.error('Check number, bank, payer/payee, and a positive amount are required.', 'Checks');
     return;
   }
   try {
@@ -146,7 +144,6 @@ return runAction(async () => {
     emit('notify', 'Check draft created.');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -161,7 +158,6 @@ return runAction(async () => {
     emit('notify', `Check moved to ${to}.`);
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -177,7 +173,6 @@ return runAction(async () => {
     emit('notify', 'Draft check deleted.');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -230,11 +225,6 @@ function date(v: string) {
         <span>{{ filtered.length }} shown</span>
       </section></WorkspaceStickyStack
     ><LoadingState v-if="pageLoading" label="Loading records…" /><div v-show="!pageLoading" class="space-y-4">
-    <InlineAlert v-if="error" role="alert" class="flex flex-wrap items-center gap-2" tone="error"
-      >{{ error }}
-      <button class="btn btn-ghost" @click="error = ''" aria-label="Dismiss">
-        <X :size="14" /></button
-    ></InlineAlert>
     <MasterDetail
       ><RegisterList title="Check register" subtitle="Only valid next lifecycle actions are offered." :count="filtered.length"
         ><div v-if="filtered.length">

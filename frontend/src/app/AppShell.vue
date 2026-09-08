@@ -113,7 +113,6 @@ const orders = ref<OrderRecord[]>([]);
 const suppliers = ref<SupplierRecord[]>([]);
 const purchases = ref<PurchaseRecord[]>([]);
 const ordersLoading = ref(false);
-const ordersError = ref('');
 const customers = ref<any[]>([]);
 const catalogServices = ref<any[]>([]);
 const catalogMaterials = ref<any[]>([]);
@@ -152,11 +151,9 @@ const selectedOrder = computed(
 
 async function loadOrders() {
   ordersLoading.value = true;
-  ordersError.value = '';
   try {
     orders.value = await ordersApi.list();
   } catch (error) {
-    ordersError.value = normalizeError(error).message;
     toast.error(error, 'Orders');
   } finally {
     ordersLoading.value = false;
@@ -361,7 +358,6 @@ function showToast(message: string) {
                 key="orders-list"
                 :orders="orders"
                 :loading="ordersLoading"
-                :error="ordersError"
                 :currency-unit="currencyUnit"
                 @open-order="openOrder"
                 @new-order="openNewOrder"

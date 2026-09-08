@@ -4,7 +4,6 @@ import SearchFilterBar from '../../components/ui/SearchFilterBar.vue'
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 const {busy,runAction}=useWorkspaceActions()
 
-import InlineAlert from '../../components/ui/InlineAlert.vue';
 import FormGrid from '../../components/ui/FormGrid.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
 import InspectorSection from '../../components/layout/InspectorSection.vue';
@@ -29,9 +28,11 @@ import {
   type CurrencyUnit,
 } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
+import { useToast } from '../../ui/feedback';
 
 const props = defineProps<{ currencyUnit: CurrencyUnit }>();
 const emit = defineEmits<{ notify: [message: string] }>();
+const toast = useToast();
 type Filter = 'Active' | 'Archived' | 'All';
 type Mode = 'create' | 'edit' | null;
 type MachineForm = Omit<MachinePayload, 'rateRial' | 'setupCostRial'> & {
@@ -47,8 +48,6 @@ const mode = ref<Mode>(null);
 const form = ref<MachineForm>(emptyForm());
 const loading = ref(false);
 const saving = ref(false);
-const error = ref('');
-const formError = ref('');
 const selectedMachine = computed(
   () => machines.value.find((machine) => machine.id === selectedId.value) ?? null,
 );
@@ -100,7 +99,6 @@ function emptyForm(): MachineForm {
 }
 function load() {
   loading.value = true;
-  error.value = '';
   machinesApi
     .list(true)
     .then((data) => {
@@ -108,7 +106,7 @@ function load() {
       if (!selectedId.value && data.length) selectedId.value = data[0].id;
     })
     .catch((e) => {
-      error.value = message(e, 'Machines could not be loaded.');
+      toast.error(message(e, 'Machines could not be loaded.'), 'Machines');
     })
     .finally(() => {
       loading.value = false;
@@ -117,13 +115,11 @@ function load() {
 function select(id: string) {
   selectedId.value = id;
   mode.value = null;
-  formError.value = '';
 }
 function startCreate() {
   mode.value = 'create';
   selectedId.value = null;
   form.value = emptyForm();
-  formError.value = '';
 }
 function startEdit() {
   const machine = selectedMachine.value;
@@ -138,11 +134,9 @@ function startEdit() {
     notes: machine.notes,
   };
   mode.value = 'edit';
-  formError.value = '';
 }
 function cancel() {
   mode.value = null;
-  formError.value = '';
 }
 function rate(value: string) {
   return parseMoneyInput(value, props.currencyUnit);
@@ -163,15 +157,14 @@ function basisLabel(value: string) {
 }
 async function save() {
 return runAction(async () => {
-  formError.value = '';
   const parsedRate = rate(form.value.rate);
   const parsedSetup = form.value.setupCost.trim() === '' ? 0 : rate(form.value.setupCost);
   if (!form.value.name.trim()) {
-    formError.value = 'Enter a machine name.';
+    toast.error('Enter a machine name.', 'Machines');
     return;
   }
   if (parsedRate === null || parsedSetup === null) {
-    formError.value = `Enter whole ${props.currencyUnit.toLowerCase()} amounts.`;
+    toast.error(`Enter whole ${props.currencyUnit.toLowerCase()} amounts.`, 'Machines');
     return;
   }
   saving.value = true;
@@ -197,8 +190,7 @@ return runAction(async () => {
     mode.value = null;
     emit('notify', wasEditing ? 'Machine updated.' : 'Machine created.');
   } catch (e) {
-reportError(e);
-    formError.value = message(e, 'Machine could not be saved.');
+    toast.error(message(e, 'Machine could not be saved.'), 'Machines');
   } finally {
     saving.value = false;
   }
@@ -217,8 +209,7 @@ return runAction(async () => {
     if (index >= 0) machines.value.splice(index, 1, updated);
     emit('notify', active ? 'Machine reactivated.' : 'Machine archived.');
   } catch (e) {
-reportError(e);
-    error.value = message(e, 'Machine status could not be changed.');
+    toast.error(message(e, 'Machine status could not be changed.'), 'Machines');
   }
 
 });
@@ -254,16 +245,6 @@ function message(errorValue: unknown, fallback: string) {
           :options="['Active', 'Archived', 'All'].map((value) => ({ label: value, value }))"
         /></template><template #count><span class="self-end pb-2">{{ filtered.length }} of {{ machines.length }} machines</span></template></SearchFilterBar>
     </WorkspaceStickyStack>
-    <InlineAlert v-if="error" role="alert" class="min-w-0 space-y-3" tone="error"
-      ><span>{{ error }}</span
-      ><button
-        class="btn btn-ghost"
-        type="button"
-        aria-label="Dismiss machines error"
-        @click="error = ''"
-      >
-        <X :size="15" :stroke-width="1.8" aria-hidden="true" /></button
-    ></InlineAlert>
     <MasterDetail aria-label="Machines workspace">
       <RegisterList
         title="Machine register"
@@ -333,7 +314,6 @@ function message(errorValue: unknown, fallback: string) {
             <X :size="16" :stroke-width="1.8" aria-hidden="true" /></button
         ></template>
         <form @submit.prevent="save" class="min-w-0 space-y-3">
-          <div v-if="formError" role="alert">{{ formError }}</div>
           <FormField class="gap-1"
             ><span>Name</span
             ><AppInput

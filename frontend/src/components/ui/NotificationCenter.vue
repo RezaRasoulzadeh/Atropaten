@@ -4,13 +4,13 @@ import { Bell, CheckCheck, RefreshCw, X } from 'lucide-vue-next';
 import { reportsApi } from '../../api/reports';
 import { currentCanonicalDate, formatDateTime } from '../../utils/date';
 import { formatMoney, type CurrencyUnit } from '../../utils/currency';
-import { normalizeError, useNotifications } from '../../ui/feedback';
+import { normalizeError, useNotifications, useToast } from '../../ui/feedback';
 const props = defineProps<{ currencyUnit: CurrencyUnit; refreshKey: string }>();
 const emit = defineEmits<{ navigate: [view: string] }>();
 const feed = useNotifications();
 const open = ref(false);
 const loading = ref(false);
-const error = ref('');
+const toast = useToast();
 const host = ref<HTMLElement | null>(null);
 const trigger = ref<HTMLButtonElement | null>(null);
 const unreadOnly = ref(false);
@@ -21,12 +21,11 @@ let timer: ReturnType<typeof setInterval> | undefined;
 async function refresh() {
   if (loading.value) return;
   loading.value = true;
-  error.value = '';
   try {
     const today = currentCanonicalDate();
     feed.update(await reportsApi.dashboard(today, today));
   } catch (e) {
-    error.value = normalizeError(e).message;
+    toast.error(normalizeError(e).message, 'Notifications');
   } finally {
     loading.value = false;
   }
@@ -127,12 +126,6 @@ onBeforeUnmount(() => {
           <CheckCheck :size="14" /> Mark all read
         </button>
       </div>
-      <p v-if="error" role="alert" class="px-3 py-2 text-sm text-error">
-        {{ error }}
-        <span v-if="feed.items.value.length"
-          >Showing the last loaded notifications.</span
-        >
-      </p>
       <div
         class="max-h-[65vh] overflow-y-auto overscroll-contain"
         :aria-busy="loading"
@@ -144,7 +137,7 @@ onBeforeUnmount(() => {
           Loading notifications…
         </p>
         <p
-          v-else-if="!visible.length && !error"
+          v-else-if="!visible.length"
           class="p-4 text-sm text-base-content/60"
         >
           {{

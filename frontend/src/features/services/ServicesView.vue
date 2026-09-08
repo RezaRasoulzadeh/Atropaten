@@ -51,7 +51,7 @@ import ServiceConfigurator from './ServiceConfigurator.vue';
 const emit = defineEmits<{ notify: [message: string] }>();
 const props = defineProps<{ currencyUnit: CurrencyUnit }>();
 import {useServicesWorkspace} from './useServicesWorkspace'
-const {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,errorMessage,formError,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,typeLabel,dateLabel,errorMessageFrom}=useServicesWorkspace(props,emit)
+const {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,typeLabel,dateLabel}=useServicesWorkspace(props,emit)
 function backToServices() {
   selectedId.value = null;
   cancelEditor();
@@ -91,18 +91,6 @@ watch(
             >{{ filteredServices.length }} of {{ services.length }} services</span
           ></template></SearchFilterBar>
       </WorkspaceStickyStack>
-
-      <div v-if="errorMessage" role="alert" class="min-w-0 space-y-3">
-        <span>{{ errorMessage }}</span
-        ><button
-          class="btn btn-ghost"
-          type="button"
-          aria-label="Dismiss services error"
-          @click="errorMessage = ''"
-        >
-          <X :size="15" :stroke-width="1.8" aria-hidden="true" />
-        </button>
-      </div>
 
       <RegisterList
         title="Service register"
@@ -187,18 +175,6 @@ watch(
         </WorkspaceHeader>
       </WorkspaceStickyStack>
 
-      <div v-if="errorMessage" role="alert" class="min-w-0 space-y-3">
-        <span>{{ errorMessage }}</span
-        ><button
-          class="btn btn-ghost"
-          type="button"
-          aria-label="Dismiss services error"
-          @click="errorMessage = ''"
-        >
-          <X :size="15" :stroke-width="1.8" aria-hidden="true" />
-        </button>
-      </div>
-
       <AppPanel
         v-if="editorMode"
         class="service-editor-panel"
@@ -215,9 +191,6 @@ watch(
             <X :size="16" :stroke-width="1.8" aria-hidden="true" /></button
         ></template>
         <form @submit.prevent="saveService" class="min-w-0 space-y-5">
-          <div v-if="formError" role="alert" class="rounded-box border border-error/35 bg-error/10 p-3 text-sm text-error">
-            {{ formError }}
-          </div>
           <section class="rounded-box border border-base-300 bg-base-200/25 p-4">
             <div class="mb-4">
               <h3 class="text-sm font-semibold">Service identity</h3>

@@ -5,24 +5,22 @@ import AppPanel from '../../components/layout/AppPanel.vue'
 import FormField from '../../components/ui/FormField.vue'
 import AppInput from '../../components/ui/AppInput.vue'
 import SelectField from '../../components/ui/SelectField.vue'
-import InlineAlert from '../../components/ui/InlineAlert.vue'
 import PrintDocument from './PrintDocument.vue'
 import { reportsApi, type PrintDocumentRecord } from '../../api/reports'
 import { useWorkspaceActions } from '../../composables/useWorkspaceActions'
-import { normalizeError, useToast } from '../../ui/feedback'
+import { useToast } from '../../ui/feedback'
 import type { CurrencyUnit } from '../../utils/currency'
 const props=defineProps<{ currencyUnit: CurrencyUnit; start: string | null; end: string | null }>()
-const kind=ref('invoice'),recordId=ref(''),partyId=ref(''),error=ref('')
+const kind=ref('invoice'),recordId=ref(''),partyId=ref('')
 const document=ref<PrintDocumentRecord|null>(null)
 const {busy,runAction}=useWorkspaceActions()
 const toast=useToast()
 async function loadPreview() {
  await runAction(async()=>{
-  error.value=''
   const statement=kind.value.includes('statement')
-  if(!(statement ? partyId.value : recordId.value).trim()) { error.value=statement?'Enter a party ID.':'Enter a source record ID.'; toast.warning(error.value); return }
+  if(!(statement ? partyId.value : recordId.value).trim()) { toast.warning(statement?'Enter a party ID.':'Enter a source record ID.','Print preview'); return }
   try { document.value=await reportsApi.print(kind.value,recordId.value,props.start||'',props.end||'',partyId.value);toast.success('Print preview loaded.') }
-  catch(e) { error.value=normalizeError(e).message;throw e }
+  catch(e) { throw e }
  })
 }
 function printDocument() { window.print() }
@@ -34,7 +32,6 @@ function printDocument() { window.print() }
 <FormField v-if="kind.includes('statement')" label="Party ID"><AppInput v-model="partyId" required placeholder="Customer or supplier ID" /></FormField><FormField v-else label="Record ID"><AppInput v-model="recordId" required placeholder="Invoice or payment ID" /></FormField>
 <button class="btn btn-primary" :disabled="busy"><FileText :size="15" />Load preview</button>
 </form>
-<InlineAlert v-if="error" :message="error" />
 <template v-if="document"><div class="flex justify-end"><button class="btn btn-outline" @click="printDocument"><Printer :size="15" />Print</button></div><PrintDocument :document="document" :currency-unit="currencyUnit" /><Teleport to="body"><div class="print-output"><PrintDocument :document="document" :currency-unit="currencyUnit" /></div></Teleport></template>
 </AppPanel>
 </template>

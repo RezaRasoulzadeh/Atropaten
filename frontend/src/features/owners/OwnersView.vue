@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import LoadingState from '../../components/ui/LoadingState.vue'
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
-import InlineAlert from '../../components/ui/InlineAlert.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import FormGrid from '../../components/ui/FormGrid.vue';
@@ -14,7 +13,7 @@ import AppTextarea from '../../components/ui/AppTextarea.vue';
 import FormField from '../../components/ui/FormField.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref } from 'vue';
-import { Plus, RotateCcw, Save, Trash2, UserRound, X } from 'lucide-vue-next';
+import { Plus, RotateCcw, Save, Trash2, UserRound } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
 import {
@@ -27,7 +26,7 @@ import { accountingApi, type FinancialAccountRecord } from '../../api/accounting
 import { formatMoney, formatMoneyInput, parseMoneyInput } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
 import JalaliDatePicker from '../../components/ui/JalaliDatePicker.vue';
-import { confirmAction, normalizeError } from '../../ui/feedback';
+import { confirmAction } from '../../ui/feedback';
 import SelectField from '../../components/ui/SelectField.vue';
 type Tab =
   | 'Overview'
@@ -39,7 +38,7 @@ type Tab =
 const props = defineProps<{ currencyUnit: 'Rial' | 'Toman' }>();
 const emit = defineEmits<{ notify: [string] }>();
 import {useOwnersWorkspace} from './useOwnersWorkspace'
-const {busy,runAction,pageLoading,runLoad,tabs,tab,owners,transactions,periods,accounts,selectedOwner,selectedPeriod,error,editing,saving,ownerForm,shareForm,txForm,periodForm,currentOwner,selectedPeriodRow,filteredTransactions,ownerName,money,load,syncShares,loadTransactions,startOwner,saveOwner,saveShares,setActive,deleteOwner,postTransaction,createPeriod,previewPeriod,closePeriod,reverseTransaction}=useOwnersWorkspace(props,emit)
+const {busy,runAction,pageLoading,runLoad,tabs,tab,owners,transactions,periods,accounts,selectedOwner,selectedPeriod,editing,saving,ownerForm,shareForm,txForm,periodForm,currentOwner,selectedPeriodRow,filteredTransactions,ownerName,money,load,syncShares,loadTransactions,startOwner,saveOwner,saveShares,setActive,deleteOwner,postTransaction,createPeriod,previewPeriod,closePeriod,reverseTransaction}=useOwnersWorkspace(props,emit)
 </script>
 <template>
   <div class="min-w-0 space-y-3">
@@ -65,11 +64,6 @@ const {busy,runAction,pageLoading,runLoad,tabs,tab,owners,transactions,periods,a
         </button>
       </nav></WorkspaceStickyStack
     ><LoadingState v-if="pageLoading" label="Loading records…" /><div v-show="!pageLoading" class="space-y-4">
-    <InlineAlert v-if="error" role="alert" class="flex flex-wrap items-center gap-2" tone="error"
-      >{{ error }}
-      <button class="btn btn-ghost" @click="error = ''" aria-label="Dismiss">
-        <X :size="14" /></button
-    ></InlineAlert>
     <section v-if="tab === 'Overview'" class="space-y-4">
 <AppPanel title="Ownership overview" subtitle="Ownership and profit share are independent." flush><DataTable><thead><tr><th>Owner</th><th class="text-end">Ownership</th><th class="text-end">Profit share</th><th class="text-end">Current balance</th></tr></thead><tbody><DataTableRow v-for="o in owners" :key="o.id" interactive @activate="selectedOwner=o.id;tab='Owners';syncShares()"><DataTableCell><strong>{{o.name}}</strong></DataTableCell><DataTableCell numeric>{{o.ownershipBps/100}}%</DataTableCell><DataTableCell numeric>{{o.profitSharingBps/100}}%</DataTableCell><DataTableCell numeric>{{money(o.currentBalanceRial)}}</DataTableCell></DataTableRow></tbody></DataTable></AppPanel>
 <AppPanel title="Fiscal periods" flush><DataTable><thead><tr><th>Period</th><th>From</th><th>To</th><th>Status</th><th class="text-end">Profit / loss</th></tr></thead><tbody><DataTableRow v-for="p in periods" :key="p.id" interactive @activate="selectedPeriod=p.id;tab='Profit Allocation'"><DataTableCell><strong>{{p.name}}</strong></DataTableCell><DataTableCell>{{formatDateTime(p.startDate)}}</DataTableCell><DataTableCell>{{formatDateTime(p.endDate)}}</DataTableCell><DataTableCell><StatusBadge :label="p.status" :tone="p.status==='Closed'?'slate':'amber'" /></DataTableCell><DataTableCell numeric>{{money(p.profitLossRial)}}</DataTableCell></DataTableRow></tbody></DataTable></AppPanel></section>

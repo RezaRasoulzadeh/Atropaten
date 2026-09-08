@@ -3,7 +3,6 @@ import PrintPreviewPanel from './PrintPreviewPanel.vue'
 
 
 import FormGrid from '../../components/ui/FormGrid.vue';
-import InlineAlert from '../../components/ui/InlineAlert.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import FormField from '../../components/ui/FormField.vue';
@@ -18,7 +17,7 @@ import StatusBadge from '../../components/ui/StatusBadge.vue';
 import { reportsApi, type PrintDocumentRecord, type ReportRecord } from '../../api/reports';
 import { formatMoney } from '../../utils/currency';
 import { formatDate, formatDateTime, currentCanonicalDate } from '../../utils/date';
-import { normalizeError } from '../../ui/feedback';
+import { normalizeError, useToast } from '../../ui/feedback';
 import SelectField from '../../components/ui/SelectField.vue';
 const props = defineProps<{ currencyUnit: 'Rial' | 'Toman' }>();
 const emit = defineEmits<{ notify: [message: string] }>();
@@ -39,17 +38,16 @@ const end = ref<string | null>(currentCanonicalDate());
 const start = ref<string | null>(new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10));
 const report = ref<ReportRecord | null>(null);
 const loading = ref(false);
-const error = ref('');
+const toast = useToast();
 const summary = computed(() => report.value?.summaries ?? []);
 const money = (v: number) => formatMoney(v, props.currencyUnit);
 const quantity = (v: number) => (v ? String(v / 1000000) : '0');
 async function load() {
   loading.value = true;
-  error.value = '';
   try {
     report.value = await reportsApi.report(activeTab.value, start.value || '', end.value || '');
   } catch (e) {
-    error.value = normalizeError(e).message;
+    toast.error(normalizeError(e).message, 'Reports');
   } finally {
     loading.value = false;
   }
@@ -89,7 +87,6 @@ watch([activeTab, start, end], load);
         ><FormField class="gap-1">To <JalaliDatePicker v-model="end" /></FormField
       ></FormGrid>
     </div>
-    <InlineAlert v-if="error" tone="error">{{ error }}</InlineAlert>
     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5"><AppPanel v-for="item in summary" :key="item.key"><p class="text-xs text-base-content/60">{{item.label}}</p><strong class="block text-lg tabular-nums">{{money(item.amountRial)}}</strong><small v-if="item.count" class="text-xs text-base-content/50">{{item.count}} records</small></AppPanel></div>
     <AppPanel
       :title="tabs.find((t) => t[0] === activeTab)?.[1] || 'Report'"

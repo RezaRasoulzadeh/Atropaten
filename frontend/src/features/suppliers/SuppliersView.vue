@@ -6,7 +6,6 @@ import RegisterList from '../../components/ui/RegisterList.vue'
 import RegisterRow from '../../components/ui/RegisterRow.vue'
 import LoadingState from '../../components/ui/LoadingState.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
-import InlineAlert from '../../components/ui/InlineAlert.vue';
 import FormGrid from '../../components/ui/FormGrid.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
 import InspectorSection from '../../components/layout/InspectorSection.vue';
@@ -25,7 +24,7 @@ import StatusBadge from '../../components/ui/StatusBadge.vue';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
 import { suppliersApi, type SupplierPayload, type SupplierRecord } from '../../api/suppliers';
 import { formatDateTime } from '../../utils/date';
-import { confirmAction, normalizeError } from '../../ui/feedback';
+import { confirmAction } from '../../ui/feedback';
 import SearchFilterBar from '../../components/ui/SearchFilterBar.vue';
 import SearchField from '../../components/ui/SearchField.vue';
 import SelectField from '../../components/ui/SelectField.vue';
@@ -37,7 +36,6 @@ const filter = ref<Filter>('Active');
 const search = ref('');
 const editing = ref(false);
 const form = ref<SupplierPayload>(empty());
-const error = ref('');
 const loading = ref(false);
 const current = computed(() => rows.value.find((v) => v.id === selected.value) ?? null);
 const filtered = computed(() =>
@@ -61,7 +59,7 @@ async function load() {
     rows.value = await suppliersApi.list(true);
     if (!selected.value && rows.value[0]) selected.value = rows.value[0].id;
   } catch (e) {
-    error.value = normalizeError(e).message;
+    reportError(e);
   } finally {
     loading.value = false;
   }
@@ -98,7 +96,6 @@ return runAction(async () => {
     emit('notify', 'Supplier saved.');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -114,7 +111,6 @@ return runAction(async () => {
     emit('notify', active ? 'Supplier reactivated.' : 'Supplier archived.');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -138,7 +134,6 @@ return runAction(async () => {
     emit('notify', 'Supplier deleted.');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -171,10 +166,6 @@ reportError(e);
           ><span>{{ filtered.length }} shown</span></template
         ></SearchFilterBar
       ></WorkspaceStickyStack
-    ><InlineAlert v-if="error" role="alert" class="flex flex-wrap items-center gap-2" tone="error"
-      >{{ error }}
-      <button class="btn btn-ghost" @click="error = ''" aria-label="Dismiss">
-        <X :size="14" /></button></InlineAlert
     ><MasterDetail
       ><RegisterList title="Supplier register" subtitle="Select a supplier to inspect contact details." :count="filtered.length">
 <LoadingState v-if="loading" label="Loading suppliers…" />

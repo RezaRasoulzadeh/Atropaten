@@ -9,7 +9,7 @@ import {
 import { accountingApi, type FinancialAccountRecord } from '../../api/accounting';
 import { formatMoney, formatMoneyInput, parseMoneyInput } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
-import { confirmAction, normalizeError } from '../../ui/feedback';
+import { confirmAction, useToast } from '../../ui/feedback';
 export type Tab =
   | 'Overview'
   | 'Owners'
@@ -19,6 +19,7 @@ export type Tab =
   | 'Profit Allocation';
 export function useOwnersWorkspace(props:{ currencyUnit: 'Rial' | 'Toman' },emit:(event:'notify',message:string)=>void){
 const {busy,runAction,pageLoading,runLoad}=useWorkspaceActions()
+const toast = useToast();
 const tabs: Tab[] = [
   'Overview',
   'Owners',
@@ -34,7 +35,6 @@ const periods = ref<FiscalPeriodRecord[]>([]);
 const accounts = ref<FinancialAccountRecord[]>([]);
 const selectedOwner = ref<string>('');
 const selectedPeriod = ref<string>('');
-const error = ref('');
 const editing = ref(false);
 const saving = ref(false);
 const ownerForm = ref({
@@ -82,7 +82,7 @@ async function load() { return runLoad(async () => {
     syncShares();
     await loadTransactions();
   } catch (e) {
-    error.value = String(e);
+    reportError(e);
   }
 }); }
 function syncShares() {
@@ -96,7 +96,7 @@ async function loadTransactions() {
   try {
     transactions.value = await ownersApi.transactions(selectedOwner.value);
   } catch (e) {
-    error.value = String(e);
+    reportError(e);
   }
 }
 function startOwner() {
@@ -121,8 +121,7 @@ return runAction(async () => {
     editing.value = false;
     emit('notify', 'Owner saved.');
   } catch (e) {
-reportError(e);
-    error.value = String(e);
+    reportError(e);
   } finally {
     saving.value = false;
   }
@@ -137,8 +136,7 @@ return runAction(async () => {
     owners.value = owners.value.map((x) => (x.id === v.id ? v : x));
     emit('notify', 'Owner shares updated.');
   } catch (e) {
-reportError(e);
-    error.value = String(e);
+    reportError(e);
   }
 
 });
@@ -151,8 +149,7 @@ return runAction(async () => {
     else await ownersApi.reactivate(currentOwner.value.id);
     await load();
   } catch (e) {
-reportError(e);
-    error.value = String(e);
+    reportError(e);
   }
 
 });
@@ -175,8 +172,7 @@ return runAction(async () => {
     selectedOwner.value = owners.value[0]?.id ?? '';
     emit('notify', 'Owner deleted.');
   } catch (e) {
-reportError(e);
-    error.value = normalizeError(e).message;
+    reportError(e);
   }
 
 });
@@ -186,7 +182,7 @@ return runAction(async () => {
   if (!selectedOwner.value) return;
   const amount = parseMoneyInput(txForm.value.amountText, props.currencyUnit);
   if (amount === null || amount <= 0) {
-    error.value = 'Enter a valid positive amount.';
+    toast.error('Enter a valid positive amount.', 'Owners');
     return;
   }
   try {
@@ -198,8 +194,7 @@ return runAction(async () => {
     await load();
     emit('notify', 'Owner transaction posted.');
   } catch (e) {
-reportError(e);
-    error.value = String(e);
+    reportError(e);
   }
 
 });
@@ -212,8 +207,7 @@ return runAction(async () => {
     selectedPeriod.value = v.id;
     emit('notify', 'Fiscal period created.');
   } catch (e) {
-reportError(e);
-    error.value = String(e);
+    reportError(e);
   }
 
 });
@@ -225,8 +219,7 @@ return runAction(async () => {
     const v = await ownersApi.previewPeriod(selectedPeriod.value);
     periods.value = periods.value.map((x) => (x.id === v.id ? v : x));
   } catch (e) {
-reportError(e);
-    error.value = String(e);
+    reportError(e);
   }
 
 });
@@ -248,8 +241,7 @@ return runAction(async () => {
     periods.value = periods.value.map((x) => (x.id === v.id ? v : x));
     emit('notify', 'Fiscal period closed.');
   } catch (e) {
-reportError(e);
-    error.value = normalizeError(e).message;
+    reportError(e);
   }
 
 });
@@ -259,5 +251,5 @@ async function reverseTransaction(id: string) {
 return runAction(async () => { try { await ownersApi.reverseTransaction(id); await load(); emit('notify','Owner transaction reversed.'); } catch(error) { reportError(error); } 
 });
 }
-return {busy,runAction,pageLoading,runLoad,tabs,tab,owners,transactions,periods,accounts,selectedOwner,selectedPeriod,error,editing,saving,ownerForm,shareForm,txForm,periodForm,currentOwner,selectedPeriodRow,filteredTransactions,ownerName,money,load,syncShares,loadTransactions,startOwner,saveOwner,saveShares,setActive,deleteOwner,postTransaction,createPeriod,previewPeriod,closePeriod,reverseTransaction}
+return {busy,runAction,pageLoading,runLoad,tabs,tab,owners,transactions,periods,accounts,selectedOwner,selectedPeriod,editing,saving,ownerForm,shareForm,txForm,periodForm,currentOwner,selectedPeriodRow,filteredTransactions,ownerName,money,load,syncShares,loadTransactions,startOwner,saveOwner,saveShares,setActive,deleteOwner,postTransaction,createPeriod,previewPeriod,closePeriod,reverseTransaction}
 }

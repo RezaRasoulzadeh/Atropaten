@@ -2,7 +2,6 @@
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 const {busy,runAction}=useWorkspaceActions()
 
-import InlineAlert from '../../components/ui/InlineAlert.vue';
 import { computed, onMounted, ref } from 'vue';
 import { Factory, PackageOpen } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
@@ -18,7 +17,6 @@ import { formatMoney } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
 const props = defineProps<{ order: OrderRecord; currencyUnit: CurrencyUnit }>();
 const jobs = ref<ProductionJobRecord[]>([]);
-const error = ref('');
 const reserved = ref<Record<string, ReservationRecord[]>>({});
 const usage = ref<Record<string, ConsumptionRecord[]>>({});
 const progress = computed(() =>
@@ -38,8 +36,7 @@ onMounted(async () => {
       }),
     );
   } catch (e) {
-reportError(e);
-    error.value = String(e);
+    reportError(e);
   }
 });
 function reservedCount(id: string) {
@@ -83,8 +80,7 @@ function tone(s: string) {
         ></div>
       </div>
     </header>
-    <InlineAlert v-if="error" tone="error">{{ error }}</InlineAlert>
-    <div v-else-if="jobs.length" class="space-y-3">
+    <div v-if="jobs.length" class="space-y-3">
       <div
         v-for="job in jobs"
         :key="job.id"

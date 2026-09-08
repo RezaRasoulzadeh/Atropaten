@@ -9,7 +9,6 @@ import DataTableCell from '../../components/ui/DataTableCell.vue'
 import FormGrid from '../../components/ui/FormGrid.vue'
 import WorkspaceTabs from '../../components/layout/WorkspaceTabs.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
-import InlineAlert from '../../components/ui/InlineAlert.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
@@ -30,7 +29,6 @@ import {
   type JournalEntryRecord,
   type PaymentRecord,
 } from '../../api/accounting';
-import { normalizeError } from '../../ui/feedback';
 import SelectField from '../../components/ui/SelectField.vue';
 
 const props = defineProps<{
@@ -46,7 +44,6 @@ const accounts = ref<AccountRecord[]>([]);
 const financial = ref<FinancialAccountRecord[]>([]);
 const journal = ref<JournalEntryRecord[]>([]);
 const payments = ref<PaymentRecord[]>([]);
-const error = ref('');
 const form = ref({
   direction: 'incoming',
   method: 'cash',
@@ -74,7 +71,7 @@ async function load() { return runLoad(async () => {
     if (financial.value[0] && !financial.value.some((x) => x.id === form.value.financialAccountId))
       form.value.financialAccountId = financial.value[0].id;
   } catch (e) {
-    error.value = normalizeError(e).message;
+    reportError(e);
   }
 }); }
 onMounted(load);
@@ -107,7 +104,6 @@ return runAction(async () => {
     emit('notify', 'Payment posted.');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -120,7 +116,6 @@ return runAction(async () => {
     emit('notify', 'Payment reversed.');
   } catch (e) {
 reportError(e);
-    error.value = normalizeError(e).message;
   }
 
 });
@@ -147,7 +142,6 @@ const expensesTotal = computed(() =>
 <template>
 <div class="space-y-4">
 <WorkspaceStickyStack><WorkspaceHeader eyebrow="Finance / ledger" title="Accounting" description="Balances and transaction history from the posted ledger."><button class="btn btn-primary" @click="tab='Payments'"><Plus :size="15" />New payment</button></WorkspaceHeader><WorkspaceTabs :tabs="['Overview','Accounts','Journal','Payments','Invoices','Expenses','Transfers / Treasury']" :active-tab="tab" @change="tab=$event" /></WorkspaceStickyStack><LoadingState v-if="pageLoading" label="Loading records…" /><div v-show="!pageLoading" class="space-y-4">
-<InlineAlert v-if="error" :message="error" />
 <template v-if="tab==='Overview'">
 <div class="grid gap-3 sm:grid-cols-3"><AppPanel v-for="metric in [{label:'Assets',value:totalAssets},{label:'Receivable',value:receivable},{label:'Payable',value:payable}]" :key="metric.label"><p class="text-xs text-base-content/60">{{metric.label}}</p><strong class="block text-xl font-semibold tabular-nums wrap-anywhere">{{money(metric.value)}}</strong></AppPanel></div>
 <AppPanel title="Recent transactions" flush><DataTable><thead><tr><th>Entry</th><th>Description</th><th>Posted</th></tr></thead><tbody><tr v-for="entry in journal.slice(0,8)" :key="entry.id"><DataTableCell><strong>{{entry.entryNumber}}</strong></DataTableCell><DataTableCell>{{entry.description}}</DataTableCell><DataTableCell class="whitespace-nowrap">{{formatDateTime(entry.postedAt)}}</DataTableCell></tr></tbody></DataTable><EmptyState v-if="!journal.length" title="No journal entries" /></AppPanel>
