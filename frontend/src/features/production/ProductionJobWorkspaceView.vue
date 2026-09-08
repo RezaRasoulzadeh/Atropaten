@@ -76,9 +76,6 @@ const tab = ref('Overview');
 const canEdit = computed(
   () => !!selected.value && selected.value.status !== 'Completed' && selected.value.status !== 'Cancelled',
 );
-const canDelete = computed(
-  () => !!selected.value && (selected.value.status === 'Pending' || selected.value.status === 'Ready'),
-);
 const productionStatuses = [
   'Pending',
   'Ready',
@@ -151,26 +148,33 @@ async function back() {
             : `${selected?.serviceName} · ${selected ? jobOrder(selected) : ''}`
         "
       >
-        <template #leading
-          ><button class="btn btn-ghost btn-sm gap-2" :disabled="busy" @click="back">
-            <ArrowLeft :size="16" aria-hidden="true" />Production
-          </button></template
-        >
         <template v-if="selected && !createMode" #title-suffix
           ><StatusBadge :label="selected.status" :tone="statusTone(selected.status)"
         /></template>
+        <button class="btn btn-ghost btn-sm gap-2" type="button" :disabled="busy" @click="back">
+          <ArrowLeft :size="16" aria-hidden="true" />Production
+        </button>
         <template v-if="createMode"
-          ><button class="btn btn-ghost" :disabled="busy" @click="back">Cancel</button
-          ><button
-            form="production-create"
-            type="submit"
-            class="btn btn-primary"
+          ><button class="btn btn-ghost btn-sm" :disabled="busy" @click="back">Cancel</button
+            ><button
+              form="production-create"
+              type="submit"
+            class="btn btn-primary btn-sm"
             :disabled="busy || saving"
           >
             <Save :size="15" />{{ saving ? 'Creating…' : 'Create job' }}
           </button></template
         >
         <template v-else-if="selected">
+          <button
+            class="btn btn-outline btn-error btn-sm gap-2"
+            type="button"
+            :disabled="busy"
+            title="Delete this production job and its dependent operational records"
+            @click="remove"
+          >
+            <Trash2 :size="14" />Delete job
+          </button>
           <button
             v-if="editing"
             class="btn btn-ghost btn-sm"
@@ -182,7 +186,7 @@ async function back() {
           </button>
           <button
             v-else-if="canEdit"
-            class="btn btn-ghost btn-sm gap-2"
+            class="btn btn-outline btn-sm gap-2"
             type="button"
             :disabled="busy"
             @click="beginEdit"
@@ -197,15 +201,6 @@ async function back() {
             :disabled="busy || saving"
           >
             <Save :size="14" />{{ saving ? 'Saving…' : 'Save changes' }}
-          </button>
-          <button
-            class="btn btn-ghost btn-sm gap-2 text-error"
-            type="button"
-            :disabled="busy || !canDelete"
-            :title="canDelete ? 'Delete this production job' : 'Jobs with production history cannot be deleted'"
-            @click="remove"
-          >
-            <Trash2 :size="14" />Delete job
           </button>
         </template>
       </WorkspaceHeader>
@@ -371,7 +366,7 @@ async function back() {
                 action.kind === 'primary'
                   ? 'btn-primary'
                   : action.kind === 'danger'
-                    ? 'btn-ghost text-error'
+                    ? 'btn-outline btn-error'
                     : 'btn-outline'
               "
               :disabled="busy"

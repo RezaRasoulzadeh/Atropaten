@@ -30,7 +30,6 @@ import {
   Save,
   SlidersHorizontal,
   Trash2,
-  X,
 } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
@@ -51,7 +50,7 @@ import ServiceConfigurator from './ServiceConfigurator.vue';
 const emit = defineEmits<{ notify: [message: string] }>();
 const props = defineProps<{ currencyUnit: CurrencyUnit }>();
 import {useServicesWorkspace} from './useServicesWorkspace'
-const {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,typeLabel,dateLabel}=useServicesWorkspace(props,emit)
+const {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,remove,typeLabel,dateLabel}=useServicesWorkspace(props,emit)
 function backToServices() {
   selectedId.value = null;
   cancelEditor();
@@ -67,8 +66,7 @@ watch(
 </script>
 
 <template>
-  <div class="min-w-0 space-y-3">
-    <div v-if="!selectedService && !editorMode" class="min-w-0 space-y-3">
+  <div v-if="!selectedService && !editorMode" class="min-w-0 space-y-3">
       <WorkspaceStickyStack>
         <WorkspaceHeader
           title="Services"
@@ -150,8 +148,8 @@ watch(
       </RegisterList>
     </div>
 
-    <div v-else class="min-w-0 space-y-4" aria-label="Service workspace">
-      <WorkspaceStickyStack>
+  <div v-else class="min-w-0 space-y-4" aria-label="Service workspace">
+      <WorkspaceStickyStack :flush="true">
         <WorkspaceHeader
           :title="editorMode === 'create' ? 'New service' : selectedService?.name || 'Service'"
           eyebrow="Catalog / service workspace"
@@ -161,15 +159,34 @@ watch(
               : 'Review the service definition, test its inputs, and manage its lifecycle.'
           "
         >
-          <template #leading>
-            <button
-              class="btn btn-ghost btn-sm"
-              type="button"
-              aria-label="Back to services"
-              @click="backToServices"
-            >
-              <ArrowLeft :size="17" :stroke-width="1.8" aria-hidden="true" />
-              <span class="hidden sm:inline">Services</span>
+          <template v-if="selectedService && !editorMode" #title-suffix>
+            <StatusBadge
+              :label="selectedService.active ? 'Active' : 'Archived'"
+              :tone="selectedService.active ? 'green' : 'slate'"
+            />
+          </template>
+          <button class="btn btn-ghost btn-sm gap-2" type="button" aria-label="Back to services" @click="backToServices">
+            <ArrowLeft :size="17" :stroke-width="1.8" aria-hidden="true" />
+            <span class="hidden sm:inline">Services</span>
+          </button>
+          <template v-if="editorMode">
+            <button class="btn btn-ghost btn-sm" type="button" :disabled="busy" @click="cancelEditor">Cancel</button>
+            <button class="btn btn-primary btn-sm gap-2" type="submit" form="service-editor" :disabled="busy || isSaving">
+              <Save :size="15" :stroke-width="1.8" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save service' }}
+            </button>
+          </template>
+          <template v-else-if="selectedService">
+            <button class="btn btn-outline btn-error btn-sm gap-2" type="button" :disabled="busy" @click="remove">
+              <Trash2 :size="14" :stroke-width="1.8" aria-hidden="true" />Delete
+            </button>
+            <button v-if="selectedService.active" class="btn btn-outline btn-warning btn-sm gap-2" type="button" :disabled="busy" @click="setActive(false)">
+              <Archive :size="14" :stroke-width="1.8" aria-hidden="true" />Archive
+            </button>
+            <button v-else class="btn btn-outline btn-success btn-sm gap-2" type="button" :disabled="busy" @click="setActive(true)">
+              <RotateCcw :size="14" :stroke-width="1.8" aria-hidden="true" />Reactivate
+            </button>
+            <button class="btn btn-outline btn-sm gap-2" type="button" :disabled="busy" @click="startEdit">
+              <Edit3 :size="14" :stroke-width="1.8" aria-hidden="true" />Edit
             </button>
           </template>
         </WorkspaceHeader>
@@ -181,16 +198,7 @@ watch(
         :title="editorMode === 'create' ? 'New service' : 'Edit service'"
         subtitle="The full definition saves atomically with its parameters."
       >
-        <template #action
-          ><button
-            class="btn btn-ghost"
-            type="button"
-            aria-label="Close service editor"
-            @click="cancelEditor"
-          >
-            <X :size="16" :stroke-width="1.8" aria-hidden="true" /></button
-        ></template>
-        <form @submit.prevent="saveService" class="min-w-0 space-y-5">
+        <form id="service-editor" @submit.prevent="saveService" class="min-w-0 space-y-5">
           <section class="rounded-box border border-base-300 bg-base-200/25 p-4">
             <div class="mb-4">
               <h3 class="text-sm font-semibold">Service identity</h3>
@@ -357,7 +365,7 @@ watch(
                   :aria-label="`Tier ${tierIndex + 1} price`"
                   @update:model-value="updateGroupedMoney(tier, 'priceInput', 'priceRial', $event)"
                 /><button
-                  class="btn btn-ghost"
+                  class="btn btn-outline btn-error"
                   type="button"
                   :aria-label="`Remove tier ${tierIndex + 1}`"
                   @click="removePricingTier(tierIndex)"
@@ -372,14 +380,6 @@ watch(
             </p>
           </div>
           </section>
-          <div class="flex flex-wrap items-center justify-end gap-2 border-t border-base-300 pt-4">
-            <button class="btn btn-ghost" type="button" @click="cancelEditor">Cancel</button
-            ><button class="btn btn-primary" type="submit" :disabled="busy || isSaving">
-              <Save :size="15" :stroke-width="1.8" aria-hidden="true" />{{
-                isSaving ? 'Saving…' : 'Save service'
-              }}
-            </button>
-          </div>
         </form>
       </AppPanel>
 
@@ -388,16 +388,6 @@ watch(
         title="Service overview"
         subtitle="Definition used by orders and production."
       >
-        <template #action>
-          <StatusBadge
-            :label="selectedService.active ? 'Active' : 'Archived'"
-            :tone="selectedService.active ? 'green' : 'slate'"
-          />
-          <button class="btn btn-primary btn-sm" type="button" @click="startEdit">
-            <Edit3 :size="14" :stroke-width="1.8" aria-hidden="true" />Edit
-          </button>
-        </template>
-
         <div class="grid min-w-0 gap-3 sm:grid-cols-3">
           <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
             <span class="block text-xs text-base-content/60">Operator inputs</span>
@@ -475,21 +465,7 @@ watch(
           </InspectorSection>
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-base-300 pt-3">
-          <span class="text-xs text-base-content/55">Updated {{ dateLabel(selectedService.updatedAt) }}</span>
-          <button
-            class="btn btn-ghost btn-sm"
-            v-if="selectedService.active"
-            type="button"
-            @click="setActive(false)"
-            :disabled="busy"
-          >
-            <Archive :size="14" :stroke-width="1.8" aria-hidden="true" />Deactivate service
-          </button>
-          <button class="btn btn-ghost btn-sm" v-else type="button" @click="setActive(true)" :disabled="busy">
-            <RotateCcw :size="14" :stroke-width="1.8" aria-hidden="true" />Reactivate service
-          </button>
-        </div>
+        <div class="border-t border-base-300 pt-3 text-xs text-base-content/55">Updated {{ dateLabel(selectedService.updatedAt) }}</div>
       </InspectorShell>
 
       <div v-if="selectedService && !editorMode && selectedService.active" class="min-w-0 rounded-box border border-base-300 bg-base-100 p-4">
@@ -499,6 +475,5 @@ watch(
           :currency-unit="props.currencyUnit"
         />
       </div>
-    </div>
   </div>
 </template>

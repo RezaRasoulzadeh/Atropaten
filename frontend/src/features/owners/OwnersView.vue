@@ -251,9 +251,14 @@ const {busy,runAction,pageLoading,runLoad,tabs,tab,owners,transactions,periods,a
             "
           >
             View transactions</button
-          ><button class="btn btn-ghost" @click="setActive" :disabled="busy">
+          ><button
+            class="btn btn-outline"
+            :class="currentOwner.active ? 'btn-warning' : 'btn-success'"
+            @click="setActive"
+            :disabled="busy"
+          >
             <RotateCcw :size="15" /> {{ currentOwner.active ? 'Archive' : 'Reactivate' }}</button
-          ><button class="btn btn-ghost" @click="deleteOwner" :disabled="busy"><Trash2 :size="15" /> Delete</button>
+          ><button class="btn btn-outline btn-error" @click="deleteOwner" :disabled="busy"><Trash2 :size="15" /> Delete</button>
         </div></InspectorShell
       ></MasterDetail
     >

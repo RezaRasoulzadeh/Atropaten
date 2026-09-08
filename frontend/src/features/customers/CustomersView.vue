@@ -347,11 +347,17 @@ watch(() => props.refreshKey, load, { immediate: true });
         </div>
         <template #footer>
           <div class="flex w-full flex-wrap items-center justify-between gap-2">
-            <button class="btn btn-ghost text-error" type="button" @click="remove" :disabled="busy">
-              <Trash2 :size="14" />Delete
-            </button>
-            <button class="btn btn-ghost" type="button" @click="toggle" :disabled="busy">
+            <button
+              class="btn btn-outline"
+              :class="selected.active ? 'btn-warning' : 'btn-success'"
+              type="button"
+              @click="toggle"
+              :disabled="busy"
+            >
               {{ selected.active ? 'Archive customer' : 'Reactivate customer' }}
+            </button>
+            <button class="btn btn-outline btn-error" type="button" @click="remove" :disabled="busy">
+              <Trash2 :size="14" />Delete
             </button>
           </div>
         </template>

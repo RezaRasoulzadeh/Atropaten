@@ -7,7 +7,7 @@ import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, ref, watch } from 'vue';
-import { ArrowDown, ArrowLeft, ArrowUp, PackageOpen, Pencil, Plus, Trash2 } from 'lucide-vue-next';
+import { ArrowDown, ArrowLeft, ArrowUp, CheckCircle2, PackageOpen, Pencil, Play, Plus, Trash2, XCircle } from 'lucide-vue-next';
 import EmptyState from '../../components/ui/EmptyState.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import RegisterList from '../../components/ui/RegisterList.vue';
@@ -60,10 +60,6 @@ const saving = ref(false);
 const isNew = computed(() => props.isNew || props.order.id.startsWith('new-order-'));
 
 const tabs = ['Overview', 'Items', 'Production', 'Payments', 'Invoices', 'Files', 'History'];
-const orderStatusOptions = ['Draft', 'Confirmed', 'Production', 'Delivery', 'Closed', 'Cancelled'].map((value) => ({
-  label: value,
-  value,
-}));
 const priorityOptions = ['Urgent', 'High', 'Normal', 'Low'].map((value) => ({
   label: value,
   value,
@@ -81,6 +77,23 @@ const orderStatus = computed(() => {
   if (props.order.fulfillmentStatus === 'Delivered') return 'Delivery';
   if (props.order.fulfillmentStatus === 'In Production' || props.order.fulfillmentStatus === 'Ready') return 'Production';
   return props.order.commercialStatus;
+});
+const orderStatusActions = computed(() => {
+  const labels: Record<string, string> = {
+    Draft: 'Set draft',
+    Confirmed: 'Confirm order',
+    Production: 'Start production',
+    Delivery: 'Mark delivered',
+    Closed: 'Close order',
+    Cancelled: 'Cancel order',
+  };
+  return ['Draft', 'Confirmed', 'Production', 'Delivery', 'Closed', 'Cancelled']
+    .filter((status) => status !== orderStatus.value)
+    .map((status) => ({
+      status,
+      label: labels[status],
+      kind: status === 'Cancelled' ? 'danger' : status === 'Draft' ? 'secondary' : 'primary',
+    }));
 });
 
 watch(
@@ -283,17 +296,15 @@ function snapshot(item: any, key: string) {
         :title="order.orderNumber"
         :description="`${order.customerName || 'Walk-in customer'} · ${order.items.length} line items`"
       >
-        <template #leading>
-          <button class="btn btn-ghost btn-sm gap-2" type="button" @click="emit('back')">
-            <ArrowLeft :size="16" aria-hidden="true" /><span>Orders</span>
-          </button>
-        </template>
         <template #title-suffix>
           <StatusBadge :label="orderStatus" :tone="tone(orderStatus)" />
         </template>
+        <button class="btn btn-ghost btn-sm gap-2" type="button" @click="emit('back')">
+          <ArrowLeft :size="16" aria-hidden="true" /><span>Orders</span>
+        </button>
         <button
           v-if="!isNew"
-          class="btn btn-ghost gap-2 text-error"
+          class="btn btn-outline btn-error btn-sm gap-2"
           type="button"
           :disabled="busy || saving"
           @click="removeOrder"
@@ -301,18 +312,10 @@ function snapshot(item: any, key: string) {
           <Trash2 :size="15" aria-hidden="true" />
           Delete order
         </button>
-        <SelectField
-          class="w-40"
-          :model-value="orderStatus"
-          :options="orderStatusOptions"
-          aria-label="Order status"
-          :disabled="isNew"
-          @update:model-value="changeOrderStatus"
-        />
         <button
-          class="btn btn-primary gap-2"
+          class="btn btn-primary btn-sm gap-2"
           type="button"
-          :disabled="busy || (saving)"
+          :disabled="busy || saving"
           @click="saveMetadata(true)"
         >
           {{ saving ? 'Saving…' : 'Save order' }}
@@ -353,6 +356,36 @@ function snapshot(item: any, key: string) {
         @change="tab = $event"
       />
     </WorkspaceStickyStack>
+
+    <AppPanel
+      v-if="tab === 'Overview' && !isNew"
+      title="Order workflow"
+      subtitle="Move the order through its commercial and fulfillment stages."
+    >
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-2 text-sm">
+          <span class="text-xs text-base-content/60">Current status</span>
+          <StatusBadge :label="orderStatus" :tone="tone(orderStatus)" />
+        </div>
+        <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Available order status actions">
+          <span class="text-xs text-base-content/60">Move to</span>
+          <button
+            v-for="action in orderStatusActions"
+            :key="action.status"
+            class="btn btn-sm gap-2"
+            :class="action.kind === 'primary' ? 'btn-primary' : action.kind === 'danger' ? 'btn-outline btn-error' : 'btn-outline'"
+            type="button"
+            :disabled="busy"
+            @click="changeOrderStatus(action.status)"
+          >
+            <Play v-if="action.status === 'Production'" :size="14" aria-hidden="true" />
+            <XCircle v-else-if="action.status === 'Cancelled'" :size="14" aria-hidden="true" />
+            <CheckCircle2 v-else :size="14" aria-hidden="true" />
+            {{ action.label }}
+          </button>
+        </div>
+      </div>
+    </AppPanel>
 
     <section
       v-if="tab === 'Overview'"
@@ -557,7 +590,7 @@ function snapshot(item: any, key: string) {
                 <Pencil :size="14" aria-hidden="true" />
               </button>
               <button
-                class="btn btn-ghost btn-square btn-sm text-error"
+                class="btn btn-outline btn-error btn-square btn-sm"
                 type="button"
                 aria-label="Remove item"
                 title="Remove item"

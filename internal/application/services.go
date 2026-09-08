@@ -243,7 +243,14 @@ func (s *ServicesService) setActive(ctx context.Context, id string, active bool)
 	}
 	service.Active = active
 	service.UpdatedAt = s.now().UTC()
-	if err := s.repository.SaveServiceDefinition(ctx, service); err != nil {
+	if lifecycle, ok := s.repository.(interface {
+		SetServiceActive(context.Context, string, bool, time.Time) error
+	}); ok {
+		err = lifecycle.SetServiceActive(ctx, service.ID, active, service.UpdatedAt)
+	} else {
+		err = s.repository.SaveServiceDefinition(ctx, service)
+	}
+	if err != nil {
 		return ServiceView{}, err
 	}
 	return serviceView(service), nil

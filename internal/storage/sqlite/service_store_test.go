@@ -212,8 +212,7 @@ func TestServicePersistenceOrderingAndTransactionalRollback(t *testing.T) {
 	if unchanged.Name != "Digital Print" || len(unchanged.Parameters) != 3 || unchanged.Parameters[1].Key != "estimated_hours" {
 		t.Fatalf("service definition was partially written: %+v", unchanged)
 	}
-	unchanged.Active = false
-	if err := store.SaveServiceDefinition(ctx, unchanged); err != nil {
+	if err := store.SetServiceActive(ctx, unchanged.ID, false, now.Add(time.Minute)); err != nil {
 		t.Fatalf("archive service: %v", err)
 	}
 	active, err := store.ListServices(ctx, false)

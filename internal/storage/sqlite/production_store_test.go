@@ -208,8 +208,48 @@ func TestReservationsAndProductionLedgerAreAtomicAndIdempotent(t *testing.T) {
 	if err = store.ReverseProductionConsumption(ctx, consumption.ID, "retry correction"); err == nil {
 		t.Fatal("duplicate correction unexpectedly succeeded")
 	}
+	if err = store.DeleteProductionJob(ctx, job.ID); err != nil {
+		t.Fatalf("completed job delete failed: %v", err)
+	}
+	if _, err = store.GetProductionJob(ctx, job.ID); !errors.Is(err, domain.ErrProductionJobNotFound) {
+		t.Fatalf("deleted completed job still exists: %v", err)
+	}
+	if got := countRows(t, store, `SELECT COUNT(*) FROM production_consumptions WHERE production_job_id='JOB-prod'`); got != 0 {
+		t.Fatalf("deleted job consumption records remain: %d", got)
+	}
+	state, err = store.InventoryState(ctx, material.ID)
+	if err != nil || state.PhysicalStock != 10*domain.QuantityScale || state.ReservedStock != 0 {
+		t.Fatalf("deleting an already corrected job changed inventory: %+v, %v", state, err)
+	}
 	if _, err = store.db.Exec(`UPDATE inventory_movements SET note='mutated' WHERE id=?`, "MOV-"+consumption.ID+"-CONSUMED"); err == nil {
 		t.Fatal("immutable movement update unexpectedly succeeded")
+	}
+	jobDelete := job
+	jobDelete.ID = "JOB-delete-history"
+	jobDelete.Status = domain.ProductionPending
+	if err = store.CreateProductionJob(ctx, jobDelete); err != nil {
+		t.Fatal(err)
+	}
+	reservationDelete := reservation
+	reservationDelete.ID = "RES-delete-history"
+	reservationDelete.ProductionJobID = jobDelete.ID
+	reservationDelete.Status = domain.ReservationActive
+	reservationDelete.Quantity = 3 * domain.QuantityScale
+	if err = store.CreateReservation(ctx, reservationDelete); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.TransitionProductionJob(ctx, jobDelete.ID, domain.ProductionInProgress); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = store.RecordProductionConsumption(ctx, jobDelete.ID, material.ID, "delete-history", 2*domain.QuantityScale, domain.QuantityScale, "delete test"); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.DeleteProductionJob(ctx, jobDelete.ID); err != nil {
+		t.Fatalf("job with production history delete failed: %v", err)
+	}
+	state, err = store.InventoryState(ctx, material.ID)
+	if err != nil || state.PhysicalStock != 10*domain.QuantityScale || state.ReservedStock != 0 {
+		t.Fatalf("deleting a job did not compensate inventory: %+v, %v", state, err)
 	}
 	job2 := job
 	job2.ID = "JOB-cancel"

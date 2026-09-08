@@ -64,7 +64,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
 
 <template>
   <div class="min-w-0 space-y-4" aria-label="Material workspace">
-    <WorkspaceStickyStack>
+    <WorkspaceStickyStack :flush="true">
       <WorkspaceHeader
         :title="isCreating ? 'New material' : isEditing ? 'Edit material' : selectedMaterial?.name || 'Material'"
         eyebrow="Catalog / material workspace"
@@ -76,19 +76,31 @@ const isEditing = computed(() => editorMode.value === 'edit');
               : 'Review stock position, cost basis, movements, and catalog details.'
         "
       >
-        <template #leading>
-          <button class="btn btn-ghost btn-sm gap-2" type="button" :disabled="busy" @click="emit('back')">
-            <ArrowLeft :size="16" aria-hidden="true" />Materials
-          </button>
-        </template>
         <template v-if="selectedMaterial && !isCreating" #title-suffix>
           <StatusBadge :label="selectedMaterial.active ? 'Active' : 'Archived'" :tone="selectedMaterial.active ? 'green' : 'slate'" />
           <StatusBadge v-if="selectedMaterial.lowStock" label="Low stock" tone="amber" />
         </template>
+        <button class="btn btn-ghost btn-sm gap-2" type="button" :disabled="busy" @click="emit('back')">
+          <ArrowLeft :size="16" aria-hidden="true" />Materials
+        </button>
         <template v-if="editorMode">
           <button class="btn btn-ghost btn-sm" type="button" :disabled="busy" @click="cancelEditor">Cancel</button>
           <button class="btn btn-primary btn-sm gap-2" type="submit" form="material-editor" :disabled="busy || isSaving">
             <Save :size="14" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save material' }}
+          </button>
+        </template>
+        <template v-else-if="selectedMaterial">
+          <button class="btn btn-outline btn-error btn-sm gap-2" type="button" :disabled="busy" @click="remove">
+            <Trash2 :size="14" aria-hidden="true" />Delete
+          </button>
+          <button v-if="selectedMaterial.active" class="btn btn-outline btn-warning btn-sm gap-2" type="button" :disabled="busy" @click="setActive(false)">
+            <Archive :size="14" aria-hidden="true" />Archive
+          </button>
+          <button v-else class="btn btn-outline btn-success btn-sm gap-2" type="button" :disabled="busy" @click="setActive(true)">
+            <RotateCcw :size="14" aria-hidden="true" />Reactivate
+          </button>
+          <button class="btn btn-outline btn-sm gap-2" type="button" :disabled="busy" @click="startEdit">
+            <Edit3 :size="14" aria-hidden="true" />Edit
           </button>
         </template>
       </WorkspaceHeader>
@@ -150,21 +162,11 @@ const isEditing = computed(() => editorMode.value === 'edit');
           </FormField>
         </FormSection>
 
-        <div class="flex justify-end border-t border-base-300 pt-4">
-          <button class="btn btn-primary gap-2" type="submit" :disabled="busy || isSaving">
-            <Save :size="15" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save material' }}
-          </button>
-        </div>
       </form>
     </AppPanel>
 
     <template v-else-if="selectedMaterial">
       <AppPanel title="Material overview" subtitle="Persisted catalog and inventory position.">
-        <template #action>
-          <button class="btn btn-primary btn-sm gap-2" type="button" :disabled="busy" @click="startEdit">
-            <Edit3 :size="14" aria-hidden="true" />Edit
-          </button>
-        </template>
         <div class="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
             <span class="block text-xs text-base-content/60">Physical stock</span>
@@ -279,17 +281,6 @@ const isEditing = computed(() => editorMode.value === 'edit');
         <p v-else class="rounded-box border border-dashed border-base-300 p-4 text-sm text-base-content/60">No inventory movements yet.</p>
       </AppPanel>
 
-      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-base-300 pt-1">
-        <button class="btn btn-ghost btn-sm gap-2 text-error" type="button" :disabled="busy" @click="remove">
-          <Trash2 :size="14" aria-hidden="true" />Delete material
-        </button>
-        <button v-if="selectedMaterial.active" class="btn btn-ghost btn-sm gap-2" type="button" :disabled="busy" @click="setActive(false)">
-          <Archive :size="14" aria-hidden="true" />Archive material
-        </button>
-        <button v-else class="btn btn-ghost btn-sm gap-2" type="button" :disabled="busy" @click="setActive(true)">
-          <RotateCcw :size="14" aria-hidden="true" />Reactivate material
-        </button>
-      </div>
     </template>
   </div>
 </template>

@@ -400,7 +400,7 @@ function replace(value: PurchaseRecord) {
               >
                 <ArrowDown :size="13" /></button></span
             ><button
-              class="btn btn-ghost"
+              class="btn btn-outline btn-error"
               v-if="editing"
               @click="removeItem(line.id)"
               aria-label="Remove item"
@@ -469,7 +469,7 @@ function replace(value: PurchaseRecord) {
         <div class="flex flex-wrap items-center gap-2">
           <button class="btn btn-primary" v-if="current.status === 'Draft'" @click="post" :disabled="busy">
             <Check :size="15" /> Post purchase</button
-          ><button class="btn btn-ghost" v-if="current.status === 'Draft'" @click="removeDraft" :disabled="busy">
+          ><button class="btn btn-outline btn-error" v-if="current.status === 'Draft'" @click="removeDraft" :disabled="busy">
             <Trash2 :size="15" /> Delete draft</button
           ><button class="btn btn-ghost" v-if="current.status === 'Posted'" @click="cancel" :disabled="busy">
             Cancel / reverse

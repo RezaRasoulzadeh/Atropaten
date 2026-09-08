@@ -8,8 +8,8 @@ defineProps<{
 
 <template>
   <header class="workspace-header flex min-w-0 flex-wrap items-end justify-between gap-3 py-2">
-    <div class="flex min-w-0 items-start gap-3">
-      <div v-if="$slots.leading" class="shrink-0 pt-5"><slot name="leading" /></div>
+    <div class="flex min-w-0 items-end gap-3">
+      <div v-if="$slots.leading" class="shrink-0"><slot name="leading" /></div>
       <div class="min-w-0">
       <p class="mb-0.5 text-xs font-semibold leading-4 text-primary">{{ eyebrow }}</p>
       <div class="flex min-w-0 items-center gap-2">
@@ -21,7 +21,7 @@ defineProps<{
       </p>
       </div>
     </div>
-    <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+    <div class="workspace-header-actions flex shrink-0 flex-wrap items-end justify-end gap-2">
       <slot />
     </div>
   </header>

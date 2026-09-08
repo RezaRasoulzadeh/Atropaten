@@ -44,7 +44,7 @@ function syncExpanded(event: Event) {
                   >
                     <ChevronDown :size="14" :stroke-width="1.8" aria-hidden="true" /></button
                   ><button
-                    class="btn btn-ghost btn-sm text-error"
+                    class="btn btn-outline btn-error btn-sm"
                     type="button"
                     :aria-label="`Remove ${component.name || 'component'}`"
                     @click.stop.prevent="emit('remove')"

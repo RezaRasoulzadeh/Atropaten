@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import LoadingState from '../../components/ui/LoadingState.vue'
 import SearchFilterBar from '../../components/ui/SearchFilterBar.vue'
-import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
+import {useWorkspaceActions} from '../../composables/useWorkspaceActions'
 const {busy,runAction}=useWorkspaceActions()
 
 import FormGrid from '../../components/ui/FormGrid.vue';
@@ -15,7 +15,7 @@ import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
 import FormField from '../../components/ui/FormField.vue';
 import { computed, onMounted, ref, watch } from 'vue';
-import { Archive, Edit3, Factory, Plus, RotateCcw, Save, X } from 'lucide-vue-next';
+import { Archive, Edit3, Factory, Plus, RotateCcw, Save, Trash2, X } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
 import SearchField from '../../components/ui/SearchField.vue';
@@ -28,7 +28,7 @@ import {
   type CurrencyUnit,
 } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
-import { useToast } from '../../ui/feedback';
+import { confirmAction, useToast } from '../../ui/feedback';
 
 const props = defineProps<{ currencyUnit: CurrencyUnit }>();
 const emit = defineEmits<{ notify: [message: string] }>();
@@ -213,6 +213,47 @@ return runAction(async () => {
   }
 
 });
+}
+async function remove() {
+return runAction(async () => {
+  const machine = selectedMachine.value;
+  if (
+    !machine ||
+    !(await confirmAction({
+      title: 'Remove machine',
+      message: 'Remove this machine permanently when it has no production or service history?',
+      confirmLabel: 'Remove machine',
+      danger: true,
+    }))
+  )
+    return;
+
+  try {
+    await machinesApi.remove(machine.id);
+    machines.value = machines.value.filter((item) => item.id !== machine.id);
+    selectedId.value = machines.value[0]?.id ?? null;
+    mode.value = null;
+    emit('notify', 'Machine removed.');
+  } catch (error) {
+    if (!isDeletionProtected(error)) {
+      toast.error(message(error, 'Machine could not be removed.'), 'Machines');
+      return;
+    }
+    try {
+      const archived = await machinesApi.archive(machine.id);
+      const index = machines.value.findIndex((item) => item.id === archived.id);
+      if (index >= 0) machines.value.splice(index, 1, archived);
+      emit('notify', 'Machine is in use, so it was archived instead.');
+    } catch (archiveError) {
+      toast.error(message(archiveError, 'Machine could not be removed or archived.'), 'Machines');
+    }
+  }
+
+});
+}
+function isDeletionProtected(errorValue: unknown) {
+  const detail = message(errorValue, '').toLowerCase();
+  return detail.includes('archive it instead') || detail.includes('delete protected');
 }
 function message(errorValue: unknown, fallback: string) {
   return errorValue instanceof Error && errorValue.message
@@ -431,14 +472,22 @@ function message(errorValue: unknown, fallback: string) {
         <div>Updated {{ date(selectedMachine.updatedAt) }}</div>
         <div class="flex flex-wrap items-center gap-2">
           <button
-            class="btn btn-ghost"
+            class="btn btn-outline btn-warning"
             v-if="selectedMachine.active"
             type="button"
             @click="setActive(false)"
            :disabled="busy">
             <Archive :size="15" :stroke-width="1.8" aria-hidden="true" />Archive</button
-          ><button class="btn btn-ghost" v-else type="button" @click="setActive(true)" :disabled="busy">
+          ><button class="btn btn-outline btn-success" v-else type="button" @click="setActive(true)" :disabled="busy">
             <RotateCcw :size="15" :stroke-width="1.8" aria-hidden="true" />Reactivate
+          </button>
+          <button
+            class="btn btn-outline btn-error"
+            type="button"
+            @click="remove"
+            :disabled="busy"
+          >
+            <Trash2 :size="15" :stroke-width="1.8" aria-hidden="true" />Remove
           </button>
         </div></InspectorShell
       >

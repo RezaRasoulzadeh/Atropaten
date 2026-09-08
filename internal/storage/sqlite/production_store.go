@@ -348,24 +348,66 @@ func (s *Store) DeleteProductionJob(ctx context.Context, id string) error {
 		return e
 	}
 	fail := func(x error) error { _ = tx.Rollback(); return x }
-	var status string
-	if e = tx.QueryRowContext(ctx, `SELECT status FROM production_jobs WHERE id=?`, id).Scan(&status); errors.Is(e, sql.ErrNoRows) {
+	var found int
+	if e = tx.QueryRowContext(ctx, `SELECT 1 FROM production_jobs WHERE id=?`, id).Scan(&found); errors.Is(e, sql.ErrNoRows) {
 		return fail(domain.ErrProductionJobNotFound)
 	}
 	if e != nil {
 		return fail(e)
 	}
-	if status != domain.ProductionPending && status != domain.ProductionReady {
-		return fail(domain.ErrProductionHistoryProtected)
-	}
-	var n int
-	if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM production_consumptions WHERE production_job_id=?`, id).Scan(&n); e != nil {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	rows, e := tx.QueryContext(ctx, `SELECT pc.id,pc.material_id,pc.consumed_quantity_units,pc.waste_quantity_units,pc.unit_cost_rial,EXISTS(SELECT 1 FROM inventory_movements im WHERE im.reference_type='production_correction' AND im.reference_id=pc.id) FROM production_consumptions pc WHERE pc.production_job_id=? ORDER BY pc.created_at,pc.id`, id)
+	if e != nil {
 		return fail(e)
 	}
-	if n > 0 {
-		return fail(domain.ErrProductionHistoryProtected)
+	type consumption struct {
+		id, material          string
+		consumed, waste, cost int64
+		corrected             bool
 	}
-	if _, e = tx.ExecContext(ctx, `UPDATE inventory_reservations SET status='cancelled',updated_at=? WHERE production_job_id=? AND status='active'`, time.Now().UTC().Format(time.RFC3339Nano), id); e != nil {
+	consumptions := make([]consumption, 0)
+	for rows.Next() {
+		var item consumption
+		var corrected int
+		if e = rows.Scan(&item.id, &item.material, &item.consumed, &item.waste, &item.cost, &corrected); e != nil {
+			rows.Close()
+			return fail(e)
+		}
+		item.corrected = corrected == 1
+		consumptions = append(consumptions, item)
+	}
+	if e = rows.Err(); e != nil {
+		rows.Close()
+		return fail(e)
+	}
+	rows.Close()
+	for _, item := range consumptions {
+		if item.corrected {
+			continue
+		}
+		if item.consumed > 0 {
+			total, costErr := domain.MulQuantityRial(domain.Quantity(item.consumed), item.cost)
+			if costErr != nil {
+				return fail(fmt.Errorf("production deletion cost: %w", costErr))
+			}
+			if _, e = tx.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, "MOV-DELETE-"+item.id+"-C", item.material, now, "production_consumption", item.consumed, item.cost, total, "production_correction", item.id, "Compensating movement for deleted production job "+id, now); e != nil {
+				return fail(e)
+			}
+		}
+		if item.waste > 0 {
+			total, costErr := domain.MulQuantityRial(domain.Quantity(item.waste), item.cost)
+			if costErr != nil {
+				return fail(fmt.Errorf("production deletion cost: %w", costErr))
+			}
+			if _, e = tx.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, "MOV-DELETE-"+item.id+"-W", item.material, now, "waste", item.waste, item.cost, total, "production_correction", item.id, "Compensating movement for deleted production job "+id, now); e != nil {
+				return fail(e)
+			}
+		}
+	}
+	if _, e = tx.ExecContext(ctx, `DELETE FROM production_consumptions WHERE production_job_id=?`, id); e != nil {
+		return fail(e)
+	}
+	if _, e = tx.ExecContext(ctx, `DELETE FROM inventory_reservations WHERE production_job_id=?`, id); e != nil {
 		return fail(e)
 	}
 	if _, e = tx.ExecContext(ctx, `DELETE FROM production_jobs WHERE id=?`, id); e != nil {

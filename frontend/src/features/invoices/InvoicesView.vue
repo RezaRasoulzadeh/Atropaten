@@ -263,7 +263,7 @@ reportError(e);
           <div class="flex flex-wrap items-center gap-2">
             <button class="btn btn-primary" v-if="current.status === 'Draft'" @click="post" :disabled="busy">
               <Plus :size="15" /> Post invoice</button
-            ><button class="btn btn-ghost" v-if="current.status === 'Draft'" @click="remove" :disabled="busy">
+            ><button class="btn btn-outline btn-error" v-if="current.status === 'Draft'" @click="remove" :disabled="busy">
               <Trash2 :size="15" /> Delete draft</button
             ><button
               class="btn btn-ghost"

@@ -41,7 +41,7 @@ function syncExpanded(event: Event) {
                   >
                     <ChevronDown :size="14" :stroke-width="1.8" aria-hidden="true" /></button
                   ><button
-                    class="btn btn-ghost btn-sm text-error"
+                    class="btn btn-outline btn-error btn-sm"
                     type="button"
                     :aria-label="`Remove ${parameter.label || 'parameter'}`"
                     @click.stop.prevent="emit('remove')"
@@ -178,7 +178,7 @@ function syncExpanded(event: Event) {
                           : parameter.defaultValue
                     "
                   /><button
-                    class="btn btn-ghost"
+                    class="btn btn-outline btn-error"
                     type="button"
                     :aria-label="`Remove choice option ${optionIndex + 1}`"
                     @click="emit('removeOption',optionIndex)"

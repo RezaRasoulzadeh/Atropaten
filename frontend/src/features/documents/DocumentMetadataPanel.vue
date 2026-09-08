@@ -322,7 +322,7 @@ onBeforeUnmount(clearSelectedFiles);
                       <span class="block text-[11px] text-base-content/55">{{ formatFileSize(file.size) }}</span>
                     </div>
                     <button
-                      class="btn btn-ghost btn-square btn-xs shrink-0"
+                      class="btn btn-outline btn-error btn-square btn-xs shrink-0"
                       type="button"
                       :aria-label="`Remove ${file.name}`"
                       title="Remove from selection"
@@ -437,7 +437,7 @@ onBeforeUnmount(clearSelectedFiles);
                 {{ previewLoading ? 'Opening…' : 'Preview' }}
               </button>
               <button
-                class="btn btn-ghost btn-square btn-sm text-error"
+                class="btn btn-outline btn-error btn-square btn-sm"
                 aria-label="Remove attachment metadata"
                 title="Remove attachment"
                 type="button"

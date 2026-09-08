@@ -12,7 +12,7 @@ import {
   type CurrencyUnit,
 } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
-import { useToast } from '../../ui/feedback';
+import { confirmAction, useToast } from '../../ui/feedback';
 
 export function useServicesWorkspace(props:{ currencyUnit: CurrencyUnit },emit:(event:'notify',message:string)=>void){
 const {busy,runAction}=useWorkspaceActions()
@@ -465,6 +465,45 @@ return runAction(async () => {
 
 });
 }
+async function remove() {
+  return runAction(async () => {
+    const service = selectedService.value;
+    if (
+      !service ||
+      !(await confirmAction({
+        title: 'Delete service',
+        message: 'Delete this service permanently? Services used by orders or invoices will be archived instead.',
+        confirmLabel: 'Delete service',
+        danger: true,
+      }))
+    )
+      return;
+    try {
+      await servicesApi.remove(service.id);
+      services.value = services.value.filter((item) => item.id !== service.id);
+      selectedId.value = null;
+      editorMode.value = null;
+      emit('notify', 'Service deleted.');
+    } catch (error) {
+      if (!isDeletionProtected(error)) {
+        toast.error(errorMessageFrom(error, 'Service could not be deleted.'), 'Services');
+        return;
+      }
+      try {
+        const archived = await servicesApi.archive(service.id);
+        const index = services.value.findIndex((item) => item.id === archived.id);
+        if (index >= 0) services.value.splice(index, 1, archived);
+        emit('notify', 'Service is in use, so it was archived instead.');
+      } catch (archiveError) {
+        toast.error(errorMessageFrom(archiveError, 'Service could not be deleted or archived.'), 'Services');
+      }
+    }
+  });
+}
+function isDeletionProtected(error: unknown) {
+  const detail = errorMessageFrom(error, '').toLowerCase();
+  return detail.includes('archive it instead') || detail.includes('delete protected');
+}
 function typeLabel(type: string) {
   return (
     {
@@ -490,5 +529,5 @@ function errorMessageFrom(error: unknown, fallback: string): string {
       ? error
       : fallback;
 }
-return {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,typeLabel,dateLabel,errorMessageFrom}
+return {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,remove,typeLabel,dateLabel,errorMessageFrom}
 }

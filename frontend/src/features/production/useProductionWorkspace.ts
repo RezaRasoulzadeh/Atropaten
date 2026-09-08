@@ -248,7 +248,7 @@ export function useProductionWorkspace(
       if (
         !(await confirmAction({
           title: 'Delete production job?',
-          message: `Delete ${job.jobNumber}? Jobs with protected production history cannot be deleted.`,
+          message: `Delete ${job.jobNumber}? Reservations and consumption records will be removed, and inventory will receive compensating movements. This cannot be undone.`,
           confirmLabel: 'Delete permanently',
           danger: true,
         }))
@@ -261,7 +261,7 @@ export function useProductionWorkspace(
         reservations.value = [];
         emit('notify', 'Production job deleted.');
       } catch (e) {
-        toast.error(message(e, 'Production history cannot be deleted.'));
+        toast.error(message(e, 'Production job could not be deleted.'));
       }
     });
   }

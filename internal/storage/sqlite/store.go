@@ -1089,6 +1089,21 @@ func (s *Store) DeleteService(ctx context.Context, serviceID string) error {
 	return tx.Commit()
 }
 
+func (s *Store) SetServiceActive(ctx context.Context, serviceID string, active bool, updatedAt time.Time) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE services SET active=?,updated_at=? WHERE id=?`, boolToInt(active), updatedAt.UTC().Format(time.RFC3339Nano), serviceID)
+	if err != nil {
+		return fmt.Errorf("update service status: %w", err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check service status update: %w", err)
+	}
+	if count == 0 {
+		return domain.ErrServiceNotFound
+	}
+	return nil
+}
+
 type scanner interface {
 	Scan(...any) error
 }

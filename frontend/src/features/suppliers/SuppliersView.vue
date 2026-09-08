@@ -269,10 +269,15 @@ reportError(e);
         </InspectorSection>
         <div class="flex flex-wrap items-center gap-2">
           <button class="btn btn-ghost" @click="startEdit"><Edit3 :size="15" /> Edit</button
-          ><button class="btn btn-ghost" @click="setActive(!current.active)" :disabled="busy">
+          ><button
+            class="btn btn-outline"
+            :class="current.active ? 'btn-warning' : 'btn-success'"
+            @click="setActive(!current.active)"
+            :disabled="busy"
+          >
             <RotateCcw v-if="!current.active" :size="15" /><Archive v-else :size="15" />
             {{ current.active ? 'Archive' : 'Reactivate' }}</button
-          ><button class="btn btn-ghost" @click="remove" :disabled="busy"><Trash2 :size="15" /> Delete</button>
+          ><button class="btn btn-outline btn-error" @click="remove" :disabled="busy"><Trash2 :size="15" /> Delete</button>
         </div></InspectorShell
       ><InspectorShell v-else title="Supplier inspector" subtitle="Select a row to inspect it."
         ><div class="min-w-0 space-y-3">
