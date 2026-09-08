@@ -75,15 +75,15 @@ M6-013 keeps the accepted geometry and typography baselines and standardizes dat
 | Production | Rich register | Shared inspector with cost/schedule and reservation sections | `/tmp/atropaten-m6-013-after/{width}-production.png` |
 | Customers | Rich register | Contact and notes sections in `InspectorShell` | `/tmp/atropaten-m6-013-after/{width}-customers.png` |
 | Suppliers | Rich register | Contact details section in `InspectorShell` | `/tmp/atropaten-m6-013-after/{width}-suppliers.png` |
-| Services catalog | Dense table | Parameter and cost-component inspector sections | `/tmp/atropaten-m6-013-after/{width}-services.png` |
-| Materials | Dense table | Stock/cost and movement sections; movement ledger remains a dense table | `/tmp/atropaten-m6-013-after/{width}-materials.png` |
-| Machines | Dense table | Rate definition inspector section | `/tmp/atropaten-m6-013-after/{width}-machines.png` |
-| Purchases | Dense table | Existing editor/inspector retained; item and amount hierarchy stays inside the shell | `/tmp/atropaten-m6-013-after/{width}-purchases.png` |
+| Services catalog | Rich register | Parameter and cost-component inspector sections | `/tmp/atropaten-m6-013-after/{width}-services.png` |
+| Materials | Rich register; movement history dense table | Stock/cost and movement sections; movement ledger remains a dense table | `/tmp/atropaten-m6-013-after/{width}-materials.png` |
+| Machines | Rich register | Rate definition inspector section | `/tmp/atropaten-m6-013-after/{width}-machines.png` |
+| Purchases | Rich register | Existing editor/inspector retained; item and amount hierarchy stays inside the shell | `/tmp/atropaten-m6-013-after/{width}-purchases.png` |
 | Accounting accounts/journal/payments | Dense tables | Existing tab/panel containment retained | `/tmp/atropaten-m6-013-final/{width}-accounting.png` |
-| Invoices | Dense table | Invoice lines and totals use inspector sections; ready-to-invoice queue remains a shared register-like action surface | `/tmp/atropaten-m6-013-after/{width}-invoices.png` |
+| Invoices | Rich register; invoice lines dense table | Invoice lines and totals use inspector sections; ready-to-invoice queue remains a shared register-like action surface | `/tmp/atropaten-m6-013-after/{width}-invoices.png` |
 | Expenses/transfers/treasury | Dense tables | Existing Accounting tab panels retained | `/tmp/atropaten-m6-013-final/{width}-accounting.png` |
-| Checks | Dense table | Lifecycle history converted to a dense table in the inspector | `/tmp/atropaten-m6-013-after/{width}-checks.png` |
-| Loans | Dense table | Installment schedule and payment history converted to dense tables | `/tmp/atropaten-m6-013-after/{width}-loans.png` |
+| Checks | Rich register; lifecycle history dense table | Lifecycle history converted to a dense table in the inspector | `/tmp/atropaten-m6-013-after/{width}-checks.png` |
+| Loans | Rich register; schedules/history dense tables | Installment schedule and payment history converted to dense tables | `/tmp/atropaten-m6-013-after/{width}-loans.png` |
 | Owners finance/history | Dense tables | Existing owner inspector and transaction tables retained | `/tmp/atropaten-m6-013-final/{width}-owners.png` |
 | Reports | Dense table | Report result table stays inside its panel | `/tmp/atropaten-m6-013-final/{width}-reports.png` |
 
@@ -222,3 +222,37 @@ Date: 2026-09-08. The application font is now the locally vendored Estedad varia
 Chrome verified `document.fonts.status === "loaded"`, `document.fonts.check("14px Estedad") === true`, computed root/body `font-family: Estedad, system-ui, sans-serif`, and one loaded face with `font-weight: 100 900` at 1024px, 1280px, and 1600px. The existing typography/control audit passed with no page errors. The visual audit rendered Dashboard, Orders, Customers, Materials, Services, Accounting, Checks, Reports, and the remaining major workspaces at all three widths; screenshots are in `/tmp/atropaten-estedad-visual/` and metrics are in `/tmp/atropaten-estedad-typography/`.
 
 Visual inspection found no shared metric change necessary: input/select/button heights remained 40px, compact controls 32px, labels and metadata retained 12/16, body/control text retained 14/20, and title/section baselines remained stable. No transform, negative margin, asymmetric padding, metric override, or page-specific compensation was introduced.
+
+## Responsive register correction
+
+Audit date: 2026-09-08. This pass corrected the first M6-013 conversion using rendered master-pane behavior rather than applying the Orders layout mechanically.
+
+### Rendered evidence
+
+- The populated M6-006 dataset at `/tmp/atropaten-demo` (seed `6006`, reference date `2026-03-21`) was rendered at 1024px, 1280px, and 1600px.
+- The clean workspace audit rendered Dashboard, Orders, Quotes, Production, Customers, Services, Materials, Machines, Purchases, Suppliers, Accounting, Invoices, Checks, Loans, Owners, Reports, and Settings at all three widths. Results and screenshots are in `/tmp/atropaten-register-refactor-final-visual/`.
+- The data-surface audit verified native select start alignment, editable-control focus, local table overflow, no-results states, and no document/main overflow in `/tmp/atropaten-register-refactor-final-data/results.json`.
+- Targeted open-inspector screenshots and master-pane overflow checks are in `/tmp/atropaten-register-refactor-final-data/open/` and `open-results.json`. Representative 1280px register widths were approximately 598px with the inspector open; no page-level or main-region overflow was observed at any required width.
+- A targeted browser check focused converted rows through the keyboard path and confirmed the row remains the active element with a visible 1px outline. The editable-control check continued to report a 1px dashed Amber border, no shadow, and no layout shift.
+
+### Current surface decisions
+
+| Workspace/surface | Current pattern | Rendered result |
+| --- | --- | --- |
+| Dashboard production queue | Responsive register rows; KPI/attention/payment summaries remain compact lists | Populated at all widths; no table or page overflow. |
+| Orders, Quotes, Production, Customers, Suppliers | Rich register rows | Existing entity-centric hierarchy preserved; badges/actions now wrap below metadata. |
+| Services | Concise rich register rows | Register shows identity, configuration summary, pricing-input count, update metadata, and status; detailed definition remains in the inspector. |
+| Machines | Rich register rows | Name/code identity, rate, rate basis, setup cost, notes, and separate status line remain readable in the narrow master pane. |
+| Purchases | Rich register rows | Purchase/supplier identity, prominent total, two-column metadata, and status line remain readable with an open inspector. |
+| Invoices | Rich register rows | Invoice/customer identity and total, then issue/remaining/line metadata, then payment status. Invoice-line comparison remains a local inspector table. |
+| Checks | Rich register rows | Check/party identity and amount, grouped direction/due/account metadata, then lifecycle status. History remains a local inspector table. |
+| Materials main register | Responsive register rows | Identity and available stock lead; stock, cost/value, units, reorder threshold, and low-stock/health badges are grouped below. |
+| Materials movement history | Dense semantic table | Kept as a local scrolling table because quantity/date/cost movement comparison is genuinely column-oriented. |
+| Accounting, Owners, Reports | Dense semantic tables | Kept as tables for ledger, balance, journal, payment, report, and history comparison; scrolling stays local. |
+| Loans | Existing register/detail plus dense schedules/history | Register behavior remains entity-centric; installment and payment histories remain tables. |
+
+The shared `RegisterRow` no longer places status/actions in a fixed trailing column. Identity and metadata occupy the available master width, while statuses/actions use a dedicated `mt-2 flex flex-wrap gap-1.5` line. This is the common correction for narrow master panes and allows multiple badges to wrap naturally without squeezing against the inspector edge.
+
+### Remaining intentional tables and later work
+
+True tables remain for accounting accounts/journal/payments/expenses/transfers, Owners fiscal and transaction history, Reports, Materials movement history, and inspector-level invoice lines, check lifecycle history, loan schedules/payment history, and service cost components. These surfaces require aligned numeric/date/status comparison. No forms, backend behavior, or workflows were redesigned in this correction. The existing Services fixture timestamp warning remains a domain/demo-data warning rather than a layout defect.

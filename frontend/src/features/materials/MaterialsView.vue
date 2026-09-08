@@ -3,7 +3,6 @@ import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceAc
 const {busy,runAction}=useWorkspaceActions()
 
 import MasterDetail from '../../components/layout/MasterDetail.vue';
-import DataTableRow from '../../components/ui/DataTableRow.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
@@ -30,6 +29,8 @@ import EmptyState from '../../components/ui/EmptyState.vue';
 import LoadingState from '../../components/ui/LoadingState.vue';
 import InlineAlert from '../../components/ui/InlineAlert.vue';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
+import RegisterList from '../../components/ui/RegisterList.vue';
+import RegisterRow from '../../components/ui/RegisterRow.vue';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
 import SearchField from '../../components/ui/SearchField.vue';
 import SelectField from '../../components/ui/SelectField.vue';
@@ -349,92 +350,65 @@ function dateLabel(value: string) {
     ></InlineAlert>
 
     <MasterDetail>
-      <AppPanel
+      <RegisterList
         title="Material register"
-        subtitle="Aligned stock and cost columns for purchasing and production."
+        subtitle="Scan stock, value and reorder state before opening the material inspector."
+        :count="filteredMaterials.length"
       >
-        <template #action
-          ><span class="text-xs text-base-content/60"
-            >{{ filteredMaterials.length }} shown</span
-          ></template
-        >
         <LoadingState v-if="isLoading" label="Loading materials…" />
-        <DataTable v-else-if="filteredMaterials.length">
-          <thead>
-            <tr>
-              <th scope="col">Material</th>
-              <th scope="col">Units</th>
-              <th scope="col" class="text-end">Physical</th>
-              <th scope="col" class="text-end">Available</th>
-              <th scope="col" class="text-end">Average cost</th>
-              <th scope="col" class="text-end">Inventory value</th>
-              <th scope="col" class="text-end">Reorder</th>
-              <th scope="col">State</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-base-300">
-            <DataTableRow
+        <div v-else-if="filteredMaterials.length">
+          <RegisterRow
               v-for="material in filteredMaterials"
               :key="material.id"
-              class="cursor-pointer hover:bg-base-200 focus-within:bg-base-200 focus-visible:outline-none"
-              :class="selectedId === material.id ? 'bg-base-300' : ''"
+              :selected="selectedId === material.id"
               @activate="selectMaterial(material.id)"
-              @keydown.space.prevent="selectMaterial(material.id)"
-              interactive
             >
-              <DataTableCell>
-                <strong class="block whitespace-nowrap">{{ material.name }}</strong
-                ><span class="text-xs text-base-content/60 block text-xs text-base-content/60">{{
-                  material.sku || material.category || 'No SKU or category'
-                }}</span>
-              </DataTableCell>
-              <DataTableCell>
-                <span class="whitespace-nowrap block font-medium">{{
-                  unitLabel(material.purchaseUnit)
-                }}</span
-                ><span
-                  class="block whitespace-nowrap text-xs text-base-content/60 block text-xs text-base-content/60"
-                  >1 = {{ material.conversionFactor }} {{ material.consumptionUnit }}</span
-                >
-              </DataTableCell>
-              <DataTableCell class="whitespace-nowrap text-end tabular-nums">
-                <span class="block font-medium"
-                  >{{ material.physicalStock }} {{ material.consumptionUnit }}</span
-                ><span class="block text-xs text-base-content/60 block text-xs text-base-content/60"
-                  >Current</span
-                >
-              </DataTableCell>
-              <DataTableCell class="whitespace-nowrap text-end tabular-nums">
-                <span class="block font-medium"
-                  >{{ material.availableStock }} {{ material.consumptionUnit }}</span
-                ><span class="block text-xs text-base-content/60 block text-xs text-base-content/60"
-                  >{{ material.reservedStock }} reserved</span
-                >
-              </DataTableCell>
-              <DataTableCell class="whitespace-nowrap text-end tabular-nums" numeric>
-                <span class="block font-medium">{{
-                  formatMoney(material.averageUnitCostRial, props.currencyUnit)
-                }}</span
-                ><span class="block text-xs text-base-content/60 block text-xs text-base-content/60"
-                  >per {{ material.consumptionUnit }}</span
-                >
-              </DataTableCell>
-              <DataTableCell class="whitespace-nowrap text-end tabular-nums" numeric>
-                {{ formatMoney(material.inventoryValueRial, props.currencyUnit) }}
-              </DataTableCell>
-              <DataTableCell class="whitespace-nowrap text-end tabular-nums">
-                {{ material.reorderLevel }} {{ material.consumptionUnit }}
-              </DataTableCell>
-              <DataTableCell>
-                <StatusBadge v-if="material.lowStock" label="Low stock" tone="amber" /><StatusBadge
-                  v-else
+              <template #identity>
+                <div class="flex min-w-0 items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <strong class="block truncate text-sm">{{ material.name }}</strong>
+                    <span class="block truncate text-xs text-base-content/60">
+                      {{ material.sku || material.category || 'No SKU or category' }}
+                    </span>
+                  </div>
+                  <strong class="shrink-0 whitespace-nowrap text-sm tabular-nums">
+                    {{ material.availableStock }} {{ material.consumptionUnit }}
+                  </strong>
+                </div>
+              </template>
+              <template #meta>
+                <div class="mt-2 grid min-w-0 grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2">
+                  <div>
+                    <span class="block text-base-content/50">Stock</span>
+                    <span class="block text-base-content/80 tabular-nums">
+                      {{ material.physicalStock }} physical · {{ material.reservedStock }} reserved
+                    </span>
+                  </div>
+                  <div>
+                    <span class="block text-base-content/50">Cost / value</span>
+                    <span class="block text-base-content/80 tabular-nums">
+                      {{ formatMoney(material.averageUnitCostRial, props.currencyUnit) }} per {{ material.consumptionUnit }} · {{ formatMoney(material.inventoryValueRial, props.currencyUnit) }} total
+                    </span>
+                  </div>
+                  <div>
+                    <span class="block text-base-content/50">Units</span>
+                    <span class="block text-base-content/80">{{ unitLabel(material.purchaseUnit) }} · 1 = {{ material.conversionFactor }} {{ material.consumptionUnit }}</span>
+                  </div>
+                  <div>
+                    <span class="block text-base-content/50">Reorder at</span>
+                    <span class="block text-base-content/80 tabular-nums">{{ material.reorderLevel }} {{ material.consumptionUnit }}</span>
+                  </div>
+                </div>
+              </template>
+              <template #status>
+                <StatusBadge v-if="material.lowStock" label="Low stock" tone="amber" />
+                <StatusBadge
                   :label="material.active ? 'Healthy' : 'Archived'"
                   :tone="material.active ? 'green' : 'slate'"
                 />
-              </DataTableCell>
-            </DataTableRow>
-          </tbody>
-        </DataTable>
+              </template>
+          </RegisterRow>
+        </div>
         <EmptyState
           v-else
           :title="materials.length ? 'No materials match this view' : 'No materials yet'"
@@ -451,7 +425,7 @@ function dateLabel(value: string) {
             </button></template
           >
         </EmptyState>
-      </AppPanel>
+      </RegisterList>
 
       <InspectorShell
         v-if="editorMode"

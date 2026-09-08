@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import DataTableCell from '../../components/ui/DataTableCell.vue';
-import DataTable from '../../components/ui/DataTable.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue';
 import {
@@ -17,6 +15,8 @@ import KpiCard from '../../components/ui/KpiCard.vue';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
+import RegisterList from '../../components/ui/RegisterList.vue';
+import RegisterRow from '../../components/ui/RegisterRow.vue';
 import { reportsApi, type DashboardRecord } from '../../api/reports';
 import { formatMoney } from '../../utils/currency';
 import { formatDate, formatDateTime, currentCanonicalDate } from '../../utils/date';
@@ -163,44 +163,34 @@ const attention = computed(() => data.value?.attention ?? []);
             </p>
           </div>
         </AppPanel>
-        <AppPanel title="Production queue" subtitle="Persisted active jobs" :flush="true">
-          <div class="overflow-x-auto">
-            <DataTable>
-              <thead class="bg-base-200/60 text-xs text-base-content/70">
-                <tr>
-                  <th class="whitespace-nowrap">Order</th>
-                  <th class="whitespace-nowrap">Customer</th>
-                  <th class="whitespace-nowrap">Service</th>
-                  <th class="whitespace-nowrap">Status</th>
-                </tr>
-              </thead>
-              <tbody v-if="initialLoading">
-                <tr v-for="row in 3" :key="row">
-                  <DataTableCell colspan="4"
-                    ><div class="skeleton h-5 w-full bg-base-300/70"></div
-                  ></DataTableCell>
-                </tr>
-              </tbody>
-              <tbody v-else>
-                <tr v-for="job in data?.production" :key="job.id">
-                  <DataTableCell class="whitespace-nowrap font-semibold">{{
-                    job.orderNumber || job.id
-                  }}</DataTableCell>
-                  <DataTableCell class="max-w-40 truncate">{{ job.customer || '—' }}</DataTableCell>
-                  <DataTableCell class="max-w-48 truncate">{{ job.service }}</DataTableCell>
-                  <DataTableCell>
-                    <StatusBadge :label="job.status" tone="blue" />
-                  </DataTableCell>
-                </tr>
-                <tr v-if="!data?.production?.length">
-                  <DataTableCell colspan="4" class="py-6 text-center text-sm text-base-content/60"
-                    >No active production jobs.</DataTableCell
-                  >
-                </tr>
-              </tbody>
-            </DataTable>
+        <RegisterList
+          title="Production queue"
+          subtitle="Persisted active jobs"
+          :count="data?.production?.length || 0"
+        >
+          <div v-if="initialLoading" class="space-y-3 p-4" aria-label="Loading production jobs">
+            <div v-for="row in 3" :key="row" class="skeleton h-10 w-full bg-base-300/70"></div>
           </div>
-        </AppPanel>
+          <div v-else-if="data?.production?.length">
+            <RegisterRow v-for="job in data.production" :key="job.id" :interactive="false">
+              <template #identity>
+                <div class="flex min-w-0 items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <strong class="block truncate text-sm">{{ job.orderNumber || job.id }}</strong>
+                    <span class="block truncate text-xs text-base-content/60">{{ job.customer || 'Walk-in customer' }}</span>
+                  </div>
+                  <StatusBadge :label="job.status" tone="blue" />
+                </div>
+              </template>
+              <template #meta>
+                <div class="mt-2 min-w-0 text-xs text-base-content/80">
+                  <span class="block truncate">{{ job.service }}</span>
+                </div>
+              </template>
+            </RegisterRow>
+          </div>
+          <p v-else class="px-4 py-6 text-sm text-base-content/60">No active production jobs.</p>
+        </RegisterList>
       </section>
       <section class="grid gap-4 xl:grid-cols-2">
         <AppPanel title="Low stock" subtitle="Movement-derived availability" :flush="true">

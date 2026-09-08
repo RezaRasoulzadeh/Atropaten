@@ -9,13 +9,13 @@ import InspectorShell from '../../components/layout/InspectorShell.vue';
 import InspectorSection from '../../components/layout/InspectorSection.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
+import RegisterList from '../../components/ui/RegisterList.vue';
+import RegisterRow from '../../components/ui/RegisterRow.vue';
 import DataTableCell from '../../components/ui/DataTableCell.vue';
-import DataTableRow from '../../components/ui/DataTableRow.vue';
 import DataTable from '../../components/ui/DataTable.vue';
 import FormField from '../../components/ui/FormField.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
-import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref } from 'vue';
 import { CircleDollarSign, Plus, RotateCcw, X } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
@@ -219,56 +219,34 @@ function date(v: string) {
       <button class="btn btn-ghost" @click="error = ''" aria-label="Dismiss">
         <X :size="14" /></button></InlineAlert
     ><MasterDetail
-      ><AppPanel
+      ><RegisterList
         title="Loan register"
         subtitle="Principal, interest, remaining, and overdue values come from posted allocations."
+        :count="filtered.length"
         ><div v-if="filtered.length">
-          <DataTable
-            ><thead>
-              <tr>
-                <th>Loan</th>
-                <th>Counterparty</th>
-                <th>Type</th>
-                <th class="text-end">Remaining</th>
-                <th class="text-end">Overdue</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <DataTableRow
-                v-for="v in filtered"
-                :key="v.id"
-                :class="{ 'bg-base-300': selectedId === v.id }"
-                @activate="select(v)"
-                interactive
-                ><DataTableCell
-                  ><span class="block font-medium">{{ v.loanNumber }}</span
-                  ><span class="block text-xs text-base-content/60">{{
-                    date(v.startDate)
-                  }}</span></DataTableCell
-                ><DataTableCell>{{ v.counterpartyName }}</DataTableCell
-                ><DataTableCell>{{
-                  v.direction === 'payable' ? 'Payable' : 'Receivable'
-                }}</DataTableCell
-                ><DataTableCell numeric>{{
-                  formatMoney(
-                    v.remainingPrincipalRial + v.remainingInterestRial,
-                    props.currencyUnit,
-                  )
-                }}</DataTableCell
-                ><DataTableCell numeric>{{
-                  formatMoney(v.overdueRial, props.currencyUnit)
-                }}</DataTableCell
-                ><DataTableCell
-                  ><StatusBadge :label="v.status" :tone="tone(v.status)" /></DataTableCell
-              ></DataTableRow></tbody
-          ></DataTable>
+          <RegisterRow v-for="v in filtered" :key="v.id" :selected="selectedId === v.id" @activate="select(v)">
+            <template #identity>
+              <div class="flex min-w-0 items-center justify-between gap-3">
+                <div class="min-w-0"><strong class="block truncate text-sm">{{ v.loanNumber }}</strong><span class="block truncate text-xs text-base-content/60">{{ v.counterpartyName }} · {{ v.direction === 'payable' ? 'Payable' : 'Receivable' }}</span></div>
+                <strong class="shrink-0 whitespace-nowrap text-sm tabular-nums">{{ formatMoney(v.remainingPrincipalRial + v.remainingInterestRial, props.currencyUnit) }}</strong>
+              </div>
+            </template>
+            <template #meta>
+              <div class="mt-2 grid min-w-0 grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2 lg:grid-cols-3">
+                <div><span class="block text-base-content/50">Start date</span><span class="block text-base-content/80">{{ date(v.startDate) }}</span></div>
+                <div><span class="block text-base-content/50">Overdue</span><span class="block text-base-content/80 tabular-nums">{{ formatMoney(v.overdueRial, props.currencyUnit) }}</span></div>
+                <div><span class="block text-base-content/50">Installments</span><span class="block text-base-content/80">{{ v.installments.length }} scheduled</span></div>
+              </div>
+            </template>
+            <template #status><StatusBadge :label="v.status" :tone="tone(v.status)" /></template>
+          </RegisterRow>
         </div>
         <div v-else class="min-w-0 space-y-3">
           <CircleDollarSign :size="22" />
           <p>No loans in this view.</p>
-        </div></AppPanel
-      ><InspectorShell
+        </div>
+      </RegisterList>
+      <InspectorShell
         v-if="createMode"
         title="New loan"
         subtitle="Opening the loan posts principal to cash/bank and the loan balance."

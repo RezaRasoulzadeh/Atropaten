@@ -10,8 +10,9 @@ import InspectorShell from '../../components/layout/InspectorShell.vue';
 import InspectorSection from '../../components/layout/InspectorSection.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
+import RegisterList from '../../components/ui/RegisterList.vue';
+import RegisterRow from '../../components/ui/RegisterRow.vue';
 import DataTableCell from '../../components/ui/DataTableCell.vue';
-import DataTableRow from '../../components/ui/DataTableRow.vue';
 import DataTable from '../../components/ui/DataTable.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref } from 'vue';
@@ -176,52 +177,43 @@ reportError(e);
         <X :size="14" /></button
     ></InlineAlert>
     <MasterDetail
-      ><AppPanel
+      ><RegisterList
         title="Invoice register"
         subtitle="Invoice status and amounts are derived in Go from posted allocations."
+        :count="filtered.length"
         ><LoadingState v-if="loading" label="Loading records…" />
         <div v-else-if="filtered.length">
-          <DataTable
-            ><thead>
-              <tr>
-                <th>Invoice</th>
-                <th>Customer</th>
-                <th>Order</th>
-                <th>Date</th>
-                <th class="text-end">Total</th>
-                <th class="text-end">Remaining</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <DataTableRow
-                v-for="value in filtered"
-                :key="value.id"
-                :class="{ 'bg-base-300': selected === value.id }"
-                @activate="selected = value.id"
-                interactive
-                ><DataTableCell
-                  ><span>{{ value.invoiceNumber }}</span></DataTableCell
-                ><DataTableCell>{{ value.customerName || 'Walk-in customer' }}</DataTableCell
-                ><DataTableCell>{{ value.orderId || '—' }}</DataTableCell
-                ><DataTableCell>{{ formatDateTime(value.issueDate) }}</DataTableCell
-                ><DataTableCell numeric>{{
-                  formatMoney(value.totalRial, props.currencyUnit)
-                }}</DataTableCell
-                ><DataTableCell numeric>{{
-                  formatMoney(value.remainingRial, props.currencyUnit)
-                }}</DataTableCell
-                ><DataTableCell
-                  ><StatusBadge :label="value.status" :tone="tone(value.status)" /></DataTableCell
-              ></DataTableRow></tbody
-          ></DataTable>
+          <RegisterRow
+            v-for="value in filtered"
+            :key="value.id"
+            :selected="selected === value.id"
+            @activate="selected = value.id"
+          >
+            <template #identity>
+              <div class="flex min-w-0 items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <strong class="block truncate text-sm">{{ value.invoiceNumber }}</strong>
+                  <span class="block truncate text-xs text-base-content/60">{{ value.customerName || 'Walk-in customer' }} · {{ value.orderId || 'No order link' }}</span>
+                </div>
+                <strong class="shrink-0 whitespace-nowrap text-sm tabular-nums">{{ formatMoney(value.totalRial, props.currencyUnit) }}</strong>
+              </div>
+            </template>
+            <template #meta>
+              <div class="mt-2 grid min-w-0 grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2">
+                <div><span class="block text-base-content/50">Issue date</span><span class="block text-base-content/80">{{ formatDateTime(value.issueDate) }}</span></div>
+                <div><span class="block text-base-content/50">Remaining</span><span class="block text-base-content/80 tabular-nums">{{ formatMoney(value.remainingRial, props.currencyUnit) }}</span></div>
+                <div><span class="block text-base-content/50">Lines</span><span class="block text-base-content/80">{{ value.items.length }} line items</span></div>
+              </div>
+            </template>
+            <template #status><StatusBadge :label="value.status" :tone="tone(value.status)" /></template>
+          </RegisterRow>
         </div>
         <div v-else class="min-w-0 space-y-3">
           <FileText :size="22" /><strong>{{
             rows.length ? 'No invoices match this filter' : 'No invoices yet'
           }}</strong>
-        </div></AppPanel
-      >
+        </div>
+      </RegisterList>
       <InspectorShell
         v-if="current"
         title="Invoice inspector"

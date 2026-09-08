@@ -9,13 +9,13 @@ import InspectorShell from '../../components/layout/InspectorShell.vue';
 import InspectorSection from '../../components/layout/InspectorSection.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
+import RegisterList from '../../components/ui/RegisterList.vue';
+import RegisterRow from '../../components/ui/RegisterRow.vue';
 import DataTableCell from '../../components/ui/DataTableCell.vue';
-import DataTableRow from '../../components/ui/DataTableRow.vue';
 import DataTable from '../../components/ui/DataTable.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
 import FormField from '../../components/ui/FormField.vue';
-import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref } from 'vue';
 import { Landmark, Plus, RotateCcw, Trash2, X } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
@@ -236,49 +236,30 @@ function date(v: string) {
         <X :size="14" /></button
     ></InlineAlert>
     <MasterDetail
-      ><AppPanel title="Check register" subtitle="Only valid next lifecycle actions are offered."
+      ><RegisterList title="Check register" subtitle="Only valid next lifecycle actions are offered." :count="filtered.length"
         ><div v-if="filtered.length">
-          <DataTable
-            ><thead>
-              <tr>
-                <th>Check</th>
-                <th>Direction</th>
-                <th>Party</th>
-                <th>Due</th>
-                <th class="text-end">Amount</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <DataTableRow
-                v-for="v in filtered"
-                :key="v.id"
-                :class="{ 'bg-base-300': selectedId === v.id }"
-                @activate="select(v)"
-                interactive
-                ><DataTableCell
-                  ><span class="block font-medium">{{ v.checkNumber }}</span
-                  ><span class="block text-xs text-base-content/60">{{
-                    v.bank
-                  }}</span></DataTableCell
-                ><DataTableCell>{{
-                  v.direction === 'incoming' ? 'Incoming' : 'Outgoing'
-                }}</DataTableCell
-                ><DataTableCell>{{ v.payerPayee }}</DataTableCell
-                ><DataTableCell>{{ date(v.dueDate) }}</DataTableCell
-                ><DataTableCell numeric>{{
-                  formatMoney(v.amountRial, props.currencyUnit)
-                }}</DataTableCell
-                ><DataTableCell
-                  ><StatusBadge :label="v.status" :tone="tone(v.status)" /></DataTableCell
-              ></DataTableRow></tbody
-          ></DataTable>
+          <RegisterRow v-for="v in filtered" :key="v.id" :selected="selectedId === v.id" @activate="select(v)">
+            <template #identity>
+              <div class="flex min-w-0 items-center justify-between gap-3">
+                <div class="min-w-0"><strong class="block truncate text-sm">{{ v.checkNumber }}</strong><span class="block truncate text-xs text-base-content/60">{{ v.payerPayee }} · {{ v.bank }}</span></div>
+                <strong class="shrink-0 whitespace-nowrap text-sm tabular-nums">{{ formatMoney(v.amountRial, props.currencyUnit) }}</strong>
+              </div>
+            </template>
+            <template #meta>
+              <div class="mt-2 grid min-w-0 grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2">
+                <div><span class="block text-base-content/50">Direction</span><span class="block text-base-content/80">{{ v.direction === 'incoming' ? 'Incoming' : 'Outgoing' }}</span></div>
+                <div><span class="block text-base-content/50">Due</span><span class="block text-base-content/80">{{ date(v.dueDate) }}</span></div>
+                <div><span class="block text-base-content/50">Account</span><span class="block truncate text-base-content/80">{{ v.accountDescriptor || v.financialAccountId || 'No account' }}</span></div>
+              </div>
+            </template>
+            <template #status><StatusBadge :label="v.status" :tone="tone(v.status)" /></template>
+          </RegisterRow>
         </div>
         <div v-else class="min-w-0 space-y-3">
           <Landmark :size="22" />
           <p>No checks in this view.</p>
-        </div></AppPanel
-      >
+        </div>
+      </RegisterList>
       <InspectorShell
         v-if="createMode"
         title="New check"

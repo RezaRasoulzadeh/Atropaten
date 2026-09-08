@@ -8,13 +8,11 @@ import FormGrid from '../../components/ui/FormGrid.vue';
 import InspectorShell from '../../components/layout/InspectorShell.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
-import DataTableCell from '../../components/ui/DataTableCell.vue';
-import DataTableRow from '../../components/ui/DataTableRow.vue';
-import DataTable from '../../components/ui/DataTable.vue';
+import RegisterList from '../../components/ui/RegisterList.vue';
+import RegisterRow from '../../components/ui/RegisterRow.vue';
 import FormField from '../../components/ui/FormField.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
-import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref } from 'vue';
 import { ArrowDown, ArrowUp, Check, Plus, Save, ShoppingCart, Trash2, X } from 'lucide-vue-next';
 import JalaliDatePicker from '../../components/ui/JalaliDatePicker.vue';
@@ -268,65 +266,44 @@ function replace(value: PurchaseRecord) {
         <X :size="14" /></button
     ></InlineAlert>
     <MasterDetail>
-      <AppPanel
+      <RegisterList
         title="Purchase register"
         subtitle="Drafts are editable; posted history is protected."
+        :count="rows.length"
         ><LoadingState v-if="loading" label="Loading records…" />
         <div v-else-if="rows.length">
-          <DataTable
-            ><thead>
-              <tr>
-                <th>Purchase</th>
-                <th>Supplier</th>
-                <th>Date</th>
-                <th class="text-end">Total</th>
-                <th class="text-end">Paid</th>
-                <th class="text-end">Remaining</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <DataTableRow
-                v-for="value in rows"
-                :key="value.id"
-                :class="{ 'bg-base-300': selectedId === value.id }"
-                @activate="select(value)"
-                interactive
-                ><DataTableCell
-                  ><span class="block font-medium">{{ value.purchaseNumber }}</span
-                  ><span class="block text-xs text-base-content/60">{{
-                    value.supplierInvoiceNumber || 'No invoice'
-                  }}</span></DataTableCell
-                ><DataTableCell>{{ value.supplierName }}</DataTableCell
-                ><DataTableCell>{{ formatDateTime(value.purchaseDate) }}</DataTableCell
-                ><DataTableCell numeric>{{
-                  formatMoney(value.totalRial, props.currencyUnit)
-                }}</DataTableCell
-                ><DataTableCell numeric>{{
-                  formatMoney(value.paidRial || 0, props.currencyUnit)
-                }}</DataTableCell
-                ><DataTableCell numeric>{{
-                  formatMoney(value.remainingRial ?? value.totalRial, props.currencyUnit)
-                }}</DataTableCell
-                ><DataTableCell
-                  ><StatusBadge
-                    :label="value.status"
-                    :tone="
-                      value.status === 'Posted'
-                        ? 'green'
-                        : value.status === 'Cancelled'
-                          ? 'slate'
-                          : 'amber'
-                    " /></DataTableCell
-              ></DataTableRow></tbody
-          ></DataTable>
+          <RegisterRow
+            v-for="value in rows"
+            :key="value.id"
+            :selected="selectedId === value.id"
+            @activate="select(value)"
+          >
+            <template #identity>
+              <div class="flex min-w-0 items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <strong class="block truncate text-sm">{{ value.purchaseNumber }}</strong>
+                  <span class="block truncate text-xs text-base-content/60">{{ value.supplierName }} · {{ value.supplierInvoiceNumber || 'No supplier invoice' }}</span>
+                </div>
+                <strong class="shrink-0 whitespace-nowrap text-sm tabular-nums">{{ formatMoney(value.totalRial, props.currencyUnit) }}</strong>
+              </div>
+            </template>
+            <template #meta>
+              <div class="mt-2 grid min-w-0 grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2">
+                <div><span class="block text-base-content/50">Purchase date</span><span class="block text-base-content/80">{{ formatDateTime(value.purchaseDate) }}</span></div>
+                <div><span class="block text-base-content/50">Paid</span><span class="block text-base-content/80 tabular-nums">{{ formatMoney(value.paidRial || 0, props.currencyUnit) }}</span></div>
+                <div><span class="block text-base-content/50">Remaining</span><span class="block text-base-content/80 tabular-nums">{{ formatMoney(value.remainingRial ?? value.totalRial, props.currencyUnit) }}</span></div>
+                <div><span class="block text-base-content/50">Items</span><span class="block text-base-content/80">{{ value.items.length }} line items</span></div>
+              </div>
+            </template>
+            <template #status><StatusBadge :label="value.status" :tone="value.status === 'Posted' ? 'green' : value.status === 'Cancelled' ? 'slate' : 'amber'" /></template>
+          </RegisterRow>
         </div>
         <div v-else class="min-w-0 space-y-3">
           <ShoppingCart :size="22" />
           <p>No purchases yet.</p>
           <button class="btn btn-ghost" @click="create" :disabled="busy"><Plus :size="15" /> Record purchase</button>
-        </div></AppPanel
-      >
+        </div>
+      </RegisterList>
       <InspectorShell
         v-if="current"
         title="Purchase editor"

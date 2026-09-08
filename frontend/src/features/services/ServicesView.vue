@@ -11,9 +11,8 @@ import InspectorShell from '../../components/layout/InspectorShell.vue';
 import InspectorSection from '../../components/layout/InspectorSection.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
-import DataTableCell from '../../components/ui/DataTableCell.vue';
-import DataTableRow from '../../components/ui/DataTableRow.vue';
-import DataTable from '../../components/ui/DataTable.vue';
+import RegisterList from '../../components/ui/RegisterList.vue';
+import RegisterRow from '../../components/ui/RegisterRow.vue';
 import FormField from '../../components/ui/FormField.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
@@ -93,56 +92,36 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
     </div>
 
     <MasterDetail :wide="!!editorMode" aria-label="Services workspace">
-      <AppPanel
+      <RegisterList
         title="Service register"
         subtitle="Select a service to inspect its operator parameters."
+        :count="filteredServices.length"
       >
-        <template #action
-          ><span>{{ filteredServices.length }} shown</span></template
-        >
         <LoadingState v-if="isLoading" label="Loading records…" />
         <div v-else-if="filteredServices.length">
-          <DataTable
-            ><thead>
-              <tr>
-                <th scope="col">Service</th>
-                <th scope="col">Category</th>
-                <th scope="col">Parameters</th>
-                <th scope="col">Status</th>
-                <th scope="col">Updated</th>
-              </tr>
-            </thead>
-            <tbody>
-              <DataTableRow
-                v-for="service in filteredServices"
-                :key="service.id"
-                :class="{ 'bg-base-300': selectedId === service.id }"
-                @activate="selectService(service.id)"
-                interactive
-                ><DataTableCell
-                  ><span class="block font-medium">{{ service.name }}</span
-                  ><span class="block text-xs text-base-content/60">{{
-                    service.code || 'No code'
-                  }}</span></DataTableCell
-                ><DataTableCell>{{ service.category || '—' }}</DataTableCell
-                ><DataTableCell
-                  ><span class="block font-medium"
-                    >{{ service.parameters.length }}
-                    {{ service.parameters.length === 1 ? 'parameter' : 'parameters' }}</span
-                  ><span class="block text-xs text-base-content/60"
-                    >{{
-                      service.parameters.filter((parameter) => parameter.required).length
-                    }}
-                    required</span
-                  ></DataTableCell
-                ><DataTableCell
-                  ><StatusBadge
-                    :label="service.active ? 'Active' : 'Archived'"
-                    :tone="service.active ? 'green' : 'slate'" /></DataTableCell
-                ><DataTableCell>{{ dateLabel(service.updatedAt) }}</DataTableCell></DataTableRow
-              >
-            </tbody>
-          </DataTable>
+          <RegisterRow
+            v-for="service in filteredServices"
+            :key="service.id"
+            :selected="selectedId === service.id"
+            @activate="selectService(service.id)"
+          >
+            <template #identity>
+              <div class="flex min-w-0 items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <strong class="block truncate text-sm">{{ service.name }}</strong>
+                  <span class="block truncate text-xs text-base-content/60">{{ service.code || 'No code' }} · {{ service.category || 'Uncategorized' }}</span>
+                </div>
+                <span class="shrink-0 text-xs text-base-content/60">{{ dateLabel(service.updatedAt) }}</span>
+              </div>
+            </template>
+            <template #meta>
+              <div class="mt-2 grid min-w-0 grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2">
+                <div><span class="block text-base-content/50">Configuration</span><span class="block text-base-content/80">{{ service.parameters.length }} {{ service.parameters.length === 1 ? 'parameter' : 'parameters' }} · {{ service.parameters.filter((parameter) => parameter.required).length }} required</span></div>
+                <div><span class="block text-base-content/50">Pricing inputs</span><span class="block text-base-content/80">{{ service.components.length }} cost {{ service.components.length === 1 ? 'component' : 'components' }}</span></div>
+              </div>
+            </template>
+            <template #status><StatusBadge :label="service.active ? 'Active' : 'Archived'" :tone="service.active ? 'green' : 'slate'" /></template>
+          </RegisterRow>
         </div>
         <div v-else class="min-w-0 space-y-3">
           <div aria-hidden="true"><SlidersHorizontal :size="21" :stroke-width="1.8" /></div>
@@ -165,7 +144,7 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
             <Plus :size="15" :stroke-width="1.8" aria-hidden="true" />Create service
           </button>
         </div>
-      </AppPanel>
+      </RegisterList>
 
       <AppPanel
         v-if="editorMode"

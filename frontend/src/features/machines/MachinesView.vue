@@ -10,13 +10,11 @@ import InspectorShell from '../../components/layout/InspectorShell.vue';
 import InspectorSection from '../../components/layout/InspectorSection.vue';
 import MasterDetail from '../../components/layout/MasterDetail.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
-import DataTableCell from '../../components/ui/DataTableCell.vue';
-import DataTableRow from '../../components/ui/DataTableRow.vue';
-import DataTable from '../../components/ui/DataTable.vue';
+import RegisterList from '../../components/ui/RegisterList.vue';
+import RegisterRow from '../../components/ui/RegisterRow.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
 import FormField from '../../components/ui/FormField.vue';
-import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { Archive, Edit3, Factory, Plus, RotateCcw, Save, X } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
@@ -267,47 +265,37 @@ function message(errorValue: unknown, fallback: string) {
         <X :size="15" :stroke-width="1.8" aria-hidden="true" /></button
     ></InlineAlert>
     <MasterDetail aria-label="Machines workspace">
-      <AppPanel
+      <RegisterList
         title="Machine register"
         subtitle="Rates are stored as integer Rial; the toolbar controls display units."
-        ><template #action
-          ><span>{{ filtered.length }} shown</span></template
-        >
+        :count="filtered.length"
+      >
         <LoadingState v-if="loading" label="Loading records…" />
         <div v-else-if="filtered.length">
-          <DataTable
-            ><thead>
-              <tr>
-                <th>Machine</th>
-                <th>Category</th>
-                <th>Rate basis</th>
-                <th class="text-end">Rate</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <DataTableRow
-                v-for="machine in filtered"
-                :key="machine.id"
-                :class="{ 'bg-base-300': selectedId === machine.id }"
-                @activate="select(machine.id)"
-                interactive
-                ><DataTableCell
-                  ><span class="block font-medium">{{ machine.name }}</span
-                  ><span class="block text-xs text-base-content/60">{{
-                    machine.code || 'No code'
-                  }}</span></DataTableCell
-                ><DataTableCell>{{ machine.category || '—' }}</DataTableCell
-                ><DataTableCell>{{ basisLabel(machine.rateBasis) }}</DataTableCell
-                ><DataTableCell numeric
-                  ><span class="tabular-nums">{{ formatMoney(machine.rateRial, props.currencyUnit) }}</span>
-                  <span class="ms-1 text-xs text-base-content/60">/ {{ machine.rateBasis }}</span></DataTableCell
-                ><DataTableCell
-                  ><StatusBadge
-                    :label="machine.active ? 'Active' : 'Archived'"
-                    :tone="machine.active ? 'green' : 'slate'" /></DataTableCell
-              ></DataTableRow></tbody
-          ></DataTable>
+          <RegisterRow
+            v-for="machine in filtered"
+            :key="machine.id"
+            :selected="selectedId === machine.id"
+            @activate="select(machine.id)"
+          >
+            <template #identity>
+              <div class="flex min-w-0 items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <strong class="block truncate text-sm">{{ machine.name }}</strong>
+                  <span class="block truncate text-xs text-base-content/60">{{ machine.code || 'No code' }} · {{ machine.category || 'Uncategorized' }}</span>
+                </div>
+                <strong class="shrink-0 whitespace-nowrap text-sm tabular-nums">{{ formatMoney(machine.rateRial, props.currencyUnit) }}</strong>
+              </div>
+            </template>
+            <template #meta>
+              <div class="mt-2 grid min-w-0 grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2">
+                <div><span class="block text-base-content/50">Rate basis</span><span class="block text-base-content/80">{{ basisLabel(machine.rateBasis) }}</span></div>
+                <div><span class="block text-base-content/50">Setup cost</span><span class="block text-base-content/80 tabular-nums">{{ formatMoney(machine.setupCostRial, props.currencyUnit) }}</span></div>
+                <div><span class="block text-base-content/50">Notes</span><span class="block truncate text-base-content/80">{{ machine.notes || 'No notes' }}</span></div>
+              </div>
+            </template>
+            <template #status><StatusBadge :label="machine.active ? 'Active' : 'Archived'" :tone="machine.active ? 'green' : 'slate'" /></template>
+          </RegisterRow>
         </div>
         <div v-else class="min-w-0 space-y-3">
           <div><Factory :size="21" :stroke-width="1.8" /></div>
@@ -329,8 +317,8 @@ function message(errorValue: unknown, fallback: string) {
           >
             <Plus :size="15" :stroke-width="1.8" aria-hidden="true" />Create machine
           </button>
-        </div></AppPanel
-      >
+        </div>
+      </RegisterList>
       <InspectorShell
         v-if="mode"
         :title="mode === 'create' ? 'New machine' : 'Edit machine'"
