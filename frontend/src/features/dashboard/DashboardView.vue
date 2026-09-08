@@ -125,7 +125,7 @@ const attention = computed(() => data.value?.attention ?? []);
           :loading="initialLoading"
         />
       </section>
-      <section class="grid gap-4 xl:grid-cols-2">
+      <section class="grid items-start gap-4 xl:grid-cols-2">
         <AppPanel
           title="Needs attention"
           subtitle="Due obligations and operational exceptions"
@@ -192,7 +192,7 @@ const attention = computed(() => data.value?.attention ?? []);
           <p v-else class="px-4 py-6 text-sm text-base-content/60">No active production jobs.</p>
         </RegisterList>
       </section>
-      <section class="grid gap-4 xl:grid-cols-2">
+      <section class="grid items-start gap-4 xl:grid-cols-2">
         <AppPanel title="Low stock" subtitle="Movement-derived availability" :flush="true">
           <div
             v-if="initialLoading"
