@@ -36,6 +36,7 @@ const props = defineProps<{
   customers: any[];
   services: any[];
   materials: any[];
+  isNew?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -56,6 +57,7 @@ const discountText = ref('');
 const editorOpen = ref(false);
 const editingItem = ref<any | null>(null);
 const saving = ref(false);
+const isNew = computed(() => props.isNew || props.order.id.startsWith('new-order-'));
 
 const tabs = ['Overview', 'Items', 'Production', 'Payments', 'Invoices', 'Files', 'History'];
 const orderStatusOptions = ['Draft', 'Confirmed', 'Production', 'Delivery', 'Closed', 'Cancelled'].map((value) => ({
@@ -123,7 +125,9 @@ async function saveMetadata(returnToOrders = false) {
 return runAction(async () => {
   saving.value = true;
   try {
-    const result = await ordersApi.update(props.order.id, payload());
+    const result = isNew.value
+      ? await ordersApi.create(payload())
+      : await ordersApi.update(props.order.id, payload());
     emit('saved', result);
     emit('notify', 'Order details saved');
     if (returnToOrders) emit('back');
@@ -156,6 +160,10 @@ reportError(error);
 
 async function removeOrder() {
   return runAction(async () => {
+    if (isNew.value) {
+      emit('back');
+      return;
+    }
     if (!(await confirmAction({
       title: 'Delete order',
       message: 'Delete this order permanently? Orders with financial, production, or document history cannot be deleted.',
@@ -284,6 +292,7 @@ function snapshot(item: any, key: string) {
           <StatusBadge :label="orderStatus" :tone="tone(orderStatus)" />
         </template>
         <button
+          v-if="!isNew"
           class="btn btn-ghost gap-2 text-error"
           type="button"
           :disabled="busy || saving"
@@ -297,6 +306,7 @@ function snapshot(item: any, key: string) {
           :model-value="orderStatus"
           :options="orderStatusOptions"
           aria-label="Order status"
+          :disabled="isNew"
           @update:model-value="changeOrderStatus"
         />
         <button
@@ -336,7 +346,12 @@ function snapshot(item: any, key: string) {
         </div>
       </div>
 
-      <WorkspaceTabs class="mt-2" :tabs="tabs" :active-tab="tab" @change="tab = $event" />
+      <WorkspaceTabs
+        class="mt-2"
+        :tabs="isNew ? ['Overview'] : tabs"
+        :active-tab="tab"
+        @change="tab = $event"
+      />
     </WorkspaceStickyStack>
 
     <section
@@ -424,7 +439,7 @@ function snapshot(item: any, key: string) {
           <button
             class="btn btn-outline mt-3 w-full"
             type="button"
-            :disabled="busy || (saving)"
+            :disabled="isNew || busy || (saving)"
             @click="updateDiscount"
           >
             Apply discount

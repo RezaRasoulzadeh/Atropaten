@@ -109,6 +109,7 @@ const searchQuery = ref('');
 const currencyUnit = ref<CurrencyUnit>('Toman');
 const hasNotifications = ref(false);
 const selectedOrderId = ref<string | null>(null);
+const unsavedOrder = ref<OrderRecord | null>(null);
 const orders = ref<OrderRecord[]>([]);
 const suppliers = ref<SupplierRecord[]>([]);
 const purchases = ref<PurchaseRecord[]>([]);
@@ -130,6 +131,7 @@ function selectView(label: string) {
   activeView.value = label;
   isDrawerOpen.value = false;
   selectedOrderId.value = null;
+  unsavedOrder.value = null;
   if (label === 'Orders') {
     loadOrders();
     loadOrderCatalog();
@@ -143,7 +145,10 @@ function selectView(label: string) {
 }
 
 const selectedOrder = computed(
-  () => orders.value.find((order) => order.id === selectedOrderId.value) ?? null,
+  () =>
+    (unsavedOrder.value?.id === selectedOrderId.value ? unsavedOrder.value : null) ??
+    orders.value.find((order) => order.id === selectedOrderId.value) ??
+    null,
 );
 
 async function loadOrders() {
@@ -186,34 +191,61 @@ async function loadPurchases() {
 
 function openOrder(orderId: string) {
   activeView.value = 'Orders';
+  unsavedOrder.value = null;
   selectedOrderId.value = orderId;
 }
-async function openNewOrder() {
+function openNewOrder() {
   activeView.value = 'Orders';
-  try {
-    const order = await ordersApi.create({
-      customerId: '',
-      promisedAt: null,
-      priority: 'Normal',
-      notes: '',
-      discountRial: 0,
-    });
-    orders.value = [order, ...orders.value];
-    selectedOrderId.value = order.id;
-  } catch (error) {
-    toast.error(error, 'New order');
-  }
+  const now = new Date().toISOString();
+  const id = `new-order-${Date.now()}`;
+  unsavedOrder.value = {
+    id,
+    orderNumber: 'New order',
+    customerId: '',
+    customerName: '',
+    customerPhone: '',
+    notes: '',
+    createdAt: now,
+    updatedAt: now,
+    promisedAt: null,
+    priority: 'Normal',
+    commercialStatus: 'Draft',
+    fulfillmentStatus: 'Pending',
+    paymentStatus: 'Unpaid',
+    subtotalRial: 0,
+    discountRial: 0,
+    totalRial: 0,
+    estimatedCostRial: 0,
+    productionJobCount: 0,
+    completedProductionJobs: 0,
+    inProgressProductionJobs: 0,
+    items: [],
+  };
+  selectedOrderId.value = id;
 }
 
 function closeOrderWorkspace() {
   activeView.value = 'Orders';
   selectedOrderId.value = null;
+  unsavedOrder.value = null;
 }
 function removeOrder(orderId: string) {
   orders.value = orders.value.filter((order) => order.id !== orderId);
   closeOrderWorkspace();
 }
 function updateOrder(order: OrderRecord) {
+	if (unsavedOrder.value && unsavedOrder.value.id !== order.id) {
+		const draftId = unsavedOrder.value.id;
+		unsavedOrder.value = null;
+		orders.value = [order, ...orders.value.filter((item) => item.id !== order.id)];
+		if (selectedOrderId.value === draftId) selectedOrderId.value = order.id;
+		return;
+	}
+  if (unsavedOrder.value?.id === order.id) {
+    unsavedOrder.value = order;
+    return;
+  }
+  unsavedOrder.value = null;
   orders.value = orders.value.some((item) => item.id === order.id)
     ? orders.value.map((item) => (item.id === order.id ? order : item))
     : [order, ...orders.value];
@@ -310,6 +342,7 @@ function openNotifications() {
                 :customers="customers"
                 :services="catalogServices"
                 :materials="catalogMaterials"
+                :is-new="selectedOrderId?.startsWith('new-order-') ?? false"
                 @back="closeOrderWorkspace"
                 @removed="removeOrder"
                 @notify="showToast"
