@@ -13,7 +13,7 @@ withDefaults(
 </script>
 
 <template>
-  <section class="min-w-0 overflow-hidden rounded-box border border-base-300 bg-base-100">
+  <section class="min-w-0 self-start overflow-hidden rounded-box border border-base-300 bg-base-100">
     <header
       class="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-base-300 px-4 py-3"
     >
