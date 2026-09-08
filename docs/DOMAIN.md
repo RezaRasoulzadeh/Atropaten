@@ -18,7 +18,6 @@ Shop
 │   └── Adjustments / Waste
 ├── Sales
 │   ├── Customers
-│   ├── Quotes
 │   ├── Orders
 │   ├── Production
 │   ├── Invoices
@@ -73,9 +72,6 @@ ServiceMaterialRequirement
 ServiceMachineRequirement
 ServiceLaborRequirement
 
-Quote
-QuoteItem
-
 Order
 OrderItem
 ProductionJob
@@ -121,7 +117,7 @@ For ordinary user-managed master data such as customers, suppliers, materials, s
 
 Historical/posted business records follow stronger rules:
 
-- Persisted order/quote snapshots, posted inventory movements, journal entries, payments, invoices, production consumption, and other authoritative history must not be hard-deleted once they have business/accounting meaning.
+- Persisted order snapshots, posted inventory movements, journal entries, payments, invoices, production consumption, and other authoritative history must not be hard-deleted once they have business/accounting meaning.
 - Draft/unposted transactional records may be hard-deleted when no protected downstream record depends on them.
 - Posted/committed history is corrected through cancellation, reversal, compensating records, or explicit void workflows rather than destructive deletion.
 
@@ -185,11 +181,13 @@ Reservations affect availability but not accounting inventory value. Actual prod
 
 ## Sales and production states
 
-Avoid one combined status enum.
+Orders are the single commercial workflow. There is no separate Quote state or Quote entity in the target domain.
 
 Commercial state:
 
-`Draft -> Quoted -> Confirmed -> Closed` with cancellation where appropriate.
+`Draft -> Confirmed -> Closed` with cancellation where appropriate.
+
+A Draft Order is the pre-commitment state used to configure services, calculate and revise pricing, attach customer/job information, and preserve unfinished work. Saving a Draft Order alone must not create inventory reservations, production jobs, invoices, or accounting postings. Confirmation is the explicit customer-commitment boundary and is the earliest point at which downstream operational workflows may be created according to their own rules.
 
 Fulfillment state:
 
@@ -202,6 +200,8 @@ Payment state is derived:
 Production jobs have their own operational state:
 
 `Pending -> Ready -> In Progress -> Completed`, with Paused, Cancelled, or Failed when required.
+
+Existing persisted quote records from older schema versions are compatibility/history data, not part of the target workflow. Migration must preserve any record that already has business meaning and may either map eligible uncommitted quote data into Draft Orders or retain it as read-only legacy history. It must not silently discard or reinterpret authoritative historical data.
 
 ## Payments
 

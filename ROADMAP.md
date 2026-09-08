@@ -29,15 +29,18 @@ Exit condition: catalog data is persisted and the pricing engine can calculate e
 
 ## Phase 2 - Sales and pricing
 
-- Quotes and quote items
-- Orders and independent order items
+- Orders as the single commercial workflow
+- Draft Orders for pre-commitment configuration, pricing, revision, and unfinished work
+- Order confirmation as the explicit customer-commitment boundary
+- Independent order items
 - Pricing/cost snapshots
 - Dynamic service configurator connected to Go pricing engine
 - Discounts/manual selling-price override
 - Customer order history
 - Attachments and proof metadata
+- Legacy quote compatibility/migration without a separate target workflow
 
-Exit condition: a real customer order can be configured, priced, saved, reopened, and remain historically stable after catalog changes.
+Exit condition: a real customer job can be configured and priced as a Draft Order, confirmed without re-entry, saved/reopened, and remain historically stable after catalog changes. Saving a draft alone creates no production, inventory-reservation, invoicing, or accounting side effects.
 
 ## Phase 3 - Inventory and purchasing
 
@@ -54,7 +57,7 @@ Exit condition: purchasing and production demand produce auditable inventory qua
 
 ## Phase 4 - Production
 
-- Production jobs per order item
+- Production jobs per confirmed order item
 - Ready/in-progress/completed workflow
 - Machine/employee assignment
 - Estimated versus actual consumption
@@ -63,7 +66,7 @@ Exit condition: purchasing and production demand produce auditable inventory qua
 - Proof approval flow
 - Promised-date/late-order monitoring
 
-Exit condition: an order can flow from confirmation through production and delivery with actual cost evidence.
+Exit condition: a confirmed order can flow through production and delivery with actual cost evidence.
 
 ## Phase 5 - Accounting and payments
 
@@ -97,7 +100,8 @@ Exit condition: treasury obligations and partner equity can be managed without m
 
 - Dashboard backed by real data
 - Operational and financial reports
-- Quote/invoice/receipt printing
+- Draft Order estimate/proposal printing
+- Invoice/receipt printing
 - Customer/supplier statements
 - Owner statements
 - Export where useful

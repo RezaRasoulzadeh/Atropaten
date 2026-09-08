@@ -37,12 +37,15 @@ The initial product targets a small shop where owners and employees may perform 
 ### Sales
 
 - Customers
-- Quotes
 - Orders containing multiple unrelated items
+- Draft Orders for preparing, configuring, pricing, revising, or abandoning work before customer commitment
+- Confirmed Orders for accepted customer work with preserved configuration, cost, and price snapshots
 - Invoices and receipts
 - Deposits and customer credit
 - Partial and multi-method payments
 - Discounts and manual price overrides
+
+Atropaten does not use a separate Quote workflow. A Draft Order is the only pre-commitment sales document. Drafts may be edited freely or deleted when safe, but saving a draft alone must not reserve inventory, create production jobs, issue invoices, or generate accounting postings. Customer commitment is represented by confirming the Order.
 
 ### Production
 
@@ -100,12 +103,14 @@ Business operating profit must be calculated before owner allocation.
 3. Accounting corrections use reversing/correcting entries rather than destructive edits after posting.
 4. Routine business actions generate balanced journal entries automatically.
 5. Order commercial, fulfillment, and payment states remain separate.
-6. Production reservations do not reduce accounting inventory until consumption occurs.
-7. Large artwork and attachments live on disk; the database stores managed metadata and references.
-8. Derived balances should be calculated from authoritative transactions rather than independently editable totals.
+6. Draft Orders have no production, inventory-reservation, invoicing, or accounting side effects merely because they are saved.
+7. Production reservations do not reduce accounting inventory until consumption occurs.
+8. Large artwork and attachments live on disk; the database stores managed metadata and references.
+9. Derived balances should be calculated from authoritative transactions rather than independently editable totals.
 
 ## Non-goals for the initial product
 
+- Separate quote/estimate workflow outside Draft Orders
 - SaaS/multi-tenant operation
 - Multiple independent companies in one installation
 - E-commerce storefront

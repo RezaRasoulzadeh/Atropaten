@@ -46,7 +46,9 @@ Examples: pricing calculations, inventory movement rules, order state transition
 
 Use cases coordinating domain operations and transaction boundaries.
 
-Examples: create order, add order item, receive purchase, start production, record consumption, issue invoice, record payment, deposit check, close fiscal period.
+Examples: create draft order, configure order item, confirm order, receive purchase, start production, record consumption, issue invoice, record payment, deposit check, close fiscal period.
+
+The Order aggregate is the single sales-document workflow. Draft Orders cover pre-commitment configuration and pricing; confirmation is the explicit customer-commitment boundary. Saving a draft must not implicitly create reservations, production jobs, invoices, or accounting postings.
 
 ### Infrastructure
 
@@ -59,6 +61,8 @@ A thin API exposed to the frontend. It validates transport-level input, calls ap
 ### Frontend
 
 Vue owns presentation state, interaction, routing/workspaces, filtering, table configuration, and client-side display concerns. Authoritative financial or inventory calculations belong in Go.
+
+The frontend should expose Orders as the single commercial workspace. Legacy quote persistence or compatibility handling must not require a separate primary navigation/workflow once migration is complete.
 
 ## Persistence principles
 
@@ -74,6 +78,8 @@ Required properties:
 - Historical snapshots for order item pricing/costing
 - Database constraints for invariants where practical
 - Backup/restore tested as a product feature
+
+Existing quote tables/records from older schema versions are compatibility data. Their migration must preserve historical meaning: eligible pre-commitment records may be mapped to Draft Orders, while records that cannot be mapped safely must remain preserved as legacy history rather than being silently deleted or reinterpreted.
 
 The exact SQLite driver and migration library are intentionally undecided until persistence implementation begins.
 
@@ -119,11 +125,13 @@ aggregate posted journal lines, inventory reports aggregate immutable movement
 rows, and production reports aggregate persisted jobs and consumption/waste.
 Sales reports use saved invoice/order snapshots. The dashboard is an
 attention-oriented projection of these queries and contains no authoritative
-business totals. Quote, invoice, payment receipt, and party statements use a
-print-document model populated from saved snapshots and transactions. Shop
-identity is persisted as small key/value metadata; logo paths are references,
-not SQLite blobs. The frontend uses a dedicated print surface and browser or
-WebView printing with A4 print CSS.
+business totals. Order print documents, invoices, payment receipts, and party
+statements use print-document models populated from saved snapshots and
+transactions. A Draft Order may be printed as an estimate/proposal when needed;
+this does not create a separate Quote domain or lifecycle. Shop identity is
+persisted as small key/value metadata; logo paths are references, not SQLite
+blobs. The frontend uses a dedicated print surface and browser or WebView
+printing with A4 print CSS.
 
 For M6-002, application data resolves through `internal/platform` to the OS
 application-data directory (or the explicit `ATROPATEN_DATA_DIR` test/support
@@ -165,6 +173,7 @@ Most tests should target pure Go domain/application logic without launching Wail
 High-value invariant tests include:
 
 - Pricing and production-yield calculations
+- Draft Order side-effect isolation and confirmation boundary
 - Weighted-average inventory costing
 - Reservation versus consumption behavior
 - Balanced accounting postings
