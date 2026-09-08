@@ -12,6 +12,17 @@ Editable controls keep a solid neutral border at rest and use a same-width 1px d
 
 Estedad is vendored locally as the single variable `frontend/src/assets/fonts/Estedad-VF.woff2` file. `frontend/src/styles/fonts.css` is the centralized local `@font-face` entry point, with the 100–900 weight axis and no metric overrides. No runtime font/CDN request is required.
 
+## Commercial workflow
+
+Orders are the single customer-sales workspace. There is no separate Quotes workspace in the target UI.
+
+- **Draft Order** is the pre-commitment workspace for selecting a customer, configuring services, calculating and revising prices, editing line items, adding notes/attachments, and saving unfinished work.
+- **Confirmed Order** represents customer commitment and preserves the accepted configuration, cost, and price snapshots.
+- Fulfillment and payment remain independent state axes after confirmation.
+- Saving a Draft Order must not imply inventory reservation, production creation, invoice issuance, or accounting posting.
+- If the shop needs to hand a customer an estimate, the Draft Order may be printed/exported as an estimate/proposal without introducing a separate Quote entity or navigation destination.
+- Legacy quote records may remain accessible only through explicit compatibility/history handling until migration is complete; they are not a primary workflow.
+
 ## Shared components and boundaries
 
 Shared DaisyUI wrappers live in `frontend/src/components`: buttons, icon buttons, inputs, selects, textareas, form fields, messages, search/filter bars, tables, panels, badges, empty/loading states, alerts, confirmations, toasts, workspace tabs, sticky regions, and the application toolbar/sidebar primitives.
