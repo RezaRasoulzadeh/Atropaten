@@ -8,7 +8,10 @@ import (
 	"time"
 )
 
-var ErrOrderNotFound = errors.New("order not found")
+var (
+	ErrOrderNotFound        = errors.New("order not found")
+	ErrOrderDeleteProtected = errors.New("order has financial, production, or document history and cannot be deleted")
+)
 
 type CommercialStatus string
 
@@ -48,7 +51,6 @@ const (
 type Order struct {
 	ID, OrderNumber, CustomerID, CustomerNameSnapshot        string
 	CustomerPhoneSnapshot, Notes                             string
-	QuoteID                                                  string
 	CreatedAt, UpdatedAt                                     time.Time
 	PromisedAt                                               *time.Time
 	Priority                                                 Priority
@@ -119,26 +121,20 @@ func (o *Order) RecalculateTotals() error {
 }
 
 func ValidCommercialTransition(from, to CommercialStatus) bool {
-	if from == to {
-		return true
-	}
-	if from == CommercialDraft {
-		return to == CommercialConfirmed || to == CommercialCancelled
-	}
-	if from == CommercialConfirmed {
-		return to == CommercialClosed || to == CommercialCancelled
-	}
-	return false
+	return validCommercial(from) && validCommercial(to)
 }
 func ValidFulfillmentTransition(from, to FulfillmentStatus) bool {
 	if from == to {
 		return true
 	}
+	if to == FulfillmentPending {
+		return true
+	}
 	switch from {
 	case FulfillmentPending:
-		return to == FulfillmentInProduction || to == FulfillmentReady
+		return to == FulfillmentInProduction || to == FulfillmentReady || to == FulfillmentDelivered
 	case FulfillmentInProduction:
-		return to == FulfillmentReady
+		return to == FulfillmentReady || to == FulfillmentDelivered
 	case FulfillmentReady:
 		return to == FulfillmentDelivered
 	}

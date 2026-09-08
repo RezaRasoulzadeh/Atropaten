@@ -126,137 +126,135 @@ const attention = computed(() => data.value?.attention ?? []);
         />
       </section>
       <section class="grid items-start gap-4 xl:grid-cols-2">
-        <AppPanel
-          title="Needs attention"
-          subtitle="Due obligations and operational exceptions"
-          :flush="true"
-        >
-          <div
-            v-if="initialLoading"
-            class="min-h-72 space-y-3 p-4"
-            aria-label="Loading attention items"
+        <div class="grid content-start gap-4">
+          <AppPanel
+            title="Needs attention"
+            subtitle="Due obligations and operational exceptions"
+            :flush="true"
           >
-            <div v-for="row in 6" :key="row" class="skeleton h-10 w-full bg-base-300/70"></div>
-          </div>
-          <div v-else class="divide-y divide-base-300">
-            <button
-              v-for="item in attention"
-              :key="`${item.kind}-${item.detail}`"
-              class="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-base-200"
-              type="button"
-              @click="emit('notify', item.detail)"
+            <div
+              v-if="initialLoading"
+              class="min-h-72 space-y-3 p-4"
+              aria-label="Loading attention items"
             >
-              <CircleAlert class="shrink-0 text-warning" :size="16" />
-              <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-semibold">{{ item.label }}</span>
-                <span class="block truncate text-xs text-base-content/60"
-                  >{{ item.detail
-                  }}<template v-if="item.date"> · {{ formatDate(item.date) }}</template></span
+              <div v-for="row in 6" :key="row" class="skeleton h-10 w-full bg-base-300/70"></div>
+            </div>
+            <div v-else class="divide-y divide-base-300">
+              <button
+                v-for="item in attention"
+                :key="`${item.kind}-${item.detail}`"
+                class="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-base-200"
+                type="button"
+                @click="emit('notify', item.detail)"
+              >
+                <CircleAlert class="shrink-0 text-warning" :size="16" />
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-semibold">{{ item.label }}</span>
+                  <span class="block truncate text-xs text-base-content/60"
+                    >{{ item.detail
+                    }}<template v-if="item.date"> · {{ formatDate(item.date) }}</template></span
+                  >
+                </span>
+                <span class="shrink-0 text-xs font-semibold text-warning">{{
+                  item.amountRial ? money(item.amountRial) : '—'
+                }}</span>
+              </button>
+              <p v-if="!attention.length" class="px-4 py-6 text-sm text-base-content/60">
+                No attention items from persisted data.
+              </p>
+            </div>
+          </AppPanel>
+          <AppPanel title="Low stock" subtitle="Movement-derived availability" :flush="true">
+            <div
+              v-if="initialLoading"
+              class="min-h-28 space-y-3 p-4"
+              aria-label="Loading low stock items"
+            >
+              <div v-for="row in 2" :key="row" class="skeleton h-8 w-full bg-base-300/70"></div>
+            </div>
+            <div v-else class="divide-y divide-base-300">
+              <div
+                v-for="item in data?.lowStock"
+                :key="item.id"
+                class="flex items-center gap-3 px-4 py-3"
+              >
+                <TriangleAlert class="shrink-0 text-warning" :size="16" />
+                <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ item.name }}</span>
+                <span class="shrink-0 text-xs text-base-content/70"
+                  >{{ item.availableUnits / 1000000 }} {{ item.unit }}</span
                 >
-              </span>
-              <span class="shrink-0 text-xs font-semibold text-warning">{{
-                item.amountRial ? money(item.amountRial) : '—'
-              }}</span>
-            </button>
-            <p v-if="!attention.length" class="px-4 py-6 text-sm text-base-content/60">
-              No attention items from persisted data.
-            </p>
-          </div>
-        </AppPanel>
-        <RegisterList
-          title="Production queue"
-          subtitle="Persisted active jobs"
-          :count="data?.production?.length || 0"
-        >
-          <div v-if="initialLoading" class="space-y-3 p-4" aria-label="Loading production jobs">
-            <div v-for="row in 3" :key="row" class="skeleton h-10 w-full bg-base-300/70"></div>
-          </div>
-          <div v-else-if="data?.production?.length">
-            <RegisterRow v-for="job in data.production" :key="job.id" :interactive="false">
-              <template #identity>
-                <div class="flex min-w-0 items-start justify-between gap-3">
-                  <div class="min-w-0">
-                    <strong class="block truncate text-sm">{{ job.orderNumber || job.id }}</strong>
-                    <span class="block truncate text-xs text-base-content/60">{{ job.customer || 'Walk-in customer' }}</span>
+                <span class="hidden shrink-0 text-xs text-base-content/50 sm:inline"
+                  >Reorder at {{ item.reorderLevelUnits / 1000000 }}</span
+                >
+              </div>
+              <p v-if="!data?.lowStock?.length" class="px-4 py-6 text-sm text-base-content/60">
+                No low-stock materials.
+              </p>
+            </div>
+          </AppPanel>
+        </div>
+        <div class="grid content-start gap-4">
+          <RegisterList
+            title="Production queue"
+            subtitle="Persisted active jobs"
+            :count="data?.production?.length || 0"
+          >
+            <div v-if="initialLoading" class="space-y-3 p-4" aria-label="Loading production jobs">
+              <div v-for="row in 3" :key="row" class="skeleton h-10 w-full bg-base-300/70"></div>
+            </div>
+            <div v-else-if="data?.production?.length">
+              <RegisterRow v-for="job in data.production" :key="job.id" :interactive="false">
+                <template #identity>
+                  <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1">
+                    <div class="flex min-w-0 items-center gap-2">
+                      <strong class="shrink-0 truncate text-sm">{{ job.orderNumber || job.id }}</strong>
+                      <span class="min-w-0 truncate text-xs text-base-content/60">{{ job.customer || 'Walk-in customer' }}</span>
+                    </div>
+                    <StatusBadge class="self-start" :label="job.status" tone="blue" />
+                    <span class="min-w-0 truncate text-xs text-base-content/80">{{ job.service }}</span>
                   </div>
-                  <StatusBadge :label="job.status" tone="blue" />
-                </div>
-              </template>
-              <template #meta>
-                <div class="mt-2 min-w-0 text-xs text-base-content/80">
-                  <span class="block truncate">{{ job.service }}</span>
-                </div>
-              </template>
-            </RegisterRow>
-          </div>
-          <p v-else class="px-4 py-6 text-sm text-base-content/60">No active production jobs.</p>
-        </RegisterList>
-      </section>
-      <section class="grid items-start gap-4 xl:grid-cols-2">
-        <AppPanel title="Low stock" subtitle="Movement-derived availability" :flush="true">
-          <div
-            v-if="initialLoading"
-            class="min-h-28 space-y-3 p-4"
-            aria-label="Loading low stock items"
-          >
-            <div v-for="row in 2" :key="row" class="skeleton h-8 w-full bg-base-300/70"></div>
-          </div>
-          <div v-else class="divide-y divide-base-300">
-            <div
-              v-for="item in data?.lowStock"
-              :key="item.id"
-              class="flex items-center gap-3 px-4 py-3"
-            >
-              <TriangleAlert class="shrink-0 text-warning" :size="16" />
-              <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ item.name }}</span>
-              <span class="shrink-0 text-xs text-base-content/70"
-                >{{ item.availableUnits / 1000000 }} {{ item.unit }}</span
-              >
-              <span class="hidden shrink-0 text-xs text-base-content/50 sm:inline"
-                >Reorder at {{ item.reorderLevelUnits / 1000000 }}</span
-              >
+                </template>
+              </RegisterRow>
             </div>
-            <p v-if="!data?.lowStock?.length" class="px-4 py-6 text-sm text-base-content/60">
-              No low-stock materials.
-            </p>
-          </div>
-        </AppPanel>
-        <AppPanel
-          title="Recent payments"
-          subtitle="Latest persisted financial activity"
-          :flush="true"
-        >
-          <div
-            v-if="initialLoading"
-            class="min-h-28 space-y-3 p-4"
-            aria-label="Loading recent payments"
+            <p v-else class="px-4 py-6 text-sm text-base-content/60">No active production jobs.</p>
+          </RegisterList>
+          <AppPanel
+            title="Recent payments"
+            subtitle="Latest persisted financial activity"
+            :flush="true"
           >
-            <div v-for="row in 2" :key="row" class="skeleton h-8 w-full bg-base-300/70"></div>
-          </div>
-          <div v-else class="divide-y divide-base-300">
             <div
-              v-for="item in data?.recentActivity"
-              :key="item.id"
-              class="flex items-center gap-3 px-4 py-3"
+              v-if="initialLoading"
+              class="min-h-28 space-y-3 p-4"
+              aria-label="Loading recent payments"
             >
-              <span class="shrink-0 text-info"><HandCoins :size="16" /></span>
-              <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-semibold">{{ item.label }}</span>
-                <span class="block truncate text-xs text-base-content/60"
-                  >{{ item.detail }} · {{ formatDateTime(item.date) }}</span
+              <div v-for="row in 2" :key="row" class="skeleton h-8 w-full bg-base-300/70"></div>
+            </div>
+            <div v-else class="divide-y divide-base-300">
+              <div
+                v-for="item in data?.recentActivity"
+                :key="item.id"
+                class="flex items-center gap-3 px-4 py-3"
+              >
+                <span class="shrink-0 text-info"><HandCoins :size="16" /></span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-semibold">{{ item.label }}</span>
+                  <span class="block truncate text-xs text-base-content/60"
+                    >{{ item.detail }} · {{ formatDateTime(item.date) }}</span
+                  >
+                </span>
+                <span
+                  class="shrink-0 text-sm font-semibold"
+                  :class="item.direction === 'incoming' ? 'text-success' : 'text-error'"
+                  >{{ money(item.amountRial) }}</span
                 >
-              </span>
-              <span
-                class="shrink-0 text-sm font-semibold"
-                :class="item.direction === 'incoming' ? 'text-success' : 'text-error'"
-                >{{ money(item.amountRial) }}</span
-              >
+              </div>
+              <p v-if="!data?.recentActivity?.length" class="px-4 py-6 text-sm text-base-content/60">
+                No payments recorded.
+              </p>
             </div>
-            <p v-if="!data?.recentActivity?.length" class="px-4 py-6 text-sm text-base-content/60">
-              No payments recorded.
-            </p>
-          </div>
-        </AppPanel>
+          </AppPanel>
+        </div>
       </section>
     </div>
   </div>

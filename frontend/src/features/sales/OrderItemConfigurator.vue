@@ -2,7 +2,7 @@
 import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
 import FormField from '../../components/ui/FormField.vue';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { AlertTriangle, Calculator, Plus } from 'lucide-vue-next';
 import FieldMessage from '../../components/ui/FieldMessage.vue';
 import SelectField from '../../components/ui/SelectField.vue';
@@ -45,6 +45,19 @@ const pricing = ref<PricingRecord | null>(null);
 const error = ref('');
 const calculating = ref(false);
 const manualCosts = ref<Record<string, number>>({});
+const pricingPreview = ref<HTMLElement | null>(null);
+const unitOptions = [
+  'piece',
+  'sheet',
+  'pack',
+  'roll',
+  'meter',
+  'liter',
+  'kilogram',
+  'hour',
+  'job',
+  'unit',
+].map((value) => ({ label: value, value }));
 
 const service = computed(() => props.services.find((value) => value.id === serviceId.value));
 const serviceOptions = computed(() =>
@@ -124,6 +137,8 @@ async function calculate() {
       manualCosts: manualCosts.value,
       sellingPriceOverrideRial: override,
     });
+    await nextTick();
+    pricingPreview.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (value) {
     error.value = String(value).replace(/^Error:\s*/, '');
   } finally {
@@ -164,7 +179,7 @@ function save() {
           Pricing is calculated by the persisted service definition.
         </p>
       </div>
-      <button class="btn btn-ghost btn-sm" type="button" @click="emit('cancel')">Cancel</button>
+      <button class="btn btn-outline btn-sm" type="button" @click="emit('cancel')">Cancel</button>
     </header>
 
     <div class="grid gap-4 lg:grid-cols-2">
@@ -244,10 +259,7 @@ function save() {
           placeholder="Defaults from quantity parameter"
         />
       </FormField>
-      <FormField class="gap-1">
-        <span class="text-xs text-base-content/60">Unit</span>
-        <AppInput class="input w-full min-w-0" v-model="unit" placeholder="unit" />
-      </FormField>
+      <SelectField v-model="unit" label="Unit" :options="unitOptions" aria-label="Unit" />
 
       <template v-if="manualComponents.length">
         <FormField v-for="component in manualComponents" :key="component.id" class="gap-1">
@@ -293,7 +305,11 @@ function save() {
 
     <FieldMessage :message="error" tone="error" class="mt-3" />
 
-    <div v-if="pricing" class="mt-4 rounded-box border border-base-300 bg-base-100 p-4">
+    <div
+      v-if="pricing"
+      ref="pricingPreview"
+      class="mt-4 rounded-box border border-base-300 bg-base-100 p-4"
+    >
       <div class="flex flex-wrap items-center justify-between gap-2">
         <strong>Accepted pricing preview</strong>
         <span v-if="pricing.belowCost" class="flex items-center gap-1 text-xs text-warning"

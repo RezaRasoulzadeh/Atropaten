@@ -34,12 +34,9 @@ func TestCatalogDeletionPurgesOnlyUnreferencedRecords(t *testing.T) {
 	if err = s.SaveCustomer(ctx, protectedCustomer); err != nil {
 		t.Fatal(err)
 	}
-	quote := domain.NewQuote("QUO-delete-reference", protectedCustomer.ID, now)
-	quote.Items = []domain.QuoteItem{{ID: "QITEM-delete-reference", QuoteID: quote.ID, Position: 0, ServiceID: "SRV-delete-protected", ServiceNameSnapshot: "Historical service", Quantity: domain.QuantityScale, QuantityUnit: "unit", ResolvedParametersJSON: "{}", CostBreakdownJSON: "[]", PricingSnapshotJSON: "{}", SellingPriceRial: 100}}
-	if err = quote.RecalculateTotals(); err != nil {
-		t.Fatal(err)
-	}
-	if err = s.CreateQuote(ctx, quote); err != nil {
+	order := domain.NewOrder("ORD-delete-reference", protectedCustomer.ID, now)
+	order.CustomerNameSnapshot = protectedCustomer.Name
+	if err = s.CreateOrder(ctx, order); err != nil {
 		t.Fatal(err)
 	}
 	if err = s.DeleteCustomer(ctx, protectedCustomer.ID); !errors.Is(err, domain.ErrCustomerDeleteProtected) {

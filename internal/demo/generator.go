@@ -92,7 +92,7 @@ func (g *generator) populate(ctx context.Context, paths platform.DataPaths) erro
 		{"parties", func() error { return g.parties(ctx) }},
 		{"catalog", func() error { return g.catalog(ctx) }},
 		{"purchases", func() error { return g.purchases(ctx) }},
-		{"commercial", func() error { return g.commercial(ctx) }},
+		{"orders", func() error { return g.orders(ctx) }},
 		{"production", func() error { return g.production(ctx) }},
 		{"finance", func() error { return g.finance(ctx) }},
 		{"owners-and-periods", func() error { return g.ownersAndPeriods(ctx) }},
@@ -197,7 +197,7 @@ func (g *generator) service(id, name, code, category, description, materialID, m
 	min, max := domain.Quantity(1*domain.QuantityScale), domain.Quantity(10000*domain.QuantityScale)
 	return domain.Service{ID: id, Name: name, Code: code, Category: category, Description: description, Active: true, CreatedAt: g.now, UpdatedAt: g.now,
 		Parameters:  []domain.ServiceParameter{{ID: id + "-P1", ServiceID: id, Key: "run_size", Label: "تیراژ", Type: domain.ParameterInteger, Required: true, Position: 0, DefaultValue: "100", MinValue: &min, MaxValue: &max, Unit: "عدد", Active: true, CreatedAt: g.now, UpdatedAt: g.now}},
-		Components:  []domain.ServiceCostComponent{{ID: id + "-C1", ServiceID: id, Name: "کاغذ/مواد اصلی", Type: domain.CostMaterial, ReferenceID: materialID, UsageMode: domain.UsageParameter, ParameterKey: "run_size", UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true, Position: 0, Notes: "مصرف وابسته به تیراژ"}, {ID: id + "-C2", ServiceID: id, Name: "ماشین و آماده‌سازی", Type: domain.CostMachine, ReferenceID: machineID, UsageMode: domain.UsageFixed, UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true, Position: 1, Notes: "هزینه setup"}, {ID: id + "-C3", ServiceID: id, Name: "پرت و سربار", Type: domain.CostOverhead, UsageMode: domain.UsageFixed, Percentage: domain.Quantity(7 * domain.QuantityScale), Multiplier: domain.QuantityScale, Enabled: true, Position: 2, Notes: "درصد نمایشی"}},
+		Components:  []domain.ServiceCostComponent{{ID: id + "-C1", ServiceID: id, Name: "کاغذ/مواد اصلی", Type: domain.CostMaterial, ReferenceID: materialID, UsageMode: domain.UsageParameter, ParameterKey: "run_size", UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true, Position: 0, Notes: "مصرف وابسته به تیراژ", CreatedAt: g.now, UpdatedAt: g.now}, {ID: id + "-C2", ServiceID: id, Name: "ماشین و آماده‌سازی", Type: domain.CostMachine, ReferenceID: machineID, UsageMode: domain.UsageFixed, UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true, Position: 1, Notes: "هزینه setup", CreatedAt: g.now, UpdatedAt: g.now}, {ID: id + "-C3", ServiceID: id, Name: "پرت و سربار", Type: domain.CostOverhead, UsageMode: domain.UsageFixed, Percentage: domain.Quantity(7 * domain.QuantityScale), Multiplier: domain.QuantityScale, Enabled: true, Position: 2, Notes: "درصد نمایشی", CreatedAt: g.now, UpdatedAt: g.now}},
 		PricingRule: &domain.ServicePricingRule{ID: id + "-R1", ServiceID: id, Type: domain.PricingMarkup, MarkupPercentage: domain.Quantity(35 * domain.QuantityScale), CreatedAt: g.now, UpdatedAt: g.now}}
 }
 
@@ -241,57 +241,21 @@ func (g *generator) item(id, orderID, serviceID, name, code string, qty domain.Q
 	return domain.OrderItem{ID: id, OrderID: orderID, Position: 0, ServiceID: serviceID, ServiceNameSnapshot: name, ServiceCodeSnapshot: code, Quantity: qty, QuantityUnit: "piece", ResolvedParametersJSON: demoJSON(map[string]string{"run_size": qty.String()}), CostBreakdownJSON: demoJSON([]map[string]any{{"name": "مواد و ماشین", "amount_rial": cost}}), PricingSnapshotJSON: demoJSON(map[string]any{"seed": g.seed, "price_rial": price}), EstimatedCostRial: cost, SuggestedPriceRial: price, SellingPriceRial: price, Notes: note}
 }
 
-func (g *generator) commercial(ctx context.Context) error {
-	qData := []struct {
-		id, customer, status, note string
-		expiry                     time.Time
-		price                      int64
-	}{
-		{"QUO-DEMO-01", "CUS-DEMO-01", string(domain.QuoteDraft), "پیش‌نویس برای تست فرم و inspector.", g.now.AddDate(0, 0, 12), 485000000},
-		{"QUO-DEMO-02", "CUS-DEMO-02", string(domain.QuoteSent), "ارسال‌شده و در انتظار پاسخ مشتری.", g.now.AddDate(0, 0, 5), 720000000},
-		{"QUO-DEMO-03", "CUS-DEMO-03", string(domain.QuoteAccepted), "پذیرفته‌شده؛ سفارش مرتبط پایین‌تر ساخته شده است.", g.now.AddDate(0, 0, 20), 1280000000},
-		{"QUO-DEMO-04", "CUS-DEMO-01", string(domain.QuoteRejected), "ردشده برای تنوع badgeها.", g.now.AddDate(0, -1, 0), 310000000},
-		{"QUO-DEMO-05", "CUS-DEMO-02", string(domain.QuoteExpired), "منقضی‌شده و عمداً خارج از بازه اعتبار.", g.now.AddDate(0, -2, 0), 260000000},
-	}
-	for _, x := range qData {
-		q := domain.NewQuote(x.id, x.customer, g.now.AddDate(0, 0, -2))
-		q.CustomerNameSnapshot = x.customer
-		q.CustomerPhoneSnapshot = "021-00000000"
-		q.ExpiryDate = &x.expiry
-		q.Notes = x.note
-		q.Items = []domain.QuoteItem{{ID: x.id + "-ITEM", QuoteID: x.id, Position: 0, ServiceID: "SVC-DEMO-01", ServiceNameSnapshot: "چاپ پوستر رنگی تیراژ متغیر", ServiceCodeSnapshot: "POSTER-X", Quantity: domain.Quantity(1000 * domain.QuantityScale), QuantityUnit: "piece", ResolvedParametersJSON: demoJSON(map[string]string{"run_size": "1000"}), CostBreakdownJSON: demoJSON(map[string]any{"material": "MAT-DEMO-01"}), PricingSnapshotJSON: demoJSON(map[string]any{"seed": g.seed}), EstimatedCostRial: x.price / 2, SuggestedPriceRial: x.price, SellingPriceRial: x.price, Notes: "خط نمونه با مقدار بزرگ و متن طولانی برای جدول."}}
-		q.Status = domain.QuoteDraft
-		if err := q.RecalculateTotals(); err != nil {
-			return err
-		}
-		if err := g.store.CreateQuote(ctx, q); err != nil {
-			return err
-		}
-		created, err := g.store.GetQuote(ctx, x.id)
-		if err != nil {
-			return err
-		}
-		created.Status = domain.QuoteStatus(x.status)
-		created.UpdatedAt = g.now
-		if err := g.store.SaveQuote(ctx, created); err != nil {
-			return err
-		}
-	}
+func (g *generator) orders(ctx context.Context) error {
 	orders := []struct {
-		id, customer, quote, status, fulfillment, priority, note string
-		promised                                                 time.Time
-		service, name, code                                      string
-		qty                                                      domain.Quantity
-		cost, price, discount                                    int64
+		id, customer, status, fulfillment, priority, note string
+		promised                                          time.Time
+		service, name, code                               string
+		qty                                               domain.Quantity
+		cost, price, discount                             int64
 	}{
 		{"ORD-DEMO-01", "CUS-DEMO-01", "", string(domain.CommercialConfirmed), string(domain.FulfillmentPending), string(domain.PriorityUrgent), "سفارش فوری با job در حال تولید و رزرو فعال.", g.now.AddDate(0, 0, -2), "SVC-DEMO-01", "چاپ پوستر رنگی تیراژ متغیر", "POSTER-X", domain.Quantity(120 * domain.QuantityScale), 180000000, 420000000, 10000000},
 		{"ORD-DEMO-02", "CUS-DEMO-02", "", string(domain.CommercialConfirmed), string(domain.FulfillmentPending), string(domain.PriorityHigh), "سفارش آماده تحویل پس از اتمام تولید.", g.now.AddDate(0, 0, -8), "SVC-DEMO-02", "کارت ویزیت لمینت مات با گوشه‌گرد", "CARD-MAT", domain.Quantity(2500 * domain.QuantityScale), 310000000, 690000000, 0},
-		{"ORD-DEMO-03", "CUS-DEMO-03", "QUO-DEMO-03", string(domain.CommercialClosed), string(domain.FulfillmentDelivered), string(domain.PriorityNormal), "سفارش تحویل‌شده با فاکتور پرداخت‌شده.", g.now.AddDate(0, -1, -6), "SVC-DEMO-01", "چاپ پوستر رنگی تیراژ متغیر", "POSTER-X", domain.Quantity(500 * domain.QuantityScale), 260000000, 1280000000, 80000000},
+		{"ORD-DEMO-03", "CUS-DEMO-03", string(domain.CommercialClosed), string(domain.FulfillmentDelivered), string(domain.PriorityNormal), "سفارش تحویل‌شده با فاکتور پرداخت‌شده.", g.now.AddDate(0, -1, -6), "SVC-DEMO-01", "چاپ پوستر رنگی تیراژ متغیر", "POSTER-X", domain.Quantity(500 * domain.QuantityScale), 260000000, 1280000000, 80000000},
 		{"ORD-DEMO-04", "CUS-DEMO-01", "", string(domain.CommercialDraft), string(domain.FulfillmentPending), string(domain.PriorityLow), "پیش‌نویس با یادداشت طولانی برای تست صفحه‌بندی.", g.now.AddDate(0, 0, 25), "SVC-DEMO-03", "خدمت دستی بدون قیمت‌گذاری خودکار", "MANUAL-OPS", domain.Quantity(3 * domain.QuantityScale), 90000000, 150000000, 0},
 	}
 	for _, x := range orders {
 		o := domain.NewOrder(x.id, x.customer, g.now.AddDate(0, 0, -10))
-		o.QuoteID = x.quote
 		o.CustomerNameSnapshot = map[string]string{"CUS-DEMO-01": "نگارستان رنگین‌کمان بازرگانی شرق", "CUS-DEMO-02": "شرکت بسته‌بندی دانه‌طلایی", "CUS-DEMO-03": "استودیو طرحِ فردا"}[x.customer]
 		o.CustomerPhoneSnapshot = map[string]string{"CUS-DEMO-01": "021-44006006", "CUS-DEMO-02": "021-22334455", "CUS-DEMO-03": "09120006006"}[x.customer]
 		o.Notes = x.note
@@ -446,9 +410,6 @@ func (g *generator) metadata(ctx context.Context, paths platform.DataPaths) erro
 	if err := g.store.SaveAttachment(ctx, domain.Attachment{ID: "ATT-DEMO-01", OwnerType: domain.AttachmentOrder, OwnerID: "ORD-DEMO-01", FileName: "artwork-demo.txt", Path: file, MIMEType: "text/plain", SizeBytes: &size, Checksum: hex.EncodeToString(sum[:]), Category: domain.AttachmentArtwork, Notes: "فایل کوچک و ساختگی برای تست managed attachment و proof.", CreatedAt: g.now}); err != nil {
 		return err
 	}
-	if err := g.store.SaveAttachment(ctx, domain.Attachment{ID: "ATT-DEMO-02", OwnerType: domain.AttachmentQuote, OwnerID: "QUO-DEMO-03", FileName: "customer-reference.txt", Path: file, MIMEType: "text/plain", SizeBytes: &size, Checksum: hex.EncodeToString(sum[:]), Category: domain.AttachmentReference, Notes: "مرجع ساختگی متصل به quote.", CreatedAt: g.now}); err != nil {
-		return err
-	}
 	return g.store.SaveProof(ctx, domain.Proof{ID: "PRF-DEMO-01", OwnerType: domain.AttachmentOrder, OwnerID: "ORD-DEMO-01", AttachmentID: "ATT-DEMO-01", Status: domain.ProofWaitingApproval, VersionLabel: "v2 — انتظار تأیید", PreparedAt: func() *time.Time { v := g.now.AddDate(0, 0, -1); return &v }(), ApproverNote: "منتظر تأیید مشتری برای رنگ نهایی.", InternalNote: "proof ساختگی برای تست tab و badge.", CreatedAt: g.now})
 }
 
@@ -458,7 +419,7 @@ func (g *generator) summary(ctx context.Context, reference string) (Summary, err
 		name string
 		read func() (int, error)
 	}{
-		{"customers", func() (int, error) { v, e := g.store.ListCustomers(ctx, true); return len(v), e }}, {"suppliers", func() (int, error) { v, e := g.store.ListSuppliers(ctx, true); return len(v), e }}, {"materials", func() (int, error) { v, e := g.store.List(ctx, true); return len(v), e }}, {"services", func() (int, error) { v, e := g.store.ListServices(ctx, true); return len(v), e }}, {"machines", func() (int, error) { v, e := g.store.ListMachines(ctx, true); return len(v), e }}, {"purchases", func() (int, error) { v, e := g.store.ListPurchases(ctx); return len(v), e }}, {"quotes", func() (int, error) { v, e := g.store.ListQuotes(ctx); return len(v), e }}, {"orders", func() (int, error) { v, e := g.store.ListOrders(ctx); return len(v), e }}, {"production", func() (int, error) { v, e := g.store.ListProductionJobs(ctx, ""); return len(v), e }}, {"invoices", func() (int, error) { v, e := g.store.ListInvoices(ctx); return len(v), e }}, {"payments", func() (int, error) { v, e := g.store.ListPayments(ctx); return len(v), e }}, {"expenses", func() (int, error) { v, e := g.store.ListExpenses(ctx); return len(v), e }}, {"transfers", func() (int, error) { v, e := g.store.ListTransfers(ctx); return len(v), e }}, {"checks", func() (int, error) { v, e := g.store.ListChecks(ctx, "", ""); return len(v), e }}, {"loans", func() (int, error) { v, e := g.store.ListLoans(ctx, "", ""); return len(v), e }}, {"owners", func() (int, error) { v, e := g.store.ListOwners(ctx, true); return len(v), e }}, {"periods", func() (int, error) { v, e := g.store.ListFiscalPeriods(ctx); return len(v), e }},
+		{"customers", func() (int, error) { v, e := g.store.ListCustomers(ctx, true); return len(v), e }}, {"suppliers", func() (int, error) { v, e := g.store.ListSuppliers(ctx, true); return len(v), e }}, {"materials", func() (int, error) { v, e := g.store.List(ctx, true); return len(v), e }}, {"services", func() (int, error) { v, e := g.store.ListServices(ctx, true); return len(v), e }}, {"machines", func() (int, error) { v, e := g.store.ListMachines(ctx, true); return len(v), e }}, {"purchases", func() (int, error) { v, e := g.store.ListPurchases(ctx); return len(v), e }}, {"orders", func() (int, error) { v, e := g.store.ListOrders(ctx); return len(v), e }}, {"production", func() (int, error) { v, e := g.store.ListProductionJobs(ctx, ""); return len(v), e }}, {"invoices", func() (int, error) { v, e := g.store.ListInvoices(ctx); return len(v), e }}, {"payments", func() (int, error) { v, e := g.store.ListPayments(ctx); return len(v), e }}, {"expenses", func() (int, error) { v, e := g.store.ListExpenses(ctx); return len(v), e }}, {"transfers", func() (int, error) { v, e := g.store.ListTransfers(ctx); return len(v), e }}, {"checks", func() (int, error) { v, e := g.store.ListChecks(ctx, "", ""); return len(v), e }}, {"loans", func() (int, error) { v, e := g.store.ListLoans(ctx, "", ""); return len(v), e }}, {"owners", func() (int, error) { v, e := g.store.ListOwners(ctx, true); return len(v), e }}, {"periods", func() (int, error) { v, e := g.store.ListFiscalPeriods(ctx); return len(v), e }},
 	}
 	for _, r := range readers {
 		n, e := r.read()
@@ -476,9 +437,6 @@ func (g *generator) summary(ctx context.Context, reference string) (Summary, err
 	}
 	if _, err := g.store.Dashboard(ctx, start, end); err != nil {
 		return Summary{}, fmt.Errorf("build dashboard: %w", err)
-	}
-	if _, err := g.store.PrintDocument(ctx, "quote", "QUO-DEMO-03", "", "", ""); err != nil {
-		return Summary{}, fmt.Errorf("build quote print document: %w", err)
 	}
 	if _, err := g.store.PrintDocument(ctx, "invoice", "INV-DEMO-01", "", "", ""); err != nil {
 		return Summary{}, fmt.Errorf("build invoice print document: %w", err)

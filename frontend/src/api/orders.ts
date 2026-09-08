@@ -2,6 +2,7 @@ import {
   AddOrderItem,
   ApplyOrderDiscount,
   CreateOrder,
+  DeleteOrder,
   GetOrder,
   ListOrders,
   RemoveOrderItem,
@@ -95,6 +96,9 @@ export const ordersApi = {
         input as unknown as import('../../wailsjs/go/models').main.OrderInput,
       ) as Promise<OrderRecord>
     ).then(normalizeOrder)
+  },
+  remove(id: string): Promise<void> {
+    return DeleteOrder(id)
   },
   addItem(id: string, input: OrderItemPayload): Promise<OrderRecord> {
     return (

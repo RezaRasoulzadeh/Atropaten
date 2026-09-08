@@ -469,27 +469,6 @@ func (s *Store) PrintDocument(ctx context.Context, kind, id, start, end, partyID
 	}
 	doc := domain.PrintDocument{Kind: kind, Shop: shop, Lines: []domain.PrintLine{}, StatementLines: []domain.StatementLine{}, Allocations: []domain.PrintAllocation{}}
 	switch kind {
-	case "quote":
-		q, e := s.GetQuote(ctx, id)
-		if e != nil {
-			return doc, e
-		}
-		doc.Number = q.QuoteNumber
-		doc.Date = q.CreatedAt.Format(time.RFC3339)
-		if q.ExpiryDate != nil {
-			doc.DueDate = q.ExpiryDate.Format(time.RFC3339)
-		}
-		doc.Status = string(q.Status)
-		doc.CustomerName = q.CustomerNameSnapshot
-		doc.CustomerContact = q.CustomerPhoneSnapshot
-		doc.SubtotalRial = q.SubtotalRial
-		doc.DiscountRial = q.DiscountRial
-		doc.TotalRial = q.TotalRial
-		doc.Notes = q.Notes
-		for _, i := range q.Items {
-			doc.Lines = append(doc.Lines, domain.PrintLine{Description: i.ServiceNameSnapshot, QuantityUnits: int64(i.Quantity), Unit: i.QuantityUnit, UnitPriceRial: i.SellingPriceRial, LineTotalRial: i.SellingPriceRial})
-		}
-		return doc, nil
 	case "invoice":
 		i, e := s.GetInvoice(ctx, id)
 		if e != nil {

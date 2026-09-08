@@ -2,7 +2,8 @@
 withDefaults(defineProps<{
   selected?: boolean;
   interactive?: boolean;
-}>(), { interactive: true });
+  sidecar?: boolean;
+}>(), { interactive: true, sidecar: false });
 
 const emit = defineEmits<{
   activate: [];
@@ -19,7 +20,34 @@ const emit = defineEmits<{
     @keydown.enter.self.prevent="interactive !== false && emit('activate')"
     @keydown.space.self.prevent="interactive !== false && emit('activate')"
   >
-    <div class="flex min-w-0 items-start gap-3">
+    <div
+      v-if="sidecar"
+      class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto_auto]"
+    >
+      <div
+        v-if="$slots.icon"
+        class="grid size-9 shrink-0 place-items-center rounded-box bg-base-200 text-base-content/65"
+      >
+        <slot name="icon" />
+      </div>
+      <div class="min-w-0">
+        <slot name="identity" />
+        <slot name="meta" />
+      </div>
+      <div
+        v-if="$slots.status"
+        class="col-start-2 flex min-w-0 shrink-0 items-end lg:col-start-auto"
+      >
+        <slot name="status" />
+      </div>
+      <div
+        v-if="$slots.actions"
+        class="col-start-2 flex min-w-0 shrink-0 items-end lg:col-start-auto"
+      >
+        <slot name="actions" />
+      </div>
+    </div>
+    <div v-else class="flex min-w-0 items-start gap-3">
       <div
         v-if="$slots.icon"
         class="grid size-9 shrink-0 place-items-center rounded-box bg-base-200 text-base-content/65"
@@ -32,7 +60,7 @@ const emit = defineEmits<{
       </div>
     </div>
     <div
-      v-if="$slots.status || $slots.actions"
+      v-if="!sidecar && ($slots.status || $slots.actions)"
       class="mt-2 flex min-w-0 flex-wrap items-center gap-1.5"
     >
       <slot name="status" />

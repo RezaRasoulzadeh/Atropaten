@@ -21,24 +21,17 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ 'open-order': [id: string]; 'new-order': [] }>();
 const query = ref('');
-const commercial = ref('All');
-const fulfillment = ref('All');
+const status = ref('All');
 const payment = ref('All');
 const priority = ref('All');
-const selected = ref<string | null>(null);
-const commercialOptions = [
+const statusOptions = [
   { label: 'All', value: 'All' },
   { label: 'Draft', value: 'Draft' },
   { label: 'Confirmed', value: 'Confirmed' },
+  { label: 'Production', value: 'Production' },
+  { label: 'Delivery', value: 'Delivery' },
   { label: 'Closed', value: 'Closed' },
   { label: 'Cancelled', value: 'Cancelled' },
-];
-const fulfillmentOptions = [
-  { label: 'All', value: 'All' },
-  { label: 'Pending', value: 'Pending' },
-  { label: 'In Production', value: 'In Production' },
-  { label: 'Ready', value: 'Ready' },
-  { label: 'Delivered', value: 'Delivered' },
 ];
 const paymentOptions = [
   { label: 'All', value: 'All' },
@@ -64,20 +57,26 @@ const filtered = computed(() =>
             .toLowerCase()
             .includes(q),
         )) &&
-      (commercial.value === 'All' || o.commercialStatus === commercial.value) &&
-      (fulfillment.value === 'All' || o.fulfillmentStatus === fulfillment.value) &&
+      (status.value === 'All' || orderStatus(o) === status.value) &&
       (payment.value === 'All' || o.paymentStatus === payment.value) &&
       (priority.value === 'All' || o.priority === priority.value)
     );
   }),
 );
+function orderStatus(order: OrderRecord) {
+  if (order.commercialStatus === 'Cancelled') return 'Cancelled';
+  if (order.commercialStatus === 'Closed') return 'Closed';
+  if (order.fulfillmentStatus === 'Delivered') return 'Delivery';
+  if (order.fulfillmentStatus === 'In Production' || order.fulfillmentStatus === 'Ready') return 'Production';
+  return order.commercialStatus;
+}
 function money(v: number) {
   return formatMoney(v, props.currencyUnit);
 }
 function tone(v: string): Tone {
-  return v === 'Confirmed' || v === 'In Production'
+  return v === 'Confirmed' || v === 'Production'
     ? 'blue'
-    : v === 'Closed' || v === 'Delivered' || v === 'Paid' || v === 'Ready'
+    : v === 'Closed' || v === 'Delivery' || v === 'Delivered' || v === 'Paid' || v === 'Ready'
       ? 'green'
       : v === 'Cancelled'
         ? 'red'
@@ -94,7 +93,7 @@ function itemSummary(o: OrderRecord) {
 }
 function clear() {
   query.value = '';
-  commercial.value = fulfillment.value = payment.value = priority.value = 'All';
+  status.value = payment.value = priority.value = 'All';
 }
 </script>
 <template>
@@ -103,7 +102,7 @@ function clear() {
       <WorkspaceHeader
         eyebrow="Sales / operational queue"
         title="Orders"
-        description="Track persisted customer orders and their independent state axes."
+        description="Track every order from draft through production, delivery, and close."
       >
         <button class="btn btn-primary gap-2" type="button" @click="emit('new-order')">
           <Plus :size="16" :stroke-width="1.8" aria-hidden="true" />
@@ -122,15 +121,9 @@ function clear() {
         <template #filters>
           <SelectField
             class="w-36"
-            v-model="commercial"
-            label="Commercial"
-            :options="commercialOptions"
-          />
-          <SelectField
-            class="w-36"
-            v-model="fulfillment"
-            label="Fulfillment"
-            :options="fulfillmentOptions"
+            v-model="status"
+            label="Order status"
+            :options="statusOptions"
           />
           <SelectField class="w-32" v-model="payment" label="Payment" :options="paymentOptions" />
           <SelectField
@@ -147,8 +140,7 @@ function clear() {
           <button
             v-if="
               query ||
-              commercial !== 'All' ||
-              fulfillment !== 'All' ||
+              status !== 'All' ||
               payment !== 'All' ||
               priority !== 'All'
             "
@@ -168,7 +160,7 @@ function clear() {
       :flush="true"
     >
       <template #action>
-        <span class="text-xs text-base-content/60">Independent state axes</span>
+        <span class="text-xs text-base-content/60">Draft · Confirmed · Production · Delivery</span>
       </template>
 
       <LoadingState v-if="loading" label="Loading records…" />
@@ -196,10 +188,8 @@ function clear() {
             v-for="order in filtered"
             :key="order.id"
             class="min-w-0 cursor-pointer p-3 transition-colors hover:bg-base-200"
-            :class="{ 'bg-base-300': selected === order.id }"
             tabindex="0"
-            @click="selected = order.id"
-            @dblclick="emit('open-order', order.id)"
+            @click="emit('open-order', order.id)"
             @keydown.enter="emit('open-order', order.id)"
           >
             <div class="flex min-w-0 items-center justify-between gap-3">
@@ -249,8 +239,7 @@ function clear() {
             </div>
 
             <div class="mt-2 flex flex-wrap gap-1.5">
-              <StatusBadge :label="order.commercialStatus" :tone="tone(order.commercialStatus)" />
-              <StatusBadge :label="order.fulfillmentStatus" :tone="tone(order.fulfillmentStatus)" />
+              <StatusBadge :label="orderStatus(order)" :tone="tone(orderStatus(order))" />
               <StatusBadge :label="order.paymentStatus" :tone="tone(order.paymentStatus)" />
               <StatusBadge :label="order.priority" :tone="tone(order.priority)" />
             </div>

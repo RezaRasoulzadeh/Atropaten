@@ -23,6 +23,7 @@ import { ordersApi } from '../../api/orders';
 import type { CurrencyUnit } from '../../utils/currency';
 import { formatMoney, formatMoneyInput, parseMoneyInput } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
+import { confirmAction } from '../../ui/feedback';
 import DocumentMetadataPanel from '../documents/DocumentMetadataPanel.vue';
 import OrderItemConfigurator from '../sales/OrderItemConfigurator.vue';
 import OrderInvoicePanel from './OrderInvoicePanel.vue';
@@ -39,6 +40,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   back: [];
+  removed: [id: string];
   notify: [message: string];
   saved: [order: OrderRecord];
 }>();
@@ -56,7 +58,7 @@ const editingItem = ref<any | null>(null);
 const saving = ref(false);
 
 const tabs = ['Overview', 'Items', 'Production', 'Payments', 'Invoices', 'Files', 'History'];
-const commercialOptions = ['Draft', 'Confirmed', 'Closed', 'Cancelled'].map((value) => ({
+const orderStatusOptions = ['Draft', 'Confirmed', 'Production', 'Delivery', 'Closed', 'Cancelled'].map((value) => ({
   label: value,
   value,
 }));
@@ -71,6 +73,13 @@ const customerOptions = computed(() => [
     .filter((value) => value.active || value.id === customerId.value)
     .map((value) => ({ label: value.name, value: value.id })),
 ]);
+const orderStatus = computed(() => {
+  if (props.order.commercialStatus === 'Cancelled') return 'Cancelled';
+  if (props.order.commercialStatus === 'Closed') return 'Closed';
+  if (props.order.fulfillmentStatus === 'Delivered') return 'Delivery';
+  if (props.order.fulfillmentStatus === 'In Production' || props.order.fulfillmentStatus === 'Ready') return 'Production';
+  return props.order.commercialStatus;
+});
 
 watch(
   () => props.order,
@@ -85,9 +94,9 @@ watch(
 );
 
 function tone(value: string): Tone {
-  return value === 'Confirmed' || value === 'In Production'
+  return value === 'Confirmed' || value === 'Production'
     ? 'blue'
-    : value === 'Closed' || value === 'Delivered' || value === 'Paid' || value === 'Ready'
+    : value === 'Closed' || value === 'Delivery' || value === 'Delivered' || value === 'Paid' || value === 'Ready'
       ? 'green'
       : value === 'Cancelled'
         ? 'red'
@@ -110,13 +119,14 @@ function payload(): OrderPayload {
   };
 }
 
-async function saveMetadata() {
+async function saveMetadata(returnToOrders = false) {
 return runAction(async () => {
   saving.value = true;
   try {
     const result = await ordersApi.update(props.order.id, payload());
     emit('saved', result);
     emit('notify', 'Order details saved');
+    if (returnToOrders) emit('back');
   } catch (error) {
 reportError(error);
   } finally {
@@ -142,6 +152,24 @@ reportError(error);
   }
 
 });
+}
+
+async function removeOrder() {
+  return runAction(async () => {
+    if (!(await confirmAction({
+      title: 'Delete order',
+      message: 'Delete this order permanently? Orders with financial, production, or document history cannot be deleted.',
+      confirmLabel: 'Delete order',
+      danger: true,
+    }))) return;
+    try {
+      await ordersApi.remove(props.order.id);
+      emit('removed', props.order.id);
+      emit('notify', 'Order deleted.');
+    } catch (error) {
+      reportError(error);
+    }
+  });
 }
 
 async function configured(input: OrderItemPayload) {
@@ -200,11 +228,29 @@ reportError(error);
 });
 }
 
-async function changeCommercial(value: string) {
+async function changeOrderStatus(value: string) {
 return runAction(async () => {
   try {
-    emit('saved', await ordersApi.commercialStatus(props.order.id, value));
-    emit('notify', 'Commercial status updated');
+    let result: OrderRecord;
+    if (value === 'Production' || value === 'Delivery') {
+      if (props.order.commercialStatus !== 'Confirmed') {
+        await ordersApi.commercialStatus(props.order.id, 'Confirmed');
+      }
+      if (value === 'Production' && props.order.fulfillmentStatus !== 'Pending' && props.order.fulfillmentStatus !== 'In Production') {
+        await ordersApi.fulfillmentStatus(props.order.id, 'Pending');
+      }
+      result = await ordersApi.fulfillmentStatus(
+        props.order.id,
+        value === 'Production' ? 'In Production' : 'Delivered',
+      );
+    } else {
+      result = await ordersApi.commercialStatus(props.order.id, value);
+      if ((value === 'Draft' || value === 'Confirmed') && props.order.fulfillmentStatus !== 'Pending') {
+        result = await ordersApi.fulfillmentStatus(props.order.id, 'Pending');
+      }
+    }
+    emit('saved', result);
+    emit('notify', 'Order status updated');
   } catch (error) {
 reportError(error);
   }
@@ -229,22 +275,35 @@ function snapshot(item: any, key: string) {
         :title="order.orderNumber"
         :description="`${order.customerName || 'Walk-in customer'} · ${order.items.length} line items`"
       >
-        <button class="btn btn-ghost btn-sm gap-2" type="button" @click="emit('back')">
-          <ArrowLeft :size="16" aria-hidden="true" /><span>Orders</span>
+        <template #leading>
+          <button class="btn btn-ghost btn-sm gap-2" type="button" @click="emit('back')">
+            <ArrowLeft :size="16" aria-hidden="true" /><span>Orders</span>
+          </button>
+        </template>
+        <template #title-suffix>
+          <StatusBadge :label="orderStatus" :tone="tone(orderStatus)" />
+        </template>
+        <button
+          class="btn btn-ghost gap-2 text-error"
+          type="button"
+          :disabled="busy || saving"
+          @click="removeOrder"
+        >
+          <Trash2 :size="15" aria-hidden="true" />
+          Delete order
         </button>
-        <StatusBadge :label="order.commercialStatus" :tone="tone(order.commercialStatus)" />
         <SelectField
           class="w-40"
-          :model-value="order.commercialStatus"
-          :options="commercialOptions"
-          aria-label="Commercial status"
-          @update:model-value="changeCommercial"
+          :model-value="orderStatus"
+          :options="orderStatusOptions"
+          aria-label="Order status"
+          @update:model-value="changeOrderStatus"
         />
         <button
           class="btn btn-primary gap-2"
           type="button"
           :disabled="busy || (saving)"
-          @click="saveMetadata"
+          @click="saveMetadata(true)"
         >
           {{ saving ? 'Saving…' : 'Save order' }}
         </button>
@@ -317,7 +376,7 @@ function snapshot(item: any, key: string) {
               class="btn btn-primary gap-2"
               type="button"
               :disabled="busy || (saving)"
-              @click="saveMetadata"
+              @click="() => saveMetadata()"
             >
               {{ saving ? 'Saving…' : 'Save details' }}
             </button>
@@ -419,7 +478,7 @@ function snapshot(item: any, key: string) {
             </button></template
           >
         </EmptyState>
-        <RegisterRow :interactive="false"
+        <RegisterRow :interactive="false" :sidecar="true"
           v-for="item in [...order.items].sort((a, b) => a.position - b.position)"
           v-else
           :key="item.id"
@@ -523,13 +582,40 @@ function snapshot(item: any, key: string) {
       @notify="emit('notify', $event)"
       @saved="emit('saved', $event)"
     />
-    <AppPanel v-else title="History" subtitle="Persisted order history will appear here.">
-      <EmptyState
-        title="History is not available yet"
-        description="The saved order remains unchanged while this workspace is being expanded."
-      >
-        <template #icon><PackageOpen :size="22" aria-hidden="true" /></template>
-      </EmptyState>
+    <AppPanel v-else title="Order history" subtitle="A chronological record of important order changes.">
+      <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.6fr)]">
+        <div class="relative space-y-3 ps-6 before:absolute before:inset-y-2 before:start-2 before:w-px before:bg-base-300">
+          <div class="relative rounded-box border border-base-300 bg-base-200/35 p-3">
+            <span class="absolute -start-[1.58rem] top-4 grid size-4 place-items-center rounded-full border-2 border-base-100 bg-primary ring-1 ring-primary/30"></span>
+            <span class="block text-xs text-base-content/50">Created</span>
+            <strong class="mt-1 block text-sm">Order {{ order.orderNumber }} was created</strong>
+            <span class="mt-1 block text-xs text-base-content/55">{{ formatDateTime(order.createdAt) }}</span>
+          </div>
+          <div class="relative rounded-box border border-base-300 bg-base-200/35 p-3">
+            <span class="absolute -start-[1.58rem] top-4 grid size-4 place-items-center rounded-full border-2 border-base-100 bg-base-300 ring-1 ring-base-300"></span>
+            <span class="block text-xs text-base-content/50">Last updated</span>
+            <strong class="mt-1 block text-sm">Order details were last saved</strong>
+            <span class="mt-1 block text-xs text-base-content/55">{{ formatDateTime(order.updatedAt) }}</span>
+          </div>
+        </div>
+        <div class="rounded-box border border-dashed border-base-300 bg-base-200/25 p-4">
+          <div class="flex items-start gap-3">
+            <div class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/10 text-primary">
+              <PackageOpen :size="18" aria-hidden="true" />
+            </div>
+            <div>
+              <strong class="block text-sm">Detailed history is coming next</strong>
+              <p class="mt-2 text-xs leading-5 text-base-content/60">
+                Status changes, item updates, payments, production, and corrections will appear here as a preserved timeline.
+              </p>
+            </div>
+          </div>
+          <div class="mt-4 border-t border-base-300 pt-3">
+            <span class="block text-xs text-base-content/50">Current order status</span>
+            <StatusBadge class="mt-2" :label="orderStatus" :tone="tone(orderStatus)" />
+          </div>
+        </div>
+      </div>
     </AppPanel>
   </div>
 </template>

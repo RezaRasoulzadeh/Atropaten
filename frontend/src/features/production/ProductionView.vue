@@ -81,9 +81,21 @@ const {busy,runAction,jobs,selectedId,statusFilter,searchQuery,loading,error,cre
         <X :size="15" /></button
     ></InlineAlert>
     <MasterDetail>
-      <RegisterList title="Production queue" subtitle="Select a job to manage reservations and actual usage." :count="visibleJobs.length">
+<RegisterList title="Production queue" subtitle="Select a job to manage reservations and actual usage." :count="visibleJobs.length">
 <LoadingState v-if="loading" label="Loading production jobs…" />
-<EmptyState v-else-if="!visibleJobs.length" title="No production jobs in this view" description="Adjust the queue filter or create a job." />
+<EmptyState
+  v-else-if="!visibleJobs.length"
+  class="min-h-48 flex-col text-center"
+  :title="jobs.length ? 'No jobs match this queue' : 'Production queue is empty'"
+  :description="jobs.length ? 'Try another queue filter to find a production job.' : 'Create a job from a confirmed order to start tracking production.'"
+>
+  <template #icon><Factory :size="32" :stroke-width="1.5" aria-hidden="true" /></template>
+  <template v-if="!jobs.length" #action>
+    <button class="btn btn-outline btn-sm mt-3 gap-2" type="button" @click="beginCreate">
+      <Plus :size="14" aria-hidden="true" /> New production job
+    </button>
+  </template>
+</EmptyState>
 <template v-else><RegisterRow v-for="job in visibleJobs" :key="job.id" :selected="selectedId === job.id" @activate="select(job.id)">
 <template #icon><Factory :size="17" /></template>
 <template #identity><strong class="block text-sm">{{job.jobNumber}} · {{job.serviceName}}</strong></template>

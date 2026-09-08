@@ -56,6 +56,22 @@ export namespace main {
 	        this.createdAt = source["createdAt"];
 	    }
 	}
+	export class AttachmentPreviewDTO {
+	    fileName: string;
+	    mimeType: string;
+	    contentBase64: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AttachmentPreviewDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.fileName = source["fileName"];
+	        this.mimeType = source["mimeType"];
+	        this.contentBase64 = source["contentBase64"];
+	    }
+	}
 	export class BackupInfoDTO {
 	    path: string;
 	    createdAt: string;
@@ -1411,7 +1427,6 @@ export namespace main {
 	    invoiceId: string;
 	    invoiceStatus: string;
 	    invoicedTotalRial: number;
-	    quoteId: string;
 	    productionJobCount: number;
 	    completedProductionJobs: number;
 	    inProgressProductionJobs: number;
@@ -1445,7 +1460,6 @@ export namespace main {
 	        this.invoiceId = source["invoiceId"];
 	        this.invoiceStatus = source["invoiceStatus"];
 	        this.invoicedTotalRial = source["invoicedTotalRial"];
-	        this.quoteId = source["quoteId"];
 	        this.productionJobCount = source["productionJobCount"];
 	        this.completedProductionJobs = source["completedProductionJobs"];
 	        this.inProgressProductionJobs = source["inProgressProductionJobs"];
@@ -2576,123 +2590,6 @@ export namespace main {
 	        this.notes = source["notes"];
 	    }
 	}
-	export class QuoteItemDTO {
-	    id: string;
-	    position: number;
-	    serviceId: string;
-	    serviceName: string;
-	    serviceCode: string;
-	    quantity: string;
-	    quantityUnit: string;
-	    resolvedParametersJson: string;
-	    costBreakdownJson: string;
-	    pricingSnapshotJson: string;
-	    estimatedCostRial: number;
-	    suggestedPriceRial: number;
-	    sellingPriceRial: number;
-	    notes: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new QuoteItemDTO(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.position = source["position"];
-	        this.serviceId = source["serviceId"];
-	        this.serviceName = source["serviceName"];
-	        this.serviceCode = source["serviceCode"];
-	        this.quantity = source["quantity"];
-	        this.quantityUnit = source["quantityUnit"];
-	        this.resolvedParametersJson = source["resolvedParametersJson"];
-	        this.costBreakdownJson = source["costBreakdownJson"];
-	        this.pricingSnapshotJson = source["pricingSnapshotJson"];
-	        this.estimatedCostRial = source["estimatedCostRial"];
-	        this.suggestedPriceRial = source["suggestedPriceRial"];
-	        this.sellingPriceRial = source["sellingPriceRial"];
-	        this.notes = source["notes"];
-	    }
-	}
-	export class QuoteDTO {
-	    id: string;
-	    quoteNumber: string;
-	    customerId: string;
-	    customerName: string;
-	    customerPhone: string;
-	    notes: string;
-	    createdAt: string;
-	    updatedAt: string;
-	    expiryDate?: string;
-	    status: string;
-	    subtotalRial: number;
-	    discountRial: number;
-	    totalRial: number;
-	    estimatedCostRial: number;
-	    convertedOrderId: string;
-	    items: QuoteItemDTO[];
-	
-	    static createFrom(source: any = {}) {
-	        return new QuoteDTO(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.quoteNumber = source["quoteNumber"];
-	        this.customerId = source["customerId"];
-	        this.customerName = source["customerName"];
-	        this.customerPhone = source["customerPhone"];
-	        this.notes = source["notes"];
-	        this.createdAt = source["createdAt"];
-	        this.updatedAt = source["updatedAt"];
-	        this.expiryDate = source["expiryDate"];
-	        this.status = source["status"];
-	        this.subtotalRial = source["subtotalRial"];
-	        this.discountRial = source["discountRial"];
-	        this.totalRial = source["totalRial"];
-	        this.estimatedCostRial = source["estimatedCostRial"];
-	        this.convertedOrderId = source["convertedOrderId"];
-	        this.items = this.convertValues(source["items"], QuoteItemDTO);
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class QuoteInput {
-	    customerId: string;
-	    expiryDate?: string;
-	    notes: string;
-	    discountRial: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new QuoteInput(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.customerId = source["customerId"];
-	        this.expiryDate = source["expiryDate"];
-	        this.notes = source["notes"];
-	        this.discountRial = source["discountRial"];
-	    }
-	}
-	
 	export class ReportRowDTO {
 	    id: string;
 	    referenceId: string;

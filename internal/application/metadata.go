@@ -11,6 +11,7 @@ import (
 
 type AttachmentRepository interface {
 	ListAttachments(context.Context, domain.AttachmentOwnerType, string) ([]domain.Attachment, error)
+	GetAttachment(context.Context, string) (domain.Attachment, error)
 	SaveAttachment(context.Context, domain.Attachment) error
 	DeleteAttachment(context.Context, string) error
 }
@@ -46,6 +47,13 @@ func (s *MetadataService) ListAttachments(ctx context.Context, ownerType, ownerI
 		out = append(out, attachmentView(a))
 	}
 	return out, nil
+}
+func (s *MetadataService) GetAttachment(ctx context.Context, id string) (AttachmentView, error) {
+	a, e := s.attachments.GetAttachment(ctx, strings.TrimSpace(id))
+	if e != nil {
+		return AttachmentView{}, e
+	}
+	return attachmentView(a), nil
 }
 func (s *MetadataService) AddAttachment(ctx context.Context, ownerType, ownerID, fileName, path, mime string, size *int64, checksum, category, notes string) (AttachmentView, error) {
 	a := domain.Attachment{ID: "", OwnerType: domain.AttachmentOwnerType(ownerType), OwnerID: strings.TrimSpace(ownerID), FileName: strings.TrimSpace(fileName), Path: strings.TrimSpace(path), MIMEType: strings.TrimSpace(mime), SizeBytes: size, Checksum: strings.TrimSpace(checksum), Category: domain.AttachmentCategory(category), Notes: strings.TrimSpace(notes), CreatedAt: s.now().UTC()}

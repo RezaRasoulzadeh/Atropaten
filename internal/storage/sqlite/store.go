@@ -231,23 +231,9 @@ var migrations = []migration{{
 		UNIQUE(order_id, display_order)
 	)`}, {
 	version: 6,
-	sql: `CREATE TABLE quote_number_sequences (id INTEGER PRIMARY KEY CHECK(id = 1), next_number INTEGER NOT NULL CHECK(next_number > 0));
-	INSERT INTO quote_number_sequences(id, next_number) VALUES (1, 1001);
-	CREATE TABLE quotes (
-		id TEXT PRIMARY KEY, quote_number TEXT NOT NULL UNIQUE, customer_id TEXT REFERENCES customers(id) ON DELETE SET NULL,
-		customer_name_snapshot TEXT NOT NULL DEFAULT '', customer_phone_snapshot TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, expiry_date TEXT,
-		status TEXT NOT NULL CHECK(status IN ('Draft','Sent','Accepted','Rejected','Expired','Converted')), notes TEXT NOT NULL DEFAULT '',
-		subtotal_rial INTEGER NOT NULL CHECK(subtotal_rial >= 0), discount_rial INTEGER NOT NULL CHECK(discount_rial >= 0), total_rial INTEGER NOT NULL CHECK(total_rial >= 0), estimated_cost_rial INTEGER NOT NULL CHECK(estimated_cost_rial >= 0), updated_at TEXT NOT NULL, converted_order_id TEXT UNIQUE
-	);
-	CREATE TABLE quote_items (
-		id TEXT PRIMARY KEY, quote_id TEXT NOT NULL REFERENCES quotes(id) ON DELETE CASCADE, display_order INTEGER NOT NULL CHECK(display_order >= 0), service_id TEXT NOT NULL DEFAULT '', service_name_snapshot TEXT NOT NULL, service_code_snapshot TEXT NOT NULL DEFAULT '', quantity_units INTEGER NOT NULL CHECK(quantity_units >= 0), quantity_unit TEXT NOT NULL DEFAULT 'unit', resolved_parameters_json TEXT NOT NULL, cost_breakdown_json TEXT NOT NULL, pricing_snapshot_json TEXT NOT NULL, estimated_cost_rial INTEGER NOT NULL CHECK(estimated_cost_rial >= 0), suggested_price_rial INTEGER NOT NULL CHECK(suggested_price_rial >= 0), selling_price_rial INTEGER NOT NULL CHECK(selling_price_rial >= 0), notes TEXT NOT NULL DEFAULT '', UNIQUE(quote_id, display_order)
-	);
-	ALTER TABLE orders ADD COLUMN quote_id TEXT REFERENCES quotes(id) ON DELETE SET NULL;
-	CREATE UNIQUE INDEX orders_quote_id_unique ON orders(quote_id) WHERE quote_id IS NOT NULL;
-	CREATE INDEX quotes_created_at ON quotes(created_at DESC, quote_number DESC);
-	CREATE TABLE attachments (id TEXT PRIMARY KEY, owner_type TEXT NOT NULL CHECK(owner_type IN ('quote','order')), owner_id TEXT NOT NULL, file_name TEXT NOT NULL CHECK(length(trim(file_name)) > 0), path TEXT NOT NULL CHECK(length(trim(path)) > 0), mime_type TEXT NOT NULL DEFAULT '', size_bytes INTEGER CHECK(size_bytes IS NULL OR size_bytes >= 0), checksum TEXT NOT NULL DEFAULT '', category TEXT NOT NULL CHECK(category IN ('artwork','proof','reference','other')), notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL);
+	sql: `CREATE TABLE attachments (id TEXT PRIMARY KEY, owner_type TEXT NOT NULL CHECK(owner_type = 'order'), owner_id TEXT NOT NULL, file_name TEXT NOT NULL CHECK(length(trim(file_name)) > 0), path TEXT NOT NULL CHECK(length(trim(path)) > 0), mime_type TEXT NOT NULL DEFAULT '', size_bytes INTEGER CHECK(size_bytes IS NULL OR size_bytes >= 0), checksum TEXT NOT NULL DEFAULT '', category TEXT NOT NULL CHECK(category IN ('artwork','proof','reference','other')), notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL);
 	CREATE INDEX attachments_owner ON attachments(owner_type, owner_id, created_at DESC);
-	CREATE TABLE proofs (id TEXT PRIMARY KEY, owner_type TEXT NOT NULL CHECK(owner_type IN ('quote','order')), owner_id TEXT NOT NULL, attachment_id TEXT REFERENCES attachments(id) ON DELETE SET NULL, status TEXT NOT NULL CHECK(status IN ('Draft','Ready','Waiting Customer Approval','Approved','Rejected')), version_label TEXT NOT NULL, prepared_at TEXT, approved_at TEXT, rejected_at TEXT, approver_note TEXT NOT NULL DEFAULT '', internal_note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL);
+	CREATE TABLE proofs (id TEXT PRIMARY KEY, owner_type TEXT NOT NULL CHECK(owner_type = 'order'), owner_id TEXT NOT NULL, attachment_id TEXT REFERENCES attachments(id) ON DELETE SET NULL, status TEXT NOT NULL CHECK(status IN ('Draft','Ready','Waiting Customer Approval','Approved','Rejected')), version_label TEXT NOT NULL, prepared_at TEXT, approved_at TEXT, rejected_at TEXT, approver_note TEXT NOT NULL DEFAULT '', internal_note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL);
 		CREATE INDEX proofs_owner ON proofs(owner_type, owner_id, created_at DESC);`,
 },
 	{
@@ -907,7 +893,7 @@ func (s *Store) ListServices(ctx context.Context, includeArchived bool) ([]domai
 		if err != nil {
 			return nil, err
 		}
-		services[index].Components, err = s.loadComponents(ctx, services[index].ID)
+		services[index].Components, err = s.loadComponents(ctx, services[index].ID, services[index].CreatedAt, services[index].UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -932,7 +918,7 @@ func (s *Store) GetService(ctx context.Context, id string) (domain.Service, erro
 	if err != nil {
 		return domain.Service{}, err
 	}
-	service.Components, err = s.loadComponents(ctx, service.ID)
+	service.Components, err = s.loadComponents(ctx, service.ID, service.CreatedAt, service.UpdatedAt)
 	if err != nil {
 		return domain.Service{}, err
 	}
@@ -1087,7 +1073,6 @@ func (s *Store) DeleteService(ctx context.Context, serviceID string) error {
 		return fail(domain.ErrServiceNotFound)
 	}
 	for _, query := range []string{
-		`SELECT COUNT(*) FROM quote_items WHERE service_id=?`,
 		`SELECT COUNT(*) FROM order_items WHERE service_id=?`,
 		`SELECT COUNT(*) FROM invoice_items WHERE service_id=?`,
 	} {
@@ -1187,7 +1172,7 @@ func scanParameter(row scanner) (domain.ServiceParameter, error) {
 	return parameter, nil
 }
 
-func (s *Store) loadComponents(ctx context.Context, serviceID string) ([]domain.ServiceCostComponent, error) {
+func (s *Store) loadComponents(ctx context.Context, serviceID string, serviceCreatedAt, serviceUpdatedAt time.Time) ([]domain.ServiceCostComponent, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, service_id, component_name, component_type, reference_id, usage_mode, parameter_key, usage_quantity_units, multiplier_units, rate_rial, percentage_units, rate_basis, enabled, display_order, notes, created_at, updated_at FROM service_cost_components WHERE service_id = ? ORDER BY display_order, id`, serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("list service cost components: %w", err)
@@ -1198,6 +1183,12 @@ func (s *Store) loadComponents(ctx context.Context, serviceID string) ([]domain.
 		component, scanErr := scanComponent(rows)
 		if scanErr != nil {
 			return nil, fmt.Errorf("scan service cost component: %w", scanErr)
+		}
+		if component.CreatedAt.IsZero() {
+			component.CreatedAt = serviceCreatedAt
+		}
+		if component.UpdatedAt.IsZero() {
+			component.UpdatedAt = serviceUpdatedAt
 		}
 		components = append(components, component)
 	}
@@ -1362,7 +1353,6 @@ func (s *Store) DeleteCustomer(ctx context.Context, customerID string) error {
 		return fail(domain.ErrCustomerNotFound)
 	}
 	for _, query := range []string{
-		`SELECT COUNT(*) FROM quotes WHERE customer_id=?`,
 		`SELECT COUNT(*) FROM orders WHERE customer_id=?`,
 		`SELECT COUNT(*) FROM invoices WHERE customer_id=?`,
 		`SELECT COUNT(*) FROM payments WHERE customer_id=?`,
@@ -1411,7 +1401,7 @@ func (s *Store) ListOrders(ctx context.Context) ([]domain.Order, error) {
 	return result, nil
 }
 
-const orderSelect = `SELECT id,order_number,customer_id,customer_name_snapshot,customer_phone_snapshot,created_at,promised_at,priority,commercial_status,fulfillment_status,payment_status,notes,subtotal_rial,discount_rial,total_rial,estimated_cost_rial,updated_at,quote_id FROM orders`
+const orderSelect = `SELECT id,order_number,customer_id,customer_name_snapshot,customer_phone_snapshot,created_at,promised_at,priority,commercial_status,fulfillment_status,payment_status,notes,subtotal_rial,discount_rial,total_rial,estimated_cost_rial,updated_at FROM orders`
 
 func (s *Store) GetOrder(ctx context.Context, id string) (domain.Order, error) {
 	row := s.db.QueryRowContext(ctx, orderSelect+` WHERE id = ?`, id)
@@ -1466,28 +1456,7 @@ func (s *Store) SaveOrder(ctx context.Context, order domain.Order) error {
 		return fmt.Errorf("begin order save: %w", err)
 	}
 	rollback := func(e error) error { _ = tx.Rollback(); return e }
-	var paid, total int64
-	if err := tx.QueryRowContext(ctx, `SELECT total_rial FROM orders WHERE id=?`, order.ID).Scan(&total); err == nil {
-		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='order' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, order.ID).Scan(&paid); err != nil {
-			return rollback(err)
-		}
-		if paid <= 0 {
-			order.PaymentStatus = domain.PaymentUnpaid
-		} else if paid < total {
-			order.PaymentStatus = domain.PaymentPartiallyPaid
-		} else {
-			order.PaymentStatus = domain.PaymentPaid
-		}
-	}
-	result, err := tx.ExecContext(ctx, `UPDATE orders SET customer_id=?,customer_name_snapshot=?,customer_phone_snapshot=?,created_at=?,promised_at=?,priority=?,commercial_status=?,fulfillment_status=?,payment_status=?,notes=?,subtotal_rial=?,discount_rial=?,total_rial=?,estimated_cost_rial=?,updated_at=?,quote_id=? WHERE id=?`, nullableString(order.CustomerID), order.CustomerNameSnapshot, order.CustomerPhoneSnapshot, order.CreatedAt.UTC().Format(time.RFC3339Nano), nullableTime(order.PromisedAt), string(order.Priority), string(order.CommercialStatus), string(order.FulfillmentStatus), string(order.PaymentStatus), order.Notes, order.SubtotalRial, order.DiscountRial, order.TotalRial, order.EstimatedCostRial, order.UpdatedAt.UTC().Format(time.RFC3339Nano), nullableString(order.QuoteID), order.ID)
-	if err != nil {
-		return rollback(fmt.Errorf("update order: %w", err))
-	}
-	count, _ := result.RowsAffected()
-	if count == 0 {
-		return rollback(domain.ErrOrderNotFound)
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE inventory_reservations SET status=CASE WHEN ?='Cancelled' THEN 'cancelled' ELSE 'released' END, updated_at=? WHERE order_id=? AND status='active' AND (?='Cancelled' OR ?='Draft')`, string(order.CommercialStatus), order.UpdatedAt.UTC().Format(time.RFC3339Nano), order.ID, string(order.CommercialStatus), string(order.CommercialStatus)); err != nil {
+	if err := updateOrderRowTx(ctx, tx, &order); err != nil {
 		return rollback(fmt.Errorf("release order reservations: %w", err))
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM order_items WHERE order_id=?`, order.ID); err != nil {
@@ -1502,8 +1471,91 @@ func (s *Store) SaveOrder(ctx context.Context, order domain.Order) error {
 	return nil
 }
 
+func (s *Store) SaveOrderMetadata(ctx context.Context, order domain.Order) error {
+	if err := order.Validate(); err != nil {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin order metadata save: %w", err)
+	}
+	if err := updateOrderRowTx(ctx, tx, &order); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit order metadata save: %w", err)
+	}
+	return nil
+}
+
+func updateOrderRowTx(ctx context.Context, tx *sql.Tx, order *domain.Order) error {
+	var paid, total int64
+	if err := tx.QueryRowContext(ctx, `SELECT total_rial FROM orders WHERE id=?`, order.ID).Scan(&total); errors.Is(err, sql.ErrNoRows) {
+		return domain.ErrOrderNotFound
+	} else if err != nil {
+		return err
+	}
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='order' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, order.ID).Scan(&paid); err != nil {
+		return err
+	}
+	if paid <= 0 {
+		order.PaymentStatus = domain.PaymentUnpaid
+	} else if paid < order.TotalRial {
+		order.PaymentStatus = domain.PaymentPartiallyPaid
+	} else {
+		order.PaymentStatus = domain.PaymentPaid
+	}
+	result, err := tx.ExecContext(ctx, `UPDATE orders SET customer_id=?,customer_name_snapshot=?,customer_phone_snapshot=?,created_at=?,promised_at=?,priority=?,commercial_status=?,fulfillment_status=?,payment_status=?,notes=?,subtotal_rial=?,discount_rial=?,total_rial=?,estimated_cost_rial=?,updated_at=? WHERE id=?`, nullableString(order.CustomerID), order.CustomerNameSnapshot, order.CustomerPhoneSnapshot, order.CreatedAt.UTC().Format(time.RFC3339Nano), nullableTime(order.PromisedAt), string(order.Priority), string(order.CommercialStatus), string(order.FulfillmentStatus), string(order.PaymentStatus), order.Notes, order.SubtotalRial, order.DiscountRial, order.TotalRial, order.EstimatedCostRial, order.UpdatedAt.UTC().Format(time.RFC3339Nano), order.ID)
+	if err != nil {
+		return fmt.Errorf("update order: %w", err)
+	}
+	count, _ := result.RowsAffected()
+	if count == 0 {
+		return domain.ErrOrderNotFound
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE inventory_reservations SET status=CASE WHEN ?='Cancelled' THEN 'cancelled' ELSE 'released' END, updated_at=? WHERE order_id=? AND status='active' AND (?='Cancelled' OR ?='Draft')`, string(order.CommercialStatus), order.UpdatedAt.UTC().Format(time.RFC3339Nano), order.ID, string(order.CommercialStatus), string(order.CommercialStatus)); err != nil {
+		return fmt.Errorf("release order reservations: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) DeleteOrder(ctx context.Context, orderID string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	fail := func(e error) error { _ = tx.Rollback(); return e }
+	var count int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM orders WHERE id=?`, orderID).Scan(&count); err != nil {
+		return fail(err)
+	}
+	if count == 0 {
+		return fail(domain.ErrOrderNotFound)
+	}
+	for _, query := range []string{
+		`SELECT COUNT(*) FROM production_jobs WHERE order_id=?`,
+		`SELECT COUNT(*) FROM inventory_reservations WHERE order_id=?`,
+		`SELECT COUNT(*) FROM invoices WHERE order_id=?`,
+		`SELECT COUNT(*) FROM payment_allocations WHERE target_type='order' AND target_id=?`,
+		`SELECT COUNT(*) FROM attachments WHERE owner_type='order' AND owner_id=?`,
+		`SELECT COUNT(*) FROM proofs WHERE owner_type='order' AND owner_id=?`,
+	} {
+		if err := tx.QueryRowContext(ctx, query, orderID).Scan(&count); err != nil {
+			return fail(err)
+		}
+		if count > 0 {
+			return fail(domain.ErrOrderDeleteProtected)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM orders WHERE id=?`, orderID); err != nil {
+		return fail(fmt.Errorf("delete order: %w", err))
+	}
+	return tx.Commit()
+}
+
 func insertOrder(ctx context.Context, tx *sql.Tx, order domain.Order) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO orders(id,order_number,customer_id,customer_name_snapshot,customer_phone_snapshot,created_at,promised_at,priority,commercial_status,fulfillment_status,payment_status,notes,subtotal_rial,discount_rial,total_rial,estimated_cost_rial,updated_at,quote_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, order.ID, order.OrderNumber, nullableString(order.CustomerID), order.CustomerNameSnapshot, order.CustomerPhoneSnapshot, order.CreatedAt.UTC().Format(time.RFC3339Nano), nullableTime(order.PromisedAt), string(order.Priority), string(order.CommercialStatus), string(order.FulfillmentStatus), string(order.PaymentStatus), order.Notes, order.SubtotalRial, order.DiscountRial, order.TotalRial, order.EstimatedCostRial, order.UpdatedAt.UTC().Format(time.RFC3339Nano), nullableString(order.QuoteID))
+	_, err := tx.ExecContext(ctx, `INSERT INTO orders(id,order_number,customer_id,customer_name_snapshot,customer_phone_snapshot,created_at,promised_at,priority,commercial_status,fulfillment_status,payment_status,notes,subtotal_rial,discount_rial,total_rial,estimated_cost_rial,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, order.ID, order.OrderNumber, nullableString(order.CustomerID), order.CustomerNameSnapshot, order.CustomerPhoneSnapshot, order.CreatedAt.UTC().Format(time.RFC3339Nano), nullableTime(order.PromisedAt), string(order.Priority), string(order.CommercialStatus), string(order.FulfillmentStatus), string(order.PaymentStatus), order.Notes, order.SubtotalRial, order.DiscountRial, order.TotalRial, order.EstimatedCostRial, order.UpdatedAt.UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return fmt.Errorf("insert order: %w", err)
 	}
@@ -1554,12 +1606,10 @@ func scanOrder(row scanner) (domain.Order, error) {
 	var customerID sql.NullString
 	var promised sql.NullString
 	var priority, commercial, fulfillment, payment, created, updated string
-	var quoteID sql.NullString
-	if err := row.Scan(&o.ID, &o.OrderNumber, &customerID, &o.CustomerNameSnapshot, &o.CustomerPhoneSnapshot, &created, &promised, &priority, &commercial, &fulfillment, &payment, &o.Notes, &o.SubtotalRial, &o.DiscountRial, &o.TotalRial, &o.EstimatedCostRial, &updated, &quoteID); err != nil {
+	if err := row.Scan(&o.ID, &o.OrderNumber, &customerID, &o.CustomerNameSnapshot, &o.CustomerPhoneSnapshot, &created, &promised, &priority, &commercial, &fulfillment, &payment, &o.Notes, &o.SubtotalRial, &o.DiscountRial, &o.TotalRial, &o.EstimatedCostRial, &updated); err != nil {
 		return o, err
 	}
 	o.CustomerID = customerID.String
-	o.QuoteID = quoteID.String
 	o.Priority = domain.Priority(priority)
 	o.CommercialStatus = domain.CommercialStatus(commercial)
 	o.FulfillmentStatus = domain.FulfillmentStatus(fulfillment)

@@ -245,7 +245,7 @@ const {busy,runAction,services,materials,machines,selectedId,searchQuery,service
               v-model="form.pricingRule.type"
               label="Rule"
               :options="[
-                { label: 'Manual / enter at quote time', value: 'manual' },
+                { label: 'Manual / enter at order time', value: 'manual' },
                 { label: 'Fixed selling price', value: 'fixed' },
                 { label: 'Cost plus markup %', value: 'markup' },
                 { label: 'Cost plus fixed margin', value: 'fixed-margin' },

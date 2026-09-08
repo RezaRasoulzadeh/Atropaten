@@ -2,7 +2,15 @@ package main
 
 import (
 	"Atropaten/internal/application"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type AttachmentDTO struct {
@@ -17,6 +25,11 @@ type AttachmentDTO struct {
 	Notes     string `json:"notes"`
 	SizeBytes *int64 `json:"sizeBytes"`
 	CreatedAt string `json:"createdAt"`
+}
+type AttachmentPreviewDTO struct {
+	FileName      string `json:"fileName"`
+	MIMEType      string `json:"mimeType"`
+	ContentBase64 string `json:"contentBase64"`
 }
 type ProofDTO struct {
 	ID           string  `json:"id"`
@@ -57,6 +70,63 @@ func (a *App) ListAttachments(ownerType, ownerID string) ([]AttachmentDTO, error
 	}
 	return out, nil
 }
+func (a *App) ReadAttachment(id string) (AttachmentPreviewDTO, error) {
+	s, e := a.metadataService()
+	if e != nil {
+		return AttachmentPreviewDTO{}, e
+	}
+	attachment, e := s.GetAttachment(a.materialContext(), id)
+	if e != nil {
+		return AttachmentPreviewDTO{}, e
+	}
+	data, e := os.ReadFile(attachment.Path)
+	if e != nil {
+		return AttachmentPreviewDTO{}, fmt.Errorf("read attachment: %w", e)
+	}
+	mimeType := attachment.MIMEType
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+	return AttachmentPreviewDTO{FileName: attachment.FileName, MIMEType: mimeType, ContentBase64: base64.StdEncoding.EncodeToString(data)}, nil
+}
+func (a *App) SaveAttachmentAs(id string) (bool, error) {
+	s, e := a.metadataService()
+	if e != nil {
+		return false, e
+	}
+	if a.ctx == nil {
+		return false, fmt.Errorf("application context is not initialized")
+	}
+	attachment, e := s.GetAttachment(a.materialContext(), id)
+	if e != nil {
+		return false, e
+	}
+	data, e := os.ReadFile(attachment.Path)
+	if e != nil {
+		return false, fmt.Errorf("read attachment: %w", e)
+	}
+
+	filterName := attachment.MIMEType
+	if filterName == "" {
+		filterName = "File"
+	}
+	destination, e := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:                "Save attachment as",
+		DefaultFilename:      attachment.FileName,
+		Filters:              []runtime.FileFilter{{DisplayName: filterName, Pattern: "*"}},
+		CanCreateDirectories: true,
+	})
+	if e != nil {
+		return false, fmt.Errorf("choose attachment destination: %w", e)
+	}
+	if destination == "" {
+		return false, nil
+	}
+	if e = os.WriteFile(destination, data, 0o600); e != nil {
+		return false, fmt.Errorf("save attachment: %w", e)
+	}
+	return true, nil
+}
 func (a *App) AddAttachment(ownerType, ownerID, fileName, path, mimeType string, sizeBytes *int64, checksum, category, notes string) (AttachmentDTO, error) {
 	s, e := a.metadataService()
 	if e != nil {
@@ -66,6 +136,56 @@ func (a *App) AddAttachment(ownerType, ownerID, fileName, path, mimeType string,
 	if e != nil {
 		return AttachmentDTO{}, e
 	}
+	return AttachmentDTO{ID: r.ID, OwnerType: r.OwnerType, OwnerID: r.OwnerID, FileName: r.FileName, Path: r.Path, MIMEType: r.MIMEType, SizeBytes: r.SizeBytes, Checksum: r.Checksum, Category: r.Category, Notes: r.Notes, CreatedAt: r.CreatedAt}, nil
+}
+func (a *App) ImportAttachment(ownerType, ownerID, fileName, mimeType, contentBase64, category, notes string) (AttachmentDTO, error) {
+	s, e := a.metadataService()
+	if e != nil {
+		return AttachmentDTO{}, e
+	}
+	ownerType = strings.TrimSpace(ownerType)
+	ownerID = strings.TrimSpace(ownerID)
+	fileName = filepath.Base(strings.ReplaceAll(strings.TrimSpace(fileName), "\\", "/"))
+	if ownerType != "order" || ownerID == "" || strings.ContainsAny(ownerID, `/\\`) || fileName == "" || fileName == "." {
+		return AttachmentDTO{}, fmt.Errorf("invalid managed attachment details")
+	}
+	data, e := base64.StdEncoding.DecodeString(contentBase64)
+	if e != nil {
+		return AttachmentDTO{}, fmt.Errorf("decode attachment: %w", e)
+	}
+	if len(data) == 0 {
+		return AttachmentDTO{}, fmt.Errorf("attachment file is empty")
+	}
+
+	directory := filepath.Join(a.paths.Attachments, ownerType, ownerID)
+	if e = os.MkdirAll(directory, 0o700); e != nil {
+		return AttachmentDTO{}, fmt.Errorf("create attachment directory: %w", e)
+	}
+	stored, e := os.CreateTemp(directory, "attachment-*")
+	if e != nil {
+		return AttachmentDTO{}, fmt.Errorf("create managed attachment: %w", e)
+	}
+	path := stored.Name()
+	removeStored := true
+	defer func() {
+		if removeStored {
+			_ = os.Remove(path)
+		}
+	}()
+	if _, e = stored.Write(data); e != nil {
+		_ = stored.Close()
+		return AttachmentDTO{}, fmt.Errorf("store attachment: %w", e)
+	}
+	if e = stored.Close(); e != nil {
+		return AttachmentDTO{}, fmt.Errorf("close managed attachment: %w", e)
+	}
+	digest := sha256.Sum256(data)
+	size := int64(len(data))
+	r, e := s.AddAttachment(a.materialContext(), ownerType, ownerID, fileName, path, mimeType, &size, hex.EncodeToString(digest[:]), category, notes)
+	if e != nil {
+		return AttachmentDTO{}, e
+	}
+	removeStored = false
 	return AttachmentDTO{ID: r.ID, OwnerType: r.OwnerType, OwnerID: r.OwnerID, FileName: r.FileName, Path: r.Path, MIMEType: r.MIMEType, SizeBytes: r.SizeBytes, Checksum: r.Checksum, Category: r.Category, Notes: r.Notes, CreatedAt: r.CreatedAt}, nil
 }
 func (a *App) RemoveAttachment(id string) error {

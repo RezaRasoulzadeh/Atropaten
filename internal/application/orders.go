@@ -15,6 +15,8 @@ type OrderRepository interface {
 	GetOrder(context.Context, string) (domain.Order, error)
 	CreateOrder(context.Context, domain.Order) error
 	SaveOrder(context.Context, domain.Order) error
+	SaveOrderMetadata(context.Context, domain.Order) error
+	DeleteOrder(context.Context, string) error
 }
 type OrderCustomerLookup interface {
 	GetCustomer(context.Context, string) (domain.Customer, error)
@@ -54,7 +56,6 @@ type OrderView struct {
 	PaidRial, RemainingRial                                               int64
 	InvoiceID, InvoiceStatus                                              string
 	InvoicedTotalRial                                                     int64
-	QuoteID                                                               string
 	ProductionJobCount, CompletedProductionJobs, InProgressProductionJobs int
 	Items                                                                 []OrderItemView
 }
@@ -157,9 +158,6 @@ func (s *OrdersService) Update(ctx context.Context, id string, input OrderInput)
 	if err != nil {
 		return OrderView{}, err
 	}
-	if row.CommercialStatus != domain.CommercialDraft {
-		return OrderView{}, fmt.Errorf("only draft orders can be edited")
-	}
 	if err := s.applyInput(ctx, &row, input); err != nil {
 		return OrderView{}, err
 	}
@@ -167,10 +165,14 @@ func (s *OrdersService) Update(ctx context.Context, id string, input OrderInput)
 	if err := row.RecalculateTotals(); err != nil {
 		return OrderView{}, err
 	}
-	if err := s.repository.SaveOrder(ctx, row); err != nil {
+	if err := s.repository.SaveOrderMetadata(ctx, row); err != nil {
 		return OrderView{}, err
 	}
 	return s.enrich(ctx, orderView(row))
+}
+
+func (s *OrdersService) Delete(ctx context.Context, id string) error {
+	return s.repository.DeleteOrder(ctx, strings.TrimSpace(id))
 }
 
 func (s *OrdersService) enrich(ctx context.Context, view OrderView) (OrderView, error) {
@@ -261,9 +263,6 @@ func (s *OrdersService) saveConfiguredItem(ctx context.Context, id string, pos i
 	if err != nil {
 		return OrderView{}, err
 	}
-	if row.CommercialStatus != domain.CommercialDraft {
-		return OrderView{}, fmt.Errorf("only draft orders can be changed")
-	}
 	if s.pricing == nil {
 		return OrderView{}, fmt.Errorf("pricing service unavailable")
 	}
@@ -320,9 +319,6 @@ func (s *OrdersService) RemoveItem(ctx context.Context, id, itemID string) (Orde
 	row, err := s.repository.GetOrder(ctx, id)
 	if err != nil {
 		return OrderView{}, err
-	}
-	if row.CommercialStatus != domain.CommercialDraft {
-		return OrderView{}, fmt.Errorf("only draft orders can be changed")
 	}
 	out := row.Items[:0]
 	found := false
@@ -384,15 +380,12 @@ func (s *OrdersService) ApplyDiscount(ctx context.Context, id string, discount i
 	if err != nil {
 		return OrderView{}, err
 	}
-	if row.CommercialStatus != domain.CommercialDraft {
-		return OrderView{}, fmt.Errorf("only draft orders can be changed")
-	}
 	row.DiscountRial = discount
 	if err := row.RecalculateTotals(); err != nil {
 		return OrderView{}, err
 	}
 	row.UpdatedAt = s.now().UTC()
-	if err := s.repository.SaveOrder(ctx, row); err != nil {
+	if err := s.repository.SaveOrderMetadata(ctx, row); err != nil {
 		return OrderView{}, err
 	}
 	return s.enrich(ctx, orderView(row))
@@ -423,13 +416,13 @@ func (s *OrdersService) SetFulfillmentStatus(ctx context.Context, id string, sta
 }
 func (s *OrdersService) saveStatus(ctx context.Context, row domain.Order) (OrderView, error) {
 	row.UpdatedAt = s.now().UTC()
-	if err := s.repository.SaveOrder(ctx, row); err != nil {
+	if err := s.repository.SaveOrderMetadata(ctx, row); err != nil {
 		return OrderView{}, err
 	}
 	return s.enrich(ctx, orderView(row))
 }
 func orderView(o domain.Order) OrderView {
-	v := OrderView{ID: o.ID, OrderNumber: o.OrderNumber, CustomerID: o.CustomerID, CustomerName: o.CustomerNameSnapshot, CustomerPhone: o.CustomerPhoneSnapshot, Notes: o.Notes, CreatedAt: o.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: o.UpdatedAt.UTC().Format(time.RFC3339Nano), Priority: string(o.Priority), CommercialStatus: string(o.CommercialStatus), FulfillmentStatus: string(o.FulfillmentStatus), PaymentStatus: string(o.PaymentStatus), SubtotalRial: o.SubtotalRial, DiscountRial: o.DiscountRial, TotalRial: o.TotalRial, EstimatedCostRial: o.EstimatedCostRial, QuoteID: o.QuoteID}
+	v := OrderView{ID: o.ID, OrderNumber: o.OrderNumber, CustomerID: o.CustomerID, CustomerName: o.CustomerNameSnapshot, CustomerPhone: o.CustomerPhoneSnapshot, Notes: o.Notes, CreatedAt: o.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: o.UpdatedAt.UTC().Format(time.RFC3339Nano), Priority: string(o.Priority), CommercialStatus: string(o.CommercialStatus), FulfillmentStatus: string(o.FulfillmentStatus), PaymentStatus: string(o.PaymentStatus), SubtotalRial: o.SubtotalRial, DiscountRial: o.DiscountRial, TotalRial: o.TotalRial, EstimatedCostRial: o.EstimatedCostRial}
 	if o.PromisedAt != nil {
 		x := o.PromisedAt.UTC().Format(time.RFC3339Nano)
 		v.PromisedAt = &x

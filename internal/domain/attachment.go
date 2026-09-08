@@ -14,7 +14,6 @@ var (
 type AttachmentOwnerType string
 
 const (
-	AttachmentQuote AttachmentOwnerType = "quote"
 	AttachmentOrder AttachmentOwnerType = "order"
 )
 
@@ -39,8 +38,8 @@ func (a Attachment) Validate() error {
 	if strings.TrimSpace(a.ID) == "" || strings.TrimSpace(a.OwnerID) == "" || strings.TrimSpace(a.FileName) == "" || strings.TrimSpace(a.Path) == "" {
 		return validationError("attachment", "id, owner, file name, and path are required")
 	}
-	if a.OwnerType != AttachmentQuote && a.OwnerType != AttachmentOrder {
-		return validationError("ownerType", "must be quote or order")
+	if a.OwnerType != AttachmentOrder {
+		return validationError("ownerType", "must be order")
 	}
 	if a.Category != AttachmentArtwork && a.Category != AttachmentProof && a.Category != AttachmentReference && a.Category != AttachmentOther {
 		return validationError("category", "is unsupported")

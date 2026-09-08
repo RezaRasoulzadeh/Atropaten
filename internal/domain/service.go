@@ -12,7 +12,7 @@ import (
 
 var (
 	ErrServiceNotFound        = errors.New("service not found")
-	ErrServiceDeleteProtected = errors.New("service has quote or order history; archive it instead")
+	ErrServiceDeleteProtected = errors.New("service has order or invoice history; archive it instead")
 	ErrParameterNotFound      = errors.New("service parameter not found")
 	ErrCostComponentNotFound  = errors.New("service cost component not found")
 )

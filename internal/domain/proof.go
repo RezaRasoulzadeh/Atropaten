@@ -30,8 +30,8 @@ func (p Proof) Validate() error {
 	if strings.TrimSpace(p.ID) == "" || strings.TrimSpace(p.OwnerID) == "" || strings.TrimSpace(p.VersionLabel) == "" {
 		return validationError("proof", "id, owner, and version label are required")
 	}
-	if p.OwnerType != AttachmentQuote && p.OwnerType != AttachmentOrder {
-		return validationError("ownerType", "must be quote or order")
+	if p.OwnerType != AttachmentOrder {
+		return validationError("ownerType", "must be order")
 	}
 	if p.Status != ProofDraft && p.Status != ProofReady && p.Status != ProofWaitingApproval && p.Status != ProofApproved && p.Status != ProofRejected {
 		return validationError("status", "is unsupported")

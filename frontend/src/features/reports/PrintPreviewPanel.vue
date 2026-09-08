@@ -28,10 +28,10 @@ async function loadPreview() {
 function printDocument() { window.print() }
 </script>
 <template>
-<AppPanel title="Print preview" subtitle="Load a saved quote, invoice, receipt or statement.">
+<AppPanel title="Print preview" subtitle="Load a saved invoice, receipt or statement.">
 <form class="grid min-w-0 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]" @submit.prevent="loadPreview">
-<SelectField v-model="kind" label="Document" :options="[{label:'Quote',value:'quote'},{label:'Invoice',value:'invoice'},{label:'Payment receipt',value:'payment_receipt'},{label:'Customer statement',value:'customer_statement'},{label:'Supplier statement',value:'supplier_statement'}]" />
-<FormField v-if="kind.includes('statement')" label="Party ID"><AppInput v-model="partyId" required placeholder="Customer or supplier ID" /></FormField><FormField v-else label="Record ID"><AppInput v-model="recordId" required placeholder="Invoice, quote or payment ID" /></FormField>
+<SelectField v-model="kind" label="Document" :options="[{label:'Invoice',value:'invoice'},{label:'Payment receipt',value:'payment_receipt'},{label:'Customer statement',value:'customer_statement'},{label:'Supplier statement',value:'supplier_statement'}]" />
+<FormField v-if="kind.includes('statement')" label="Party ID"><AppInput v-model="partyId" required placeholder="Customer or supplier ID" /></FormField><FormField v-else label="Record ID"><AppInput v-model="recordId" required placeholder="Invoice or payment ID" /></FormField>
 <button class="btn btn-primary" :disabled="busy"><FileText :size="15" />Load preview</button>
 </form>
 <InlineAlert v-if="error" :message="error" />

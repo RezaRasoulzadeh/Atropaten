@@ -45,7 +45,6 @@ type OrderDTO struct {
 	InvoiceID                string         `json:"invoiceId"`
 	InvoiceStatus            string         `json:"invoiceStatus"`
 	InvoicedTotalRial        int64          `json:"invoicedTotalRial"`
-	QuoteID                  string         `json:"quoteId"`
 	ProductionJobCount       int            `json:"productionJobCount"`
 	CompletedProductionJobs  int            `json:"completedProductionJobs"`
 	InProgressProductionJobs int            `json:"inProgressProductionJobs"`
@@ -132,6 +131,13 @@ func (a *App) UpdateOrder(id string, i OrderInput) (OrderDTO, error) {
 		return OrderDTO{}, e
 	}
 	return orderDTO(r), nil
+}
+func (a *App) DeleteOrder(id string) error {
+	s, e := a.orderService()
+	if e != nil {
+		return e
+	}
+	return s.Delete(a.materialContext(), id)
 }
 func (a *App) AddOrderItem(id string, i OrderItemInput) (OrderDTO, error) {
 	s, e := a.orderService()
@@ -225,7 +231,7 @@ func itemInput(i OrderItemInput) application.OrderItemInput {
 	return application.OrderItemInput{ServiceID: i.ServiceID, Parameters: i.Parameters, ManualCosts: i.ManualCosts, SellingPriceOverrideRial: i.SellingPriceOverrideRial, Quantity: i.Quantity, QuantityUnit: i.QuantityUnit, Notes: i.Notes}
 }
 func orderDTO(v application.OrderView) OrderDTO {
-	o := OrderDTO{ID: v.ID, OrderNumber: v.OrderNumber, CustomerID: v.CustomerID, CustomerName: v.CustomerName, CustomerPhone: v.CustomerPhone, Notes: v.Notes, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt, PromisedAt: v.PromisedAt, Priority: v.Priority, CommercialStatus: v.CommercialStatus, FulfillmentStatus: v.FulfillmentStatus, PaymentStatus: v.PaymentStatus, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, TotalRial: v.TotalRial, EstimatedCostRial: v.EstimatedCostRial, PaidRial: v.PaidRial, RemainingRial: v.RemainingRial, InvoiceID: v.InvoiceID, InvoiceStatus: v.InvoiceStatus, InvoicedTotalRial: v.InvoicedTotalRial, QuoteID: v.QuoteID, ProductionJobCount: v.ProductionJobCount, CompletedProductionJobs: v.CompletedProductionJobs, InProgressProductionJobs: v.InProgressProductionJobs}
+	o := OrderDTO{ID: v.ID, OrderNumber: v.OrderNumber, CustomerID: v.CustomerID, CustomerName: v.CustomerName, CustomerPhone: v.CustomerPhone, Notes: v.Notes, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt, PromisedAt: v.PromisedAt, Priority: v.Priority, CommercialStatus: v.CommercialStatus, FulfillmentStatus: v.FulfillmentStatus, PaymentStatus: v.PaymentStatus, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, TotalRial: v.TotalRial, EstimatedCostRial: v.EstimatedCostRial, PaidRial: v.PaidRial, RemainingRial: v.RemainingRial, InvoiceID: v.InvoiceID, InvoiceStatus: v.InvoiceStatus, InvoicedTotalRial: v.InvoicedTotalRial, ProductionJobCount: v.ProductionJobCount, CompletedProductionJobs: v.CompletedProductionJobs, InProgressProductionJobs: v.InProgressProductionJobs}
 	for _, i := range v.Items {
 		o.Items = append(o.Items, OrderItemDTO{ID: i.ID, Position: i.Position, ServiceID: i.ServiceID, ServiceName: i.ServiceName, ServiceCode: i.ServiceCode, Quantity: i.Quantity, QuantityUnit: i.QuantityUnit, ResolvedParametersJSON: i.ResolvedParametersJSON, CostBreakdownJSON: i.CostBreakdownJSON, PricingSnapshotJSON: i.PricingSnapshotJSON, EstimatedCostRial: i.EstimatedCostRial, SuggestedPriceRial: i.SuggestedPriceRial, SellingPriceRial: i.SellingPriceRial, Notes: i.Notes})
 	}

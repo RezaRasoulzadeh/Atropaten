@@ -20,7 +20,7 @@ func TestGenerateIsDeterministicAndInterconnected(t *testing.T) {
 	}
 	want := map[string]int{
 		"customers": 4, "suppliers": 3, "materials": 4, "services": 3, "machines": 3,
-		"purchases": 3, "quotes": 5, "orders": 4, "production": 2, "invoices": 2,
+		"purchases": 3, "orders": 4, "production": 2, "invoices": 2,
 		"payments": 2, "expenses": 1, "transfers": 1, "checks": 2, "loans": 1,
 		"owners": 2, "periods": 1,
 	}

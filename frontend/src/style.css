@@ -62,6 +62,12 @@
   line-height: 1rem;
 }
 
+.btn-outline {
+  --btn-color: var(--color-primary);
+  --btn-rest-fg: var(--color-primary);
+  --btn-fg: var(--color-primary-content);
+}
+
 /* The width stays at 1px in every state, including validation failures. */
 .input, .select, .textarea {
   border: 1px solid var(--color-base-300);

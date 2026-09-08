@@ -63,38 +63,86 @@ function tone(s: string) {
 </script>
 <template>
   <section class="min-w-0 space-y-4">
-    <header class="flex min-w-0 flex-wrap items-start justify-between gap-3">
-      <div class="min-w-0 space-y-3">
-        <h2 class="text-base font-semibold">Production jobs</h2>
-        <p>{{ jobs.length }} jobs · {{ progress }}% completed · independent from payment</p>
+    <header class="rounded-box border border-base-300 bg-base-100 p-4">
+      <div class="flex min-w-0 flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h2 class="text-base font-semibold">Production jobs</h2>
+          <p class="mt-1 text-xs text-base-content/60">
+            Track execution independently from payment and commercial status.
+          </p>
+        </div>
+        <div class="shrink-0 text-end">
+          <strong class="block text-lg tabular-nums">{{ jobs.length }}</strong>
+          <span class="text-xs text-base-content/60">{{ progress }}% completed</span>
+        </div>
       </div>
-      <Factory :size="19" aria-hidden="true" />
+      <div class="mt-4 h-2 overflow-hidden rounded-full bg-base-300" aria-hidden="true">
+        <div
+          class="h-full rounded-full bg-primary transition-[width] duration-300"
+          :style="{ width: `${progress}%` }"
+        ></div>
+      </div>
     </header>
     <InlineAlert v-if="error" tone="error">{{ error }}</InlineAlert>
-    <div v-else-if="jobs.length">
+    <div v-else-if="jobs.length" class="space-y-3">
       <div
         v-for="job in jobs"
         :key="job.id"
-        class="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-base-300 py-3 last:border-0"
+        class="min-w-0 rounded-box border border-base-300 bg-base-100 p-4"
       >
-        <span><Factory :size="16" /></span>
-        <div class="min-w-0 space-y-1">
-          <strong>{{ job.jobNumber }} · {{ job.serviceName }}</strong
-          ><small class="block text-xs leading-5 text-base-content/60"
-            >{{ job.quantity }} {{ job.quantityUnit }} ·
-            {{ job.createdAt ? formatDateTime(job.createdAt) : '—' }} ·
-            {{ reservedCount(job.id) }} active reservations · {{ usageCount(job.id) }} used /
-            waste</small
-          >
+        <div class="flex min-w-0 flex-wrap items-start justify-between gap-4">
+          <div class="flex min-w-0 items-start gap-3">
+            <div class="grid size-9 shrink-0 place-items-center rounded-box bg-base-200 text-primary">
+              <Factory :size="17" aria-hidden="true" />
+            </div>
+            <div class="min-w-0">
+              <div class="flex min-w-0 flex-wrap items-center gap-2">
+                <strong class="truncate text-sm">{{ job.jobNumber }}</strong>
+                <StatusBadge :label="job.status" :tone="tone(job.status)" />
+              </div>
+              <p class="mt-1 truncate text-sm text-base-content/80">{{ job.serviceName }}</p>
+            </div>
+          </div>
+          <div class="shrink-0 text-end">
+            <span class="block text-xs text-base-content/50">Actual cost</span>
+            <strong class="block text-sm tabular-nums">{{
+              formatMoney(job.actualTotalCostRial, props.currencyUnit)
+            }}</strong>
+          </div>
         </div>
-        <StatusBadge :label="job.status" :tone="tone(job.status)" /><span>{{
-          formatMoney(job.actualTotalCostRial, props.currencyUnit)
-        }}</span>
+        <div class="mt-4 grid min-w-0 gap-3 border-t border-base-300 pt-3 text-xs sm:grid-cols-3">
+          <div class="min-w-0">
+            <span class="block text-base-content/50">Quantity</span>
+            <strong class="block truncate font-medium text-base-content/80"
+              >{{ job.quantity }} {{ job.quantityUnit }}</strong
+            >
+          </div>
+          <div class="min-w-0">
+            <span class="block text-base-content/50">Created</span>
+            <strong class="block truncate font-medium text-base-content/80">{{
+              job.createdAt ? formatDateTime(job.createdAt) : '—'
+            }}</strong>
+          </div>
+          <div class="min-w-0">
+            <span class="block text-base-content/50">Material activity</span>
+            <strong class="block truncate font-medium text-base-content/80"
+              >{{ reservedCount(job.id) }} reservations · {{ usageCount(job.id) }} used / waste</strong
+            >
+          </div>
+        </div>
       </div>
     </div>
-    <div v-else class="min-w-0 space-y-3">
-      <PackageOpen :size="21" /><strong>No production jobs linked yet</strong
-      ><span>Confirm the order, then create a job from the Production workspace.</span>
+    <div
+      v-else
+      class="flex min-h-56 min-w-0 flex-col items-center justify-center rounded-box border border-dashed border-base-300 bg-base-100 p-8 text-center"
+    >
+      <div class="grid size-14 place-items-center rounded-full bg-base-200 text-primary">
+        <PackageOpen :size="28" :stroke-width="1.5" aria-hidden="true" />
+      </div>
+      <strong class="mt-4 text-base">No production jobs linked yet</strong>
+      <span class="mt-1 max-w-sm text-xs leading-5 text-base-content/60"
+        >Confirm the order, then create a job from the Production workspace.</span
+      >
     </div>
   </section>
 </template>

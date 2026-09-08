@@ -13,7 +13,6 @@ import {
   Package,
   Printer,
   ReceiptText,
-  FileText,
   Settings,
   ShoppingCart,
   Sparkles,
@@ -35,9 +34,6 @@ import MaterialsView from '../features/materials/MaterialsView.vue';
 import ServicesView from '../features/services/ServicesView.vue';
 import MachinesView from '../features/machines/MachinesView.vue';
 import CustomersView from '../features/customers/CustomersView.vue';
-import QuotesView from '../features/quotes/QuotesView.vue';
-import QuoteWorkspaceView from '../features/quotes/QuoteWorkspaceView.vue';
-import { quotesApi, type QuoteRecord } from '../api/quotes';
 import SuppliersView from '../features/suppliers/SuppliersView.vue';
 import PurchasesView from '../features/purchases/PurchasesView.vue';
 import ProductionView from '../features/production/ProductionView.vue';
@@ -66,7 +62,6 @@ const navigationSections: { label: string; items: NavigationItem[] }[] = [
     items: [
       { label: 'Dashboard', icon: LayoutDashboard },
       { label: 'Orders', icon: ClipboardList },
-      { label: 'Quotes', icon: FileText },
       { label: 'Production', icon: Printer },
       { label: 'Customers', icon: Users },
     ],
@@ -114,15 +109,11 @@ const searchQuery = ref('');
 const currencyUnit = ref<CurrencyUnit>('Toman');
 const hasNotifications = ref(false);
 const selectedOrderId = ref<string | null>(null);
-const selectedQuoteId = ref<string | null>(null);
 const orders = ref<OrderRecord[]>([]);
-const quotes = ref<QuoteRecord[]>([]);
 const suppliers = ref<SupplierRecord[]>([]);
 const purchases = ref<PurchaseRecord[]>([]);
 const ordersLoading = ref(false);
 const ordersError = ref('');
-const quotesLoading = ref(false);
-const quotesError = ref('');
 const customers = ref<any[]>([]);
 const catalogServices = ref<any[]>([]);
 const catalogMaterials = ref<any[]>([]);
@@ -139,13 +130,8 @@ function selectView(label: string) {
   activeView.value = label;
   isDrawerOpen.value = false;
   selectedOrderId.value = null;
-  selectedQuoteId.value = null;
   if (label === 'Orders') {
     loadOrders();
-    loadOrderCatalog();
-  }
-  if (label === 'Quotes') {
-    loadQuotes();
     loadOrderCatalog();
   }
   if (label === 'Suppliers') loadSuppliers();
@@ -158,9 +144,6 @@ function selectView(label: string) {
 
 const selectedOrder = computed(
   () => orders.value.find((order) => order.id === selectedOrderId.value) ?? null,
-);
-const selectedQuote = computed(
-  () => quotes.value.find((quote) => quote.id === selectedQuoteId.value) ?? null,
 );
 
 async function loadOrders() {
@@ -186,18 +169,6 @@ async function loadOrderCatalog() {
     toast.error(error, 'Catalog');
   }
 }
-async function loadQuotes() {
-  quotesLoading.value = true;
-  quotesError.value = '';
-  try {
-    quotes.value = await quotesApi.list();
-  } catch (error) {
-    quotesError.value = normalizeError(error).message;
-    toast.error(error, 'Quotes');
-  } finally {
-    quotesLoading.value = false;
-  }
-}
 async function loadSuppliers() {
   try {
     suppliers.value = await suppliersApi.list(true);
@@ -217,11 +188,6 @@ function openOrder(orderId: string) {
   activeView.value = 'Orders';
   selectedOrderId.value = orderId;
 }
-function openQuote(quoteId: string) {
-  activeView.value = 'Quotes';
-  selectedQuoteId.value = quoteId;
-}
-
 async function openNewOrder() {
   activeView.value = 'Orders';
   try {
@@ -243,43 +209,15 @@ function closeOrderWorkspace() {
   activeView.value = 'Orders';
   selectedOrderId.value = null;
 }
-function closeQuoteWorkspace() {
-  activeView.value = 'Quotes';
-  selectedQuoteId.value = null;
+function removeOrder(orderId: string) {
+  orders.value = orders.value.filter((order) => order.id !== orderId);
+  closeOrderWorkspace();
 }
-
 function updateOrder(order: OrderRecord) {
   orders.value = orders.value.some((item) => item.id === order.id)
     ? orders.value.map((item) => (item.id === order.id ? order : item))
     : [order, ...orders.value];
 }
-function updateQuote(quote: QuoteRecord) {
-  quotes.value = quotes.value.some((item) => item.id === quote.id)
-    ? quotes.value.map((item) => (item.id === quote.id ? quote : item))
-    : [quote, ...quotes.value];
-}
-async function openNewQuote() {
-  activeView.value = 'Quotes';
-  try {
-    const quote = await quotesApi.create({
-      customerId: '',
-      expiryDate: null,
-      notes: '',
-      discountRial: 0,
-    });
-    quotes.value = [quote, ...quotes.value];
-    selectedQuoteId.value = quote.id;
-  } catch (error) {
-    toast.error(error, 'New quote');
-  }
-}
-function openConvertedOrder(orderId: string) {
-  selectedQuoteId.value = null;
-  activeView.value = 'Orders';
-  loadOrders();
-  selectedOrderId.value = orderId;
-}
-
 function syncViewport() {
   isDesktop.value = desktopMediaQuery?.matches ?? window.innerWidth >= 896;
 }
@@ -304,7 +242,6 @@ onMounted(() => {
   document.addEventListener('click', closeDrawerOnOutsideClick);
   loadOrderCatalog();
   loadOrders();
-  loadQuotes();
   loadSuppliers();
   loadPurchases();
 });
@@ -374,6 +311,7 @@ function openNotifications() {
                 :services="catalogServices"
                 :materials="catalogMaterials"
                 @back="closeOrderWorkspace"
+                @removed="removeOrder"
                 @notify="showToast"
                 @saved="updateOrder"
               />
@@ -386,34 +324,6 @@ function openNotifications() {
                 :currency-unit="currencyUnit"
                 @open-order="openOrder"
                 @new-order="openNewOrder"
-              />
-            </Transition>
-          </div>
-
-          <div v-else-if="activeView === 'Quotes'" key="quotes">
-            <Transition mode="out-in">
-              <QuoteWorkspaceView
-                v-if="selectedQuote"
-                :key="selectedQuote.id"
-                :quote="selectedQuote"
-                :currency-unit="currencyUnit"
-                :customers="customers"
-                :services="catalogServices"
-                :materials="catalogMaterials"
-                @back="closeQuoteWorkspace"
-                @notify="showToast"
-                @saved="updateQuote"
-                @converted="openConvertedOrder"
-              />
-              <QuotesView
-                v-else
-                key="quotes-list"
-                :quotes="quotes"
-                :loading="quotesLoading"
-                :error="quotesError"
-                :currency-unit="currencyUnit"
-                @open-quote="openQuote"
-                @new-quote="openNewQuote"
               />
             </Transition>
           </div>

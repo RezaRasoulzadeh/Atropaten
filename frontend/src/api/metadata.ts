@@ -1,9 +1,12 @@
 import {
   AddAttachment,
   CreateProof,
+  ImportAttachment,
   ListAttachments,
   ListProofs,
+  ReadAttachment,
   RemoveAttachment,
+  SaveAttachmentAs,
   UpdateProofStatus,
 } from '../../wailsjs/go/main/App'
 export interface AttachmentRecord {
@@ -18,6 +21,11 @@ export interface AttachmentRecord {
   category: string
   notes: string
   createdAt: string
+}
+export interface AttachmentPreviewRecord {
+  fileName: string
+  mimeType: string
+  contentBase64: string
 }
 export interface ProofRecord {
   id: string
@@ -36,6 +44,12 @@ export interface ProofRecord {
 export const metadataApi = {
   attachments(ownerType: string, ownerId: string): Promise<AttachmentRecord[]> {
     return ListAttachments(ownerType, ownerId) as unknown as Promise<AttachmentRecord[]>
+  },
+  readAttachment(id: string): Promise<AttachmentPreviewRecord> {
+    return ReadAttachment(id) as unknown as Promise<AttachmentPreviewRecord>
+  },
+  saveAttachment(id: string): Promise<boolean> {
+    return SaveAttachmentAs(id) as unknown as Promise<boolean>
   },
   addAttachment(input: {
     ownerType: string
@@ -56,6 +70,25 @@ export const metadataApi = {
       input.mimeType,
       input.sizeBytes,
       input.checksum,
+      input.category,
+      input.notes,
+    ) as unknown as Promise<AttachmentRecord>
+  },
+  importAttachment(input: {
+    ownerType: string
+    ownerId: string
+    fileName: string
+    mimeType: string
+    contentBase64: string
+    category: string
+    notes: string
+  }): Promise<AttachmentRecord> {
+    return ImportAttachment(
+      input.ownerType,
+      input.ownerId,
+      input.fileName,
+      input.mimeType,
+      input.contentBase64,
       input.category,
       input.notes,
     ) as unknown as Promise<AttachmentRecord>

@@ -55,7 +55,7 @@ func TestBackupRoundTripPreservesDatabaseAndManagedFiles(t *testing.T) {
 	if err = os.WriteFile(managed, []byte("immutable artwork"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = store.db.Exec(`INSERT INTO attachments(id,owner_type,owner_id,file_name,path,mime_type,size_bytes,checksum,category,notes,created_at) VALUES('ATT-backup','quote','QUO-backup','sample.txt',?,'text/plain',16,'','artwork','',?)`, managed, when); err != nil {
+	if _, err = store.db.Exec(`INSERT INTO attachments(id,owner_type,owner_id,file_name,path,mime_type,size_bytes,checksum,category,notes,created_at) VALUES('ATT-backup','order','ORD-backup','sample.txt',?,'text/plain',16,'','artwork','',?)`, managed, when); err != nil {
 		t.Fatal(err)
 	}
 	service := platform.NewBackupService(paths, store, ValidateDatabaseFile)
@@ -367,7 +367,7 @@ func TestBackupRejectsExternalManagedFilesInsteadOfSilentlyDroppingThem(t *testi
 	if err = os.WriteFile(external, []byte("external"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = store.db.Exec(`INSERT INTO attachments(id,owner_type,owner_id,file_name,path,mime_type,size_bytes,checksum,category,notes,created_at) VALUES('ATT-external','quote','QUO-external','external-proof.pdf',?,'application/pdf',8,'','proof','',?)`, external, time.Now().UTC()); err != nil {
+	if _, err = store.db.Exec(`INSERT INTO attachments(id,owner_type,owner_id,file_name,path,mime_type,size_bytes,checksum,category,notes,created_at) VALUES('ATT-external','order','ORD-external','external-proof.pdf',?,'application/pdf',8,'','proof','',?)`, external, time.Now().UTC()); err != nil {
 		t.Fatal(err)
 	}
 	service := platform.NewBackupService(paths, store, ValidateDatabaseFile)

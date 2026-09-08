@@ -18,7 +18,6 @@ type App struct {
 	machines     *application.MachinesService
 	customers    *application.CustomersService
 	orders       *application.OrdersService
-	quotes       *application.QuotesService
 	metadata     *application.MetadataService
 	suppliers    *application.SuppliersService
 	purchases    *application.PurchasesService
@@ -72,7 +71,6 @@ func (a *App) configureServices(database *sqlite.Store) {
 	a.pricing = application.NewPricingService(database, database, database)
 	a.customers = application.NewCustomersService(database)
 	a.orders = application.NewOrdersService(database, database, a.pricing)
-	a.quotes = application.NewQuotesService(database, database, a.pricing)
 	a.metadata = application.NewMetadataService(database, database)
 	a.suppliers = application.NewSuppliersService(database)
 	a.purchases = application.NewPurchasesService(database, database, database)

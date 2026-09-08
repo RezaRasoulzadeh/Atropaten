@@ -14,10 +14,6 @@ export function AddPurchaseItem(arg1, arg2) {
   return window['go']['main']['App']['AddPurchaseItem'](arg1, arg2);
 }
 
-export function AddQuoteItem(arg1, arg2) {
-  return window['go']['main']['App']['AddQuoteItem'](arg1, arg2);
-}
-
 export function AddServiceCostComponent(arg1, arg2) {
   return window['go']['main']['App']['AddServiceCostComponent'](arg1, arg2);
 }
@@ -32,10 +28,6 @@ export function AdjustMaterialStock(arg1, arg2, arg3, arg4) {
 
 export function ApplyOrderDiscount(arg1, arg2) {
   return window['go']['main']['App']['ApplyOrderDiscount'](arg1, arg2);
-}
-
-export function ApplyQuoteDiscount(arg1, arg2) {
-  return window['go']['main']['App']['ApplyQuoteDiscount'](arg1, arg2);
 }
 
 export function ArchiveCustomer(arg1) {
@@ -72,10 +64,6 @@ export function CancelPurchase(arg1) {
 
 export function CloseFiscalPeriod(arg1, arg2) {
   return window['go']['main']['App']['CloseFiscalPeriod'](arg1, arg2);
-}
-
-export function ConvertQuoteToOrder(arg1) {
-  return window['go']['main']['App']['ConvertQuoteToOrder'](arg1);
 }
 
 export function CreateBackup() {
@@ -150,10 +138,6 @@ export function CreatePurchase(arg1) {
   return window['go']['main']['App']['CreatePurchase'](arg1);
 }
 
-export function CreateQuote(arg1) {
-  return window['go']['main']['App']['CreateQuote'](arg1);
-}
-
 export function CreateService(arg1) {
   return window['go']['main']['App']['CreateService'](arg1);
 }
@@ -188,6 +172,10 @@ export function DeleteMachine(arg1) {
 
 export function DeleteMaterial(arg1) {
   return window['go']['main']['App']['DeleteMaterial'](arg1);
+}
+
+export function DeleteOrder(arg1) {
+  return window['go']['main']['App']['DeleteOrder'](arg1);
 }
 
 export function DeleteOwner(arg1) {
@@ -270,10 +258,6 @@ export function GetPurchase(arg1) {
   return window['go']['main']['App']['GetPurchase'](arg1);
 }
 
-export function GetQuote(arg1) {
-  return window['go']['main']['App']['GetQuote'](arg1);
-}
-
 export function GetReport(arg1, arg2, arg3) {
   return window['go']['main']['App']['GetReport'](arg1, arg2, arg3);
 }
@@ -292,6 +276,10 @@ export function GetSupplier(arg1) {
 
 export function GetSupplierPayableBalance(arg1) {
   return window['go']['main']['App']['GetSupplierPayableBalance'](arg1);
+}
+
+export function ImportAttachment(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['main']['App']['ImportAttachment'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
 
 export function ListAccounts() {
@@ -390,10 +378,6 @@ export function ListPurchases() {
   return window['go']['main']['App']['ListPurchases']();
 }
 
-export function ListQuotes() {
-  return window['go']['main']['App']['ListQuotes']();
-}
-
 export function ListServices(arg1) {
   return window['go']['main']['App']['ListServices'](arg1);
 }
@@ -442,6 +426,10 @@ export function ReactivateSupplier(arg1) {
   return window['go']['main']['App']['ReactivateSupplier'](arg1);
 }
 
+export function ReadAttachment(arg1) {
+  return window['go']['main']['App']['ReadAttachment'](arg1);
+}
+
 export function RecordProductionConsumption(arg1, arg2) {
   return window['go']['main']['App']['RecordProductionConsumption'](arg1, arg2);
 }
@@ -462,10 +450,6 @@ export function RemovePurchaseItem(arg1, arg2) {
   return window['go']['main']['App']['RemovePurchaseItem'](arg1, arg2);
 }
 
-export function RemoveQuoteItem(arg1, arg2) {
-  return window['go']['main']['App']['RemoveQuoteItem'](arg1, arg2);
-}
-
 export function RemoveServiceCostComponent(arg1, arg2) {
   return window['go']['main']['App']['RemoveServiceCostComponent'](arg1, arg2);
 }
@@ -482,10 +466,6 @@ export function ReorderPurchaseItems(arg1, arg2) {
   return window['go']['main']['App']['ReorderPurchaseItems'](arg1, arg2);
 }
 
-export function ReorderQuoteItems(arg1, arg2) {
-  return window['go']['main']['App']['ReorderQuoteItems'](arg1, arg2);
-}
-
 export function ReorderServiceCostComponents(arg1, arg2) {
   return window['go']['main']['App']['ReorderServiceCostComponents'](arg1, arg2);
 }
@@ -496,10 +476,6 @@ export function ReorderServiceParameters(arg1, arg2) {
 
 export function ReplaceOrderItem(arg1, arg2, arg3) {
   return window['go']['main']['App']['ReplaceOrderItem'](arg1, arg2, arg3);
-}
-
-export function ReplaceQuoteItem(arg1, arg2, arg3) {
-  return window['go']['main']['App']['ReplaceQuoteItem'](arg1, arg2, arg3);
 }
 
 export function RestoreBackup(arg1) {
@@ -528,6 +504,10 @@ export function ReverseProductionConsumption(arg1, arg2) {
 
 export function ReverseTransfer(arg1, arg2) {
   return window['go']['main']['App']['ReverseTransfer'](arg1, arg2);
+}
+
+export function SaveAttachmentAs(arg1) {
+  return window['go']['main']['App']['SaveAttachmentAs'](arg1);
 }
 
 export function SaveShopSettings(arg1) {
@@ -596,14 +576,6 @@ export function UpdatePurchase(arg1, arg2) {
 
 export function UpdatePurchaseItem(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdatePurchaseItem'](arg1, arg2, arg3);
-}
-
-export function UpdateQuote(arg1, arg2) {
-  return window['go']['main']['App']['UpdateQuote'](arg1, arg2);
-}
-
-export function UpdateQuoteStatus(arg1, arg2) {
-  return window['go']['main']['App']['UpdateQuoteStatus'](arg1, arg2);
 }
 
 export function UpdateService(arg1, arg2) {

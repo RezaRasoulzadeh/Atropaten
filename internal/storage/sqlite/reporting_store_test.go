@@ -74,19 +74,6 @@ func TestReportsReconcileJournalLinesAndPersistedSettings(t *testing.T) {
 			t.Fatalf("%s query: %v", kind, err)
 		}
 	}
-	quote := domain.NewQuote("QUO-report", "", when)
-	quote.CustomerNameSnapshot = "Historical Customer"
-	quote.Items = []domain.QuoteItem{{ID: "QIT-report", QuoteID: quote.ID, Position: 0, ServiceNameSnapshot: "Saved service", Quantity: domain.QuantityScale, QuantityUnit: "unit", SellingPriceRial: 1234}}
-	if err = quote.RecalculateTotals(); err != nil {
-		t.Fatal(err)
-	}
-	if err = s.CreateQuote(ctx, quote); err != nil {
-		t.Fatal(err)
-	}
-	doc, err := s.PrintDocument(ctx, "quote", quote.ID, "", "", "")
-	if err != nil || doc.CustomerName != "Historical Customer" || doc.TotalRial != 1234 || len(doc.Lines) != 1 {
-		t.Fatalf("print document=%+v err=%v", doc, err)
-	}
 }
 
 func TestInventoryReportUsesMovementLedger(t *testing.T) {
