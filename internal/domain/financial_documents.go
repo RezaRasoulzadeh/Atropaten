@@ -84,8 +84,8 @@ type Expense struct {
 }
 
 func (e Expense) Validate() error {
-	if e.ID == "" || e.CategoryAccountID == "" || e.FinancialAccountID == "" || e.Description == "" || e.AmountRial <= 0 || e.Status != "Posted" {
-		return fmt.Errorf("expense requires account, financial account, description, positive amount, and Posted status")
+	if e.ID == "" || e.CategoryAccountID == "" || e.FinancialAccountID == "" || e.AmountRial <= 0 || e.Status != "Posted" {
+		return fmt.Errorf("expense requires account, financial account, positive amount, and Posted status")
 	}
 	return nil
 }

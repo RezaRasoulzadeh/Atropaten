@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"Atropaten/internal/domain"
@@ -52,6 +53,11 @@ func (s *Store) CreateExpense(ctx context.Context, v domain.Expense) (domain.Exp
 	if err := v.Validate(); err != nil {
 		return domain.Expense{}, err
 	}
+	description := strings.TrimSpace(v.Description)
+	if description == "" {
+		description = "Expense"
+	}
+	v.Description = description
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return domain.Expense{}, err
@@ -82,7 +88,7 @@ func (s *Store) CreateExpense(ctx context.Context, v domain.Expense) (domain.Exp
 		return fail(fmt.Errorf("expense category must be an expense account"))
 	}
 	je := "JE-EXP-" + v.ID
-	entry := domain.JournalEntry{ID: je, Description: v.Description, SourceType: "expense", SourceID: v.ID, IdempotencyKey: "expense:" + v.IdempotencyKey, PostedAt: v.ExpenseDate, CreatedAt: v.CreatedAt, Lines: []domain.JournalLine{{ID: je + "-L1", JournalEntryID: je, Position: 0, AccountID: v.CategoryAccountID, DebitRial: v.AmountRial, PartyType: "supplier", PartyID: v.SupplierID, Memo: v.Description}, {ID: je + "-L2", JournalEntryID: je, Position: 1, AccountID: ledger, CreditRial: v.AmountRial, Memo: "Cash/Bank expense payment"}}}
+	entry := domain.JournalEntry{ID: je, Description: description, SourceType: "expense", SourceID: v.ID, IdempotencyKey: "expense:" + v.IdempotencyKey, PostedAt: v.ExpenseDate, CreatedAt: v.CreatedAt, Lines: []domain.JournalLine{{ID: je + "-L1", JournalEntryID: je, Position: 0, AccountID: v.CategoryAccountID, DebitRial: v.AmountRial, PartyType: "supplier", PartyID: v.SupplierID, Memo: description}, {ID: je + "-L2", JournalEntryID: je, Position: 1, AccountID: ledger, CreditRial: v.AmountRial, Memo: "Cash/Bank expense payment"}}}
 	if _, err = s.postJournalTx(ctx, tx, entry); err != nil {
 		return fail(err)
 	}
@@ -101,6 +107,99 @@ func (s *Store) CreateExpense(ctx context.Context, v domain.Expense) (domain.Exp
 		return domain.Expense{}, err
 	}
 	return s.GetExpense(ctx, v.ID)
+}
+func (s *Store) UpdateExpense(ctx context.Context, v domain.Expense) (domain.Expense, error) {
+	existing, err := s.GetExpense(ctx, v.ID)
+	if err != nil {
+		return domain.Expense{}, err
+	}
+	if v.Status == "" {
+		v.Status = "Posted"
+	}
+	if v.CreatedAt.IsZero() {
+		v.CreatedAt = existing.CreatedAt
+	}
+	if v.ExpenseDate.IsZero() {
+		v.ExpenseDate = existing.ExpenseDate
+	}
+	if v.UpdatedAt.IsZero() {
+		v.UpdatedAt = time.Now().UTC()
+	}
+	v.ExpenseNumber = existing.ExpenseNumber
+	v.IdempotencyKey = existing.IdempotencyKey
+	if err := v.Validate(); err != nil {
+		return domain.Expense{}, err
+	}
+	description := strings.TrimSpace(v.Description)
+	if description == "" {
+		description = "Expense"
+	}
+	v.Description = description
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return domain.Expense{}, err
+	}
+	fail := func(e error) (domain.Expense, error) { tx.Rollback(); return domain.Expense{}, e }
+	var active int
+	var ledger string
+	if err = tx.QueryRowContext(ctx, `SELECT active,ledger_account_id FROM financial_accounts WHERE id=?`, v.FinancialAccountID).Scan(&active, &ledger); errors.Is(err, sql.ErrNoRows) {
+		return fail(domain.ErrFinancialAccountNotFound)
+	} else if err != nil {
+		return fail(err)
+	}
+	if active == 0 {
+		return fail(domain.ErrAccountInactive)
+	}
+	var typ string
+	if err = tx.QueryRowContext(ctx, `SELECT type FROM accounts WHERE id=? AND active=1`, v.CategoryAccountID).Scan(&typ); err != nil {
+		return fail(domain.ErrAccountNotFound)
+	}
+	if typ != "expense" {
+		return fail(fmt.Errorf("expense category must be an expense account"))
+	}
+	now := time.Now().UTC()
+	stamp := fmt.Sprint(now.UnixNano())
+	if existing.Status == "Posted" {
+		if _, err = s.reverseJournalTx(ctx, tx, existing.JournalEntryID, "expense:edit:reverse:"+v.ID+":"+stamp, "Edit reversal of expense "+v.ExpenseNumber, now); err != nil {
+			return fail(err)
+		}
+	}
+	journalID := "JE-EXP-" + v.ID + "-" + stamp
+	entry := domain.JournalEntry{ID: journalID, Description: description, SourceType: "expense", SourceID: v.ID, IdempotencyKey: "expense:edit:" + v.ID + ":" + stamp, PostedAt: v.ExpenseDate, CreatedAt: now, Lines: []domain.JournalLine{{ID: journalID + "-L1", JournalEntryID: journalID, Position: 0, AccountID: v.CategoryAccountID, DebitRial: v.AmountRial, PartyType: "supplier", PartyID: v.SupplierID, Memo: description}, {ID: journalID + "-L2", JournalEntryID: journalID, Position: 1, AccountID: ledger, CreditRial: v.AmountRial, Memo: "Cash/Bank expense payment"}}}
+	if _, err = s.postJournalTx(ctx, tx, entry); err != nil {
+		return fail(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE expenses SET expense_date=?,category_account_id=?,payee=?,supplier_id=?,description=?,amount_rial=?,payment_method=?,financial_account_id=?,notes=?,status='Posted',journal_entry_id=?,updated_at=? WHERE id=?`, v.ExpenseDate.UTC().Format(time.RFC3339Nano), v.CategoryAccountID, v.Payee, nullableString(v.SupplierID), v.Description, v.AmountRial, v.PaymentMethod, v.FinancialAccountID, v.Notes, journalID, v.UpdatedAt.UTC().Format(time.RFC3339Nano), v.ID); err != nil {
+		return fail(err)
+	}
+	if err = tx.Commit(); err != nil {
+		return domain.Expense{}, err
+	}
+	return s.GetExpense(ctx, v.ID)
+}
+func (s *Store) DeleteExpense(ctx context.Context, id string) error {
+	existing, err := s.GetExpense(ctx, id)
+	if err != nil {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	fail := func(e error) error { tx.Rollback(); return e }
+	if existing.Status == "Posted" {
+		stamp := fmt.Sprint(time.Now().UnixNano())
+		if _, err = s.reverseJournalTx(ctx, tx, existing.JournalEntryID, "expense:delete:"+id+":"+stamp, "Removal of expense "+existing.ExpenseNumber, time.Now().UTC()); err != nil {
+			return fail(err)
+		}
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM expenses WHERE id=?`, id); err != nil {
+		return fail(err)
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	return nil
 }
 func (s *Store) ReverseExpense(ctx context.Context, id, key string) (domain.Expense, error) {
 	tx, err := s.db.BeginTx(ctx, nil)

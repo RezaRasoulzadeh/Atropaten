@@ -78,7 +78,7 @@ func (s *Store) DeleteSupplier(ctx context.Context, id string) error {
 }
 
 func (s *Store) ListPurchases(ctx context.Context) ([]domain.Purchase, error) {
-	rows, e := s.db.QueryContext(ctx, `SELECT id,purchase_number,supplier_id,supplier_name_snapshot,supplier_code_snapshot,supplier_invoice_number,purchase_date,status,notes,subtotal_rial,discount_rial,shipping_rial,tax_rial,additional_costs_rial,total_rial,created_at,updated_at FROM purchases ORDER BY purchase_date DESC,purchase_number DESC`)
+	rows, e := s.db.QueryContext(ctx, `SELECT id,purchase_number,supplier_id,supplier_name_snapshot,supplier_code_snapshot,supplier_invoice_number,COALESCE(financial_account_id,''),purchase_date,status,notes,subtotal_rial,discount_rial,shipping_rial,tax_rial,additional_costs_rial,total_rial,created_at,updated_at,archived FROM purchases ORDER BY purchase_date DESC,purchase_number DESC`)
 	if e != nil {
 		return nil, e
 	}
@@ -104,7 +104,7 @@ func (s *Store) ListPurchases(ctx context.Context) ([]domain.Purchase, error) {
 	return out, nil
 }
 func (s *Store) GetPurchase(ctx context.Context, id string) (domain.Purchase, error) {
-	p, e := scanPurchase(s.db.QueryRowContext(ctx, `SELECT id,purchase_number,supplier_id,supplier_name_snapshot,supplier_code_snapshot,supplier_invoice_number,purchase_date,status,notes,subtotal_rial,discount_rial,shipping_rial,tax_rial,additional_costs_rial,total_rial,created_at,updated_at FROM purchases WHERE id=?`, id))
+	p, e := scanPurchase(s.db.QueryRowContext(ctx, `SELECT id,purchase_number,supplier_id,supplier_name_snapshot,supplier_code_snapshot,supplier_invoice_number,COALESCE(financial_account_id,''),purchase_date,status,notes,subtotal_rial,discount_rial,shipping_rial,tax_rial,additional_costs_rial,total_rial,created_at,updated_at,archived FROM purchases WHERE id=?`, id))
 	if errors.Is(e, sql.ErrNoRows) {
 		return domain.Purchase{}, domain.ErrPurchaseNotFound
 	}
@@ -124,7 +124,7 @@ func (s *Store) SavePurchase(ctx context.Context, p domain.Purchase) error {
 	fail := func(x error) error { _ = tx.Rollback(); return x }
 	var existingStatus string
 	statusErr := tx.QueryRowContext(ctx, `SELECT status FROM purchases WHERE id=?`, p.ID).Scan(&existingStatus)
-	if statusErr == nil && existingStatus != domain.PurchaseDraft {
+	if statusErr == nil && existingStatus != domain.PurchaseDraft && existingStatus != domain.PurchaseCancelled {
 		return fail(domain.ErrPurchaseNotDraft)
 	}
 	if statusErr != nil && !errors.Is(statusErr, sql.ErrNoRows) {
@@ -143,7 +143,15 @@ func (s *Store) SavePurchase(ctx context.Context, p domain.Purchase) error {
 	} else {
 		number = p.PurchaseNumber
 	}
-	_, e = tx.ExecContext(ctx, `INSERT INTO purchases(id,purchase_number,supplier_id,supplier_name_snapshot,supplier_code_snapshot,supplier_invoice_number,purchase_date,status,notes,subtotal_rial,discount_rial,shipping_rial,tax_rial,additional_costs_rial,total_rial,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET supplier_id=excluded.supplier_id,supplier_name_snapshot=excluded.supplier_name_snapshot,supplier_code_snapshot=excluded.supplier_code_snapshot,supplier_invoice_number=excluded.supplier_invoice_number,purchase_date=excluded.purchase_date,status=excluded.status,notes=excluded.notes,subtotal_rial=excluded.subtotal_rial,discount_rial=excluded.discount_rial,shipping_rial=excluded.shipping_rial,tax_rial=excluded.tax_rial,additional_costs_rial=excluded.additional_costs_rial,total_rial=excluded.total_rial,updated_at=excluded.updated_at`, p.ID, number, p.SupplierID, p.SupplierNameSnapshot, p.SupplierCodeSnapshot, p.SupplierInvoiceNumber, p.PurchaseDate.UTC().Format(time.RFC3339Nano), p.Status, p.Notes, p.SubtotalRial, p.DiscountRial, p.ShippingRial, p.TaxRial, p.AdditionalCostsRial, p.TotalRial, p.CreatedAt.UTC().Format(time.RFC3339Nano), p.UpdatedAt.UTC().Format(time.RFC3339Nano))
+	archived := 0
+	if p.Archived {
+		archived = 1
+	}
+	var financialAccount any
+	if p.FinancialAccountID != "" {
+		financialAccount = p.FinancialAccountID
+	}
+	_, e = tx.ExecContext(ctx, `INSERT INTO purchases(id,purchase_number,supplier_id,supplier_name_snapshot,supplier_code_snapshot,supplier_invoice_number,financial_account_id,purchase_date,status,notes,subtotal_rial,discount_rial,shipping_rial,tax_rial,additional_costs_rial,total_rial,created_at,updated_at,archived) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET supplier_id=excluded.supplier_id,supplier_name_snapshot=excluded.supplier_name_snapshot,supplier_code_snapshot=excluded.supplier_code_snapshot,supplier_invoice_number=excluded.supplier_invoice_number,financial_account_id=excluded.financial_account_id,purchase_date=excluded.purchase_date,status=excluded.status,notes=excluded.notes,subtotal_rial=excluded.subtotal_rial,discount_rial=excluded.discount_rial,shipping_rial=excluded.shipping_rial,tax_rial=excluded.tax_rial,additional_costs_rial=excluded.additional_costs_rial,total_rial=excluded.total_rial,updated_at=excluded.updated_at,archived=excluded.archived`, p.ID, number, p.SupplierID, p.SupplierNameSnapshot, p.SupplierCodeSnapshot, p.SupplierInvoiceNumber, financialAccount, p.PurchaseDate.UTC().Format(time.RFC3339Nano), p.Status, p.Notes, p.SubtotalRial, p.DiscountRial, p.ShippingRial, p.TaxRial, p.AdditionalCostsRial, p.TotalRial, p.CreatedAt.UTC().Format(time.RFC3339Nano), p.UpdatedAt.UTC().Format(time.RFC3339Nano), archived)
 	if e != nil {
 		return fail(e)
 	}
@@ -176,6 +184,60 @@ func (s *Store) DeleteDraftPurchase(ctx context.Context, id string) error {
 	return e
 }
 
+func (s *Store) ArchivePurchase(ctx context.Context, id string) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE purchases SET archived=1,updated_at=? WHERE id=?`, time.Now().UTC().Format(time.RFC3339Nano), id)
+	if err != nil {
+		return err
+	}
+	count, _ := result.RowsAffected()
+	if count == 0 {
+		return domain.ErrPurchaseNotFound
+	}
+	return nil
+}
+
+func (s *Store) PurchaseHasDependencies(ctx context.Context, id string) (bool, error) {
+	queries := []string{
+		`SELECT COUNT(*) FROM payment_allocations WHERE target_type='purchase' AND target_id=?`,
+		`SELECT COUNT(*) FROM production_consumptions pc JOIN purchase_items pi ON pi.material_id=pc.material_id WHERE pi.purchase_id=?`,
+	}
+	for _, query := range queries {
+		var count int
+		if err := s.db.QueryRowContext(ctx, query, id).Scan(&count); err != nil {
+			return false, err
+		}
+		if count > 0 {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *Store) PurchaseItemHasDependencies(ctx context.Context, purchaseID, itemID string) (bool, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM production_consumptions pc JOIN purchase_items pi ON pi.material_id=pc.material_id WHERE pi.purchase_id=? AND pi.id=?`, purchaseID, itemID).Scan(&count)
+	return count > 0, err
+}
+
+func (s *Store) DeletePurchase(ctx context.Context, id string) error {
+	blocked, err := s.PurchaseHasDependencies(ctx, id)
+	if err != nil {
+		return err
+	}
+	if blocked {
+		return domain.ErrPurchaseDeleteProtected
+	}
+	result, err := s.db.ExecContext(ctx, `DELETE FROM purchases WHERE id=?`, id)
+	if err != nil {
+		return err
+	}
+	count, _ := result.RowsAffected()
+	if count == 0 {
+		return domain.ErrPurchaseNotFound
+	}
+	return nil
+}
+
 func (s *Store) PostPurchase(ctx context.Context, id string) error {
 	return s.changePurchaseStatus(ctx, id, domain.PurchasePosted)
 }
@@ -187,7 +249,7 @@ func (s *Store) changePurchaseStatus(ctx context.Context, id, status string) err
 	fail := func(x error) error { _ = tx.Rollback(); return x }
 	var p domain.Purchase
 	var purchaseDate, created, updated string
-	e = tx.QueryRowContext(ctx, `SELECT id,purchase_number,supplier_id,supplier_name_snapshot,supplier_code_snapshot,supplier_invoice_number,purchase_date,status,notes,subtotal_rial,discount_rial,shipping_rial,tax_rial,additional_costs_rial,total_rial,created_at,updated_at FROM purchases WHERE id=?`, id).Scan(&p.ID, &p.PurchaseNumber, &p.SupplierID, &p.SupplierNameSnapshot, &p.SupplierCodeSnapshot, &p.SupplierInvoiceNumber, &purchaseDate, &p.Status, &p.Notes, &p.SubtotalRial, &p.DiscountRial, &p.ShippingRial, &p.TaxRial, &p.AdditionalCostsRial, &p.TotalRial, &created, &updated)
+	e = tx.QueryRowContext(ctx, `SELECT id,purchase_number,supplier_id,supplier_name_snapshot,supplier_code_snapshot,supplier_invoice_number,COALESCE(financial_account_id,''),purchase_date,status,notes,subtotal_rial,discount_rial,shipping_rial,tax_rial,additional_costs_rial,total_rial,created_at,updated_at,archived FROM purchases WHERE id=?`, id).Scan(&p.ID, &p.PurchaseNumber, &p.SupplierID, &p.SupplierNameSnapshot, &p.SupplierCodeSnapshot, &p.SupplierInvoiceNumber, &p.FinancialAccountID, &purchaseDate, &p.Status, &p.Notes, &p.SubtotalRial, &p.DiscountRial, &p.ShippingRial, &p.TaxRial, &p.AdditionalCostsRial, &p.TotalRial, &created, &updated, &p.Archived)
 	if errors.Is(e, sql.ErrNoRows) {
 		return fail(domain.ErrPurchaseNotFound)
 	}
@@ -250,7 +312,11 @@ func (s *Store) changePurchaseStatus(ctx context.Context, id, status string) err
 		if item.ConsumptionQuantity == 0 {
 			continue
 		}
-		if _, e = tx.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, "MOV-"+item.ID, item.MaterialID, p.PurchaseDate.UTC().Format(time.RFC3339Nano), "purchase", item.ConsumptionQuantity, item.LandedUnitCostRial, total, "purchase", p.ID, "Posted purchase", now.Format(time.RFC3339Nano)); e != nil {
+		movementID, movementErr := uniqueInventoryMovementID(ctx, tx, "MOV-"+item.ID)
+		if movementErr != nil {
+			return fail(movementErr)
+		}
+		if _, e = tx.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, movementID, item.MaterialID, p.PurchaseDate.UTC().Format(time.RFC3339Nano), "purchase", item.ConsumptionQuantity, item.LandedUnitCostRial, total, "purchase", p.ID, "Posted purchase", now.Format(time.RFC3339Nano)); e != nil {
 			return fail(e)
 		}
 	}
@@ -298,7 +364,15 @@ func (s *Store) CancelPurchase(ctx context.Context, id string) error {
 		}
 		return fail(domain.ErrPurchaseCannotCancel)
 	}
-	rows, e := tx.QueryContext(ctx, `SELECT id,material_id,quantity_delta_units,unit_cost_rial,total_cost_rial,occurred_at FROM inventory_movements WHERE reference_type='purchase' AND reference_id=? ORDER BY id`, id)
+	rows, e := tx.QueryContext(ctx, `SELECT m.id,m.material_id,m.quantity_delta_units,m.unit_cost_rial,m.total_cost_rial,m.occurred_at
+		FROM inventory_movements m
+		WHERE m.reference_type='purchase' AND m.reference_id=?
+		  AND NOT EXISTS (
+			SELECT 1 FROM inventory_movements c
+			WHERE c.reference_type='purchase_cancel'
+			  AND (c.id='MOV-CANCEL-' || m.id OR c.id LIKE 'MOV-CANCEL-' || m.id || '-%')
+		  )
+		ORDER BY m.id`, id)
 	if e != nil {
 		return fail(e)
 	}
@@ -350,7 +424,11 @@ func (s *Store) CancelPurchase(ctx context.Context, id string) error {
 			return fail(domain.ErrInsufficientStock)
 		}
 		remaining[v.m] -= v.q
-		if _, e = tx.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, "MOV-CANCEL-"+v.id, v.m, time.Now().UTC().Format(time.RFC3339Nano), "supplier_return", -v.q, v.c, -v.t, "purchase_cancel", id, "Cancelled purchase", time.Now().UTC().Format(time.RFC3339Nano)); e != nil {
+		movementID, movementErr := uniqueInventoryMovementID(ctx, tx, "MOV-CANCEL-"+v.id)
+		if movementErr != nil {
+			return fail(movementErr)
+		}
+		if _, e = tx.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, movementID, v.m, time.Now().UTC().Format(time.RFC3339Nano), "supplier_return", -v.q, v.c, -v.t, "purchase_cancel", id, "Cancelled purchase", time.Now().UTC().Format(time.RFC3339Nano)); e != nil {
 			return fail(e)
 		}
 	}
@@ -363,6 +441,29 @@ func (s *Store) CancelPurchase(ctx context.Context, id string) error {
 		return fail(e)
 	}
 	return tx.Commit()
+}
+
+// uniqueInventoryMovementID preserves the stable movement IDs used by the
+// original posting path, but gives a reopened/reposted purchase a fresh ID
+// when old immutable history already occupies that ID.
+func uniqueInventoryMovementID(ctx context.Context, tx *sql.Tx, preferred string) (string, error) {
+	var count int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM inventory_movements WHERE id=?`, preferred).Scan(&count); err != nil {
+		return "", err
+	}
+	if count == 0 {
+		return preferred, nil
+	}
+	for attempt := 0; attempt < 10; attempt++ {
+		candidate := fmt.Sprintf("%s-%d-%d", preferred, time.Now().UnixNano(), attempt)
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM inventory_movements WHERE id=?`, candidate).Scan(&count); err != nil {
+			return "", err
+		}
+		if count == 0 {
+			return candidate, nil
+		}
+	}
+	return "", fmt.Errorf("could not allocate a unique inventory movement ID")
 }
 
 func (s *Store) ListInventoryMovements(ctx context.Context, materialID string) ([]domain.InventoryMovement, error) {
@@ -492,7 +593,7 @@ func scanSupplier(row scanner) (domain.Supplier, error) {
 func scanPurchase(row scanner) (domain.Purchase, error) {
 	var p domain.Purchase
 	var d, c, u string
-	if e := row.Scan(&p.ID, &p.PurchaseNumber, &p.SupplierID, &p.SupplierNameSnapshot, &p.SupplierCodeSnapshot, &p.SupplierInvoiceNumber, &d, &p.Status, &p.Notes, &p.SubtotalRial, &p.DiscountRial, &p.ShippingRial, &p.TaxRial, &p.AdditionalCostsRial, &p.TotalRial, &c, &u); e != nil {
+	if e := row.Scan(&p.ID, &p.PurchaseNumber, &p.SupplierID, &p.SupplierNameSnapshot, &p.SupplierCodeSnapshot, &p.SupplierInvoiceNumber, &p.FinancialAccountID, &d, &p.Status, &p.Notes, &p.SubtotalRial, &p.DiscountRial, &p.ShippingRial, &p.TaxRial, &p.AdditionalCostsRial, &p.TotalRial, &c, &u, &p.Archived); e != nil {
 		return p, e
 	}
 	return p, purchaseTime(&p, d, c, u)

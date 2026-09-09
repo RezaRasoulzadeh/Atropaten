@@ -326,7 +326,7 @@ func (s *Store) ReverseJournalEntry(ctx context.Context, id, key, description st
 }
 
 func (s *Store) ListFinancialAccounts(ctx context.Context) ([]domain.FinancialAccount, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,name,type,ledger_account_id,details,active,created_at,updated_at FROM financial_accounts ORDER BY name,id`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,name,type,bank_name,account_number,card_number,ledger_account_id,details,active,created_at,updated_at FROM financial_accounts ORDER BY name,id`)
 	if err != nil {
 		return nil, err
 	}
@@ -349,8 +349,215 @@ func (s *Store) ListFinancialAccounts(ctx context.Context) ([]domain.FinancialAc
 		if err != nil {
 			return nil, err
 		}
+		out[i].OwnerIDs, err = s.financialAccountOwners(ctx, out[i].ID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
+}
+
+func (s *Store) CreateFinancialAccount(ctx context.Context, v domain.FinancialAccount) (domain.FinancialAccount, error) {
+	if strings.TrimSpace(v.ID) == "" || strings.TrimSpace(v.Name) == "" {
+		return domain.FinancialAccount{}, fmt.Errorf("financial account id and name are required")
+	}
+	if v.Type != domain.FinancialCash && v.Type != domain.FinancialBank {
+		return domain.FinancialAccount{}, fmt.Errorf("financial account type must be cash or bank")
+	}
+	if v.LedgerAccountID == "" {
+		v.LedgerAccountID = "ACC-" + v.ID
+	}
+	if v.CreatedAt.IsZero() {
+		v.CreatedAt = time.Now().UTC()
+	}
+	if v.UpdatedAt.IsZero() {
+		v.UpdatedAt = v.CreatedAt
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return domain.FinancialAccount{}, err
+	}
+	fail := func(e error) (domain.FinancialAccount, error) { _ = tx.Rollback(); return domain.FinancialAccount{}, e }
+	if _, err = tx.ExecContext(ctx, `INSERT INTO accounts(id,code,name,type,active,system,created_at,updated_at) VALUES(?,?,?,?,1,0,?,?)`, v.LedgerAccountID, "TREASURY-"+v.ID, v.Name, domain.AccountAsset, v.CreatedAt.UTC().Format(time.RFC3339Nano), v.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+		return fail(err)
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO financial_accounts(id,name,type,bank_name,account_number,card_number,ledger_account_id,details,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,1,?,?)`, v.ID, v.Name, v.Type, v.BankName, v.AccountNumber, v.CardNumber, v.LedgerAccountID, v.Details, v.CreatedAt.UTC().Format(time.RFC3339Nano), v.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+		return fail(err)
+	}
+	if err = replaceFinancialAccountOwners(ctx, tx, v.ID, v.OwnerIDs); err != nil {
+		return fail(err)
+	}
+	if err = tx.Commit(); err != nil {
+		return domain.FinancialAccount{}, err
+	}
+	v.Active = true
+	v.BalanceRial = 0
+	return v, nil
+}
+
+func (s *Store) UpdateFinancialAccount(ctx context.Context, v domain.FinancialAccount) (domain.FinancialAccount, error) {
+	if strings.TrimSpace(v.ID) == "" || strings.TrimSpace(v.Name) == "" {
+		return domain.FinancialAccount{}, fmt.Errorf("financial account id and name are required")
+	}
+	if v.Type != domain.FinancialCash && v.Type != domain.FinancialBank {
+		return domain.FinancialAccount{}, fmt.Errorf("financial account type must be cash or bank")
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return domain.FinancialAccount{}, err
+	}
+	fail := func(e error) (domain.FinancialAccount, error) { _ = tx.Rollback(); return domain.FinancialAccount{}, e }
+	var ledgerID string
+	var active int
+	if err = tx.QueryRowContext(ctx, `SELECT ledger_account_id,active FROM financial_accounts WHERE id=?`, v.ID).Scan(&ledgerID, &active); errors.Is(err, sql.ErrNoRows) {
+		return fail(domain.ErrFinancialAccountNotFound)
+	}
+	if err != nil {
+		return fail(err)
+	}
+	updated := v.UpdatedAt
+	if updated.IsZero() {
+		updated = time.Now().UTC()
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE financial_accounts SET name=?,type=?,bank_name=?,account_number=?,card_number=?,details=?,updated_at=? WHERE id=?`, v.Name, v.Type, v.BankName, v.AccountNumber, v.CardNumber, v.Details, updated.UTC().Format(time.RFC3339Nano), v.ID); err != nil {
+		return fail(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE accounts SET name=?,updated_at=? WHERE id=?`, v.Name, updated.UTC().Format(time.RFC3339Nano), ledgerID); err != nil {
+		return fail(err)
+	}
+	if err = replaceFinancialAccountOwners(ctx, tx, v.ID, v.OwnerIDs); err != nil {
+		return fail(err)
+	}
+	if err = tx.Commit(); err != nil {
+		return domain.FinancialAccount{}, err
+	}
+	result, err := s.GetFinancialAccount(ctx, v.ID)
+	if err != nil {
+		return domain.FinancialAccount{}, err
+	}
+	result.Active = active == 1
+	return result, nil
+}
+
+func (s *Store) ArchiveFinancialAccount(ctx context.Context, id string) error {
+	if strings.TrimSpace(id) == "" {
+		return domain.ErrFinancialAccountNotFound
+	}
+	if id == "FIN-CASH" {
+		return fmt.Errorf("the default cash account cannot be archived")
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE financial_accounts SET active=0,updated_at=? WHERE id=?`, time.Now().UTC().Format(time.RFC3339Nano), id)
+	if err != nil {
+		return err
+	}
+	if count, _ := result.RowsAffected(); count == 0 {
+		return domain.ErrFinancialAccountNotFound
+	}
+	return nil
+}
+
+func (s *Store) DeleteFinancialAccount(ctx context.Context, id string) error {
+	if strings.TrimSpace(id) == "" {
+		return domain.ErrFinancialAccountNotFound
+	}
+	if id == "FIN-CASH" {
+		return fmt.Errorf("the default cash account cannot be deleted")
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	fail := func(e error) error { _ = tx.Rollback(); return e }
+	var ledgerID string
+	if err = tx.QueryRowContext(ctx, `SELECT ledger_account_id FROM financial_accounts WHERE id=?`, id).Scan(&ledgerID); errors.Is(err, sql.ErrNoRows) {
+		return fail(domain.ErrFinancialAccountNotFound)
+	}
+	if err != nil {
+		return fail(err)
+	}
+	dependencies := []struct {
+		name  string
+		query string
+	}{
+		{"purchases", `SELECT COUNT(*) FROM purchases WHERE financial_account_id=?`},
+		{"payments", `SELECT COUNT(*) FROM payments WHERE financial_account_id=?`},
+		{"expenses", `SELECT COUNT(*) FROM expenses WHERE financial_account_id=?`},
+		{"transfers", `SELECT COUNT(*) FROM financial_transfers WHERE source_financial_account_id=? OR destination_financial_account_id=?`},
+		{"checks", `SELECT COUNT(*) FROM checks WHERE financial_account_id=?`},
+		{"loans", `SELECT COUNT(*) FROM loans WHERE financial_account_id=?`},
+		{"loan payments", `SELECT COUNT(*) FROM loan_payments WHERE financial_account_id=?`},
+		{"owner transactions", `SELECT COUNT(*) FROM owner_transactions WHERE financial_account_id=?`},
+		{"journal entries", `SELECT COUNT(*) FROM journal_lines WHERE account_id=?`},
+	}
+	for _, dependency := range dependencies {
+		var count int
+		var scanErr error
+		if dependency.name == "transfers" {
+			scanErr = tx.QueryRowContext(ctx, dependency.query, id, id).Scan(&count)
+		} else if dependency.name == "journal entries" {
+			scanErr = tx.QueryRowContext(ctx, dependency.query, ledgerID).Scan(&count)
+		} else {
+			scanErr = tx.QueryRowContext(ctx, dependency.query, id).Scan(&count)
+		}
+		if scanErr != nil {
+			return fail(scanErr)
+		}
+		if count > 0 {
+			return fail(domain.ErrFinancialAccountProtected)
+		}
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM financial_accounts WHERE id=?`, id); err != nil {
+		return fail(err)
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM accounts WHERE id=?`, ledgerID); err != nil {
+		return fail(err)
+	}
+	return tx.Commit()
+}
+
+func (s *Store) GetFinancialAccount(ctx context.Context, id string) (domain.FinancialAccount, error) {
+	v, err := scanFinancialAccount(s.db.QueryRowContext(ctx, `SELECT id,name,type,bank_name,account_number,card_number,ledger_account_id,details,active,created_at,updated_at FROM financial_accounts WHERE id=?`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return domain.FinancialAccount{}, domain.ErrFinancialAccountNotFound
+	}
+	if err != nil {
+		return domain.FinancialAccount{}, err
+	}
+	v.BalanceRial, err = s.accountBalance(ctx, v.LedgerAccountID, domain.AccountAsset)
+	if err != nil {
+		return domain.FinancialAccount{}, err
+	}
+	v.OwnerIDs, err = s.financialAccountOwners(ctx, v.ID)
+	return v, err
+}
+
+func (s *Store) financialAccountOwners(ctx context.Context, accountID string) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT owner_id FROM financial_account_owners WHERE financial_account_id=? ORDER BY owner_id`, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+func replaceFinancialAccountOwners(ctx context.Context, tx *sql.Tx, accountID string, ownerIDs []string) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM financial_account_owners WHERE financial_account_id=?`, accountID); err != nil {
+		return err
+	}
+	for _, ownerID := range ownerIDs {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO financial_account_owners(financial_account_id,owner_id) VALUES(?,?)`, accountID, ownerID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Store) ListPayments(ctx context.Context) ([]domain.Payment, error) {
@@ -822,7 +1029,7 @@ func scanFinancialAccount(row scanner) (domain.FinancialAccount, error) {
 	var typ string
 	var active int
 	var c, u string
-	if err := row.Scan(&v.ID, &v.Name, &typ, &v.LedgerAccountID, &v.Details, &active, &c, &u); err != nil {
+	if err := row.Scan(&v.ID, &v.Name, &typ, &v.BankName, &v.AccountNumber, &v.CardNumber, &v.LedgerAccountID, &v.Details, &active, &c, &u); err != nil {
 		return v, err
 	}
 	v.Type = domain.FinancialAccountType(typ)

@@ -213,7 +213,7 @@ func (g *generator) purchases(ctx context.Context) error {
 		{"PUR-DEMO-03", "SUP-DEMO-02", "FAKE-1405-027", g.now.AddDate(0, -1, 18), []domain.PurchaseItem{{ID: "PIT-DEMO-03", MaterialID: "MAT-DEMO-03", MaterialNameSnapshot: "فیلم لمینت مات ضدخش رول ویژه", PurchaseUnitSnapshot: "roll", ConsumptionUnitSnapshot: "meter", PurchaseQuantity: domain.Quantity(3 * domain.QuantityScale), ConversionFactorSnapshot: domain.Quantity(25 * domain.QuantityScale), ConsumptionQuantity: domain.Quantity(75 * domain.QuantityScale), UnitAcquisitionCostRial: 95000000, LineTotalRial: 285000000}}, "خرید رول لمینت با تبدیل واحد."},
 	}
 	for _, x := range purchases {
-		p := domain.Purchase{ID: x.id, SupplierID: x.supplier, SupplierNameSnapshot: x.supplier, SupplierCodeSnapshot: x.supplier, SupplierInvoiceNumber: x.invoice, PurchaseDate: x.date, Status: domain.PurchaseDraft, Notes: x.note, CreatedAt: g.now, UpdatedAt: g.now, Items: x.items}
+		p := domain.Purchase{ID: x.id, SupplierID: x.supplier, SupplierNameSnapshot: x.supplier, SupplierCodeSnapshot: x.supplier, SupplierInvoiceNumber: x.invoice, FinancialAccountID: "FIN-BANK", PurchaseDate: x.date, Status: domain.PurchaseDraft, Notes: x.note, CreatedAt: g.now, UpdatedAt: g.now, Items: x.items}
 		for i := range p.Items {
 			p.Items[i].PurchaseID = p.ID
 			p.Items[i].Position = i

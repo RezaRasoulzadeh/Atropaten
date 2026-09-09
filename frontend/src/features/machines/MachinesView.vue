@@ -390,6 +390,7 @@ function message(errorValue: unknown, fallback: string) {
               ><AppInput
                 class="input w-full min-w-0"
                 v-model="form.rate"
+                :money="props.currencyUnit"
                 type="text"
                 inputmode="decimal"
                 placeholder="0" /></FormField></FormGrid
@@ -398,6 +399,7 @@ function message(errorValue: unknown, fallback: string) {
             ><AppInput
               class="input w-full min-w-0"
               v-model="form.setupCost"
+              :money="props.currencyUnit"
               type="text"
               inputmode="decimal"
               placeholder="Optional" /></FormField

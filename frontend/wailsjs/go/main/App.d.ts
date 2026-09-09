@@ -18,11 +18,15 @@ export function ApplyOrderDiscount(arg1:string,arg2:number):Promise<main.OrderDT
 
 export function ArchiveCustomer(arg1:string):Promise<main.CustomerDTO>;
 
+export function ArchiveFinancialAccount(arg1:string):Promise<void>;
+
 export function ArchiveMachine(arg1:string):Promise<main.MachineDTO>;
 
 export function ArchiveMaterial(arg1:string):Promise<main.MaterialDTO>;
 
 export function ArchiveOwner(arg1:string):Promise<void>;
+
+export function ArchivePurchase(arg1:string):Promise<main.PurchaseDTO>;
 
 export function ArchiveService(arg1:string):Promise<main.ServiceDTO>;
 
@@ -41,6 +45,8 @@ export function CreateCheck(arg1:main.CheckInputDTO):Promise<main.CheckDTO>;
 export function CreateCustomer(arg1:main.CustomerInput):Promise<main.CustomerDTO>;
 
 export function CreateExpense(arg1:main.ExpenseInputDTO):Promise<main.ExpenseDTO>;
+
+export function CreateFinancialAccount(arg1:main.FinancialAccountInputDTO):Promise<main.FinancialAccountDTO>;
 
 export function CreateFiscalPeriod(arg1:main.FiscalPeriodInputDTO):Promise<main.FiscalPeriodDTO>;
 
@@ -84,6 +90,10 @@ export function DeleteDraftInvoice(arg1:string):Promise<void>;
 
 export function DeleteDraftPurchase(arg1:string):Promise<void>;
 
+export function DeleteExpense(arg1:string):Promise<void>;
+
+export function DeleteFinancialAccount(arg1:string):Promise<void>;
+
 export function DeleteMachine(arg1:string):Promise<void>;
 
 export function DeleteMaterial(arg1:string):Promise<void>;
@@ -93,6 +103,8 @@ export function DeleteOrder(arg1:string):Promise<void>;
 export function DeleteOwner(arg1:string):Promise<void>;
 
 export function DeleteProductionJob(arg1:string):Promise<void>;
+
+export function DeletePurchase(arg1:string):Promise<void>;
 
 export function DeleteService(arg1:string):Promise<void>;
 
@@ -263,6 +275,10 @@ export function SelectBackupFile():Promise<string>;
 export function TransitionCheck(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.CheckDTO>;
 
 export function UpdateCustomer(arg1:string,arg2:main.CustomerInput):Promise<main.CustomerDTO>;
+
+export function UpdateExpense(arg1:string,arg2:main.ExpenseInputDTO):Promise<main.ExpenseDTO>;
+
+export function UpdateFinancialAccount(arg1:main.FinancialAccountInputDTO):Promise<main.FinancialAccountDTO>;
 
 export function UpdateInventoryReservation(arg1:string,arg2:string):Promise<main.InventoryReservationDTO>;
 

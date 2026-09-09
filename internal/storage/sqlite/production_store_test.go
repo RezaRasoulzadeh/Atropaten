@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"Atropaten/internal/domain"
+	"Atropaten/internal/platform"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -57,7 +58,7 @@ func TestV7UpgradePreservesInventoryAndPurchasingData(t *testing.T) {
 		t.Fatalf("legacy supplier lost: %v", err)
 	}
 	var version int
-	if err = store.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil || version != 13 {
+	if err = store.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil || version != platform.CurrentSchemaVersion {
 		t.Fatalf("migration version=%d err=%v", version, err)
 	}
 	if got := countRows(t, store, `SELECT COUNT(*) FROM inventory_reservations`); got != 0 {

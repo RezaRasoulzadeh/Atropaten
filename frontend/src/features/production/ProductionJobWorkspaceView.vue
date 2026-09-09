@@ -532,6 +532,7 @@ async function back() {
             ><AppInput
               class="input w-full min-w-0"
               v-model="outsourceQuotedCost"
+              :money="props.currencyUnit"
               placeholder="0"
               inputmode="numeric" /></FormField
           ><FormField class="gap-1"
@@ -539,6 +540,7 @@ async function back() {
             ><AppInput
               class="input w-full min-w-0"
               v-model="outsourceCost"
+              :money="props.currencyUnit"
               placeholder="0"
               inputmode="numeric" /></FormField></FormGrid
         ><FormField label="Outsourced scope / return details"

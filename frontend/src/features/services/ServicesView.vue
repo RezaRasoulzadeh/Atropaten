@@ -305,6 +305,7 @@ watch(
               ><span>Fixed price ({{ props.currencyUnit }})</span
               ><AppInput
                 :model-value="form.pricingRule.fixedPriceInput"
+                :money="props.currencyUnit"
                 inputmode="decimal"
                 @update:model-value="updateGroupedMoney(form.pricingRule, 'fixedPriceInput', 'fixedPriceRial', $event)"
             /></FormField>
@@ -320,6 +321,7 @@ watch(
               ><span>Fixed margin ({{ props.currencyUnit }})</span
               ><AppInput
                 :model-value="form.pricingRule.fixedMarginInput"
+                :money="props.currencyUnit"
                 inputmode="decimal"
                 @update:model-value="updateGroupedMoney(form.pricingRule, 'fixedMarginInput', 'fixedMarginRial', $event)"
             /></FormField>
@@ -337,6 +339,7 @@ watch(
                 ><span>Rate / unit ({{ props.currencyUnit }})</span
                 ><AppInput
                   :model-value="form.pricingRule.perUnitRateInput"
+                  :money="props.currencyUnit"
                   inputmode="decimal"
                   @update:model-value="updateGroupedMoney(form.pricingRule, 'perUnitRateInput', 'perUnitRateRial', $event)" /></FormField
             ></template>
@@ -360,6 +363,7 @@ watch(
                   :aria-label="`Tier ${tierIndex + 1} minimum quantity`"
                 /><AppInput
                   :model-value="tier.priceInput"
+                  :money="props.currencyUnit"
                   inputmode="decimal"
                   placeholder="Price"
                   :aria-label="`Tier ${tierIndex + 1} price`"

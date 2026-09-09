@@ -15,6 +15,10 @@ type AccountingRepository interface {
 	ListJournalEntries(context.Context) ([]domain.JournalEntry, error)
 	GetJournalEntry(context.Context, string) (domain.JournalEntry, error)
 	ListFinancialAccounts(context.Context) ([]domain.FinancialAccount, error)
+	CreateFinancialAccount(context.Context, domain.FinancialAccount) (domain.FinancialAccount, error)
+	UpdateFinancialAccount(context.Context, domain.FinancialAccount) (domain.FinancialAccount, error)
+	ArchiveFinancialAccount(context.Context, string) error
+	DeleteFinancialAccount(context.Context, string) error
 	ListPayments(context.Context) ([]domain.Payment, error)
 	GetPayment(context.Context, string) (domain.Payment, error)
 	CreatePayment(context.Context, domain.Payment) (domain.Payment, error)
@@ -24,6 +28,8 @@ type ExpenseRepository interface {
 	ListExpenses(context.Context) ([]domain.Expense, error)
 	GetExpense(context.Context, string) (domain.Expense, error)
 	CreateExpense(context.Context, domain.Expense) (domain.Expense, error)
+	UpdateExpense(context.Context, domain.Expense) (domain.Expense, error)
+	DeleteExpense(context.Context, string) error
 	ReverseExpense(context.Context, string, string) (domain.Expense, error)
 }
 type TransferRepository interface {
@@ -48,9 +54,14 @@ type AccountView struct {
 	BalanceRial          int64
 }
 type FinancialAccountView struct {
-	ID, Name, Type, LedgerAccountID, Details string
-	Active                                   bool
-	BalanceRial                              int64
+	ID, Name, Type, BankName, AccountNumber, CardNumber, LedgerAccountID, Details string
+	Active                                                                        bool
+	OwnerIDs                                                                      []string
+	BalanceRial                                                                   int64
+}
+type FinancialAccountInput struct {
+	ID, Name, Type, BankName, AccountNumber, CardNumber, Details string
+	OwnerIDs                                                     []string
 }
 type JournalLineView struct {
 	ID, AccountID, PartyType, PartyID, Memo string
@@ -127,9 +138,112 @@ func (s *AccountingService) FinancialAccounts(ctx context.Context) ([]FinancialA
 	}
 	out := make([]FinancialAccountView, 0, len(v))
 	for _, a := range v {
-		out = append(out, FinancialAccountView{a.ID, a.Name, string(a.Type), a.LedgerAccountID, a.Details, a.Active, a.BalanceRial})
+		out = append(out, financialAccountView(a))
 	}
 	return out, nil
+}
+func (s *AccountingService) CreateFinancialAccount(ctx context.Context, in FinancialAccountInput) (FinancialAccountView, error) {
+	r, ok := s.repository.(interface {
+		CreateFinancialAccount(context.Context, domain.FinancialAccount) (domain.FinancialAccount, error)
+	})
+	if !ok {
+		return FinancialAccountView{}, fmt.Errorf("financial account management is not available")
+	}
+	id := strings.TrimSpace(in.ID)
+	if id == "" {
+		id = mustID("FIN-")
+	}
+	name := strings.TrimSpace(in.Name)
+	if name == "" {
+		return FinancialAccountView{}, fmt.Errorf("account name is required")
+	}
+	typ := domain.FinancialAccountType(strings.TrimSpace(in.Type))
+	if typ != domain.FinancialCash && typ != domain.FinancialBank {
+		return FinancialAccountView{}, fmt.Errorf("account type must be cash or bank")
+	}
+	if err := validateFinancialBankDetails(typ, in.BankName, in.AccountNumber, in.CardNumber); err != nil {
+		return FinancialAccountView{}, err
+	}
+	now := s.now().UTC()
+	v, err := r.CreateFinancialAccount(ctx, domain.FinancialAccount{ID: id, Name: name, Type: typ, BankName: strings.TrimSpace(in.BankName), AccountNumber: strings.TrimSpace(in.AccountNumber), CardNumber: strings.TrimSpace(in.CardNumber), Details: strings.TrimSpace(in.Details), LedgerAccountID: "ACC-" + id, OwnerIDs: uniqueStrings(in.OwnerIDs), Active: true, CreatedAt: now, UpdatedAt: now})
+	if err != nil {
+		return FinancialAccountView{}, err
+	}
+	return financialAccountView(v), nil
+}
+func (s *AccountingService) UpdateFinancialAccount(ctx context.Context, in FinancialAccountInput) (FinancialAccountView, error) {
+	r, ok := s.repository.(interface {
+		UpdateFinancialAccount(context.Context, domain.FinancialAccount) (domain.FinancialAccount, error)
+	})
+	if !ok {
+		return FinancialAccountView{}, fmt.Errorf("financial account management is not available")
+	}
+	id := strings.TrimSpace(in.ID)
+	name := strings.TrimSpace(in.Name)
+	if id == "" || name == "" {
+		return FinancialAccountView{}, fmt.Errorf("account id and name are required")
+	}
+	typ := domain.FinancialAccountType(strings.TrimSpace(in.Type))
+	if typ != domain.FinancialCash && typ != domain.FinancialBank {
+		return FinancialAccountView{}, fmt.Errorf("account type must be cash or bank")
+	}
+	if err := validateFinancialBankDetails(typ, in.BankName, in.AccountNumber, in.CardNumber); err != nil {
+		return FinancialAccountView{}, err
+	}
+	v, err := r.UpdateFinancialAccount(ctx, domain.FinancialAccount{ID: id, Name: name, Type: typ, BankName: strings.TrimSpace(in.BankName), AccountNumber: strings.TrimSpace(in.AccountNumber), CardNumber: strings.TrimSpace(in.CardNumber), Details: strings.TrimSpace(in.Details), OwnerIDs: uniqueStrings(in.OwnerIDs), UpdatedAt: s.now().UTC()})
+	if err != nil {
+		return FinancialAccountView{}, err
+	}
+	return financialAccountView(v), nil
+}
+func (s *AccountingService) ArchiveFinancialAccount(ctx context.Context, id string) error {
+	r, ok := s.repository.(interface {
+		ArchiveFinancialAccount(context.Context, string) error
+	})
+	if !ok {
+		return fmt.Errorf("financial account management is not available")
+	}
+	return r.ArchiveFinancialAccount(ctx, strings.TrimSpace(id))
+}
+func (s *AccountingService) DeleteFinancialAccount(ctx context.Context, id string) error {
+	r, ok := s.repository.(interface {
+		DeleteFinancialAccount(context.Context, string) error
+	})
+	if !ok {
+		return fmt.Errorf("financial account management is not available")
+	}
+	return r.DeleteFinancialAccount(ctx, strings.TrimSpace(id))
+}
+func financialAccountView(v domain.FinancialAccount) FinancialAccountView {
+	return FinancialAccountView{ID: v.ID, Name: v.Name, Type: string(v.Type), BankName: v.BankName, AccountNumber: v.AccountNumber, CardNumber: v.CardNumber, LedgerAccountID: v.LedgerAccountID, Details: v.Details, Active: v.Active, OwnerIDs: append([]string(nil), v.OwnerIDs...), BalanceRial: v.BalanceRial}
+}
+func validateFinancialBankDetails(typ domain.FinancialAccountType, bankName, accountNumber, cardNumber string) error {
+	if typ != domain.FinancialBank {
+		return nil
+	}
+	if strings.TrimSpace(bankName) == "" {
+		return fmt.Errorf("bank name is required for bank accounts")
+	}
+	if strings.TrimSpace(accountNumber) == "" && strings.TrimSpace(cardNumber) == "" {
+		return fmt.Errorf("enter an account number or card number for bank accounts")
+	}
+	return nil
+}
+func uniqueStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }
 func (s *AccountingService) Journal(ctx context.Context) ([]JournalEntryView, error) {
 	v, e := s.repository.ListJournalEntries(ctx)
@@ -257,6 +371,35 @@ func (s *AccountingService) ReverseExpense(ctx context.Context, id, key string) 
 		return ExpenseView{}, e
 	}
 	return expenseView(v), nil
+}
+func (s *AccountingService) UpdateExpense(ctx context.Context, id string, in ExpenseInput) (ExpenseView, error) {
+	r, ok := s.repository.(ExpenseRepository)
+	if !ok {
+		return ExpenseView{}, fmt.Errorf("expense repository is not available")
+	}
+	date := s.now().UTC()
+	if in.ExpenseDate != "" {
+		v, err := time.Parse(time.RFC3339, in.ExpenseDate)
+		if err != nil {
+			v, err = time.Parse(time.RFC3339Nano, in.ExpenseDate)
+		}
+		if err != nil {
+			return ExpenseView{}, err
+		}
+		date = v.UTC()
+	}
+	v, err := r.UpdateExpense(ctx, domain.Expense{ID: strings.TrimSpace(id), ExpenseDate: date, CategoryAccountID: in.CategoryAccountID, Payee: in.Payee, SupplierID: in.SupplierID, Description: in.Description, AmountRial: in.AmountRial, PaymentMethod: in.PaymentMethod, FinancialAccountID: in.FinancialAccountID, Notes: in.Notes, Status: "Posted", UpdatedAt: s.now().UTC()})
+	if err != nil {
+		return ExpenseView{}, err
+	}
+	return expenseView(v), nil
+}
+func (s *AccountingService) DeleteExpense(ctx context.Context, id string) error {
+	r, ok := s.repository.(ExpenseRepository)
+	if !ok {
+		return fmt.Errorf("expense repository is not available")
+	}
+	return r.DeleteExpense(ctx, strings.TrimSpace(id))
 }
 func (s *AccountingService) Transfers(ctx context.Context) ([]TransferView, error) {
 	r, ok := s.repository.(TransferRepository)

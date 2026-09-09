@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"Atropaten/internal/domain"
+	"Atropaten/internal/platform"
 )
 
 func newM5Store(t *testing.T) *Store {
@@ -64,7 +65,7 @@ func TestV10ToV11PreservesExistingCustomerAndAddsTreasuryTables(t *testing.T) {
 		t.Fatalf("preserved customer=%q", name)
 	}
 	var version int
-	if err = s.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil || version != 13 {
+	if err = s.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil || version != platform.CurrentSchemaVersion {
 		t.Fatalf("schema version=%d err=%v", version, err)
 	}
 	var tables int

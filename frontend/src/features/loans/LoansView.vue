@@ -260,12 +260,14 @@ function date(v: string) {
               ><AppInput
                 class="input w-full min-w-0"
                 v-model="form.principalRial"
+                money="Rial"
                 inputmode="numeric" /></FormField
             ><FormField class="gap-1"
               ><span>Interest / fees (Rial)</span
               ><AppInput
                 class="input w-full min-w-0"
                 v-model="form.interestFeeRial"
+                money="Rial"
                 inputmode="numeric" /></FormField
             ><FormField class="gap-1"
               ><span>Start date</span><JalaliDatePicker v-model="form.startDate" /></FormField
@@ -376,10 +378,12 @@ function date(v: string) {
                 ]" /><FormField label="Principal (Rial)"><AppInput
                 class="input w-full min-w-0"
                 v-model="pay.principalRial"
+                money="Rial"
                 placeholder="Principal (Rial)"
                 inputmode="numeric" /></FormField><FormField label="Interest (Rial)"><AppInput
                 class="input w-full min-w-0"
                 v-model="pay.interestRial"
+                money="Rial"
                 placeholder="Interest (Rial)"
                 inputmode="numeric" /></FormField></FormGrid
             ><button class="btn btn-ghost" @click="recordPayment" :disabled="busy">Record payment</button>

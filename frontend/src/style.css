@@ -81,6 +81,16 @@
   height: 2.5rem;
   min-height: 2.5rem;
 }
+/* Numeric fields remain keyboard-friendly without browser spinner controls. */
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
 .textarea {
   min-height: 5rem;
 }

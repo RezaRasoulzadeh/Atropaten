@@ -149,6 +149,7 @@ function syncExpanded(event: Event) {
                   ><AppInput
                     class="input w-full min-w-0"
                     v-model="component.rateInput"
+                    :money="currencyUnit"
                     type="text"
                     inputmode="decimal"
                     placeholder="0"

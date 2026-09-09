@@ -151,6 +151,7 @@ onMounted(load);
         /><FormField class="sm:col-span-2" :label="`Amount (${props.currencyUnit})`"><AppInput
           class="input w-full min-w-0"
           v-model="amount"
+          :money="props.currencyUnit"
           :placeholder="`Amount (${props.currencyUnit})`"
           inputmode="numeric"
           @update:model-value="formatAmountWhileTyping"

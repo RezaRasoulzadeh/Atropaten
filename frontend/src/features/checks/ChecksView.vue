@@ -286,6 +286,7 @@ function date(v: string) {
               ><AppInput
                 class="input w-full min-w-0"
                 v-model="form.amountRial"
+                money="Rial"
                 inputmode="numeric"
                 required /></FormField
             ><FormField class="gap-1"

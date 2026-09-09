@@ -1,8 +1,9 @@
 import {
   AddPurchaseItem,
-  CancelPurchase,
+  ArchivePurchase,
   CreatePurchase,
   DeleteDraftPurchase,
+  DeletePurchase,
   GetPurchase,
   ListPurchases,
   PostPurchase,
@@ -35,6 +36,7 @@ export interface PurchaseRecord {
   supplierId: string
   supplierName: string
   supplierInvoiceNumber: string
+  financialAccountId: string
   purchaseDate: string
   status: string
   notes: string
@@ -52,6 +54,7 @@ export interface PurchaseRecord {
 }
 export interface PurchasePayload {
   supplierId: string
+  financialAccountId: string
   purchaseDate: string
   supplierInvoiceNumber: string
   notes: string
@@ -94,8 +97,11 @@ export const purchasesApi = {
   post(id: string) {
     return PostPurchase(id) as unknown as Promise<PurchaseRecord>
   },
-  cancel(id: string) {
-    return CancelPurchase(id) as unknown as Promise<PurchaseRecord>
+  archive(id: string) {
+    return ArchivePurchase(id) as unknown as Promise<PurchaseRecord>
+  },
+  remove(id: string) {
+    return DeletePurchase(id)
   },
   deleteDraft(id: string) {
     return DeleteDraftPurchase(id)

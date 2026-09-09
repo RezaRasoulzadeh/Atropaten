@@ -9,7 +9,6 @@ import {
   type CurrencyUnit,
 } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
-import { formatQuantityUnits } from '../../utils/quantity';
 
 export type MaterialFilter = 'Active' | 'Archived' | 'All';
 export type EditorMode = 'create' | 'edit' | null;
@@ -156,9 +155,9 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
       category: material.category,
       purchaseUnit: material.purchaseUnit,
       consumptionUnit: material.consumptionUnit,
-      conversionFactor: formatQuantityUnits(material.conversionFactor),
-      physicalStock: formatQuantityUnits(material.physicalStock),
-      reorderLevel: formatQuantityUnits(material.reorderLevel),
+      conversionFactor: material.conversionFactor,
+      physicalStock: material.physicalStock,
+      reorderLevel: material.reorderLevel,
       averageUnitCostRial: material.averageUnitCostRial,
       preferredSupplier: material.preferredSupplier,
       notes: material.notes,

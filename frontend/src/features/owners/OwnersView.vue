@@ -294,6 +294,7 @@ const {busy,runAction,pageLoading,runLoad,tabs,tab,owners,transactions,periods,a
             ><AppInput
               class="input w-full min-w-0"
               v-model="txForm.amountText"
+              :money="currencyUnit"
               inputmode="decimal"
               required
               @blur="

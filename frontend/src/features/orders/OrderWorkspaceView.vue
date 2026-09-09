@@ -459,6 +459,7 @@ function snapshot(item: any, key: string) {
             <span class="text-xs text-base-content/60">Order discount</span>
             <AppInput
               v-model="discountText"
+              :money="props.currencyUnit"
               inputmode="decimal"
               :placeholder="`Amount in ${props.currencyUnit}`"
               @blur="

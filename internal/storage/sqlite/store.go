@@ -521,6 +521,30 @@ var migrations = []migration{{
 			('document_footer','','2026-01-01T00:00:00Z'),
 			('document_notes','','2026-01-01T00:00:00Z');`,
 	},
+	{
+		version: 14,
+		sql:     `ALTER TABLE purchases ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0,1));`,
+	},
+	{
+		version: 15,
+		sql: `CREATE TABLE financial_account_owners (
+			financial_account_id TEXT NOT NULL REFERENCES financial_accounts(id) ON DELETE CASCADE,
+			owner_id TEXT NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
+			PRIMARY KEY(financial_account_id, owner_id)
+		);
+		CREATE INDEX financial_account_owners_owner ON financial_account_owners(owner_id, financial_account_id);`,
+	},
+	{
+		version: 16,
+		sql: `ALTER TABLE financial_accounts ADD COLUMN bank_name TEXT NOT NULL DEFAULT '';
+		ALTER TABLE financial_accounts ADD COLUMN account_number TEXT NOT NULL DEFAULT '';
+		ALTER TABLE financial_accounts ADD COLUMN card_number TEXT NOT NULL DEFAULT '';
+		ALTER TABLE purchases ADD COLUMN financial_account_id TEXT REFERENCES financial_accounts(id) ON DELETE RESTRICT;`,
+	},
+	{
+		version: 17,
+		sql:     `DROP TRIGGER expenses_immutable_delete;`,
+	},
 }
 
 func (s *Store) seedAccounting(ctx context.Context) error {

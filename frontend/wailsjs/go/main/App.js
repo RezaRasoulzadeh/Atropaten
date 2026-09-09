@@ -34,6 +34,10 @@ export function ArchiveCustomer(arg1) {
   return window['go']['main']['App']['ArchiveCustomer'](arg1);
 }
 
+export function ArchiveFinancialAccount(arg1) {
+  return window['go']['main']['App']['ArchiveFinancialAccount'](arg1);
+}
+
 export function ArchiveMachine(arg1) {
   return window['go']['main']['App']['ArchiveMachine'](arg1);
 }
@@ -44,6 +48,10 @@ export function ArchiveMaterial(arg1) {
 
 export function ArchiveOwner(arg1) {
   return window['go']['main']['App']['ArchiveOwner'](arg1);
+}
+
+export function ArchivePurchase(arg1) {
+  return window['go']['main']['App']['ArchivePurchase'](arg1);
 }
 
 export function ArchiveService(arg1) {
@@ -80,6 +88,10 @@ export function CreateCustomer(arg1) {
 
 export function CreateExpense(arg1) {
   return window['go']['main']['App']['CreateExpense'](arg1);
+}
+
+export function CreateFinancialAccount(arg1) {
+  return window['go']['main']['App']['CreateFinancialAccount'](arg1);
 }
 
 export function CreateFiscalPeriod(arg1) {
@@ -166,6 +178,14 @@ export function DeleteDraftPurchase(arg1) {
   return window['go']['main']['App']['DeleteDraftPurchase'](arg1);
 }
 
+export function DeleteExpense(arg1) {
+  return window['go']['main']['App']['DeleteExpense'](arg1);
+}
+
+export function DeleteFinancialAccount(arg1) {
+  return window['go']['main']['App']['DeleteFinancialAccount'](arg1);
+}
+
 export function DeleteMachine(arg1) {
   return window['go']['main']['App']['DeleteMachine'](arg1);
 }
@@ -184,6 +204,10 @@ export function DeleteOwner(arg1) {
 
 export function DeleteProductionJob(arg1) {
   return window['go']['main']['App']['DeleteProductionJob'](arg1);
+}
+
+export function DeletePurchase(arg1) {
+  return window['go']['main']['App']['DeletePurchase'](arg1);
 }
 
 export function DeleteService(arg1) {
@@ -524,6 +548,14 @@ export function TransitionCheck(arg1, arg2, arg3, arg4) {
 
 export function UpdateCustomer(arg1, arg2) {
   return window['go']['main']['App']['UpdateCustomer'](arg1, arg2);
+}
+
+export function UpdateExpense(arg1, arg2) {
+  return window['go']['main']['App']['UpdateExpense'](arg1, arg2);
+}
+
+export function UpdateFinancialAccount(arg1) {
+  return window['go']['main']['App']['UpdateFinancialAccount'](arg1);
 }
 
 export function UpdateInventoryReservation(arg1, arg2) {

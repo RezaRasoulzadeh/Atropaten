@@ -108,6 +108,10 @@ type PurchaseRepository interface {
 	GetPurchase(context.Context, string) (domain.Purchase, error)
 	SavePurchase(context.Context, domain.Purchase) error
 	DeleteDraftPurchase(context.Context, string) error
+	DeletePurchase(context.Context, string) error
+	ArchivePurchase(context.Context, string) error
+	PurchaseHasDependencies(context.Context, string) (bool, error)
+	PurchaseItemHasDependencies(context.Context, string, string) (bool, error)
 	PostPurchase(context.Context, string) error
 	CancelPurchase(context.Context, string) error
 	ListInventoryMovements(context.Context, string) ([]domain.InventoryMovement, error)
@@ -117,11 +121,11 @@ type PurchasePaymentLookup interface {
 	PurchasePaymentSummary(context.Context, string) (int64, int64, error)
 }
 type PurchaseView struct {
-	ID, PurchaseNumber, SupplierID, SupplierName, SupplierInvoiceNumber, PurchaseDate, Status, Notes string
-	SubtotalRial, DiscountRial, ShippingRial, TaxRial, AdditionalCostsRial, TotalRial                int64
-	PaidRial, RemainingRial                                                                          int64
-	CreatedAt, UpdatedAt                                                                             string
-	Items                                                                                            []PurchaseItemView
+	ID, PurchaseNumber, SupplierID, SupplierName, SupplierInvoiceNumber, FinancialAccountID, PurchaseDate, Status, Notes string
+	SubtotalRial, DiscountRial, ShippingRial, TaxRial, AdditionalCostsRial, TotalRial                                    int64
+	PaidRial, RemainingRial                                                                                              int64
+	CreatedAt, UpdatedAt                                                                                                 string
+	Items                                                                                                                []PurchaseItemView
 }
 type PurchaseItemView struct {
 	ID                                                                                                               string
@@ -131,8 +135,8 @@ type PurchaseItemView struct {
 	Notes                                                                                                            string
 }
 type PurchaseInput struct {
-	SupplierID, PurchaseDate, SupplierInvoiceNumber, Notes   string
-	DiscountRial, ShippingRial, TaxRial, AdditionalCostsRial int64
+	SupplierID, FinancialAccountID, PurchaseDate, SupplierInvoiceNumber, Notes string
+	DiscountRial, ShippingRial, TaxRial, AdditionalCostsRial                   int64
 }
 type PurchaseItemInput struct{ MaterialID, PurchaseQuantity, UnitAcquisitionCostRial, Notes string }
 type InventoryMovementView struct {
@@ -201,17 +205,40 @@ func (s *PurchasesService) Update(ctx context.Context, id string, in PurchaseInp
 	if e != nil {
 		return PurchaseView{}, e
 	}
-	if p.Status != domain.PurchaseDraft {
-		return PurchaseView{}, domain.ErrPurchaseNotDraft
-	}
-	if e = s.applyPurchaseInput(ctx, &p, in); e != nil {
+	updated := p
+	if e = s.applyPurchaseInput(ctx, &updated, in); e != nil {
 		return PurchaseView{}, e
 	}
-	p.UpdatedAt = s.now().UTC()
-	if e = s.repository.SavePurchase(ctx, p); e != nil {
-		return PurchaseView{}, e
+	updated.UpdatedAt = s.now().UTC()
+	return s.savePurchaseChange(ctx, p, updated)
+}
+
+func (s *PurchasesService) savePurchaseChange(ctx context.Context, previous, updated domain.Purchase) (PurchaseView, error) {
+	if previous.Status == domain.PurchasePosted {
+		if err := s.repository.CancelPurchase(ctx, previous.ID); err != nil {
+			return PurchaseView{}, fmt.Errorf("purchase cannot be changed because its inventory is already used or reserved; archive it instead: %w", err)
+		}
+		updated.Status = domain.PurchaseDraft
+		updated.Archived = false
+		for i := range updated.Items {
+			updated.Items[i].ID = mustID("PITM-")
+		}
+	} else if previous.Status == domain.PurchaseCancelled {
+		updated.Status = domain.PurchaseDraft
+		updated.Archived = false
+		for i := range updated.Items {
+			updated.Items[i].ID = mustID("PITM-")
+		}
 	}
-	return purchaseView(p), nil
+	if err := s.repository.SavePurchase(ctx, updated); err != nil {
+		return PurchaseView{}, err
+	}
+	if previous.Status == domain.PurchasePosted {
+		if err := s.repository.PostPurchase(ctx, updated.ID); err != nil {
+			return PurchaseView{}, fmt.Errorf("purchase was reopened but could not be posted again: %w", err)
+		}
+	}
+	return s.Get(ctx, updated.ID)
 }
 func (s *PurchasesService) newPurchase(ctx context.Context, in PurchaseInput) (domain.Purchase, error) {
 	id, e := randomID("PUR-")
@@ -229,6 +256,21 @@ func (s *PurchasesService) applyPurchaseInput(ctx context.Context, p *domain.Pur
 	if strings.TrimSpace(in.SupplierID) == "" {
 		return fmt.Errorf("supplier is required")
 	}
+	financialAccountID := strings.TrimSpace(in.FinancialAccountID)
+	if financialAccountID == "" {
+		return fmt.Errorf("treasury account is required")
+	}
+	if lookup, ok := s.repository.(interface {
+		GetFinancialAccount(context.Context, string) (domain.FinancialAccount, error)
+	}); ok {
+		account, err := lookup.GetFinancialAccount(ctx, financialAccountID)
+		if err != nil {
+			return err
+		}
+		if !account.Active {
+			return domain.ErrAccountInactive
+		}
+	}
 	sup, e := s.suppliers.GetSupplier(ctx, in.SupplierID)
 	if e != nil {
 		return e
@@ -236,6 +278,7 @@ func (s *PurchasesService) applyPurchaseInput(ctx context.Context, p *domain.Pur
 	p.SupplierID = sup.ID
 	p.SupplierNameSnapshot = sup.Name
 	p.SupplierCodeSnapshot = sup.Code
+	p.FinancialAccountID = financialAccountID
 	p.SupplierInvoiceNumber = strings.TrimSpace(in.SupplierInvoiceNumber)
 	p.Notes = strings.TrimSpace(in.Notes)
 	p.DiscountRial = in.DiscountRial
@@ -296,22 +339,18 @@ func (s *PurchasesService) AddItem(ctx context.Context, id string, in PurchaseIt
 	if e != nil {
 		return PurchaseView{}, e
 	}
-	if p.Status != domain.PurchaseDraft {
-		return PurchaseView{}, domain.ErrPurchaseNotDraft
-	}
 	item, e := s.item(ctx, p.ID, in)
 	if e != nil {
 		return PurchaseView{}, e
 	}
-	p.Items = append(p.Items, item)
-	p.UpdatedAt = s.now().UTC()
-	if e = recalculatePurchase(&p); e != nil {
+	updated := p
+	updated.Items = append([]domain.PurchaseItem(nil), p.Items...)
+	updated.Items = append(updated.Items, item)
+	updated.UpdatedAt = s.now().UTC()
+	if e = recalculatePurchase(&updated); e != nil {
 		return PurchaseView{}, e
 	}
-	if e = s.repository.SavePurchase(ctx, p); e != nil {
-		return PurchaseView{}, e
-	}
-	return purchaseView(p), nil
+	return s.savePurchaseChange(ctx, p, updated)
 }
 func (s *PurchasesService) item(ctx context.Context, pid string, in PurchaseItemInput) (domain.PurchaseItem, error) {
 	m, e := s.materials.Get(ctx, in.MaterialID)
@@ -337,71 +376,72 @@ func (s *PurchasesService) UpdateItem(ctx context.Context, id, itemID string, in
 	if e != nil {
 		return PurchaseView{}, e
 	}
-	if p.Status != domain.PurchaseDraft {
-		return PurchaseView{}, domain.ErrPurchaseNotDraft
-	}
 	item, e := s.item(ctx, p.ID, in)
 	if e != nil {
 		return PurchaseView{}, e
 	}
+	if p.Status == domain.PurchasePosted {
+		if blocked, dependencyErr := s.repository.PurchaseItemHasDependencies(ctx, id, itemID); dependencyErr != nil {
+			return PurchaseView{}, dependencyErr
+		} else if blocked {
+			return PurchaseView{}, fmt.Errorf("purchase line cannot be changed because its material was already used in production; archive the purchase instead")
+		}
+	}
 	item.ID = itemID
 	found := false
-	for i := range p.Items {
-		if p.Items[i].ID == itemID {
+	updated := p
+	updated.Items = append([]domain.PurchaseItem(nil), p.Items...)
+	for i := range updated.Items {
+		if updated.Items[i].ID == itemID {
 			item.Position = i
-			p.Items[i] = item
+			updated.Items[i] = item
 			found = true
 		}
 	}
 	if !found {
 		return PurchaseView{}, fmt.Errorf("purchase item not found")
 	}
-	p.UpdatedAt = s.now().UTC()
-	if e = recalculatePurchase(&p); e != nil {
+	updated.UpdatedAt = s.now().UTC()
+	if e = recalculatePurchase(&updated); e != nil {
 		return PurchaseView{}, e
 	}
-	if e = s.repository.SavePurchase(ctx, p); e != nil {
-		return PurchaseView{}, e
-	}
-	return purchaseView(p), nil
+	return s.savePurchaseChange(ctx, p, updated)
 }
 func (s *PurchasesService) RemoveItem(ctx context.Context, id, itemID string) (PurchaseView, error) {
 	p, e := s.repository.GetPurchase(ctx, id)
 	if e != nil {
 		return PurchaseView{}, e
 	}
-	if p.Status != domain.PurchaseDraft {
-		return PurchaseView{}, domain.ErrPurchaseNotDraft
+	if p.Status == domain.PurchasePosted {
+		if blocked, dependencyErr := s.repository.PurchaseItemHasDependencies(ctx, id, itemID); dependencyErr != nil {
+			return PurchaseView{}, dependencyErr
+		} else if blocked {
+			return PurchaseView{}, fmt.Errorf("purchase line cannot be deleted because its material was already used in production; archive the purchase instead")
+		}
 	}
-	out := p.Items[:0]
+	updated := p
+	updated.Items = make([]domain.PurchaseItem, 0, len(p.Items))
 	found := false
 	for _, i := range p.Items {
 		if i.ID == itemID {
 			found = true
-		} else {
-			out = append(out, i)
+			continue
 		}
+		updated.Items = append(updated.Items, i)
 	}
 	if !found {
 		return PurchaseView{}, fmt.Errorf("purchase item not found")
 	}
-	p.Items = out
-	p.UpdatedAt = s.now().UTC()
-	if e = recalculatePurchase(&p); e != nil {
+	updated.UpdatedAt = s.now().UTC()
+	if e = recalculatePurchase(&updated); e != nil {
 		return PurchaseView{}, e
 	}
-	if e = s.repository.SavePurchase(ctx, p); e != nil {
-		return PurchaseView{}, e
-	}
-	return purchaseView(p), nil
+	return s.savePurchaseChange(ctx, p, updated)
 }
 func (s *PurchasesService) ReorderItems(ctx context.Context, id string, ids []string) (PurchaseView, error) {
 	p, e := s.repository.GetPurchase(ctx, id)
 	if e != nil {
 		return PurchaseView{}, e
-	}
-	if p.Status != domain.PurchaseDraft {
-		return PurchaseView{}, domain.ErrPurchaseNotDraft
 	}
 	by := map[string]domain.PurchaseItem{}
 	for _, i := range p.Items {
@@ -418,15 +458,13 @@ func (s *PurchasesService) ReorderItems(ctx context.Context, id string, ids []st
 	if len(items) != len(p.Items) {
 		return PurchaseView{}, fmt.Errorf("all purchase items must be included")
 	}
-	p.Items = items
-	p.UpdatedAt = s.now().UTC()
-	if e = recalculatePurchase(&p); e != nil {
+	updated := p
+	updated.Items = items
+	updated.UpdatedAt = s.now().UTC()
+	if e = recalculatePurchase(&updated); e != nil {
 		return PurchaseView{}, e
 	}
-	if e = s.repository.SavePurchase(ctx, p); e != nil {
-		return PurchaseView{}, e
-	}
-	return purchaseView(p), nil
+	return s.savePurchaseChange(ctx, p, updated)
 }
 func (s *PurchasesService) Post(ctx context.Context, id string) (PurchaseView, error) {
 	if e := s.repository.PostPurchase(ctx, id); e != nil {
@@ -442,6 +480,31 @@ func (s *PurchasesService) Cancel(ctx context.Context, id string) (PurchaseView,
 }
 func (s *PurchasesService) DeleteDraft(ctx context.Context, id string) error {
 	return s.repository.DeleteDraftPurchase(ctx, id)
+}
+func (s *PurchasesService) Archive(ctx context.Context, id string) (PurchaseView, error) {
+	if err := s.repository.ArchivePurchase(ctx, id); err != nil {
+		return PurchaseView{}, err
+	}
+	return s.Get(ctx, id)
+}
+func (s *PurchasesService) Delete(ctx context.Context, id string) error {
+	p, err := s.repository.GetPurchase(ctx, id)
+	if err != nil {
+		return err
+	}
+	blocked, err := s.repository.PurchaseHasDependencies(ctx, id)
+	if err != nil {
+		return err
+	}
+	if blocked {
+		return domain.ErrPurchaseDeleteProtected
+	}
+	if p.Status == domain.PurchasePosted {
+		if err := s.repository.CancelPurchase(ctx, id); err != nil {
+			return fmt.Errorf("purchase cannot be removed because its inventory is already used or reserved; archive it instead: %w", err)
+		}
+	}
+	return s.repository.DeletePurchase(ctx, id)
 }
 func (s *PurchasesService) Movements(ctx context.Context, id string) ([]InventoryMovementView, error) {
 	rows, e := s.repository.ListInventoryMovements(ctx, id)
@@ -462,7 +525,11 @@ func (s *PurchasesService) Adjust(ctx context.Context, id, qty string, cost int6
 	return s.repository.AdjustInventory(ctx, id, q, cost, note)
 }
 func purchaseView(p domain.Purchase) PurchaseView {
-	out := PurchaseView{ID: p.ID, PurchaseNumber: p.PurchaseNumber, SupplierID: p.SupplierID, SupplierName: p.SupplierNameSnapshot, SupplierInvoiceNumber: p.SupplierInvoiceNumber, PurchaseDate: p.PurchaseDate.UTC().Format(time.RFC3339Nano), Status: p.Status, Notes: p.Notes, SubtotalRial: p.SubtotalRial, DiscountRial: p.DiscountRial, ShippingRial: p.ShippingRial, TaxRial: p.TaxRial, AdditionalCostsRial: p.AdditionalCostsRial, TotalRial: p.TotalRial, CreatedAt: p.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: p.UpdatedAt.UTC().Format(time.RFC3339Nano), Items: make([]PurchaseItemView, 0, len(p.Items))}
+	status := p.Status
+	if p.Archived {
+		status = "Archived"
+	}
+	out := PurchaseView{ID: p.ID, PurchaseNumber: p.PurchaseNumber, SupplierID: p.SupplierID, SupplierName: p.SupplierNameSnapshot, SupplierInvoiceNumber: p.SupplierInvoiceNumber, FinancialAccountID: p.FinancialAccountID, PurchaseDate: p.PurchaseDate.UTC().Format(time.RFC3339Nano), Status: status, Notes: p.Notes, SubtotalRial: p.SubtotalRial, DiscountRial: p.DiscountRial, ShippingRial: p.ShippingRial, TaxRial: p.TaxRial, AdditionalCostsRial: p.AdditionalCostsRial, TotalRial: p.TotalRial, CreatedAt: p.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: p.UpdatedAt.UTC().Format(time.RFC3339Nano), Items: make([]PurchaseItemView, 0, len(p.Items))}
 	for _, i := range p.Items {
 		out.Items = append(out.Items, PurchaseItemView{ID: i.ID, Position: i.Position, MaterialID: i.MaterialID, MaterialName: i.MaterialNameSnapshot, PurchaseUnit: i.PurchaseUnitSnapshot, ConsumptionUnit: i.ConsumptionUnitSnapshot, PurchaseQuantity: i.PurchaseQuantity.String(), ConversionFactor: i.ConversionFactorSnapshot.String(), ConsumptionQuantity: i.ConsumptionQuantity.String(), UnitAcquisitionCostRial: i.UnitAcquisitionCostRial, AllocatedAdditionalCostRial: i.AllocatedAdditionalCostRial, LandedUnitCostRial: i.LandedUnitCostRial, LineTotalRial: i.LineTotalRial, Notes: i.Notes})
 	}

@@ -34,6 +34,18 @@ export function formatMoneyInput(amountRial: number, unit: CurrencyUnit): string
   return `${sign}${groupInteger(String(Math.trunc(absolute / 10)))}.${absolute % 10}`
 }
 
+/** Group the value while preserving the fraction the user is still typing. */
+export function formatMoneyInputWhileTyping(value: string, unit: CurrencyUnit): string {
+  const normalized = value.replaceAll(',', '')
+  if (normalized === '' || normalized === '-') return value
+  if (!/^-?\d*(?:\.\d*)?$/.test(normalized)) return value
+  const [whole = '', fraction] = normalized.split('.')
+  const groupedWhole = groupInteger(whole || '0')
+  if (fraction !== undefined) return `${groupedWhole}.${fraction}`
+  const parsed = parseMoneyInput(normalized, unit)
+  return parsed === null ? value : formatMoneyInput(parsed, unit)
+}
+
 export function parseMoneyInput(value: string, unit: CurrencyUnit): number | null {
   const normalized = value.trim().replaceAll(',', '')
   if (!/^-?\d+(?:\.\d+)?$/.test(normalized)) return null

@@ -13,7 +13,6 @@ import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
 import MaterialWorkspaceView from './MaterialWorkspaceView.vue';
 import { formatMoney, type CurrencyUnit } from '../../utils/currency';
-import { formatQuantityUnits } from '../../utils/quantity';
 import { useMaterialsWorkspace } from './useMaterialsWorkspace';
 
 const props = defineProps<{ currencyUnit: CurrencyUnit }>();
@@ -127,7 +126,7 @@ watch(
               <div class="min-w-0">
                 <span class="block text-base-content/50">Stock</span>
                 <span class="block text-base-content/80 tabular-nums">
-                  {{ formatQuantityUnits(material.physicalStock) }} physical · {{ formatQuantityUnits(material.availableStock) }} available · {{ formatQuantityUnits(material.reservedStock) }} reserved {{ material.consumptionUnit }}
+                  {{ material.physicalStock }} physical · {{ material.availableStock }} available · {{ material.reservedStock }} reserved {{ material.consumptionUnit }}
                 </span>
               </div>
               <div class="min-w-0">
@@ -138,11 +137,11 @@ watch(
               </div>
               <div class="min-w-0">
                 <span class="block text-base-content/50">Units</span>
-                <span class="block text-base-content/80">1 {{ unitLabel(material.purchaseUnit) }} = {{ formatQuantityUnits(material.conversionFactor) }} {{ unitLabel(material.consumptionUnit) }}</span>
+                <span class="block text-base-content/80">1 {{ unitLabel(material.purchaseUnit) }} = {{ material.conversionFactor }} {{ unitLabel(material.consumptionUnit) }}</span>
               </div>
               <div class="min-w-0">
                 <span class="block text-base-content/50">Reorder at</span>
-                <span class="block text-base-content/80 tabular-nums">{{ formatQuantityUnits(material.reorderLevel) }} {{ material.consumptionUnit }}</span>
+                <span class="block text-base-content/80 tabular-nums">{{ material.reorderLevel }} {{ material.consumptionUnit }}</span>
               </div>
             </div>
           </template>

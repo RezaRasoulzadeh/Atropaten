@@ -24,7 +24,6 @@ import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.v
 import AppTextarea from '../../components/ui/AppTextarea.vue';
 import type { CurrencyUnit } from '../../utils/currency';
 import { formatMoney } from '../../utils/currency';
-import { formatQuantityUnits } from '../../utils/quantity';
 import type { useMaterialsWorkspace } from './useMaterialsWorkspace';
 
 const props = defineProps<{
@@ -146,7 +145,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
           </FormField>
           <FormField class="gap-1 sm:col-span-2">
             <span class="text-xs">Average cost / {{ form.consumptionUnit }} ({{ props.currencyUnit }})</span>
-            <AppInput :model-value="costDraft" type="text" inputmode="decimal" placeholder="0" :disabled="isEditing" @update:model-value="updateCost" />
+            <AppInput :model-value="costDraft" :money="props.currencyUnit" type="text" inputmode="decimal" placeholder="0" @update:model-value="updateCost" />
             <small class="text-xs text-base-content/60">Stored as integer Rial; use stock movements for later cost changes.</small>
           </FormField>
         </FormSection>
@@ -170,13 +169,13 @@ const isEditing = computed(() => editorMode.value === 'edit');
         <div class="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
             <span class="block text-xs text-base-content/60">Physical stock</span>
-            <strong class="mt-1 block text-xl leading-6 tabular-nums">{{ formatQuantityUnits(selectedMaterial.physicalStock) }}</strong>
+            <strong class="mt-1 block text-xl leading-6 tabular-nums">{{ selectedMaterial.physicalStock }}</strong>
             <span class="mt-1 block text-xs text-base-content/55">{{ selectedMaterial.consumptionUnit }}</span>
           </div>
           <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
             <span class="block text-xs text-base-content/60">Available stock</span>
-            <strong class="mt-1 block text-xl leading-6 tabular-nums">{{ formatQuantityUnits(selectedMaterial.availableStock) }}</strong>
-            <span class="mt-1 block text-xs text-base-content/55">{{ formatQuantityUnits(selectedMaterial.reservedStock) }} reserved</span>
+            <strong class="mt-1 block text-xl leading-6 tabular-nums">{{ selectedMaterial.availableStock }}</strong>
+            <span class="mt-1 block text-xs text-base-content/55">{{ selectedMaterial.reservedStock }} reserved</span>
           </div>
           <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
             <span class="block text-xs text-base-content/60">Average cost</span>
@@ -199,11 +198,11 @@ const isEditing = computed(() => editorMode.value === 'edit');
               </div>
               <div>
                 <dt class="text-xs text-base-content/60">Unit conversion</dt>
-                <dd class="mt-1 font-medium">1 {{ unitLabel(selectedMaterial.purchaseUnit) }} = {{ formatQuantityUnits(selectedMaterial.conversionFactor) }} {{ unitLabel(selectedMaterial.consumptionUnit) }}</dd>
+                <dd class="mt-1 font-medium">1 {{ unitLabel(selectedMaterial.purchaseUnit) }} = {{ selectedMaterial.conversionFactor }} {{ unitLabel(selectedMaterial.consumptionUnit) }}</dd>
               </div>
               <div>
                 <dt class="text-xs text-base-content/60">Reorder level</dt>
-                <dd class="mt-1 font-medium tabular-nums">{{ formatQuantityUnits(selectedMaterial.reorderLevel) }} {{ selectedMaterial.consumptionUnit }}</dd>
+                <dd class="mt-1 font-medium tabular-nums">{{ selectedMaterial.reorderLevel }} {{ selectedMaterial.consumptionUnit }}</dd>
               </div>
               <div>
                 <dt class="text-xs text-base-content/60">Last updated</dt>
@@ -231,6 +230,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
             <span class="text-xs">Unit cost ({{ props.currencyUnit }})</span>
             <AppInput
               :model-value="adjustmentCost"
+              :money="props.currencyUnit"
               class="input w-full min-w-0"
               inputmode="numeric"
               @update:model-value="updateAdjustmentCost"
@@ -267,7 +267,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
                 <span class="block text-xs text-base-content/60">{{ dateLabel(movement.occurredAt) }}</span>
               </DataTableCell>
               <DataTableCell numeric :class="String(movement.quantityDelta).startsWith('-') ? 'text-error' : 'text-success'">
-                {{ formatQuantityUnits(movement.quantityDelta) }} {{ selectedMaterial.consumptionUnit }}
+                {{ movement.quantityDelta }} {{ selectedMaterial.consumptionUnit }}
               </DataTableCell>
               <DataTableCell numeric>{{ formatMoney(movement.unitCostRial, props.currencyUnit) }}</DataTableCell>
               <DataTableCell numeric>{{ formatMoney(movement.totalCostRial, props.currencyUnit) }}</DataTableCell>

@@ -14,6 +14,7 @@ var (
 	ErrMovementNotFound        = errors.New("inventory movement not found")
 	ErrSupplierDeleteProtected = errors.New("supplier has purchase history; archive it instead")
 	ErrPurchaseNotDraft        = errors.New("only draft purchases can be edited or deleted")
+	ErrPurchaseDeleteProtected = errors.New("purchase has dependent inventory, production, or payment history; archive it instead")
 	ErrPurchaseAlreadyPosted   = errors.New("purchase is already posted")
 	ErrPurchaseCannotCancel    = errors.New("only posted purchases can be cancelled")
 	ErrInsufficientStock       = errors.New("operation would make stock negative")
@@ -47,10 +48,12 @@ func (s Supplier) Validate() error {
 type Purchase struct {
 	ID, PurchaseNumber, SupplierID, SupplierNameSnapshot, SupplierCodeSnapshot        string
 	SupplierInvoiceNumber, Notes                                                      string
+	FinancialAccountID                                                                string
 	PurchaseDate                                                                      time.Time
 	Status                                                                            string
 	SubtotalRial, DiscountRial, ShippingRial, TaxRial, AdditionalCostsRial, TotalRial int64
 	CreatedAt, UpdatedAt                                                              time.Time
+	Archived                                                                          bool
 	Items                                                                             []PurchaseItem
 }
 

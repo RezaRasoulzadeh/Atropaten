@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -236,6 +237,42 @@ func TestExpenseAndTransferAreBalancedIdempotentAndReversible(t *testing.T) {
 		if debit != credit {
 			t.Fatalf("unbalanced entry %s: debit=%d credit=%d", entry.ID, debit, credit)
 		}
+	}
+}
+
+func TestExpenseCanBeEditedAndRemovedWhileLedgerHistoryIsRetained(t *testing.T) {
+	s := openFinanceTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	now := time.Date(2026, 2, 5, 8, 0, 0, 0, time.UTC)
+	exp := domain.Expense{ID: "EXP-edit-delete", ExpenseDate: now, CategoryAccountID: "ACC-EXP-OTHER", Description: "Original expense", PaymentMethod: string(domain.PaymentCash), FinancialAccountID: "FIN-CASH", AmountRial: 1000, Status: "Posted", CreatedAt: now, UpdatedAt: now}
+	created, err := s.CreateExpense(ctx, exp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	created.Description = "Updated expense"
+	created.AmountRial = 2500
+	created.UpdatedAt = now.Add(time.Minute)
+	updated, err := s.UpdateExpense(ctx, created)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Description != "Updated expense" || updated.AmountRial != 2500 || updated.Status != "Posted" {
+		t.Fatalf("updated expense=%+v", updated)
+	}
+	entries, err := s.ListJournalEntries(ctx)
+	if err != nil || len(entries) != 3 {
+		t.Fatalf("journal entries after update=%d err=%v", len(entries), err)
+	}
+	if err = s.DeleteExpense(ctx, exp.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.GetExpense(ctx, exp.ID); !errors.Is(err, domain.ErrExpenseNotFound) {
+		t.Fatalf("deleted expense error=%v", err)
+	}
+	entries, err = s.ListJournalEntries(ctx)
+	if err != nil || len(entries) != 4 {
+		t.Fatalf("journal entries after delete=%d err=%v", len(entries), err)
 	}
 }
 

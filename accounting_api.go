@@ -15,13 +15,27 @@ type AccountDTO struct {
 	BalanceRial int64  `json:"balanceRial"`
 }
 type FinancialAccountDTO struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	Type            string `json:"type"`
-	LedgerAccountID string `json:"ledgerAccountId"`
-	Details         string `json:"details"`
-	Active          bool   `json:"active"`
-	BalanceRial     int64  `json:"balanceRial"`
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Type            string   `json:"type"`
+	BankName        string   `json:"bankName"`
+	AccountNumber   string   `json:"accountNumber"`
+	CardNumber      string   `json:"cardNumber"`
+	LedgerAccountID string   `json:"ledgerAccountId"`
+	Details         string   `json:"details"`
+	Active          bool     `json:"active"`
+	OwnerIDs        []string `json:"ownerIds"`
+	BalanceRial     int64    `json:"balanceRial"`
+}
+type FinancialAccountInputDTO struct {
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Type          string   `json:"type"`
+	BankName      string   `json:"bankName"`
+	AccountNumber string   `json:"accountNumber"`
+	CardNumber    string   `json:"cardNumber"`
+	Details       string   `json:"details"`
+	OwnerIDs      []string `json:"ownerIds"`
 }
 type JournalLineDTO struct {
 	ID         string `json:"id"`
@@ -185,9 +199,45 @@ func (a *App) ListFinancialAccounts() ([]FinancialAccountDTO, error) {
 	}
 	out := make([]FinancialAccountDTO, 0, len(v))
 	for _, x := range v {
-		out = append(out, FinancialAccountDTO{x.ID, x.Name, x.Type, x.LedgerAccountID, x.Details, x.Active, x.BalanceRial})
+		out = append(out, FinancialAccountDTO{ID: x.ID, Name: x.Name, Type: x.Type, BankName: x.BankName, AccountNumber: x.AccountNumber, CardNumber: x.CardNumber, LedgerAccountID: x.LedgerAccountID, Details: x.Details, Active: x.Active, OwnerIDs: x.OwnerIDs, BalanceRial: x.BalanceRial})
 	}
 	return out, nil
+}
+func (a *App) CreateFinancialAccount(in FinancialAccountInputDTO) (FinancialAccountDTO, error) {
+	s, e := a.accountingService()
+	if e != nil {
+		return FinancialAccountDTO{}, e
+	}
+	v, e := s.CreateFinancialAccount(a.materialContext(), application.FinancialAccountInput{ID: in.ID, Name: in.Name, Type: in.Type, BankName: in.BankName, AccountNumber: in.AccountNumber, CardNumber: in.CardNumber, Details: in.Details, OwnerIDs: in.OwnerIDs})
+	if e != nil {
+		return FinancialAccountDTO{}, e
+	}
+	return FinancialAccountDTO{ID: v.ID, Name: v.Name, Type: v.Type, BankName: v.BankName, AccountNumber: v.AccountNumber, CardNumber: v.CardNumber, LedgerAccountID: v.LedgerAccountID, Details: v.Details, Active: v.Active, OwnerIDs: v.OwnerIDs, BalanceRial: v.BalanceRial}, nil
+}
+func (a *App) UpdateFinancialAccount(in FinancialAccountInputDTO) (FinancialAccountDTO, error) {
+	s, e := a.accountingService()
+	if e != nil {
+		return FinancialAccountDTO{}, e
+	}
+	v, e := s.UpdateFinancialAccount(a.materialContext(), application.FinancialAccountInput{ID: in.ID, Name: in.Name, Type: in.Type, BankName: in.BankName, AccountNumber: in.AccountNumber, CardNumber: in.CardNumber, Details: in.Details, OwnerIDs: in.OwnerIDs})
+	if e != nil {
+		return FinancialAccountDTO{}, e
+	}
+	return FinancialAccountDTO{ID: v.ID, Name: v.Name, Type: v.Type, BankName: v.BankName, AccountNumber: v.AccountNumber, CardNumber: v.CardNumber, LedgerAccountID: v.LedgerAccountID, Details: v.Details, Active: v.Active, OwnerIDs: v.OwnerIDs, BalanceRial: v.BalanceRial}, nil
+}
+func (a *App) ArchiveFinancialAccount(id string) error {
+	s, e := a.accountingService()
+	if e != nil {
+		return e
+	}
+	return s.ArchiveFinancialAccount(a.materialContext(), id)
+}
+func (a *App) DeleteFinancialAccount(id string) error {
+	s, e := a.accountingService()
+	if e != nil {
+		return e
+	}
+	return s.DeleteFinancialAccount(a.materialContext(), id)
 }
 func (a *App) ListJournalEntries() ([]JournalEntryDTO, error) {
 	s, e := a.accountingService()
@@ -280,6 +330,21 @@ func (a *App) ReverseExpense(id, key string) (ExpenseDTO, error) {
 	}
 	v, e := s.ReverseExpense(a.materialContext(), id, key)
 	return expenseDTO(v), e
+}
+func (a *App) UpdateExpense(id string, in ExpenseInputDTO) (ExpenseDTO, error) {
+	s, e := a.accountingService()
+	if e != nil {
+		return ExpenseDTO{}, e
+	}
+	v, e := s.UpdateExpense(a.materialContext(), id, application.ExpenseInput{ID: id, ExpenseDate: in.ExpenseDate, CategoryAccountID: in.CategoryAccountID, Payee: in.Payee, SupplierID: in.SupplierID, Description: in.Description, AmountRial: in.AmountRial, PaymentMethod: in.PaymentMethod, FinancialAccountID: in.FinancialAccountID, Notes: in.Notes, IdempotencyKey: in.IdempotencyKey})
+	return expenseDTO(v), e
+}
+func (a *App) DeleteExpense(id string) error {
+	s, e := a.accountingService()
+	if e != nil {
+		return e
+	}
+	return s.DeleteExpense(a.materialContext(), id)
 }
 func (a *App) ListTransfers() ([]TransferDTO, error) {
 	s, e := a.accountingService()

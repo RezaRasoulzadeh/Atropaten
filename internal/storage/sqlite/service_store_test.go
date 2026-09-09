@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"Atropaten/internal/domain"
+	"Atropaten/internal/platform"
 )
 
 func TestMigrationUpgradeKeepsExistingMaterials(t *testing.T) {
@@ -46,8 +47,8 @@ func TestMigrationUpgradeKeepsExistingMaterials(t *testing.T) {
 	if err := store.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil {
 		t.Fatalf("read migration version: %v", err)
 	}
-	if version != 13 {
-		t.Fatalf("migration version = %d, want 13", version)
+	if version != platform.CurrentSchemaVersion {
+		t.Fatalf("migration version = %d, want %d", version, platform.CurrentSchemaVersion)
 	}
 	material, err := store.Get(context.Background(), "MAT-legacy")
 	if err != nil {

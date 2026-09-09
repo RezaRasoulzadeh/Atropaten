@@ -88,6 +88,23 @@ func TestPurchasePostingCancellationAndSupplierProtection(t *testing.T) {
 	if err != nil || len(movs) != 2 {
 		t.Fatalf("movements=%d err=%v", len(movs), err)
 	}
+	// Reposting the same item IDs must create fresh immutable movement IDs
+	// instead of failing against the first posting/cancellation history.
+	p.Status = domain.PurchaseDraft
+	p.UpdatedAt = now.Add(time.Minute)
+	if err = store.SavePurchase(ctx, p); err != nil {
+		t.Fatal("reopen cancelled purchase:", err)
+	}
+	if err = store.PostPurchase(ctx, p.ID); err != nil {
+		t.Fatal("repost cancelled purchase:", err)
+	}
+	if err = store.CancelPurchase(ctx, p.ID); err != nil {
+		t.Fatal("recancel reposted purchase:", err)
+	}
+	movs, err = store.ListInventoryMovements(ctx, m.ID)
+	if err != nil || len(movs) != 4 {
+		t.Fatalf("movements after repost=%d err=%v", len(movs), err)
+	}
 }
 
 func TestDraftDeleteAndManualAdjustmentUseLedger(t *testing.T) {

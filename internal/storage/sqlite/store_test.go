@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"Atropaten/internal/domain"
+	"Atropaten/internal/platform"
 )
 
 func TestFreshDatabaseMigratesAndReopens(t *testing.T) {
@@ -28,8 +29,8 @@ func TestFreshDatabaseMigratesAndReopens(t *testing.T) {
 	if err := reopened.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil {
 		t.Fatalf("migration metadata: %v", err)
 	}
-	if version != 13 {
-		t.Fatalf("migration version = %d, want 13", version)
+	if version != platform.CurrentSchemaVersion {
+		t.Fatalf("migration version = %d, want %d", version, platform.CurrentSchemaVersion)
 	}
 	var foreignKeys int
 	if err := reopened.db.QueryRow(`PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil {

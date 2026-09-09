@@ -2,8 +2,12 @@ import {
   CreateExpense,
   CreatePayment,
   CreateTransfer,
+  DeleteExpense,
   ListAccounts,
   ListExpenses,
+  ArchiveFinancialAccount,
+  CreateFinancialAccount,
+  DeleteFinancialAccount,
   ListFinancialAccounts,
   ListJournalEntries,
   ListPayments,
@@ -11,6 +15,8 @@ import {
   ReverseExpense,
   ReversePayment,
   ReverseTransfer,
+  UpdateFinancialAccount,
+  UpdateExpense,
 } from '../../wailsjs/go/main/App'
 export interface AccountRecord {
   id: string
@@ -25,10 +31,24 @@ export interface FinancialAccountRecord {
   id: string
   name: string
   type: string
+  bankName: string
+  accountNumber: string
+  cardNumber: string
   ledgerAccountId: string
   details: string
   active: boolean
+  ownerIds: string[]
   balanceRial: number
+}
+export interface FinancialAccountInput {
+  id?: string
+  name: string
+  type: 'cash' | 'bank'
+  bankName?: string
+  accountNumber?: string
+  cardNumber?: string
+  details?: string
+  ownerIds: string[]
 }
 export interface JournalLineRecord {
   id: string
@@ -111,7 +131,7 @@ export interface ExpensePayload {
   categoryAccountId: string
   payee?: string
   supplierId?: string
-  description: string
+  description?: string
   amountRial: number
   paymentMethod: string
   financialAccountId: string
@@ -147,6 +167,18 @@ export const accountingApi = {
   financialAccounts() {
     return ListFinancialAccounts() as unknown as Promise<FinancialAccountRecord[]>
   },
+  createFinancialAccount(v: FinancialAccountInput) {
+    return CreateFinancialAccount(v as any) as unknown as Promise<FinancialAccountRecord>
+  },
+  updateFinancialAccount(v: FinancialAccountInput & { id: string }) {
+    return UpdateFinancialAccount(v as any) as unknown as Promise<FinancialAccountRecord>
+  },
+  archiveFinancialAccount(id: string) {
+    return ArchiveFinancialAccount(id)
+  },
+  deleteFinancialAccount(id: string) {
+    return DeleteFinancialAccount(id)
+  },
   journal() {
     return ListJournalEntries() as unknown as Promise<JournalEntryRecord[]>
   },
@@ -167,6 +199,12 @@ export const accountingApi = {
   },
   reverseExpense(id: string, key = '') {
     return ReverseExpense(id, key) as unknown as Promise<ExpenseRecord>
+  },
+  updateExpense(id: string, v: ExpensePayload) {
+    return UpdateExpense(id, v as any) as unknown as Promise<ExpenseRecord>
+  },
+  deleteExpense(id: string) {
+    return DeleteExpense(id)
   },
   transfers() {
     return ListTransfers() as unknown as Promise<TransferRecord[]>

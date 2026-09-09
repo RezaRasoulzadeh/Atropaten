@@ -7,6 +7,7 @@ import (
 
 type PurchaseInput struct {
 	SupplierID            string `json:"supplierId"`
+	FinancialAccountID    string `json:"financialAccountId"`
 	PurchaseDate          string `json:"purchaseDate"`
 	SupplierInvoiceNumber string `json:"supplierInvoiceNumber"`
 	Notes                 string `json:"notes"`
@@ -27,6 +28,7 @@ type PurchaseDTO struct {
 	SupplierID            string            `json:"supplierId"`
 	SupplierName          string            `json:"supplierName"`
 	SupplierInvoiceNumber string            `json:"supplierInvoiceNumber"`
+	FinancialAccountID    string            `json:"financialAccountId"`
 	PurchaseDate          string            `json:"purchaseDate"`
 	Status                string            `json:"status"`
 	Notes                 string            `json:"notes"`
@@ -168,6 +170,21 @@ func (a *App) CancelPurchase(id string) (PurchaseDTO, error) {
 	v, e := s.Cancel(a.materialContext(), id)
 	return purchaseDTO(v), e
 }
+func (a *App) ArchivePurchase(id string) (PurchaseDTO, error) {
+	s, e := a.purchaseService()
+	if e != nil {
+		return PurchaseDTO{}, e
+	}
+	v, e := s.Archive(a.materialContext(), id)
+	return purchaseDTO(v), e
+}
+func (a *App) DeletePurchase(id string) error {
+	s, e := a.purchaseService()
+	if e != nil {
+		return e
+	}
+	return s.Delete(a.materialContext(), id)
+}
 func (a *App) DeleteDraftPurchase(id string) error {
 	s, e := a.purchaseService()
 	if e != nil {
@@ -198,7 +215,7 @@ func (a *App) AdjustMaterialStock(id, qty string, cost int64, note string) error
 	return s.Adjust(a.materialContext(), id, qty, cost, note)
 }
 func purchaseDTO(v application.PurchaseView) PurchaseDTO {
-	out := PurchaseDTO{ID: v.ID, PurchaseNumber: v.PurchaseNumber, SupplierID: v.SupplierID, SupplierName: v.SupplierName, SupplierInvoiceNumber: v.SupplierInvoiceNumber, PurchaseDate: v.PurchaseDate, Status: v.Status, Notes: v.Notes, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, ShippingRial: v.ShippingRial, TaxRial: v.TaxRial, AdditionalCostsRial: v.AdditionalCostsRial, TotalRial: v.TotalRial, PaidRial: v.PaidRial, RemainingRial: v.RemainingRial, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt, Items: make([]PurchaseItemDTO, 0, len(v.Items))}
+	out := PurchaseDTO{ID: v.ID, PurchaseNumber: v.PurchaseNumber, SupplierID: v.SupplierID, SupplierName: v.SupplierName, SupplierInvoiceNumber: v.SupplierInvoiceNumber, FinancialAccountID: v.FinancialAccountID, PurchaseDate: v.PurchaseDate, Status: v.Status, Notes: v.Notes, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, ShippingRial: v.ShippingRial, TaxRial: v.TaxRial, AdditionalCostsRial: v.AdditionalCostsRial, TotalRial: v.TotalRial, PaidRial: v.PaidRial, RemainingRial: v.RemainingRial, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt, Items: make([]PurchaseItemDTO, 0, len(v.Items))}
 	for _, i := range v.Items {
 		out.Items = append(out.Items, PurchaseItemDTO{ID: i.ID, Position: i.Position, MaterialID: i.MaterialID, MaterialName: i.MaterialName, PurchaseUnit: i.PurchaseUnit, ConsumptionUnit: i.ConsumptionUnit, PurchaseQuantity: i.PurchaseQuantity, ConversionFactor: i.ConversionFactor, ConsumptionQuantity: i.ConsumptionQuantity, UnitAcquisitionCostRial: i.UnitAcquisitionCostRial, AllocatedAdditionalCostRial: i.AllocatedAdditionalCostRial, LandedUnitCostRial: i.LandedUnitCostRial, LineTotalRial: i.LineTotalRial, Notes: i.Notes})
 	}

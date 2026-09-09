@@ -593,9 +593,13 @@ export namespace main {
 	    id: string;
 	    name: string;
 	    type: string;
+	    bankName: string;
+	    accountNumber: string;
+	    cardNumber: string;
 	    ledgerAccountId: string;
 	    details: string;
 	    active: boolean;
+	    ownerIds: string[];
 	    balanceRial: number;
 	
 	    static createFrom(source: any = {}) {
@@ -607,10 +611,40 @@ export namespace main {
 	        this.id = source["id"];
 	        this.name = source["name"];
 	        this.type = source["type"];
+	        this.bankName = source["bankName"];
+	        this.accountNumber = source["accountNumber"];
+	        this.cardNumber = source["cardNumber"];
 	        this.ledgerAccountId = source["ledgerAccountId"];
 	        this.details = source["details"];
 	        this.active = source["active"];
+	        this.ownerIds = source["ownerIds"];
 	        this.balanceRial = source["balanceRial"];
+	    }
+	}
+	export class FinancialAccountInputDTO {
+	    id: string;
+	    name: string;
+	    type: string;
+	    bankName: string;
+	    accountNumber: string;
+	    cardNumber: string;
+	    details: string;
+	    ownerIds: string[];
+
+	    static createFrom(source: any = {}) {
+	        return new FinancialAccountInputDTO(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.type = source["type"];
+	        this.bankName = source["bankName"];
+	        this.accountNumber = source["accountNumber"];
+	        this.cardNumber = source["cardNumber"];
+	        this.details = source["details"];
+	        this.ownerIds = source["ownerIds"];
 	    }
 	}
 	export class ProfitAllocationDTO {
@@ -2550,6 +2584,7 @@ export namespace main {
 	    supplierId: string;
 	    supplierName: string;
 	    supplierInvoiceNumber: string;
+	    financialAccountId: string;
 	    purchaseDate: string;
 	    status: string;
 	    notes: string;
@@ -2576,6 +2611,7 @@ export namespace main {
 	        this.supplierId = source["supplierId"];
 	        this.supplierName = source["supplierName"];
 	        this.supplierInvoiceNumber = source["supplierInvoiceNumber"];
+	        this.financialAccountId = source["financialAccountId"];
 	        this.purchaseDate = source["purchaseDate"];
 	        this.status = source["status"];
 	        this.notes = source["notes"];
@@ -2612,6 +2648,7 @@ export namespace main {
 	}
 	export class PurchaseInput {
 	    supplierId: string;
+	    financialAccountId: string;
 	    purchaseDate: string;
 	    supplierInvoiceNumber: string;
 	    notes: string;
@@ -2627,6 +2664,7 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.supplierId = source["supplierId"];
+	        this.financialAccountId = source["financialAccountId"];
 	        this.purchaseDate = source["purchaseDate"];
 	        this.supplierInvoiceNumber = source["supplierInvoiceNumber"];
 	        this.notes = source["notes"];
@@ -3100,4 +3138,3 @@ export namespace main {
 	}
 
 }
-

@@ -272,6 +272,7 @@ function save() {
           <span class="text-xs text-base-content/60">{{ component.name }}</span>
           <AppInput
             :model-value="manualTexts[component.id] || ''"
+            :money="currencyUnit"
             :placeholder="`Amount in ${currencyUnit}`"
             @update:model-value="updateMoneyText($event, component.id)"
           />
@@ -292,6 +293,7 @@ function save() {
           <span class="text-xs text-base-content/60">Selling price override</span>
           <AppInput
             :model-value="overrideText"
+            :money="currencyUnit"
             inputmode="decimal"
             :placeholder="`Optional ${currencyUnit} price`"
             @update:model-value="updateMoneyText($event, 'override')"

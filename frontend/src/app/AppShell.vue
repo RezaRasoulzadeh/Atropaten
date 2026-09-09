@@ -422,12 +422,8 @@ function showToast(message: string) {
             v-else-if="activeView === 'Accounting'"
             key="accounting"
             :currency-unit="currencyUnit"
-            :orders="orders"
             :suppliers="suppliers"
-            :purchases="purchases"
-            :customers="customers"
             @notify="showToast"
-            @refresh-orders="loadOrders"
           />
 
           <InvoicesView

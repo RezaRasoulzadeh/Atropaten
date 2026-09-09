@@ -9,18 +9,19 @@ import (
 )
 
 var (
-	ErrAccountNotFound          = errors.New("account not found")
-	ErrAccountInactive          = errors.New("account is inactive")
-	ErrJournalEntryNotFound     = errors.New("journal entry not found")
-	ErrJournalUnbalanced        = errors.New("journal entry is not balanced")
-	ErrJournalTooFewLines       = errors.New("journal entry needs at least two lines")
-	ErrJournalImmutable         = errors.New("posted journal history is immutable")
-	ErrFinancialAccountNotFound = errors.New("financial account not found")
-	ErrPaymentNotFound          = errors.New("payment not found")
-	ErrPaymentReversed          = errors.New("payment is already reversed")
-	ErrPaymentInvalidParty      = errors.New("payment party is invalid")
-	ErrAllocationExceeded       = errors.New("payment allocation exceeds the payment amount")
-	ErrAllocationTarget         = errors.New("payment allocation target not found")
+	ErrAccountNotFound           = errors.New("account not found")
+	ErrAccountInactive           = errors.New("account is inactive")
+	ErrJournalEntryNotFound      = errors.New("journal entry not found")
+	ErrJournalUnbalanced         = errors.New("journal entry is not balanced")
+	ErrJournalTooFewLines        = errors.New("journal entry needs at least two lines")
+	ErrJournalImmutable          = errors.New("posted journal history is immutable")
+	ErrFinancialAccountNotFound  = errors.New("financial account not found")
+	ErrFinancialAccountProtected = errors.New("financial account has dependent history; archive it instead")
+	ErrPaymentNotFound           = errors.New("payment not found")
+	ErrPaymentReversed           = errors.New("payment is already reversed")
+	ErrPaymentInvalidParty       = errors.New("payment party is invalid")
+	ErrAllocationExceeded        = errors.New("payment allocation exceeds the payment amount")
+	ErrAllocationTarget          = errors.New("payment allocation target not found")
 )
 
 type AccountType string
@@ -88,9 +89,10 @@ const (
 )
 
 type FinancialAccount struct {
-	ID, Name, Details, LedgerAccountID string
+	ID, Name, BankName, AccountNumber, CardNumber, Details, LedgerAccountID string
 	Type                               FinancialAccountType
 	Active                             bool
+	OwnerIDs                           []string
 	BalanceRial                        int64
 	CreatedAt, UpdatedAt               time.Time
 }

@@ -253,6 +253,7 @@ function typeLabel(type: string) {
           <div class="mt-2 flex min-w-0 items-end gap-2">
             <FormField :label="`Use ${typeLabel('fixed')} rule suggestion`"><AppInput
               :model-value="overrideText"
+              :money="props.currencyUnit"
               type="text"
               inputmode="decimal"
               :placeholder="`Use ${typeLabel('fixed')} rule suggestion`"
@@ -282,6 +283,7 @@ function typeLabel(type: string) {
             ><span>{{ component.name }}</span
             ><AppInput
               :model-value="manualTexts[component.id] || ''"
+              :money="props.currencyUnit"
               inputmode="decimal"
               placeholder="0"
               @update:model-value="updateManual(component.id, $event)"
