@@ -53,6 +53,7 @@ watch(
   <div v-if="!selectedMaterial && !editorMode" class="min-w-0 space-y-3">
     <WorkspaceStickyStack>
       <WorkspaceHeader
+        :show-breadcrumb="true"
         title="Materials"
         eyebrow="Catalog / purchasing foundation"
         description="Keep physical stock, conversion units, and cost basis ready for production."

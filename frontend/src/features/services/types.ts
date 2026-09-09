@@ -62,7 +62,10 @@ export type ServiceForm = {
   code: string;
   category: string;
   description: string;
+  imagePath: string;
+  defaultUnit: string;
+  defaultPriority: string;
   parameters: ParameterForm[];
   components: ComponentForm[];
-  pricingRule: PricingRuleForm | null;
+  pricingRule: PricingRuleForm;
 };

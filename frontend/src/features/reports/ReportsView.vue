@@ -83,6 +83,7 @@ watch([activeTab, start, end], load)
   <div class="min-w-0 space-y-4">
     <WorkspaceStickyStack>
       <WorkspaceHeader
+        :show-breadcrumb="true"
         eyebrow="Insights / authoritative queries"
         title="Reports"
         description="Reconciled views of journals, movements, production, and saved documents."

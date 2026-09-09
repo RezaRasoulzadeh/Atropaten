@@ -145,7 +145,7 @@ reportError(e);
 }
 </script>
 <template><div class="space-y-4">
-<WorkspaceStickyStack><WorkspaceHeader eyebrow="Insights & setup" title="Shop settings" description="Document identity, contact details and data safety." /></WorkspaceStickyStack>
+<WorkspaceStickyStack><WorkspaceHeader :show-breadcrumb="true" eyebrow="Insights & setup" title="Shop settings" description="Document identity, contact details and data safety." /></WorkspaceStickyStack>
 <LoadingState v-if="loading" label="Loading settings…" />
 <form v-else id="shop-settings" class="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_30rem]" @submit.prevent="save">
 <AppPanel title="Document identity">

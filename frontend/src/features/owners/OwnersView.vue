@@ -151,6 +151,7 @@ async function removeOwner() {
   <div class="min-w-0 space-y-4">
     <WorkspaceStickyStack>
       <WorkspaceHeader
+        :show-breadcrumb="true"
         eyebrow="Finance / ownership"
         title="Owners"
         description="Manage ownership shares, profit shares, and owner profile information."

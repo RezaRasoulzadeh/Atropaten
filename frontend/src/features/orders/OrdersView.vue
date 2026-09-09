@@ -100,6 +100,7 @@ function clear() {
   <div class="space-y-4">
     <WorkspaceStickyStack>
       <WorkspaceHeader
+        :show-breadcrumb="true"
         eyebrow="Sales / operational queue"
         title="Orders"
         description="Track every order from draft through production, delivery, and close."

@@ -269,6 +269,7 @@ function message(errorValue: unknown, fallback: string) {
   <div class="min-w-0 space-y-3">
     <WorkspaceStickyStack>
       <WorkspaceHeader
+        :show-breadcrumb="true"
         title="Machines"
         eyebrow="Catalog / production inputs"
         description="Keep reusable equipment rates ready for service cost definitions."

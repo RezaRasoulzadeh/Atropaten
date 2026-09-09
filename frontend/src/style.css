@@ -130,6 +130,65 @@ input[type='number']::-webkit-outer-spin-button {
 .service-editor :is(.input-error, .select-error, .textarea-error, [aria-invalid='true']) {
   border-color: var(--color-error) !important;
 }
+
+.service-wizard .wizard-step {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-inline-start: 3px solid transparent;
+  border-radius: 0.5rem;
+  padding: 0.7rem 0.65rem;
+  color: var(--color-base-content);
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.service-wizard .wizard-step:hover {
+  background: color-mix(in srgb, var(--color-base-300) 55%, transparent);
+}
+.service-wizard .wizard-step-number {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  place-items: center;
+  border: 1px solid var(--color-base-300);
+  border-radius: 999px;
+  background: var(--color-base-200);
+  color: color-mix(in srgb, var(--color-base-content) 72%, transparent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.service-wizard .wizard-step-active {
+  border-inline-start-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 13%, var(--color-base-200));
+  color: var(--color-primary);
+}
+.service-wizard .wizard-step-active .wizard-step-number {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-content);
+}
+.service-wizard .wizard-step-complete .wizard-step-number {
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 18%, var(--color-base-200));
+  color: var(--color-success);
+}
+.service-wizard .wizard-step-idle {
+  color: color-mix(in srgb, var(--color-base-content) 78%, transparent);
+}
+.workspace-breadcrumb-link {
+  cursor: pointer;
+  color: color-mix(in srgb, var(--color-base-content) 62%, transparent);
+  text-decoration: none;
+  transition: color 140ms ease, text-decoration-color 140ms ease;
+}
+.workspace-breadcrumb-link:hover,
+.workspace-breadcrumb-link:focus-visible {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  outline: none;
+}
 .input.input-success:focus, .input.input-success:focus-visible,
 .select.select-success:focus, .select.select-success:focus-visible,
 .textarea.textarea-success:focus, .textarea.textarea-success:focus-visible {

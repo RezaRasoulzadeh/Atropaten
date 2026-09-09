@@ -40,13 +40,16 @@ type ParameterInput struct {
 }
 
 type ServiceInput struct {
-	Name        string
-	Code        string
-	Category    string
-	Description string
-	Parameters  []ParameterInput
-	Components  []CostComponentInput
-	PricingRule *PricingRuleInput
+	Name            string
+	Code            string
+	Category        string
+	Description     string
+	ImagePath       string
+	DefaultUnit     string
+	DefaultPriority string
+	Parameters      []ParameterInput
+	Components      []CostComponentInput
+	PricingRule     *PricingRuleInput
 }
 
 type CostComponentInput struct {
@@ -98,17 +101,20 @@ type ParameterView struct {
 }
 
 type ServiceView struct {
-	ID          string
-	Name        string
-	Code        string
-	Category    string
-	Description string
-	Active      bool
-	CreatedAt   string
-	UpdatedAt   string
-	Parameters  []ParameterView
-	Components  []CostComponentView
-	PricingRule *PricingRuleView
+	ID              string
+	Name            string
+	Code            string
+	Category        string
+	Description     string
+	ImagePath       string
+	DefaultUnit     string
+	DefaultPriority string
+	Active          bool
+	CreatedAt       string
+	UpdatedAt       string
+	Parameters      []ParameterView
+	Components      []CostComponentView
+	PricingRule     *PricingRuleView
 }
 
 type CostComponentView struct {
@@ -539,7 +545,7 @@ func (s *ServicesService) parseDraft(ctx context.Context, input ServiceInput, se
 	if err != nil {
 		return domain.ServiceDraft{}, err
 	}
-	return domain.ServiceDraft{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, Parameters: parameters, Components: components, PricingRule: pricingRule}, nil
+	return domain.ServiceDraft{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, ImagePath: input.ImagePath, DefaultUnit: input.DefaultUnit, DefaultPriority: domain.Priority(strings.TrimSpace(input.DefaultPriority)), Parameters: parameters, Components: components, PricingRule: pricingRule}, nil
 }
 
 func (s *ServicesService) parseComponent(input CostComponentInput) (domain.ServiceCostComponentDraft, error) {

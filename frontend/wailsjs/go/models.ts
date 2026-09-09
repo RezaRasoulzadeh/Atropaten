@@ -2906,6 +2906,9 @@ export namespace main {
 	    code: string;
 	    category: string;
 	    description: string;
+	    imagePath: string;
+	    defaultUnit: string;
+	    defaultPriority: string;
 	    active: boolean;
 	    createdAt: string;
 	    updatedAt: string;
@@ -2924,6 +2927,9 @@ export namespace main {
 	        this.code = source["code"];
 	        this.category = source["category"];
 	        this.description = source["description"];
+	        this.imagePath = source["imagePath"];
+	        this.defaultUnit = source["defaultUnit"];
+	        this.defaultPriority = source["defaultPriority"];
 	        this.active = source["active"];
 	        this.createdAt = source["createdAt"];
 	        this.updatedAt = source["updatedAt"];
@@ -2985,6 +2991,9 @@ export namespace main {
 	    code: string;
 	    category: string;
 	    description: string;
+	    imagePath: string;
+	    defaultUnit: string;
+	    defaultPriority: string;
 	    parameters: ServiceParameterInput[];
 	    components: ServiceCostComponentInput[];
 	    pricingRule?: PricingRuleInput;
@@ -2999,6 +3008,9 @@ export namespace main {
 	        this.code = source["code"];
 	        this.category = source["category"];
 	        this.description = source["description"];
+	        this.imagePath = source["imagePath"];
+	        this.defaultUnit = source["defaultUnit"];
+	        this.defaultPriority = source["defaultPriority"];
 	        this.parameters = this.convertValues(source["parameters"], ServiceParameterInput);
 	        this.components = this.convertValues(source["components"], ServiceCostComponentInput);
 	        this.pricingRule = this.convertValues(source["pricingRule"], PricingRuleInput);

@@ -94,6 +94,7 @@ async function create(orderId: string) {
   <div class="min-w-0 space-y-4">
     <WorkspaceStickyStack>
       <WorkspaceHeader
+        :show-breadcrumb="true"
         eyebrow="Finance / receivables"
         title="Invoices"
         description="Review saved commercial snapshots, payment progress, and posting history."

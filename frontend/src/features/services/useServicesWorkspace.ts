@@ -67,6 +67,9 @@ function emptyForm(): ServiceForm {
     code: '',
     category: '',
     description: '',
+    imagePath: '',
+    defaultUnit: 'piece',
+    defaultPriority: 'Normal',
     parameters: [],
     components: [],
     pricingRule: {
@@ -151,6 +154,9 @@ function startEdit() {
     code: service.code,
     category: service.category,
     description: service.description,
+    imagePath: service.imagePath || '',
+    defaultUnit: service.defaultUnit || 'piece',
+    defaultPriority: service.defaultPriority || 'Normal',
     parameters: service.parameters.map((parameter) => ({
       id: parameter.id,
       key: parameter.key,
@@ -204,7 +210,7 @@ function startEdit() {
             priceInput: formatMoneyInput(tier.priceRial, props.currencyUnit),
           })),
         }
-      : null,
+      : emptyForm().pricingRule,
   };
   validationAttempted.value = false;
   editorMode.value = 'edit';
@@ -448,6 +454,9 @@ return runAction(async () => {
       code: form.value.code,
       category: form.value.category,
       description: form.value.description,
+      imagePath: form.value.imagePath,
+      defaultUnit: form.value.defaultUnit,
+      defaultPriority: form.value.defaultPriority,
       parameters: form.value.parameters.map((parameter) => ({ ...parameter })),
       components: form.value.components.map((component) => ({
         id: component.id,

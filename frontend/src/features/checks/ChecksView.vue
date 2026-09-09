@@ -206,6 +206,7 @@ function date(v: string) {
   <div class="min-w-0 space-y-4">
     <WorkspaceStickyStack>
       <WorkspaceHeader
+        :show-breadcrumb="true"
         eyebrow="Finance / instruments"
         title="Checks"
         description="Controlled check lifecycles with uncleared instruments kept outside available bank cash."

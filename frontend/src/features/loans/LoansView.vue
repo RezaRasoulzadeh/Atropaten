@@ -89,6 +89,7 @@ onMounted(load)
   <div class="min-w-0 space-y-4">
     <WorkspaceStickyStack>
       <WorkspaceHeader
+        :show-breadcrumb="true"
         eyebrow="Finance / financing"
         title="Loans"
         description="Track payable and receivable loans, scheduled installments, overdue balances, and reversible payments."

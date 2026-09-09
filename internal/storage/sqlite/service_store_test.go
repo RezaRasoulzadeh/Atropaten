@@ -156,7 +156,7 @@ func TestServicePersistenceOrderingAndTransactionalRollback(t *testing.T) {
 	now := time.Date(2024, time.August, 12, 7, 0, 0, 0, time.UTC)
 	min := domain.Quantity(125001)
 	service, err := domain.NewService("SVC-print", domain.ServiceDraft{
-		Name: "Digital Print", Code: "PRINT", Category: "Production", Description: "Generic print service",
+		Name: "Digital Print", Code: "PRINT", Category: "Production", Description: "Generic print service", ImagePath: "data:image/png;base64,preview", DefaultUnit: "sheet", DefaultPriority: domain.PriorityHigh,
 		Parameters: []domain.ServiceParameterDraft{
 			{ID: "PAR-quantity", Key: "quantity", Label: "Quantity", Type: domain.ParameterInteger, Required: true, DefaultValue: "1"},
 			{ID: "PAR-hours", Key: "estimated_hours", Label: "Estimated hours", Type: domain.ParameterDecimal, Required: true, DefaultValue: "0.125001", MinValue: &min},
@@ -196,6 +196,9 @@ func TestServicePersistenceOrderingAndTransactionalRollback(t *testing.T) {
 	}
 	if len(got.Components) != 3 || got.Components[0].Name != "Paper" || got.Components[1].ParameterKey != "estimated_hours" || got.Components[2].Percentage.String() != "7.125001" || got.Components[0].Multiplier.String() != "2" {
 		t.Fatalf("cost components were not round-tripped in order: %+v", got.Components)
+	}
+	if got.ImagePath != "data:image/png;base64,preview" || got.DefaultUnit != "sheet" || got.DefaultPriority != domain.PriorityHigh {
+		t.Fatalf("service basic metadata was not round-tripped: %+v", got)
 	}
 
 	bad := got

@@ -470,11 +470,17 @@ function closeDrawerOnOutsideClick(event: MouseEvent) {
   isDrawerOpen.value = false;
 }
 
+function handleWorkspaceNavigation(event: Event) {
+  const view = (event as CustomEvent<string>).detail;
+  if (view) selectView(view);
+}
+
 onMounted(() => {
   desktopMediaQuery = window.matchMedia('(min-width: 56rem)');
   syncViewport();
   desktopMediaQuery.addEventListener('change', syncViewport);
   document.addEventListener('click', closeDrawerOnOutsideClick);
+  window.addEventListener('atropaten:navigate', handleWorkspaceNavigation);
   loadOrderCatalog();
   loadOrders();
   loadSuppliers();
@@ -485,6 +491,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   desktopMediaQuery?.removeEventListener('change', syncViewport);
   document.removeEventListener('click', closeDrawerOnOutsideClick);
+  window.removeEventListener('atropaten:navigate', handleWorkspaceNavigation);
 });
 
 function showToast(message: string) {

@@ -59,6 +59,7 @@ function statusTone(status: string) {
   <div v-if="!current" class="min-w-0 space-y-3">
     <WorkspaceStickyStack>
       <WorkspaceHeader
+        :show-breadcrumb="true"
         title="Purchases"
         eyebrow="Purchasing / inventory ledger"
         description="Record supplier purchases, then post them into the immutable inventory ledger."

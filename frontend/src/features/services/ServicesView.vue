@@ -47,6 +47,7 @@ import {
 } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
 import ServiceConfigurator from './ServiceConfigurator.vue';
+import ServiceEditorWizard from './ServiceEditorWizard.vue';
 
 const emit = defineEmits<{ notify: [message: string] }>();
 const props = defineProps<{ currencyUnit: CurrencyUnit }>();
@@ -82,6 +83,7 @@ watch(
   <div v-if="!selectedService && !editorMode" class="min-w-0 space-y-3">
       <WorkspaceStickyStack>
         <WorkspaceHeader
+          :show-breadcrumb="true"
           title="Services"
           eyebrow="Catalog / sellable operations"
           description="Define reusable work with operator-facing parameters for future pricing."
@@ -149,7 +151,7 @@ watch(
     </div>
 
   <div v-else class="min-w-0 space-y-4" aria-label="Service workspace">
-      <WorkspaceStickyStack :flush="true">
+      <WorkspaceStickyStack v-if="!editorMode" :flush="true">
         <WorkspaceHeader
           :title="editorMode === 'create' ? 'New service' : selectedService?.name || 'Service'"
           eyebrow="Catalog / service workspace"
@@ -192,8 +194,20 @@ watch(
         </WorkspaceHeader>
       </WorkspaceStickyStack>
 
-      <AppPanel
+      <ServiceEditorWizard
         v-if="editorMode"
+        :form="form"
+        :editor-mode="editorMode"
+        :busy="busy"
+        :is-saving="isSaving"
+        :validation-attempted="validationAttempted"
+        :active="editorMode === 'edit' ? (selectedService?.active ?? true) : true"
+        @cancel="cancelEditor"
+        @save="saveService"
+      />
+
+      <AppPanel
+        v-if="form.pricingRule !== null && false"
         class="service-editor-panel"
         :title="editorMode === 'create' ? 'New service' : 'Edit service'"
         subtitle="The full definition saves atomically with its parameters."

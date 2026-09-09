@@ -545,6 +545,12 @@ var migrations = []migration{{
 		version: 17,
 		sql:     `DROP TRIGGER expenses_immutable_delete;`,
 	},
+	{
+		version: 18,
+		sql: `ALTER TABLE services ADD COLUMN image_path TEXT NOT NULL DEFAULT '';
+		ALTER TABLE services ADD COLUMN default_unit TEXT NOT NULL DEFAULT 'piece';
+		ALTER TABLE services ADD COLUMN default_priority TEXT NOT NULL DEFAULT 'Normal';`,
+	},
 }
 
 func (s *Store) seedAccounting(ctx context.Context) error {
@@ -896,7 +902,7 @@ func (s *Store) DeleteMachine(ctx context.Context, machineID string) error {
 }
 
 func (s *Store) ListServices(ctx context.Context, includeArchived bool) ([]domain.Service, error) {
-	query := `SELECT id, name, code, category, description, active, created_at, updated_at FROM services`
+	query := `SELECT id, name, code, category, description, image_path, default_unit, default_priority, active, created_at, updated_at FROM services`
 	if !includeArchived {
 		query += ` WHERE active = 1`
 	}
@@ -939,7 +945,7 @@ func (s *Store) ListServices(ctx context.Context, includeArchived bool) ([]domai
 }
 
 func (s *Store) GetService(ctx context.Context, id string) (domain.Service, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, name, code, category, description, active, created_at, updated_at FROM services WHERE id = ?`, id)
+	row := s.db.QueryRowContext(ctx, `SELECT id, name, code, category, description, image_path, default_unit, default_priority, active, created_at, updated_at FROM services WHERE id = ?`, id)
 	service, err := scanService(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return domain.Service{}, domain.ErrServiceNotFound
@@ -1023,8 +1029,8 @@ func (s *Store) SaveServiceDefinition(ctx context.Context, service domain.Servic
 		_ = tx.Rollback()
 		return writeErr
 	}
-	result, err := tx.ExecContext(ctx, `UPDATE services SET name = ?, code = ?, category = ?, description = ?, active = ?, updated_at = ? WHERE id = ?`,
-		service.Name, service.Code, service.Category, service.Description, boolToInt(service.Active), service.UpdatedAt.UTC().Format(time.RFC3339Nano), service.ID)
+	result, err := tx.ExecContext(ctx, `UPDATE services SET name = ?, code = ?, category = ?, description = ?, image_path = ?, default_unit = ?, default_priority = ?, active = ?, updated_at = ? WHERE id = ?`,
+		service.Name, service.Code, service.Category, service.Description, service.ImagePath, service.DefaultUnit, string(service.DefaultPriority), boolToInt(service.Active), service.UpdatedAt.UTC().Format(time.RFC3339Nano), service.ID)
 	if err != nil {
 		return rollback(fmt.Errorf("update service: %w", err))
 	}
@@ -1033,8 +1039,8 @@ func (s *Store) SaveServiceDefinition(ctx context.Context, service domain.Servic
 		return rollback(fmt.Errorf("check service update: %w", err))
 	}
 	if updated == 0 {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO services (id, name, code, category, description, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			service.ID, service.Name, service.Code, service.Category, service.Description, boolToInt(service.Active), service.CreatedAt.UTC().Format(time.RFC3339Nano), service.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO services (id, name, code, category, description, image_path, default_unit, default_priority, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			service.ID, service.Name, service.Code, service.Category, service.Description, service.ImagePath, service.DefaultUnit, string(service.DefaultPriority), boolToInt(service.Active), service.CreatedAt.UTC().Format(time.RFC3339Nano), service.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
 			return rollback(fmt.Errorf("insert service: %w", err))
 		}
 	}
@@ -1170,9 +1176,17 @@ func scanMaterial(row scanner) (domain.Material, error) {
 func scanService(row scanner) (domain.Service, error) {
 	var service domain.Service
 	var active int
+	var defaultPriority string
 	var created, updated string
-	if err := row.Scan(&service.ID, &service.Name, &service.Code, &service.Category, &service.Description, &active, &created, &updated); err != nil {
+	if err := row.Scan(&service.ID, &service.Name, &service.Code, &service.Category, &service.Description, &service.ImagePath, &service.DefaultUnit, &defaultPriority, &active, &created, &updated); err != nil {
 		return domain.Service{}, err
+	}
+	service.DefaultPriority = domain.Priority(defaultPriority)
+	if service.DefaultUnit == "" {
+		service.DefaultUnit = "piece"
+	}
+	if service.DefaultPriority == "" {
+		service.DefaultPriority = domain.PriorityNormal
 	}
 	service.Active = active == 1
 	var err error

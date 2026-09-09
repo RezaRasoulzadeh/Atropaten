@@ -160,6 +160,7 @@ function transactionSource(entry: JournalEntryRecord) {
 <div class="min-w-0 space-y-4">
   <WorkspaceStickyStack>
     <WorkspaceHeader
+      :show-breadcrumb="true"
       eyebrow="Finance / ledger"
       title="Accounting"
       description="Balances and treasury accounts for the business."

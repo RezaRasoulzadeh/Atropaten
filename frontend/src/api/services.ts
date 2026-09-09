@@ -57,6 +57,9 @@ export type ServicePayload = {
   code: string
   category: string
   description: string
+  imagePath: string
+  defaultUnit: string
+  defaultPriority: string
   parameters: ServiceParameterPayload[]
   components: ServiceCostComponentPayload[]
   pricingRule: PricingRulePayload | null

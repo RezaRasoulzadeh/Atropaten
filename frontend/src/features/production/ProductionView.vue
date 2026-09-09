@@ -49,6 +49,7 @@ function back() {
   <div v-if="!selected && !createMode" class="min-w-0 space-y-3">
     <WorkspaceStickyStack>
       <WorkspaceHeader
+        :show-breadcrumb="true"
         title="Production"
         eyebrow="Operations / production ledger"
         description="Reserve material, record actual usage, and keep job progress independent from commercial status."

@@ -156,6 +156,7 @@ watch(() => props.refreshKey, load, { immediate: true });
   <div class="min-w-0 space-y-4">
     <WorkspaceStickyStack>
       <WorkspaceHeader
+        :show-breadcrumb="true"
         eyebrow="Workspace / relationships"
         title="Customers"
         description="Keep customer contacts ready for every commercial workflow."

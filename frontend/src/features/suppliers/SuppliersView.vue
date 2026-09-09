@@ -147,6 +147,7 @@ reportError(e);
   <div class="min-w-0 space-y-3">
     <WorkspaceStickyStack
       ><WorkspaceHeader
+        :show-breadcrumb="true"
         title="Suppliers"
         eyebrow="Catalog / purchasing"
         description="Keep supplier contacts and purchasing history safe and readable."

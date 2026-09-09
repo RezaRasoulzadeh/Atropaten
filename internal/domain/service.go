@@ -30,27 +30,33 @@ const (
 var parameterKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 type Service struct {
-	ID          string
-	Name        string
-	Code        string
-	Category    string
-	Description string
-	Active      bool
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	Parameters  []ServiceParameter
-	Components  []ServiceCostComponent
-	PricingRule *ServicePricingRule
+	ID              string
+	Name            string
+	Code            string
+	Category        string
+	Description     string
+	ImagePath       string
+	DefaultUnit     string
+	DefaultPriority Priority
+	Active          bool
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	Parameters      []ServiceParameter
+	Components      []ServiceCostComponent
+	PricingRule     *ServicePricingRule
 }
 
 type ServiceDraft struct {
-	Name        string
-	Code        string
-	Category    string
-	Description string
-	Parameters  []ServiceParameterDraft
-	Components  []ServiceCostComponentDraft
-	PricingRule *ServicePricingRuleDraft
+	Name            string
+	Code            string
+	Category        string
+	Description     string
+	ImagePath       string
+	DefaultUnit     string
+	DefaultPriority Priority
+	Parameters      []ServiceParameterDraft
+	Components      []ServiceCostComponentDraft
+	PricingRule     *ServicePricingRuleDraft
 }
 
 type CostComponentType string
@@ -192,14 +198,23 @@ type ServiceParameterDraft struct {
 
 func NewService(id string, draft ServiceDraft, now time.Time) (Service, error) {
 	service := Service{
-		ID:          strings.TrimSpace(id),
-		Name:        strings.TrimSpace(draft.Name),
-		Code:        strings.TrimSpace(draft.Code),
-		Category:    strings.TrimSpace(draft.Category),
-		Description: strings.TrimSpace(draft.Description),
-		Active:      true,
-		CreatedAt:   now.UTC(),
-		UpdatedAt:   now.UTC(),
+		ID:              strings.TrimSpace(id),
+		Name:            strings.TrimSpace(draft.Name),
+		Code:            strings.TrimSpace(draft.Code),
+		Category:        strings.TrimSpace(draft.Category),
+		Description:     strings.TrimSpace(draft.Description),
+		ImagePath:       strings.TrimSpace(draft.ImagePath),
+		DefaultUnit:     strings.TrimSpace(draft.DefaultUnit),
+		DefaultPriority: draft.DefaultPriority,
+		Active:          true,
+		CreatedAt:       now.UTC(),
+		UpdatedAt:       now.UTC(),
+	}
+	if service.DefaultUnit == "" {
+		service.DefaultUnit = "piece"
+	}
+	if service.DefaultPriority == "" {
+		service.DefaultPriority = PriorityNormal
 	}
 	service.Parameters = make([]ServiceParameter, len(draft.Parameters))
 	for index, parameter := range draft.Parameters {
