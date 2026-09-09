@@ -84,12 +84,12 @@ function emptyForm(): ServiceForm {
     },
   };
 }
-function emptyParameter(): ParameterForm {
+function emptyParameter(type: ParameterType = 'integer'): ParameterForm {
   return {
     id: `draft-parameter-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     key: '',
     label: '',
-    type: 'integer',
+    type,
     required: false,
     defaultValue: '',
     options: [],
@@ -98,11 +98,11 @@ function emptyParameter(): ParameterForm {
     unit: '',
   };
 }
-function emptyComponent(): ComponentForm {
+function emptyComponent(type: ComponentType = 'fixed'): ComponentForm {
   return {
     id: `draft-component-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     name: '',
-    type: 'fixed',
+    type,
     referenceId: '',
     usageMode: 'fixed',
     parameterKey: '',
@@ -214,16 +214,38 @@ function numericParameters() {
     (parameter) => parameter.type === 'integer' || parameter.type === 'decimal',
   );
 }
+function defaultComponentName(type: ComponentType) {
+  return {
+    material: 'Material cost',
+    machine: 'Machine cost',
+    labor: 'Labor cost',
+    outsourced: 'Outsourced work',
+    fixed: 'Fixed cost',
+    overhead: 'Overhead',
+    waste: 'Waste allowance',
+    manual: 'Manual cost',
+  }[type];
+}
 function normalizeComponent(component: ComponentForm) {
+  const defaultNames = Object.values({
+    material: 'Material cost',
+    machine: 'Machine cost',
+    labor: 'Labor cost',
+    outsourced: 'Outsourced work',
+    fixed: 'Fixed cost',
+    overhead: 'Overhead',
+    waste: 'Waste allowance',
+    manual: 'Manual cost',
+  });
+  if (!component.name.trim() || defaultNames.includes(component.name.trim()))
+    component.name = defaultComponentName(component.type);
   if (component.type === 'material' || component.type === 'machine') {
     component.rateRial = 0;
     component.rateInput = '';
     component.percentage = '';
     component.rateBasis = '';
-    if (component.type === 'material') {
-      component.usageMode = 'fixed';
-      component.parameterKey = '';
-    }
+    component.usageMode = 'fixed';
+    component.parameterKey = '';
   } else if (component.type === 'overhead' || component.type === 'waste') {
     component.referenceId = '';
     component.usageMode = 'fixed';
@@ -234,20 +256,18 @@ function normalizeComponent(component: ComponentForm) {
     component.rateBasis = '';
   } else {
     component.referenceId = '';
+    component.usageMode = 'fixed';
+    component.parameterKey = '';
     component.percentage = '';
     if (component.type !== 'labor' && component.type !== 'outsourced') component.rateBasis = '';
-    if (
-      component.usageMode === 'parameter' &&
-      !numericParameters().some((parameter) => parameter.key === component.parameterKey)
-    )
-      component.parameterKey = '';
   }
 }
 function updateComponentType(component: ComponentForm) {
   normalizeComponent(component);
 }
-function addComponent() {
-  form.value.components.push(emptyComponent());
+function addComponent(type: ComponentType = 'fixed') {
+  form.value.components.push(emptyComponent(type));
+  normalizeComponent(form.value.components[form.value.components.length - 1]);
 }
 function removeComponent(index: number) {
   form.value.components.splice(index, 1);
@@ -335,8 +355,22 @@ function cancelEditor() {
   editorMode.value = null;
   validationAttempted.value = false;
 }
-function addParameter() {
-  form.value.parameters.push(emptyParameter());
+function addParameter(type: ParameterType = 'integer') {
+  form.value.parameters.push(emptyParameter(type));
+}
+function syncParameterKey(parameter: ParameterForm) {
+  if (parameter.key.trim()) return;
+  const base = parameter.label
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '') || 'input';
+  let key = base;
+  let suffix = 2;
+  while (form.value.parameters.some((item) => item !== parameter && item.key === key)) {
+    key = `${base}_${suffix++}`;
+  }
+  parameter.key = key;
 }
 function removeParameter(index: number) {
   form.value.parameters.splice(index, 1);
@@ -398,6 +432,7 @@ function removeOption(parameter: ParameterForm, index: number) {
 async function saveService() {
 return runAction(async () => {
   validationAttempted.value = true;
+  for (const parameter of form.value.parameters) syncParameterKey(parameter);
   await nextTick();
   const firstInvalid = document.querySelector<HTMLElement>('#service-editor [aria-invalid="true"], #service-editor :invalid');
   firstInvalid?.focus();
@@ -545,5 +580,5 @@ function errorMessageFrom(error: unknown, fallback: string): string {
       ? error
       : fallback;
 }
-return {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,validationAttempted,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,remove,typeLabel,dateLabel,errorMessageFrom}
+return {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,validationAttempted,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,syncParameterKey,normalizeParameter,addOption,removeOption,saveService,setActive,remove,typeLabel,dateLabel,errorMessageFrom}
 }

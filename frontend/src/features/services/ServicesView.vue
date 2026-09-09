@@ -51,7 +51,19 @@ import ServiceConfigurator from './ServiceConfigurator.vue';
 const emit = defineEmits<{ notify: [message: string] }>();
 const props = defineProps<{ currencyUnit: CurrencyUnit }>();
 import {useServicesWorkspace} from './useServicesWorkspace'
-const {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,validationAttempted,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,remove,typeLabel,dateLabel}=useServicesWorkspace(props,emit)
+const {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,validationAttempted,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,syncParameterKey,normalizeParameter,addOption,removeOption,saveService,setActive,remove,typeLabel,dateLabel}=useServicesWorkspace(props,emit)
+const newInputType = ref<ParameterType | ''>('');
+const newCostType = ref<ComponentType | ''>('');
+function addInput(type: string) {
+  if (!type) return;
+  addParameter(type as ParameterType);
+  newInputType.value = '';
+}
+function addCost(type: string) {
+  if (!type) return;
+  addComponent(type as ComponentType);
+  newCostType.value = '';
+}
 function backToServices() {
   selectedId.value = null;
   cancelEditor();
@@ -235,18 +247,40 @@ watch(
             <header class="flex min-w-0 flex-wrap items-start justify-between gap-3">
               <div class="min-w-0">
                 <h3 class="text-sm font-semibold">Parameters</h3>
-                <p class="mt-1 text-xs text-base-content/60">For variable paper, add one Material reference parameter such as “Paper size” and mark it required.</p>
+                <p class="mt-1 text-xs text-base-content/60">Add the questions an operator must answer when using this service.</p>
               </div>
-              <button class="btn btn-outline btn-sm shrink-0" type="button" @click="addParameter">
-                <ListPlus :size="14" :stroke-width="1.8" aria-hidden="true" />Add parameter
-              </button>
+              <SelectField
+                v-model="newInputType"
+                aria-label="Add an operator input"
+                :options="[
+                  { label: 'Add an operator input…', value: '' },
+                  { label: 'Quantity or count', value: 'integer' },
+                  { label: 'Decimal measurement', value: 'decimal' },
+                  { label: 'Choose from options', value: 'choice' },
+                  { label: 'Choose a material or paper', value: 'material-reference' },
+                  { label: 'Yes / no choice', value: 'boolean' },
+                ]"
+                @update:model-value="addInput"
+              />
             </header>
           <div v-if="form.parameters.length" class="overflow-hidden rounded-box border border-base-300 bg-base-100">
-            <ServiceParameterEditor v-for="(parameter,index) in form.parameters" :key="parameter.id" :parameter="parameter" :index="index" :count="form.parameters.length" :materials="materials" :show-errors="validationAttempted" @move="moveParameter(index,$event)" @remove="removeParameter(index)" @normalize="normalizeParameter(parameter)" @add-option="addOption(parameter)" @remove-option="removeOption(parameter,$event)" />
+            <ServiceParameterEditor v-for="(parameter,index) in form.parameters" :key="parameter.id" :parameter="parameter" :index="index" :count="form.parameters.length" :materials="materials" :show-errors="validationAttempted" @move="moveParameter(index,$event)" @remove="removeParameter(index)" @normalize="normalizeParameter(parameter)" @label-change="syncParameterKey(parameter)" @add-option="addOption(parameter)" @remove-option="removeOption(parameter,$event)" />
           </div>
           <EmptyState v-else compact title="No parameters yet" description="Add one when the service needs operator input.">
             <template #icon><ListPlus :size="20" aria-hidden="true" /></template>
-            <template #action><button class="btn btn-primary btn-sm gap-2" type="button" @click="addParameter"><ListPlus :size="14" aria-hidden="true" /> Add parameter</button></template>
+            <template #action><SelectField
+              v-model="newInputType"
+              aria-label="Add an operator input"
+              :options="[
+                { label: 'Add an operator input…', value: '' },
+                { label: 'Quantity or count', value: 'integer' },
+                { label: 'Decimal measurement', value: 'decimal' },
+                { label: 'Choose from options', value: 'choice' },
+                { label: 'Choose a material or paper', value: 'material-reference' },
+                { label: 'Yes / no choice', value: 'boolean' },
+              ]"
+              @update:model-value="addInput"
+            /></template>
           </EmptyState>
           </section>
 
@@ -254,18 +288,46 @@ watch(
             <header class="flex min-w-0 flex-wrap items-start justify-between gap-3">
               <div class="min-w-0">
                 <h3 class="text-sm font-semibold">Cost components</h3>
-                <p class="mt-1 text-xs text-base-content/60">Add a fixed Machine cost, then add a Material cost and choose the Paper size parameter as its source.</p>
+                <p class="mt-1 text-xs text-base-content/60">Add the things that make this service cost money, such as paper, a machine, or labor.</p>
               </div>
-              <button class="btn btn-outline btn-sm shrink-0" type="button" @click="addComponent">
-                <Plus :size="14" :stroke-width="1.8" aria-hidden="true" />Add component
-              </button>
+              <SelectField
+                v-model="newCostType"
+                aria-label="Add a cost"
+                :options="[
+                  { label: 'Add a cost…', value: '' },
+                  { label: 'Material or paper', value: 'material' },
+                  { label: 'Machine', value: 'machine' },
+                  { label: 'Labor', value: 'labor' },
+                  { label: 'Outsourced work', value: 'outsourced' },
+                  { label: 'Fixed cost', value: 'fixed' },
+                  { label: 'Overhead percentage', value: 'overhead' },
+                  { label: 'Waste percentage', value: 'waste' },
+                  { label: 'Manual cost', value: 'manual' },
+                ]"
+                @update:model-value="addCost"
+              />
             </header>
           <div v-if="form.components.length" class="overflow-hidden rounded-box border border-base-300 bg-base-100">
             <ServiceCostEditor v-for="(component,index) in form.components" :key="component.id" :component="component" :index="index" :count="form.components.length" :materials="materials" :machines="machines" :parameters="form.parameters" :currency-unit="currencyUnit" :show-errors="validationAttempted" @move="moveComponent(index,$event)" @remove="removeComponent(index)" @change-type="updateComponentType(component)" @change-rate="updateComponentRate(component)" />
           </div>
           <EmptyState v-else compact title="No cost components yet" description="Add reusable material, machine, labor, or other inputs.">
             <template #icon><Plus :size="20" aria-hidden="true" /></template>
-            <template #action><button class="btn btn-primary btn-sm gap-2" type="button" @click="addComponent"><Plus :size="14" aria-hidden="true" /> Add component</button></template>
+            <template #action><SelectField
+              v-model="newCostType"
+              aria-label="Add a cost"
+              :options="[
+                { label: 'Add a cost…', value: '' },
+                { label: 'Material or paper', value: 'material' },
+                { label: 'Machine', value: 'machine' },
+                { label: 'Labor', value: 'labor' },
+                { label: 'Outsourced work', value: 'outsourced' },
+                { label: 'Fixed cost', value: 'fixed' },
+                { label: 'Overhead percentage', value: 'overhead' },
+                { label: 'Waste percentage', value: 'waste' },
+                { label: 'Manual cost', value: 'manual' },
+              ]"
+              @update:model-value="addCost"
+            /></template>
           </EmptyState>
           </section>
 

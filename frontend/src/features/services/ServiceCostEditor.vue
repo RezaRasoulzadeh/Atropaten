@@ -1,20 +1,48 @@
 <script setup lang="ts">
-import FormGrid from '../../components/ui/FormGrid.vue'
+import { ref } from 'vue'
+import { ChevronDown, ChevronUp, Trash2 } from 'lucide-vue-next'
 import FormField from '../../components/ui/FormField.vue'
+import FormGrid from '../../components/ui/FormGrid.vue'
 import AppInput from '../../components/ui/AppInput.vue'
 import SelectField from '../../components/ui/SelectField.vue'
-import { ref } from 'vue'
-import {ChevronUp,ChevronDown,ChevronRight,Trash2,Plus} from 'lucide-vue-next'
-import type {ComponentForm,ParameterForm} from './types'
-import type {MaterialRecord} from '../../api/materials'
-import type {MachineRecord} from '../../api/machines'
-import type {CurrencyUnit} from '../../utils/currency'
-import {componentNeedsRate,componentNeedsReference,componentNeedsPercentage} from './serviceFields'
-const props=defineProps<{component:ComponentForm;index:number;count:number;materials:MaterialRecord[];machines:MachineRecord[];parameters:ParameterForm[];currencyUnit:CurrencyUnit;showErrors?:boolean}>()
-const emit=defineEmits<{move:[direction:-1|1];remove:[];changeType:[];changeRate:[]}>()
-const expanded=ref(props.index === 0)
+import type { ComponentForm, ParameterForm } from './types'
+import type { MaterialRecord } from '../../api/materials'
+import type { MachineRecord } from '../../api/machines'
+import type { CurrencyUnit } from '../../utils/currency'
+import { componentNeedsPercentage, componentNeedsRate } from './serviceFields'
+
+const props = defineProps<{
+  component: ComponentForm
+  index: number
+  count: number
+  materials: MaterialRecord[]
+  machines: MachineRecord[]
+  parameters: ParameterForm[]
+  currencyUnit: CurrencyUnit
+  showErrors?: boolean
+}>()
+const emit = defineEmits<{
+  move: [direction: -1 | 1]
+  remove: []
+  changeType: []
+  changeRate: []
+}>()
+const expanded = ref(true)
+
 function syncExpanded(event: Event) {
   expanded.value = (event.target as HTMLDetailsElement).open
+}
+function typeLabel(type: string) {
+  return {
+    material: 'Material or paper',
+    machine: 'Machine',
+    labor: 'Labor',
+    outsourced: 'Outsourced work',
+    fixed: 'Fixed cost',
+    overhead: 'Overhead percentage',
+    waste: 'Waste percentage',
+    manual: 'Manual cost',
+  }[type] || 'Cost'
 }
 function materialSource(component: ComponentForm) {
   return component.referenceId || component.usageMode === 'fixed' ? 'fixed' : 'parameter'
@@ -26,248 +54,119 @@ function updateMaterialSource(component: ComponentForm, source: string) {
     component.parameterKey = ''
     return
   }
-  const hasFixedMaterial = component.referenceId !== ''
-  component.usageMode = hasFixedMaterial ? component.usageMode : 'fixed'
-  if (!hasFixedMaterial) component.parameterKey = ''
+  component.usageMode = component.referenceId ? component.usageMode : 'fixed'
+  component.parameterKey = ''
+}
+function numericParameters() {
+  return props.parameters.filter((parameter) => parameter.type === 'integer' || parameter.type === 'decimal')
+}
+function materialParameters() {
+  return props.parameters.filter((parameter) => parameter.type === 'material-reference' || parameter.type === 'choice')
+}
+function usesQuantitySource() {
+  return !componentNeedsPercentage(props.component.type) && props.component.type !== 'manual'
+}
+function usesQuantityFields() {
+  return usesQuantitySource() && (props.component.type !== 'material' || materialSource(props.component) === 'parameter' || props.component.usageMode === 'fixed')
 }
 </script>
-<template><details class="group min-w-0 border-t border-base-300" :open="expanded" @toggle="syncExpanded">
-              <summary class="flex min-w-0 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-                <div class="flex min-w-0 items-center gap-3">
-                  <span class="grid size-7 shrink-0 place-items-center rounded-full bg-base-300 text-xs font-semibold tabular-nums">{{ String(index + 1).padStart(2, '0') }}</span>
-                  <div class="min-w-0">
-                    <strong class="block truncate">{{ component.name || 'Untitled component' }}</strong>
-                    <small class="block truncate text-xs text-base-content/60">{{ component.type }} · {{ component.enabled ? 'Included' : 'Disabled' }}</small>
-                  </div>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                  <button
-                    class="btn btn-ghost btn-sm"
-                    type="button"
-                    :disabled="index === 0"
-                    :aria-label="`Move ${component.name || 'component'} up`"
-                    @click.stop.prevent="emit('move',-1)"
-                  >
-                    <ChevronUp :size="14" :stroke-width="1.8" aria-hidden="true" /></button
-                  ><button
-                    class="btn btn-ghost btn-sm"
-                    type="button"
-                    :disabled="index === count - 1"
-                    :aria-label="`Move ${component.name || 'component'} down`"
-                    @click.stop.prevent="emit('move',1)"
-                  >
-                    <ChevronDown :size="14" :stroke-width="1.8" aria-hidden="true" /></button
-                  ><button
-                    class="btn btn-outline btn-error btn-sm"
-                    type="button"
-                    :aria-label="`Remove ${component.name || 'component'}`"
-                    @click.stop.prevent="emit('remove')"
-                  >
-                    <Trash2 :size="14" :stroke-width="1.8" aria-hidden="true" />
-                  </button><ChevronRight class="shrink-0 transition-transform group-open:rotate-90" :size="15" :stroke-width="1.8" aria-hidden="true" />
-                </div>
-              </summary>
-              <div class="min-w-0 space-y-3 border-t border-base-300 px-4 py-4">
-              <FormGrid
-                ><FormField class="gap-1"
-                  ><span>Name</span
-                  ><AppInput
-                    class="input w-full min-w-0"
-                    :class="{ 'input-error': props.showErrors && !component.name.trim() }"
-                    v-model="component.name"
-                    type="text"
-                    required
-                    placeholder="Paper cost" /></FormField
-                ><SelectField
-                  v-model="component.type"
-                  label="Type"
-                  :options="[
-                    { label: 'Material', value: 'material' },
-                    { label: 'Machine', value: 'machine' },
-                    { label: 'Labor', value: 'labor' },
-                    { label: 'Outsourced', value: 'outsourced' },
-                    { label: 'Fixed', value: 'fixed' },
-                    { label: 'Overhead', value: 'overhead' },
-                    { label: 'Waste', value: 'waste' },
-                    { label: 'Manual', value: 'manual' },
-                  ]"
-                  @update:model-value="emit('changeType')"
-              /></FormGrid>
-              <FormField class="gap-1"
-                ><input class="checkbox" v-model="component.enabled" type="checkbox" />Enabled for
-                future pricing</FormField
-              >
-              <SelectField
-                v-if="component.type === 'material'"
-                :model-value="materialSource(component)"
-                label="Material source"
-                :options="[
-                  { label: 'Fixed material', value: 'fixed' },
-                  { label: 'Selected material parameter', value: 'parameter' },
-                ]"
-                @update:model-value="updateMaterialSource(component, $event)"
-              />
-              <SelectField
-                v-else-if="componentNeedsReference(component.type)"
-                v-model="component.referenceId"
-                label="Machine reference"
-                :invalid="props.showErrors && !component.referenceId"
-                :options="[
-                  { label: 'Select an active machine', value: '' },
-                  ...machines.map((machine) => ({ label: machine.name, value: machine.id })),
-                ]"
-              />
-              <SelectField
-                v-if="component.type === 'material' && materialSource(component) === 'fixed'"
-                v-model="component.referenceId"
-                label="Material"
-                :invalid="props.showErrors && !component.referenceId"
-                :options="[
-                  { label: 'Select an active material', value: '' },
-                  ...materials.map((material) => ({
-                    label: `${material.name}${material.sku ? ` · ${material.sku}` : ''}`,
-                    value: material.id,
-                  })),
-                ]"
-              />
-              <SelectField
-                v-if="component.type === 'material' && materialSource(component) === 'parameter'"
-                v-model="component.parameterKey"
-                label="Material selection parameter"
-                :invalid="props.showErrors && !component.parameterKey"
-                :options="[
-                  { label: 'Select material parameter', value: '' },
-                  ...parameters
-                    .filter((parameter) => parameter.type === 'material-reference' || parameter.type === 'choice')
-                    .map((parameter) => ({
-                      label: `${parameter.label || parameter.key} · ${parameter.key}`,
-                      value: parameter.key,
-                    })),
-                ]"
-              />
-              <small
-                v-if="component.type === 'material' && materialSource(component) === 'parameter' && parameters.find((parameter) => parameter.key === component.parameterKey)?.type === 'choice'"
-                class="block text-xs leading-5 text-base-content/60"
-                >Choice values must match an active material name, SKU, or ID.</small
-              >
-              <FormGrid v-if="!componentNeedsPercentage(component.type) && (component.type !== 'material' || (materialSource(component) === 'fixed' && component.usageMode === 'parameter'))"
-                ><SelectField
-                  v-model="component.usageMode"
-                  label="Usage source"
-                  :options="[
-                    { label: 'Fixed quantity', value: 'fixed' },
-                    { label: 'Numeric parameter', value: 'parameter' },
-                  ]" /><FormField class="gap-1"
-                  ><span>Fixed quantity</span
-                  ><AppInput
-                    class="input w-full min-w-0"
-                    v-model="component.usageQuantity"
-                    :class="{ 'input-error': props.showErrors && !component.usageQuantity.trim() }"
-                    type="text"
-                    inputmode="decimal"
-                    placeholder="1" /></FormField
-                ><FormField class="gap-1"
-                  ><span>Multiplier</span
-                  ><AppInput
-                    class="input w-full min-w-0"
-                    v-model="component.multiplier"
-                    :class="{ 'input-error': props.showErrors && !component.multiplier.trim() }"
-                    type="text"
-                    inputmode="decimal"
-                    placeholder="1" /></FormField
-              ></FormGrid>
-              <FormGrid v-if="component.type === 'material' && materialSource(component) === 'parameter'"
-                ><FormField class="gap-1"
-                  ><span>Material quantity</span
-                  ><AppInput
-                    class="input w-full min-w-0"
-                    v-model="component.usageQuantity"
-                    :class="{ 'input-error': props.showErrors && !component.usageQuantity.trim() }"
-                    type="text"
-                    inputmode="decimal"
-                    placeholder="1" /></FormField
-                ><FormField class="gap-1"
-                  ><span>Multiplier</span
-                  ><AppInput
-                    class="input w-full min-w-0"
-                    v-model="component.multiplier"
-                    :class="{ 'input-error': props.showErrors && !component.multiplier.trim() }"
-                    type="text"
-                    inputmode="decimal"
-                    placeholder="1" /></FormField
-              ></FormGrid>
-              <div
-                class="gap-1"
-                v-if="
-                  component.usageMode === 'parameter' &&
-                  (component.type !== 'material' || materialSource(component) === 'fixed') &&
-                  !componentNeedsPercentage(component.type)
-                "
-                ><SelectField
-                  v-model="component.parameterKey"
-                  label="Usage parameter"
-                  :invalid="props.showErrors && !component.parameterKey"
-                  :options="[
-                    { label: 'Select numeric parameter', value: '' },
-                    ...parameters.filter((parameter) => parameter.type === 'integer' || parameter.type === 'decimal').map((parameter) => ({
-                      label: `${parameter.label || parameter.key} · ${parameter.key}`,
-                      value: parameter.key,
-                    })),
-                  ]"
-                /><small
-                  v-if="
-                    component.parameterKey &&
-                    !parameters.some(
-                      (parameter) => parameter.key === component.parameterKey,
-                    )
-                  "
-                  class="block text-xs leading-5 text-base-content/60"
-                  >This reference is no longer numeric and will be rejected until corrected.</small
-                ></div
-              >
-              <FormGrid v-if="componentNeedsRate(component.type)"
-                ><FormField class="gap-1"
-                  ><span>Rate ({{ currencyUnit }})</span
-                  ><AppInput
-                    class="input w-full min-w-0"
-                    v-model="component.rateInput"
-                    :class="{ 'input-error': props.showErrors && !component.rateInput.trim() }"
-                    :money="currencyUnit"
-                    type="text"
-                    inputmode="decimal"
-                    placeholder="0"
-                    @input="emit('changeRate')" /></FormField
-                ><SelectField
-                  v-if="component.type === 'labor' || component.type === 'outsourced'"
-                  v-model="component.rateBasis"
-                  label="Rate basis"
-                  :options="[
-                    { label: 'Per unit', value: 'unit' },
-                    { label: 'Per minute', value: 'minute' },
-                    { label: 'Per hour', value: 'hour' },
-                  ]"
-              /></FormGrid>
-              <FormField class="gap-1" v-if="componentNeedsPercentage(component.type)"
-                ><span>Percentage</span
-                ><AppInput
-                  class="input w-full min-w-0"
-                  v-model="component.percentage"
-                  :class="{ 'input-error': props.showErrors && !component.percentage.trim() }"
-                  type="text"
-                  inputmode="decimal"
-                  placeholder="10"
-                /><small class="block text-xs leading-5 text-base-content/60"
-                  >Stored as an exact fixed-scale percentage of the applicable future cost
-                  basis.</small
-                ></FormField
-              >
-              <FormField class="gap-1"
-                ><span>Notes <em>optional</em></span
-                ><AppInput
-                  class="input w-full min-w-0"
-                  v-model="component.notes"
-                  type="text"
-                  placeholder="Cost explanation or future basis"
-              /></FormField>
-              </div>
-            </details></template>
+
+<template>
+  <article class="border-t border-base-300 first:border-t-0">
+    <details class="group min-w-0" :open="expanded" @toggle="syncExpanded">
+      <summary class="flex min-w-0 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+        <div class="flex min-w-0 items-center gap-3">
+          <span class="grid size-8 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-semibold text-primary tabular-nums">{{ String(index + 1).padStart(2, '0') }}</span>
+          <div class="min-w-0">
+            <strong class="block truncate text-sm">{{ component.name || 'New cost' }}</strong>
+            <small class="block truncate text-xs text-base-content/60">{{ typeLabel(component.type) }} · {{ component.enabled ? 'Included in price' : 'Not included' }}</small>
+          </div>
+        </div>
+        <div class="flex shrink-0 items-center gap-1">
+          <button class="btn btn-ghost btn-sm" type="button" :disabled="index === 0" :aria-label="`Move ${component.name || 'cost'} up`" @click.stop.prevent="emit('move', -1)"><ChevronUp :size="14" aria-hidden="true" /></button>
+          <button class="btn btn-ghost btn-sm" type="button" :disabled="index === count - 1" :aria-label="`Move ${component.name || 'cost'} down`" @click.stop.prevent="emit('move', 1)"><ChevronDown :size="14" aria-hidden="true" /></button>
+          <button class="btn btn-outline btn-error btn-sm" type="button" :aria-label="`Remove ${component.name || 'cost'}`" @click.stop.prevent="emit('remove')"><Trash2 :size="14" aria-hidden="true" /></button>
+          <ChevronDown class="ml-1 shrink-0 transition-transform group-open:rotate-180" :size="16" aria-hidden="true" />
+        </div>
+      </summary>
+
+      <div class="min-w-0 space-y-4 border-t border-base-300 bg-base-200/20 px-4 py-4">
+        <div class="grid min-w-0 gap-3 rounded-box border border-primary/20 bg-primary/5 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)]">
+          <FormField class="gap-1"><span>What is this cost?</span><AppInput v-model="component.name" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.name.trim() }" type="text" required placeholder="Paper, printer, or finishing" /></FormField>
+          <SelectField v-model="component.type" label="Cost type" :options="[
+            { label: 'Material or paper', value: 'material' },
+            { label: 'Machine', value: 'machine' },
+            { label: 'Labor', value: 'labor' },
+            { label: 'Outsourced work', value: 'outsourced' },
+            { label: 'Fixed cost', value: 'fixed' },
+            { label: 'Overhead percentage', value: 'overhead' },
+            { label: 'Waste percentage', value: 'waste' },
+            { label: 'Manual cost', value: 'manual' },
+          ]" @update:model-value="emit('changeType')" />
+        </div>
+
+        <label class="flex items-start gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2.5 text-sm"><input class="checkbox mt-0.5" v-model="component.enabled" type="checkbox" /><span><strong class="block font-medium">Include this cost in pricing</strong><small class="mt-0.5 block text-xs text-base-content/60">Turn this off to keep the setup without charging for it yet.</small></span></label>
+
+        <div v-if="component.type === 'material'" class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-100 p-3">
+          <div><h4 class="text-sm font-semibold">Which material is used?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">Choose one fixed stock item, or let the operator choose the material when placing the order.</p></div>
+          <SelectField :model-value="materialSource(component)" label="Material selection" :options="[
+            { label: 'Always use one material', value: 'fixed' },
+            { label: 'Let the operator choose a material', value: 'parameter' },
+          ]" @update:model-value="updateMaterialSource(component, $event)" />
+          <SelectField v-if="materialSource(component) === 'fixed'" v-model="component.referenceId" label="Material" :invalid="props.showErrors && !component.referenceId" :options="[
+            { label: 'Select an active material', value: '' },
+            ...materials.map((material) => ({ label: `${material.name}${material.sku ? ` · ${material.sku}` : ''}`, value: material.id })),
+          ]" />
+          <div v-else class="space-y-2">
+            <SelectField v-model="component.parameterKey" label="Which operator input chooses it?" :invalid="props.showErrors && !component.parameterKey" :options="[
+              { label: 'Select a material or paper input', value: '' },
+              ...materialParameters().map((parameter) => ({ label: `${parameter.label || parameter.key} · ${parameter.type === 'choice' ? 'choices' : 'materials'}`, value: parameter.key })),
+            ]" />
+            <p class="text-xs leading-5 text-base-content/60">Example: connect this cost to a “Paper size” input with choices A4 and A5.</p>
+          </div>
+        </div>
+
+        <div v-else-if="component.type === 'machine'" class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-100 p-3">
+          <div><h4 class="text-sm font-semibold">Which machine does the work?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">The machine's configured rate will be used automatically.</p></div>
+          <SelectField v-model="component.referenceId" label="Machine" :invalid="props.showErrors && !component.referenceId" :options="[
+            { label: 'Select an active machine', value: '' },
+            ...machines.map((machine) => ({ label: machine.name, value: machine.id })),
+          ]" />
+        </div>
+
+        <div v-if="usesQuantitySource()" class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
+          <div><h4 class="text-sm font-semibold">How much is used?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">Set the amount consumed for one service unit. Use an operator input when it changes with the order.</p></div>
+          <SelectField v-if="component.type !== 'material' || materialSource(component) === 'fixed'" v-model="component.usageMode" label="Quantity comes from" :options="[
+            { label: 'A fixed amount', value: 'fixed' },
+            { label: 'An operator input', value: 'parameter' },
+          ]" />
+          <FormGrid v-if="usesQuantityFields()">
+            <FormField class="gap-1"><span>Amount per service</span><AppInput v-model="component.usageQuantity" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.usageQuantity.trim() }" type="text" inputmode="decimal" placeholder="1" /></FormField>
+            <FormField class="gap-1"><span>Multiply by</span><AppInput v-model="component.multiplier" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.multiplier.trim() }" type="text" inputmode="decimal" placeholder="1" /></FormField>
+          </FormGrid>
+          <SelectField v-if="component.usageMode === 'parameter' && (component.type !== 'material' || materialSource(component) === 'fixed')" v-model="component.parameterKey" label="Which quantity input?" :invalid="props.showErrors && !component.parameterKey" :options="[
+            { label: 'Select a quantity input', value: '' },
+            ...numericParameters().map((parameter) => ({ label: `${parameter.label || parameter.key}${parameter.unit ? ` · ${parameter.unit}` : ''}`, value: parameter.key })),
+          ]" />
+        </div>
+
+        <div v-if="componentNeedsRate(component.type)" class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
+          <div><h4 class="text-sm font-semibold">What does it cost?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">Enter the rate for this cost. Material and machine rates come from their records.</p></div>
+          <FormGrid>
+            <FormField><span>{{ component.type === 'manual' ? 'Manual amount' : 'Rate' }} ({{ currencyUnit }})</span><AppInput v-model="component.rateInput" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.rateInput.trim() }" :money="currencyUnit" type="text" inputmode="decimal" placeholder="0" @input="emit('changeRate')" /></FormField>
+            <SelectField v-if="component.type === 'labor' || component.type === 'outsourced'" v-model="component.rateBasis" label="Rate is charged per" :options="[{ label: 'Unit', value: 'unit' }, { label: 'Minute', value: 'minute' }, { label: 'Hour', value: 'hour' }]" />
+          </FormGrid>
+        </div>
+
+        <div v-if="componentNeedsPercentage(component.type)" class="rounded-box border border-base-300 bg-base-100 p-3">
+          <FormField><span>{{ component.type === 'waste' ? 'Waste percentage' : 'Overhead percentage' }}</span><AppInput v-model="component.percentage" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.percentage.trim() }" type="text" inputmode="decimal" placeholder="For example, 7" /><small class="text-xs leading-5 text-base-content/60">Applied to the costs that come before this item.</small></FormField>
+        </div>
+
+        <details class="rounded-box border border-base-300 bg-base-100 px-3 py-2">
+          <summary class="cursor-pointer text-xs font-semibold text-base-content/70">Optional note</summary>
+          <FormField class="mt-3"><span>Note for your team</span><AppInput v-model="component.notes" class="input w-full min-w-0" type="text" placeholder="Explain this cost or its source" /></FormField>
+        </details>
+      </div>
+    </details>
+  </article>
+</template>
