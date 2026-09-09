@@ -69,6 +69,10 @@ function startCreate() {
   form.value = empty();
   editing.value = true;
 }
+function clearFilters() {
+  search.value = '';
+  filter.value = 'All';
+}
 function startEdit() {
   if (!current.value) return;
   form.value = {
@@ -169,7 +173,13 @@ reportError(e);
     ><MasterDetail
       ><RegisterList title="Supplier register" subtitle="Select a supplier to inspect contact details." :count="filtered.length">
 <LoadingState v-if="loading" label="Loading suppliers…" />
-<EmptyState v-else-if="!filtered.length" title="No suppliers in this view" description="Change the filters or add a supplier." />
+<EmptyState v-else-if="!filtered.length" title="No suppliers in this view" description="Change the filters or add a supplier.">
+  <template #icon><Truck :size="22" aria-hidden="true" /></template>
+  <template #action>
+    <button v-if="rows.length" class="btn btn-primary btn-sm" type="button" @click="clearFilters">Clear filters</button>
+    <button v-else class="btn btn-primary btn-sm gap-2" type="button" @click="startCreate"><Plus :size="15" aria-hidden="true" /> Create supplier</button>
+  </template>
+</EmptyState>
 <template v-else><RegisterRow v-for="v in filtered" :key="v.id" :selected="selected === v.id" @activate="selected = v.id; editing = false">
 <template #icon><Truck :size="17" /></template><template #identity><strong class="block text-sm">{{v.name}}</strong></template><template #meta><p class="mt-1 text-xs leading-5 text-base-content/60">{{v.code || 'No code'}} · {{v.phone || v.email || 'No contact details'}}</p></template><template #status><StatusBadge :label="v.active ? 'Active' : 'Archived'" :tone="v.active ? 'green' : 'slate'" /></template>
 </RegisterRow></template></RegisterList><InspectorShell
@@ -279,11 +289,11 @@ reportError(e);
             {{ current.active ? 'Archive' : 'Reactivate' }}</button
           ><button class="btn btn-outline btn-error" @click="remove" :disabled="busy"><Trash2 :size="15" /> Delete</button>
         </div></InspectorShell
-      ><InspectorShell v-else title="Supplier inspector" subtitle="Select a row to inspect it."
-        ><div class="min-w-0 space-y-3">
-          <Truck :size="20" />
-          <p>Supplier details will appear here.</p>
-        </div></InspectorShell
+      ><InspectorShell v-else title="Supplier inspector" subtitle="Select a row to inspect it.">
+        <EmptyState title="No supplier selected" description="Choose a supplier from the register to inspect contact and purchasing details.">
+          <template #icon><Truck :size="22" aria-hidden="true" /></template>
+        </EmptyState>
+      </InspectorShell
       ></MasterDetail
     >
   </div>

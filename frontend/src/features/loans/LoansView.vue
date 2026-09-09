@@ -1,414 +1,170 @@
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { CircleDollarSign, Plus } from 'lucide-vue-next'
+import AppPanel from '../../components/layout/AppPanel.vue'
+import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue'
+import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import DataTableCell from '../../components/ui/DataTableCell.vue'
+import DataTableRow from '../../components/ui/DataTableRow.vue'
+import EmptyState from '../../components/ui/EmptyState.vue'
 import LoadingState from '../../components/ui/LoadingState.vue'
-import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
-const {busy,runAction,pageLoading,runLoad}=useWorkspaceActions()
+import SearchField from '../../components/ui/SearchField.vue'
+import SearchFilterBar from '../../components/ui/SearchFilterBar.vue'
+import SelectField from '../../components/ui/SelectField.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
+import { useWorkspaceActions, reportError } from '../../composables/useWorkspaceActions'
+import { loansApi, type LoanRecord } from '../../api/loans'
+import type { CurrencyUnit } from '../../utils/currency'
+import { formatMoney } from '../../utils/currency'
+import { formatDateTime } from '../../utils/date'
 
-import FormGrid from '../../components/ui/FormGrid.vue';
-import InspectorShell from '../../components/layout/InspectorShell.vue';
-import InspectorSection from '../../components/layout/InspectorSection.vue';
-import MasterDetail from '../../components/layout/MasterDetail.vue';
-import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
-import RegisterList from '../../components/ui/RegisterList.vue';
-import RegisterRow from '../../components/ui/RegisterRow.vue';
-import DataTableCell from '../../components/ui/DataTableCell.vue';
-import DataTable from '../../components/ui/DataTable.vue';
-import FormField from '../../components/ui/FormField.vue';
-import AppInput from '../../components/ui/AppInput.vue';
-import AppTextarea from '../../components/ui/AppTextarea.vue';
-import { computed, onMounted, ref } from 'vue';
-import { CircleDollarSign, Plus, RotateCcw } from 'lucide-vue-next';
-import StatusBadge from '../../components/ui/StatusBadge.vue';
-import EmptyState from '../../components/ui/EmptyState.vue';
-import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
-import JalaliDatePicker from '../../components/ui/JalaliDatePicker.vue';
-import SelectField from '../../components/ui/SelectField.vue';
-import { loansApi, type LoanPaymentRecord, type LoanRecord } from '../../api/loans';
-import { accountingApi, type FinancialAccountRecord } from '../../api/accounting';
-import { formatMoney, type CurrencyUnit } from '../../utils/currency';
-import { currentCanonicalDate, formatDateTime } from '../../utils/date';
-import { useToast } from '../../ui/feedback';
-const props = defineProps<{ currencyUnit: CurrencyUnit }>();
-const emit = defineEmits<{ notify: [string] }>();
-const rows = ref<LoanRecord[]>([]);
-const accounts = ref<FinancialAccountRecord[]>([]);
-const payments = ref<LoanPaymentRecord[]>([]);
-const selectedId = ref<string | null>(null);
-const tab = ref('Active');
-const toast = useToast();
-const createMode = ref(false);
-const form = ref({
-  direction: 'payable',
-  counterpartyName: '',
-  principalRial: '0',
-  interestFeeRial: '0',
-  startDate: currentCanonicalDate(),
-  endDate: '',
-  financialAccountId: '',
-  installmentCount: '1',
-  notes: '',
-});
-const pay = ref({
-  principalRial: '0',
-  interestRial: '0',
-  financialAccountId: '',
-  installmentId: '',
-});
-const selected = computed(() => rows.value.find((v) => v.id === selectedId.value) ?? null);
-const filtered = computed(() =>
-  rows.value.filter(
-    (v) =>
-      tab.value === 'All' ||
-      (tab.value === 'Payable' && v.direction === 'payable') ||
-      (tab.value === 'Receivable' && v.direction === 'receivable') ||
-      (tab.value === 'Closed' && v.status === 'Closed') ||
-      (tab.value === 'Overdue' && v.overdueRial > 0) ||
-      (tab.value === 'Active' && v.status === 'Active' && v.overdueRial === 0),
-  ),
-);
-onMounted(async () => {
-  try {
-    accounts.value = await accountingApi.financialAccounts();
-    await load();
-  } catch (e) {
-reportError(e);
-  }
-});
-async function load() { return runLoad(async () => {
-  rows.value = await loansApi.list();
-  if (!selectedId.value && rows.value[0]) select(rows.value[0]);
-}); }
-async function select(v: LoanRecord) {
-  selectedId.value = v.id;
-  createMode.value = false;
-  try {
-    payments.value = await loansApi.payments(v.id);
-  } catch (e) {
-reportError(e);
-  }
-}
-function begin() {
-  createMode.value = true;
-  selectedId.value = null;
-  form.value = {
-    direction: 'payable',
-    counterpartyName: '',
-    principalRial: '0',
-    interestFeeRial: '0',
-    startDate: currentCanonicalDate(),
-    endDate: '',
-    financialAccountId: accounts.value[0]?.id ?? '',
-    installmentCount: '1',
-    notes: '',
-  };
-}
-async function create() {
-return runAction(async () => {
-  const principal = Number(form.value.principalRial.replaceAll(',', ''));
-  const interest = Number(form.value.interestFeeRial.replaceAll(',', ''));
-  if (!form.value.counterpartyName || !principal || !form.value.financialAccountId) {
-    toast.error('Counterparty, account, and positive principal are required.', 'Loans');
-    return;
-  }
-  try {
-    const v = await loansApi.create({
-      ...form.value,
-      principalRial: principal,
-      interestFeeRial: interest,
-      installmentCount: Number(form.value.installmentCount),
-    });
-    rows.value = [v, ...rows.value];
-    await select(v);
-    emit('notify', 'Loan opened with a balanced journal entry.');
-  } catch (e) {
-reportError(e);
-  }
+const { pageLoading, runLoad } = useWorkspaceActions()
+const props = defineProps<{ currencyUnit: CurrencyUnit }>()
+const emit = defineEmits<{
+  notify: [string]
+  'open-loan': [string]
+  'new-loan': []
+}>()
 
-});
-}
-async function recordPayment() {
-return runAction(async () => {
-  if (!selected.value) return;
-  const principal = Number(pay.value.principalRial.replaceAll(',', ''));
-  const interest = Number(pay.value.interestRial.replaceAll(',', ''));
-  if ((!principal && !interest) || !pay.value.financialAccountId || !pay.value.installmentId) {
-    toast.error('Select an installment, account, and payment amount.', 'Loans');
-    return;
-  }
-  try {
-    await loansApi.createPayment({
-      loanId: selected.value.id,
-      financialAccountId: pay.value.financialAccountId,
-      paidAt: currentCanonicalDate(),
-      amountRial: principal + interest,
-      principalRial: principal,
-      interestRial: interest,
-      allocations: [
-        {
-          installmentId: pay.value.installmentId,
-          principalRial: principal,
-          interestRial: interest,
-        },
-      ],
-    });
-    await load();
-    const v = rows.value.find((x) => x.id === selected.value!.id);
-    if (v) await select(v);
-    pay.value = { ...pay.value, principalRial: '0', interestRial: '0' };
-    emit('notify', 'Loan payment posted and allocated.');
-  } catch (e) {
-reportError(e);
-  }
+const rows = ref<LoanRecord[]>([])
+const query = ref('')
+const view = ref('All')
+const viewOptions = ['Active', 'Payable', 'Receivable', 'Overdue', 'Closed', 'All'].map((value) => ({
+  label: value,
+  value,
+}))
 
-});
-}
-async function reversePayment(v: LoanPaymentRecord) {
-return runAction(async () => {
-  try {
-    await loansApi.reversePayment(v.id);
-    if (selected.value) await select(selected.value);
-    emit('notify', 'Payment reversed with a compensating entry.');
-  } catch (e) {
-reportError(e);
-  }
+const filtered = computed(() => {
+  const search = query.value.trim().toLowerCase()
+  return rows.value.filter((value) => {
+    const matchesView =
+      view.value === 'All' ||
+      (view.value === 'Payable' && value.direction === 'payable') ||
+      (view.value === 'Receivable' && value.direction === 'receivable') ||
+      (view.value === 'Closed' && value.status === 'Closed') ||
+      (view.value === 'Overdue' && value.overdueRial > 0) ||
+      (view.value === 'Active' && value.status === 'Active' && value.overdueRial === 0)
+    const matchesSearch =
+      !search ||
+      [value.loanNumber, value.counterpartyName, value.financialAccountId]
+        .join(' ')
+        .toLowerCase()
+        .includes(search)
+    return matchesView && matchesSearch
+  })
+})
 
-});
+function tone(value: string) {
+  return value === 'Closed' ? 'green' : value === 'Active' ? 'blue' : 'amber'
 }
-function tone(s: string) {
-  return s === 'Closed' ? 'green' : s === 'Cancelled' ? 'red' : s === 'Active' ? 'blue' : 'amber';
-}
-function date(v: string) {
+
+function date(value: string) {
   try {
-    return formatDateTime(v);
+    return formatDateTime(value)
   } catch {
-    return '—';
+    return '—'
   }
 }
+
+function clearFilters() {
+  query.value = ''
+  view.value = 'All'
+}
+
+async function load() {
+  return runLoad(async () => {
+    try {
+      rows.value = await loansApi.list()
+    } catch (error) {
+      reportError(error)
+    }
+  })
+}
+
+onMounted(load)
 </script>
+
 <template>
-  <div class="min-w-0 space-y-3">
-    <WorkspaceStickyStack
-      ><WorkspaceHeader
-        title="Loans"
+  <div class="min-w-0 space-y-4">
+    <WorkspaceStickyStack>
+      <WorkspaceHeader
         eyebrow="Finance / financing"
-        description="Payable and receivable loans with persisted schedules, derived overdue balances, and reversible payments."
-        ><button class="btn btn-primary" @click="begin">
-          <Plus :size="16" /> New loan
-        </button></WorkspaceHeader
+        title="Loans"
+        description="Track payable and receivable loans, scheduled installments, overdue balances, and reversible payments."
       >
-      <section class="min-w-0 space-y-4">
-        <div class="flex flex-wrap items-center gap-2">
-          <button
-            class="btn btn-sm"
-            v-for="value in ['Active', 'Payable', 'Receivable', 'Overdue', 'Closed', 'All']"
-            :key="value"
-            :class="tab === value ? 'btn-primary' : 'btn-ghost'"
-            @click="tab = value"
-          >
-            {{ value }}
+        <button class="btn btn-primary" type="button" @click="emit('new-loan')">
+          <Plus :size="16" /> New loan
+        </button>
+      </WorkspaceHeader>
+
+      <SearchFilterBar>
+        <template #search>
+          <SearchField v-model="query" label="Search loans" placeholder="Loan, counterparty, or account" />
+        </template>
+        <template #filters>
+          <SelectField v-model="view" label="View" :options="viewOptions" />
+        </template>
+        <template #count><span>{{ filtered.length }} of {{ rows.length }} loans</span></template>
+        <template #actions>
+          <button v-if="query || view !== 'All'" class="btn btn-ghost btn-sm" type="button" @click="clearFilters">
+            Clear
           </button>
-        </div>
-        <span>{{ filtered.length }} loans</span>
-      </section></WorkspaceStickyStack
-    ><LoadingState v-if="pageLoading" label="Loading records…" /><div v-show="!pageLoading" class="space-y-4"><MasterDetail
-      ><RegisterList
-        title="Loan register"
-        subtitle="Principal, interest, remaining, and overdue values come from posted allocations."
-        :count="filtered.length"
-        ><div v-if="filtered.length">
-          <RegisterRow v-for="v in filtered" :key="v.id" :selected="selectedId === v.id" @activate="select(v)">
-            <template #identity>
-              <div class="flex min-w-0 items-center justify-between gap-3">
-                <div class="min-w-0"><strong class="block truncate text-sm">{{ v.loanNumber }}</strong><span class="block truncate text-xs text-base-content/60">{{ v.counterpartyName }} · {{ v.direction === 'payable' ? 'Payable' : 'Receivable' }}</span></div>
-                <strong class="shrink-0 whitespace-nowrap text-sm tabular-nums">{{ formatMoney(v.remainingPrincipalRial + v.remainingInterestRial, props.currencyUnit) }}</strong>
-              </div>
-            </template>
-            <template #meta>
-              <div class="mt-2 grid min-w-0 grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2 lg:grid-cols-3">
-                <div><span class="block text-base-content/50">Start date</span><span class="block text-base-content/80">{{ date(v.startDate) }}</span></div>
-                <div><span class="block text-base-content/50">Overdue</span><span class="block text-base-content/80 tabular-nums">{{ formatMoney(v.overdueRial, props.currencyUnit) }}</span></div>
-                <div><span class="block text-base-content/50">Installments</span><span class="block text-base-content/80">{{ v.installments.length }} scheduled</span></div>
-              </div>
-            </template>
-            <template #status><StatusBadge :label="v.status" :tone="tone(v.status)" /></template>
-          </RegisterRow>
-        </div>
-        <div v-else class="min-w-0 space-y-3">
-          <CircleDollarSign :size="22" />
-          <p>No loans in this view.</p>
-        </div>
-      </RegisterList>
-      <InspectorShell
-        v-if="createMode"
-        title="New loan"
-        subtitle="Opening the loan posts principal to cash/bank and the loan balance."
-        ><form @submit.prevent="create" class="min-w-0 space-y-3">
-          <FormGrid
-            ><SelectField
-              v-model="form.direction"
-              label="Type"
-              :options="[
-                { label: 'Payable / borrowed', value: 'payable' },
-                { label: 'Receivable / lent', value: 'receivable' },
-              ]" /><FormField class="gap-1"
-              ><span>Counterparty</span
-              ><AppInput
-                class="input w-full min-w-0"
-                v-model="form.counterpartyName"
-                required /></FormField
-            ><FormField class="gap-1"
-              ><span>Principal (Rial)</span
-              ><AppInput
-                class="input w-full min-w-0"
-                v-model="form.principalRial"
-                money="Rial"
-                inputmode="numeric" /></FormField
-            ><FormField class="gap-1"
-              ><span>Interest / fees (Rial)</span
-              ><AppInput
-                class="input w-full min-w-0"
-                v-model="form.interestFeeRial"
-                money="Rial"
-                inputmode="numeric" /></FormField
-            ><FormField class="gap-1"
-              ><span>Start date</span><JalaliDatePicker v-model="form.startDate" /></FormField
-            ><FormField class="gap-1"
-              ><span>Installments</span
-              ><AppInput
-                class="input w-full min-w-0"
-                v-model="form.installmentCount"
-                type="number"
-                min="1" /></FormField
-            ><SelectField
-              v-model="form.financialAccountId"
-              label="Cash / bank account"
-              :options="
-                accounts.map((account) => ({ label: account.name, value: account.id }))
-              " /></FormGrid
-          ><FormField class="gap-1"
-            ><span>Notes</span
-            ><AppTextarea
-              v-model="form.notes"
-              rows="3"
-            />
-          </FormField>
-          <div class="flex flex-wrap items-center gap-2">
-            <button class="btn btn-ghost" type="button" @click="createMode = false">Cancel</button
-            ><button class="btn btn-primary">Open loan</button>
-          </div>
-        </form></InspectorShell
-      ><InspectorShell
-        v-else-if="selected"
-        title="Loan inspector"
-        :subtitle="`${selected.loanNumber} · ${selected.counterpartyName}`"
-        ><div class="min-w-0 space-y-3">
-          <div class="min-w-0 space-y-3">
-            <div><CircleDollarSign :size="19" /></div>
-            <div class="min-w-0 space-y-3">
-              <h3 class="text-sm font-semibold">
-                {{ selected.direction === 'payable' ? 'Payable loan' : 'Receivable loan' }}
-              </h3>
-              <p>
-                {{ date(selected.startDate)
-                }}<template v-if="selected.endDate"> → {{ date(selected.endDate) }}</template>
-              </p>
-            </div>
-          </div>
-          <StatusBadge :label="selected.status" :tone="tone(selected.status)" />
-          <dl class="grid min-w-0 gap-2 text-sm">
-            <div
-              class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-3 border-b border-base-300 py-2 last:border-0"
-            >
-              <dt class="text-xs text-base-content/60">Principal remaining</dt>
-              <dd class="min-w-0 text-end tabular-nums wrap-anywhere">
-                {{ formatMoney(selected.remainingPrincipalRial, props.currencyUnit) }}
-              </dd>
-            </div>
-            <div
-              class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-3 border-b border-base-300 py-2 last:border-0"
-            >
-              <dt class="text-xs text-base-content/60">Interest remaining</dt>
-              <dd class="min-w-0 text-end tabular-nums wrap-anywhere">
-                {{ formatMoney(selected.remainingInterestRial, props.currencyUnit) }}
-              </dd>
-            </div>
-            <div
-              class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-3 border-b border-base-300 py-2 last:border-0"
-            >
-              <dt class="text-xs text-base-content/60">Overdue</dt>
-              <dd class="min-w-0 text-end tabular-nums wrap-anywhere">
-                {{ formatMoney(selected.overdueRial, props.currencyUnit) }}
-              </dd>
-            </div>
-          </dl>
-          <InspectorSection title="Installment schedule">
-            <DataTable v-if="selected.installments.length" label="Loan installment schedule">
-              <thead><tr><th scope="col">Installment</th><th scope="col">Due</th><th scope="col" class="text-end">Paid</th><th scope="col" class="text-end">Remaining</th><th scope="col">Status</th></tr></thead>
-              <tbody>
-                <tr v-for="i in selected.installments" :key="i.id">
-                  <DataTableCell><strong>#{{ i.position + 1 }}</strong></DataTableCell>
-                  <DataTableCell>{{ date(i.dueDate) }}</DataTableCell>
-                  <DataTableCell numeric>{{ formatMoney(i.paidRial, props.currencyUnit) }}</DataTableCell>
-                  <DataTableCell numeric>{{ formatMoney(i.remainingRial, props.currencyUnit) }}</DataTableCell>
-                  <DataTableCell><StatusBadge :label="i.status" :tone="i.status === 'Paid' ? 'green' : i.status === 'Overdue' ? 'red' : 'amber'" /></DataTableCell>
-                </tr>
-              </tbody>
-            </DataTable>
-            <EmptyState v-else title="No installments" description="This loan has no generated schedule." />
-          </InspectorSection>
-          <div class="min-w-0 space-y-3">
-            <h3 class="text-sm font-semibold">Record payment</h3>
-            <FormGrid
-              ><SelectField
-                v-model="pay.installmentId"
-                label="Installment"
-                :options="[
-                  { label: 'Installment', value: '' },
-                  ...selected.installments
-                    .filter((installment) => installment.remainingRial > 0)
-                    .map((installment) => ({
-                      label: `#${installment.position + 1} · ${formatMoney(installment.remainingRial, props.currencyUnit)}`,
-                      value: installment.id,
-                    })),
-                ]" /><SelectField
-                v-model="pay.financialAccountId"
-                label="Cash / bank account"
-                :options="[
-                  { label: 'Cash / bank account', value: '' },
-                  ...accounts.map((account) => ({ label: account.name, value: account.id })),
-                ]" /><FormField label="Principal (Rial)"><AppInput
-                class="input w-full min-w-0"
-                v-model="pay.principalRial"
-                money="Rial"
-                placeholder="Principal (Rial)"
-                inputmode="numeric" /></FormField><FormField label="Interest (Rial)"><AppInput
-                class="input w-full min-w-0"
-                v-model="pay.interestRial"
-                money="Rial"
-                placeholder="Interest (Rial)"
-                inputmode="numeric" /></FormField></FormGrid
-            ><button class="btn btn-ghost" @click="recordPayment" :disabled="busy">Record payment</button>
-          </div>
-          <InspectorSection title="Payment history">
-            <DataTable v-if="payments.length" label="Loan payment history">
-              <thead><tr><th scope="col">Posted</th><th scope="col" class="text-end">Amount</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
-              <tbody>
-                <tr v-for="p in payments" :key="p.id">
-                  <DataTableCell>{{ date(p.paidAt) }}</DataTableCell>
-                  <DataTableCell numeric>{{ formatMoney(p.amountRial, props.currencyUnit) }}</DataTableCell>
-                  <DataTableCell><StatusBadge :label="p.status" :tone="p.status === 'Posted' ? 'green' : 'slate'" /></DataTableCell>
-                  <DataTableCell><button class="btn btn-ghost btn-sm" v-if="p.status === 'Posted'" @click="reversePayment(p)" :disabled="busy"><RotateCcw :size="14" /> Reverse</button></DataTableCell>
-                </tr>
-              </tbody>
-            </DataTable>
-            <EmptyState v-else title="No payments" description="Payments recorded against this loan will appear here." />
-          </InspectorSection>
-        </div></InspectorShell
-      ><InspectorShell
-        v-else
-        title="Loan inspector"
-        subtitle="Select a loan to inspect its schedule."
-        ><div>No loan selected.</div></InspectorShell
-      ></MasterDetail
-    >
-  </div></div>
+        </template>
+      </SearchFilterBar>
+    </WorkspaceStickyStack>
+
+    <AppPanel title="Loan register" subtitle="Select a row to open the full loan workspace." :flush="true">
+      <template #action><span class="text-xs text-base-content/60">{{ filtered.length }} shown</span></template>
+      <LoadingState v-if="pageLoading" label="Loading loans…" />
+      <EmptyState
+        v-else-if="!filtered.length"
+        title="No loans in this view"
+        :description="rows.length ? 'Adjust the search or view filter.' : 'Open a loan to start tracking a financing schedule.'"
+      >
+        <template #icon><CircleDollarSign :size="22" aria-hidden="true" /></template>
+        <template #action>
+          <button v-if="rows.length" class="btn btn-primary btn-sm" type="button" @click="clearFilters">Clear filters</button>
+          <button v-else class="btn btn-primary btn-sm gap-2" type="button" @click="emit('new-loan')"><Plus :size="15" aria-hidden="true" /> Create loan</button>
+        </template>
+      </EmptyState>
+      <DataTable v-else label="Loan register">
+        <thead>
+          <tr>
+            <th scope="col" class="w-[17%]">Loan</th>
+            <th scope="col" class="w-[23%]">Counterparty</th>
+            <th scope="col" class="w-[14%]">Type</th>
+            <th scope="col" class="w-[15%]">Started</th>
+            <th scope="col" class="w-[18%] text-end">Remaining</th>
+            <th scope="col" class="w-[13%]">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <DataTableRow v-for="value in filtered" :key="value.id" interactive @activate="emit('open-loan', value.id)">
+            <DataTableCell>
+              <strong class="block whitespace-nowrap text-sm">{{ value.loanNumber }}</strong>
+              <span class="mt-1 block text-xs text-base-content/55">{{ value.installments.length }} installments</span>
+            </DataTableCell>
+            <DataTableCell>
+              <strong class="block max-w-56 truncate text-sm font-medium">{{ value.counterpartyName }}</strong>
+              <span class="mt-1 block max-w-56 truncate text-xs text-base-content/55">{{ value.financialAccountId || 'No account' }}</span>
+            </DataTableCell>
+            <DataTableCell>
+              <span class="block text-sm">{{ value.direction === 'payable' ? 'Payable' : 'Receivable' }}</span>
+              <span class="mt-1 block text-xs text-base-content/55">{{ formatMoney(value.principalRial, props.currencyUnit) }} principal</span>
+            </DataTableCell>
+            <DataTableCell>
+              <span class="block whitespace-nowrap text-sm">{{ date(value.startDate) }}</span>
+              <span class="mt-1 block whitespace-nowrap text-xs text-base-content/55">{{ value.endDate ? `Ends ${date(value.endDate)}` : 'Open term' }}</span>
+            </DataTableCell>
+            <DataTableCell numeric>
+              <strong class="text-sm text-primary">{{ formatMoney(value.remainingPrincipalRial + value.remainingInterestRial, props.currencyUnit) }}</strong>
+              <span class="mt-1 block text-xs text-base-content/55">{{ value.overdueRial ? `${formatMoney(value.overdueRial, props.currencyUnit)} overdue` : 'On schedule' }}</span>
+            </DataTableCell>
+            <DataTableCell><StatusBadge :label="value.status" :tone="tone(value.status)" /></DataTableCell>
+          </DataTableRow>
+        </tbody>
+      </DataTable>
+    </AppPanel>
+  </div>
 </template>

@@ -6,6 +6,8 @@ import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   BarChart3,
+  ClipboardList,
+  Factory,
   FilePlus2,
   HandCoins,
   ReceiptText,
@@ -18,6 +20,7 @@ import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import RegisterList from '../../components/ui/RegisterList.vue';
 import RegisterRow from '../../components/ui/RegisterRow.vue';
+import EmptyState from '../../components/ui/EmptyState.vue';
 import { reportsApi, type DashboardRecord } from '../../api/reports';
 import { formatMoney } from '../../utils/currency';
 import { formatDate, currentCanonicalDate } from '../../utils/date';
@@ -239,12 +242,24 @@ const initialLoading = computed(() => loading.value && !data.value);
             </tr>
           </tbody>
         </DataTable>
-        <p v-else-if="data" class="p-4 text-sm text-base-content/60">
-          No orders need follow-up.
-        </p>
-        <p v-else class="p-4 text-sm text-base-content/60">
-          Order data is unavailable. Refresh to try again.
-        </p>
+        <EmptyState
+          v-else-if="data"
+          compact
+          title="No follow-up orders"
+          description="Orders needing attention will appear here."
+        >
+          <template #icon><ClipboardList :size="21" aria-hidden="true" /></template>
+          <template #action><button class="btn btn-primary btn-sm" type="button" @click="emit('navigate', 'Orders')">View orders</button></template>
+        </EmptyState>
+        <EmptyState
+          v-else
+          compact
+          title="Order data unavailable"
+          description="Refresh the dashboard to try loading the order summary again."
+        >
+          <template #icon><RefreshCw :size="21" aria-hidden="true" /></template>
+          <template #action><button class="btn btn-primary btn-sm" type="button" @click="load">Refresh dashboard</button></template>
+        </EmptyState>
       </AppPanel>
       <RegisterList
         title="Production queue"
@@ -292,9 +307,15 @@ const initialLoading = computed(() => loading.value && !data.value);
             </template>
           </RegisterRow>
         </div>
-        <p v-else class="px-4 py-6 text-sm text-base-content/60">
-          No active production jobs.
-        </p>
+        <EmptyState
+          v-else
+          compact
+          title="No active production jobs"
+          description="Active jobs will appear here once production is scheduled."
+        >
+          <template #icon><Factory :size="21" aria-hidden="true" /></template>
+          <template #action><button class="btn btn-primary btn-sm" type="button" @click="emit('navigate', 'Production')">View production</button></template>
+        </EmptyState>
       </RegisterList>
     </div>
   </div>

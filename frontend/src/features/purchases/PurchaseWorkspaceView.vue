@@ -8,6 +8,7 @@ import {
   Edit3,
   Plus,
   Save,
+  ShoppingCart,
   Trash2,
 } from 'lucide-vue-next';
 import AppInput from '../../components/ui/AppInput.vue';
@@ -17,6 +18,7 @@ import FormField from '../../components/ui/FormField.vue';
 import FormGrid from '../../components/ui/FormGrid.vue';
 import JalaliDatePicker from '../../components/ui/JalaliDatePicker.vue';
 import SelectField from '../../components/ui/SelectField.vue';
+import EmptyState from '../../components/ui/EmptyState.vue';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
@@ -205,7 +207,7 @@ function financialAccountLabel(id: string) {
             </button>
           </div>
         </div>
-        <p v-if="!current.items.length" class="rounded-box border border-dashed border-base-300 p-3 text-sm text-base-content/60">No items added yet.</p>
+        <EmptyState v-if="!current.items.length" compact title="No items added" description="Add materials to build this purchase snapshot."><template #icon><ShoppingCart :size="21" aria-hidden="true" /></template></EmptyState>
       </div>
 
       <form v-if="editing" class="mt-4 grid min-w-0 gap-3 border-t border-base-300 pt-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.7fr)_minmax(0,0.9fr)_auto]" @submit.prevent="addItem">

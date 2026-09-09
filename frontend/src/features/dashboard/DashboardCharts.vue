@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { BarChart3, ListChecks } from 'lucide-vue-next';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import DataTable from '../../components/ui/DataTable.vue';
+import EmptyState from '../../components/ui/EmptyState.vue';
 import type { DashboardRecord } from '../../api/reports';
 import { formatMoney, type CurrencyUnit } from '../../utils/currency';
 import { formatDate } from '../../utils/date';
@@ -112,12 +114,14 @@ const money = (value: number) => formatMoney(value, props.currencyUnit);
           ><span>{{ formatDate(data.endDate) }}</span>
         </div>
       </template>
-      <p
+      <EmptyState
         v-else
-        class="flex min-h-48 items-center justify-center text-sm text-base-content/60"
+        compact
+        title="No activity in this period"
+        description="Sales and gross profit will appear here once the selected period has activity."
       >
-        No sales or cost activity in this period.
-      </p>
+        <template #icon><BarChart3 :size="21" aria-hidden="true" /></template>
+      </EmptyState>
       <details v-if="hasActivity" class="text-xs">
         <summary class="cursor-pointer py-1 text-primary">
           View chart data
@@ -162,12 +166,14 @@ const money = (value: number) => formatMoney(value, props.currencyUnit);
           </div>
         </div>
       </div>
-      <p
+      <EmptyState
         v-else
-        class="flex min-h-48 items-center justify-center text-sm text-base-content/60"
+        compact
+        title="No active orders"
+        description="Current order status distribution will appear here when orders are active."
       >
-        No active orders.
-      </p>
+        <template #icon><ListChecks :size="21" aria-hidden="true" /></template>
+      </EmptyState>
     </AppPanel>
   </section>
 </template>

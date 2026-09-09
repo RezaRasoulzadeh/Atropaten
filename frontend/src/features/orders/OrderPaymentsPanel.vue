@@ -14,6 +14,7 @@ import { formatDateTime } from '../../utils/date';
 import { accountingApi, type FinancialAccountRecord, type PaymentRecord } from '../../api/accounting';
 import { ordersApi } from '../../api/orders';
 import SelectField from '../../components/ui/SelectField.vue';
+import EmptyState from '../../components/ui/EmptyState.vue';
 const props = defineProps<{ order: any; currencyUnit: CurrencyUnit }>();
 const emit = defineEmits<{ notify: [message: string]; saved: [order: any] }>();
 const financial = ref<FinancialAccountRecord[]>([]);
@@ -169,13 +170,14 @@ onMounted(load);
     ><AppPanel
       title="Order payment history"
       subtitle="Reversals preserve the original payment and journal entry."
-      ><div
+      ><EmptyState
         v-if="!payments.length"
-        class="flex min-h-28 flex-col items-center justify-center gap-2 rounded-box border border-dashed border-base-300 bg-base-200/35 p-4 text-center"
+        compact
+        title="No allocated payments"
+        description="Payments posted against this order will appear here."
       >
-        <WalletCards :size="22" class="text-base-content/45" aria-hidden="true" />
-        <span class="text-sm text-base-content/65">No allocated payments for this order.</span>
-      </div>
+        <template #icon><WalletCards :size="22" aria-hidden="true" /></template>
+      </EmptyState>
       <div
         v-for="p in payments"
         :key="p.id"

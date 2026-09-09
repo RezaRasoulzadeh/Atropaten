@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends string">
-import { computed, onBeforeUnmount, onMounted, ref, useId } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 defineOptions({ inheritAttrs: false });
 const props = defineProps<{
   modelValue: T;
@@ -7,6 +7,7 @@ const props = defineProps<{
   label?: string;
   ariaLabel?: string;
   disabled?: boolean;
+  invalid?: boolean;
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: T] }>();
 const id = useId();
@@ -14,6 +15,13 @@ const root = ref<HTMLElement | null>(null);
 const open = ref(false);
 const selectedOption = computed(() => props.options.find((option) => option.value === props.modelValue));
 const isDisabled = computed(() => props.disabled || !props.options.length);
+
+watch(
+  () => props.modelValue,
+  () => {
+    open.value = false;
+  },
+);
 
 function closeOnOutsideClick(event: MouseEvent) {
   if (root.value && !root.value.contains(event.target as Node)) open.value = false;
@@ -36,7 +44,8 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutsideClick)
     <label
       v-if="label"
       :for="String($attrs.id || id)"
-      class="text-xs leading-4 text-base-content/65"
+      class="text-xs leading-4"
+      :class="invalid ? 'text-error' : 'text-base-content/65'"
       >{{ label }}</label
     >
     <div class="dropdown relative w-full" :class="{ 'dropdown-open': open }">
@@ -44,11 +53,13 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutsideClick)
         v-bind="$attrs"
         :id="String($attrs.id || id)"
         class="select h-10 min-h-10 w-full min-w-0 text-start text-sm font-normal leading-5"
+        :class="{ 'select-error': invalid }"
         type="button"
         :disabled="isDisabled"
         :aria-label="ariaLabel || label || 'Select an option'"
         aria-haspopup="listbox"
         :aria-expanded="open"
+        :aria-invalid="invalid || undefined"
         @click="toggle"
         @keydown.esc.prevent="open = false"
         @keydown.down.prevent="open = true"
@@ -69,7 +80,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutsideClick)
             :aria-selected="option.value === modelValue"
             class="min-h-9 text-start text-sm"
             :class="option.value === modelValue ? 'active' : ''"
-            @click="choose(option.value)"
+            @click.stop="choose(option.value)"
           >
             {{ option.label }}
           </button>

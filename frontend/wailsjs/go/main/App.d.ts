@@ -270,6 +270,8 @@ export function SaveAttachmentAs(arg1:string):Promise<boolean>;
 
 export function SaveShopSettings(arg1:main.ShopSettingsDTO):Promise<void>;
 
+export function SelectBackupDirectory():Promise<string>;
+
 export function SelectBackupFile():Promise<string>;
 
 export function TransitionCheck(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.CheckDTO>;

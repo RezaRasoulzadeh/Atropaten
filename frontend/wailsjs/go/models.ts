@@ -1398,6 +1398,7 @@ export namespace main {
 	    availableStock: string;
 	    reorderLevel: string;
 	    averageUnitCostRial: number;
+	    highestPurchaseUnitCostRial: number;
 	    inventoryValueRial: number;
 	    preferredSupplier: string;
 	    notes: string;
@@ -1424,6 +1425,7 @@ export namespace main {
 	        this.availableStock = source["availableStock"];
 	        this.reorderLevel = source["reorderLevel"];
 	        this.averageUnitCostRial = source["averageUnitCostRial"];
+	        this.highestPurchaseUnitCostRial = source["highestPurchaseUnitCostRial"];
 	        this.inventoryValueRial = source["inventoryValueRial"];
 	        this.preferredSupplier = source["preferredSupplier"];
 	        this.notes = source["notes"];
@@ -2268,6 +2270,7 @@ export namespace main {
 	    logoPath: string;
 	    documentFooter: string;
 	    documentNotes: string;
+	    backupDirectory: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ShopSettingsDTO(source);
@@ -2286,6 +2289,7 @@ export namespace main {
 	        this.logoPath = source["logoPath"];
 	        this.documentFooter = source["documentFooter"];
 	        this.documentNotes = source["documentNotes"];
+	        this.backupDirectory = source["backupDirectory"];
 	    }
 	}
 	export class PrintDocumentDTO {

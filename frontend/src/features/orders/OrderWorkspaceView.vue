@@ -367,7 +367,7 @@ function snapshot(item: any, key: string) {
           <span class="text-xs text-base-content/60">Current status</span>
           <StatusBadge :label="orderStatus" :tone="tone(orderStatus)" />
         </div>
-        <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Available order status actions">
+        <div v-if="orderStatusActions.length" class="flex flex-wrap items-center gap-2" role="group" aria-label="Available order status actions">
           <span class="text-xs text-base-content/60">Move to</span>
           <button
             v-for="action in orderStatusActions"
@@ -384,6 +384,7 @@ function snapshot(item: any, key: string) {
             {{ action.label }}
           </button>
         </div>
+        <EmptyState v-else compact title="No further workflow actions" description="This order is at its current terminal or completed state."><template #icon><CheckCircle2 :size="21" aria-hidden="true" /></template></EmptyState>
       </div>
     </AppPanel>
 

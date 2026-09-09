@@ -538,6 +538,10 @@ export function SaveShopSettings(arg1) {
   return window['go']['main']['App']['SaveShopSettings'](arg1);
 }
 
+export function SelectBackupDirectory() {
+  return window['go']['main']['App']['SelectBackupDirectory']();
+}
+
 export function SelectBackupFile() {
   return window['go']['main']['App']['SelectBackupFile']();
 }

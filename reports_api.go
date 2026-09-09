@@ -109,17 +109,18 @@ type DashboardDTO struct {
 	RecentActivity         []DashboardActivityDTO   `json:"recentActivity"`
 }
 type ShopSettingsDTO struct {
-	ShopName       string `json:"shopName"`
-	ShopSubtitle   string `json:"shopSubtitle"`
-	Phone          string `json:"phone"`
-	Address        string `json:"address"`
-	Email          string `json:"email"`
-	Website        string `json:"website"`
-	RegistrationID string `json:"registrationId"`
-	TaxID          string `json:"taxId"`
-	LogoPath       string `json:"logoPath"`
-	DocumentFooter string `json:"documentFooter"`
-	DocumentNotes  string `json:"documentNotes"`
+	ShopName        string `json:"shopName"`
+	ShopSubtitle    string `json:"shopSubtitle"`
+	Phone           string `json:"phone"`
+	Address         string `json:"address"`
+	Email           string `json:"email"`
+	Website         string `json:"website"`
+	RegistrationID  string `json:"registrationId"`
+	TaxID           string `json:"taxId"`
+	LogoPath        string `json:"logoPath"`
+	DocumentFooter  string `json:"documentFooter"`
+	DocumentNotes   string `json:"documentNotes"`
+	BackupDirectory string `json:"backupDirectory"`
 }
 type PrintLineDTO struct {
 	Description   string `json:"description"`
@@ -215,17 +216,31 @@ func (a *App) GetShopSettings() (ShopSettingsDTO, error) {
 		return ShopSettingsDTO{}, e
 	}
 	v, e := s.ShopSettings(a.materialContext())
-	return ShopSettingsDTO{v.ShopName, v.ShopSubtitle, v.Phone, v.Address, v.Email, v.Website, v.RegistrationID, v.TaxID, v.LogoPath, v.DocumentFooter, v.DocumentNotes}, e
+	if e != nil {
+		return ShopSettingsDTO{}, e
+	}
+	return shopSettingsDTO(v), nil
 }
 func (a *App) SaveShopSettings(v ShopSettingsDTO) error {
 	s, e := a.reportingService()
 	if e != nil {
 		return e
 	}
+	backup, e := a.backupService()
+	if e != nil {
+		return e
+	}
+	if e = backup.SetBackupDirectory(v.BackupDirectory); e != nil {
+		return e
+	}
 	return s.SaveShopSettings(a.materialContext(), domainShopSettings(v))
 }
 func domainShopSettings(v ShopSettingsDTO) domain.ShopSettings {
-	return domain.ShopSettings{ShopName: v.ShopName, ShopSubtitle: v.ShopSubtitle, Phone: v.Phone, Address: v.Address, Email: v.Email, Website: v.Website, RegistrationID: v.RegistrationID, TaxID: v.TaxID, LogoPath: v.LogoPath, DocumentFooter: v.DocumentFooter, DocumentNotes: v.DocumentNotes}
+	return domain.ShopSettings{ShopName: v.ShopName, ShopSubtitle: v.ShopSubtitle, Phone: v.Phone, Address: v.Address, Email: v.Email, Website: v.Website, RegistrationID: v.RegistrationID, TaxID: v.TaxID, LogoPath: v.LogoPath, DocumentFooter: v.DocumentFooter, DocumentNotes: v.DocumentNotes, BackupDirectory: v.BackupDirectory}
+}
+
+func shopSettingsDTO(v domain.ShopSettings) ShopSettingsDTO {
+	return ShopSettingsDTO{ShopName: v.ShopName, ShopSubtitle: v.ShopSubtitle, Phone: v.Phone, Address: v.Address, Email: v.Email, Website: v.Website, RegistrationID: v.RegistrationID, TaxID: v.TaxID, LogoPath: v.LogoPath, DocumentFooter: v.DocumentFooter, DocumentNotes: v.DocumentNotes, BackupDirectory: v.BackupDirectory}
 }
 
 func reportDTO(v domain.Report) ReportDTO {
@@ -264,7 +279,7 @@ func dashboardDTO(v domain.Dashboard) DashboardDTO {
 	return out
 }
 func printDocumentDTO(v domain.PrintDocument) PrintDocumentDTO {
-	out := PrintDocumentDTO{Kind: v.Kind, Number: v.Number, Date: v.Date, DueDate: v.DueDate, Status: v.Status, CustomerName: v.CustomerName, CustomerContact: v.CustomerContact, SupplierName: v.SupplierName, Reference: v.Reference, Method: v.Method, AccountName: v.AccountName, PaymentStatus: v.PaymentStatus, Notes: v.Notes, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, TotalRial: v.TotalRial, PaidRial: v.PaidRial, RemainingRial: v.RemainingRial, AmountRial: v.AmountRial, Shop: ShopSettingsDTO{v.Shop.ShopName, v.Shop.ShopSubtitle, v.Shop.Phone, v.Shop.Address, v.Shop.Email, v.Shop.Website, v.Shop.RegistrationID, v.Shop.TaxID, v.Shop.LogoPath, v.Shop.DocumentFooter, v.Shop.DocumentNotes}}
+	out := PrintDocumentDTO{Kind: v.Kind, Number: v.Number, Date: v.Date, DueDate: v.DueDate, Status: v.Status, CustomerName: v.CustomerName, CustomerContact: v.CustomerContact, SupplierName: v.SupplierName, Reference: v.Reference, Method: v.Method, AccountName: v.AccountName, PaymentStatus: v.PaymentStatus, Notes: v.Notes, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, TotalRial: v.TotalRial, PaidRial: v.PaidRial, RemainingRial: v.RemainingRial, AmountRial: v.AmountRial, Shop: shopSettingsDTO(v.Shop)}
 	for _, x := range v.Lines {
 		out.Lines = append(out.Lines, PrintLineDTO{x.Description, x.Unit, x.QuantityUnits, x.UnitPriceRial, x.LineTotalRial})
 	}

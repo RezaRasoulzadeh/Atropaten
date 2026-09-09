@@ -468,6 +468,19 @@ func (s *ServicesService) validateReferences(ctx context.Context, service domain
 	}
 	for _, component := range service.Components {
 		if component.Type == domain.CostMaterial {
+			if component.UsageMode == domain.UsageParameter && component.ReferenceID == "" {
+				validParameter := false
+				for _, parameter := range service.Parameters {
+					if parameter.Key == component.ParameterKey && (parameter.Type == domain.ParameterMaterialReference || parameter.Type == domain.ParameterChoice) {
+						validParameter = true
+						break
+					}
+				}
+				if !validParameter {
+					return fmt.Errorf("component %q: material parameter reference is invalid", component.Name)
+				}
+				continue
+			}
 			if s.material == nil {
 				return fmt.Errorf("material component reference cannot be checked")
 			}

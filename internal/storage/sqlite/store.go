@@ -785,10 +785,19 @@ func (s *Store) withInventorySummary(ctx context.Context, material domain.Materi
 	if err != nil {
 		return domain.Material{}, err
 	}
+	var highestPurchaseUnitCost int64
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT COALESCE(MAX(pi.landed_unit_cost_rial), 0)
+		FROM purchase_items pi
+		JOIN purchases p ON p.id = pi.purchase_id
+		WHERE pi.material_id = ? AND p.status = ?`, material.ID, domain.PurchasePosted).Scan(&highestPurchaseUnitCost); err != nil {
+		return domain.Material{}, fmt.Errorf("read material purchase price: %w", err)
+	}
 	material.PhysicalStock = summary.PhysicalStock
 	material.ReservedStock = summary.ReservedStock
 	material.AvailableStock = summary.AvailableStock
 	material.AverageUnitCostRial = summary.AverageUnitCostRial
+	material.HighestPurchaseUnitCostRial = highestPurchaseUnitCost
 	return material, nil
 }
 

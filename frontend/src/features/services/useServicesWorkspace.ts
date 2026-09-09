@@ -1,7 +1,7 @@
 import {componentNeedsRate,componentNeedsReference,componentNeedsPercentage} from './serviceFields'
 import type {ServiceFilter,EditorMode,ParameterType,ParameterForm,ComponentType,ComponentForm,PricingTierForm,PricingRuleForm,ServiceForm} from './types'
 import {useWorkspaceActions} from '../../composables/useWorkspaceActions'
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { materialsApi, type MaterialRecord } from '../../api/materials';
 import { servicesApi, type ServiceRecord } from '../../api/services';
 import { machinesApi, type MachineRecord } from '../../api/machines';
@@ -27,6 +27,7 @@ const editorMode = ref<EditorMode>(null);
 const form = ref<ServiceForm>(emptyForm());
 const isLoading = ref(false);
 const isSaving = ref(false);
+const validationAttempted = ref(false);
 const selectedService = computed(
   () => services.value.find((service) => service.id === selectedId.value) ?? null,
 );
@@ -140,6 +141,7 @@ function startCreate() {
   editorMode.value = 'create';
   selectedId.value = null;
   form.value = emptyForm();
+  validationAttempted.value = false;
 }
 function startEdit() {
   const service = selectedService.value;
@@ -204,6 +206,7 @@ function startEdit() {
         }
       : null,
   };
+  validationAttempted.value = false;
   editorMode.value = 'edit';
 }
 function numericParameters() {
@@ -217,6 +220,10 @@ function normalizeComponent(component: ComponentForm) {
     component.rateInput = '';
     component.percentage = '';
     component.rateBasis = '';
+    if (component.type === 'material') {
+      component.usageMode = 'fixed';
+      component.parameterKey = '';
+    }
   } else if (component.type === 'overhead' || component.type === 'waste') {
     component.referenceId = '';
     component.usageMode = 'fixed';
@@ -305,14 +312,18 @@ function componentSummary(component: {
 }) {
   const source =
     component.type === 'material'
-      ? materials.value.find((item) => item.id === component.referenceId)?.name || 'Material'
+      ? component.usageMode === 'parameter' && !component.referenceId
+        ? `selected by ${component.parameterKey || 'material parameter'}`
+        : materials.value.find((item) => item.id === component.referenceId)?.name || 'Material'
       : component.type === 'machine'
         ? machines.value.find((item) => item.id === component.referenceId)?.name || 'Machine'
         : component.type;
   if (component.type === 'overhead' || component.type === 'waste')
     return `${component.name || typeLabel(component.type)} · ${component.percentage}%${component.enabled ? '' : ' · disabled'}`;
   const usage =
-    component.usageMode === 'parameter'
+    component.type === 'material' && component.usageMode === 'parameter' && !component.referenceId
+      ? `${component.parameterKey || 'material'} · ${component.multiplier}× quantity`
+      : component.usageMode === 'parameter'
       ? `${component.parameterKey} × ${component.multiplier}`
       : `fixed × ${component.multiplier}`;
   const rate = componentNeedsRate(component.type as ComponentType)
@@ -322,6 +333,7 @@ function componentSummary(component: {
 }
 function cancelEditor() {
   editorMode.value = null;
+  validationAttempted.value = false;
 }
 function addParameter() {
   form.value.parameters.push(emptyParameter());
@@ -385,6 +397,10 @@ function removeOption(parameter: ParameterForm, index: number) {
 }
 async function saveService() {
 return runAction(async () => {
+  validationAttempted.value = true;
+  await nextTick();
+  const firstInvalid = document.querySelector<HTMLElement>('#service-editor [aria-invalid="true"], #service-editor :invalid');
+  firstInvalid?.focus();
   if (!form.value.name.trim()) {
     toast.error('Enter a service name.', 'Services');
     return;
@@ -529,5 +545,5 @@ function errorMessageFrom(error: unknown, fallback: string): string {
       ? error
       : fallback;
 }
-return {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,remove,typeLabel,dateLabel,errorMessageFrom}
+return {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,validationAttempted,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,remove,typeLabel,dateLabel,errorMessageFrom}
 }

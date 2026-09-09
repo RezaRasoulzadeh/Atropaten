@@ -26,6 +26,7 @@ import { formatMoney, type CurrencyUnit } from '../../utils/currency';
 import { currentCanonicalDate, formatDateTime } from '../../utils/date';
 import { useToast } from '../../ui/feedback';
 import SearchField from '../../components/ui/SearchField.vue';
+import SearchFilterBar from '../../components/ui/SearchFilterBar.vue';
 import SelectField from '../../components/ui/SelectField.vue';
 
 const props = defineProps<{ currencyUnit: CurrencyUnit }>();
@@ -37,6 +38,9 @@ const query = ref('');
 const toast = useToast();
 const history = ref<CheckEventRecord[]>([]);
 const createMode = ref(false);
+const viewOptions = ['All', 'Incoming', 'Outgoing', 'Due', 'Overdue', 'Cleared', 'Closed'].map(
+  (value) => ({ label: value, value }),
+);
 const form = ref({
   direction: 'incoming',
   checkNumber: '',
@@ -130,6 +134,10 @@ function begin() {
     notes: '',
   };
 }
+function clearFilters() {
+  tab.value = 'All';
+  query.value = '';
+}
 async function create() {
 return runAction(async () => {
   const amount = Number(form.value.amountRial.replaceAll(',', ''));
@@ -195,36 +203,34 @@ function date(v: string) {
 }
 </script>
 <template>
-  <div class="min-w-0 space-y-3">
-    <WorkspaceStickyStack
-      ><WorkspaceHeader
-        title="Checks"
+  <div class="min-w-0 space-y-4">
+    <WorkspaceStickyStack>
+      <WorkspaceHeader
         eyebrow="Finance / instruments"
+        title="Checks"
         description="Controlled check lifecycles with uncleared instruments kept outside available bank cash."
-        ><button class="btn btn-primary" @click="begin">
-          <Plus :size="16" /> New check
-        </button></WorkspaceHeader
       >
-      <section class="min-w-0 space-y-4">
-        <SearchField
-          v-model="query"
-          label="Search checks"
-          placeholder="Search number, bank, or party"
-        />
-        <div class="flex flex-wrap items-center gap-2">
-          <button
-            class="btn btn-sm"
-            v-for="value in ['Incoming', 'Outgoing', 'Due', 'Overdue', 'Cleared', 'Closed', 'All']"
-            :key="value"
-            :class="tab === value ? 'btn-primary' : 'btn-ghost'"
-            @click="tab = value"
-          >
-            {{ value }}
-          </button>
-        </div>
-        <span>{{ filtered.length }} shown</span>
-      </section></WorkspaceStickyStack
-    ><LoadingState v-if="pageLoading" label="Loading records…" /><div v-show="!pageLoading" class="space-y-4">
+        <button class="btn btn-primary" type="button" @click="begin">
+          <Plus :size="16" /> New check
+        </button>
+      </WorkspaceHeader>
+
+      <SearchFilterBar>
+        <template #search>
+          <SearchField
+            v-model="query"
+            label="Search checks"
+            placeholder="Check number, bank, or party"
+          />
+        </template>
+        <template #filters>
+          <SelectField v-model="tab" label="View" :options="viewOptions" />
+        </template>
+        <template #count><span>{{ filtered.length }} of {{ rows.length }} checks</span></template>
+      </SearchFilterBar>
+    </WorkspaceStickyStack>
+
+    <LoadingState v-if="pageLoading" label="Loading records…" /><div v-show="!pageLoading" class="space-y-4">
     <MasterDetail
       ><RegisterList title="Check register" subtitle="Only valid next lifecycle actions are offered." :count="filtered.length"
         ><div v-if="filtered.length">
@@ -245,10 +251,13 @@ function date(v: string) {
             <template #status><StatusBadge :label="v.status" :tone="tone(v.status)" /></template>
           </RegisterRow>
         </div>
-        <div v-else class="min-w-0 space-y-3">
-          <Landmark :size="22" />
-          <p>No checks in this view.</p>
-        </div>
+        <EmptyState v-else title="No checks in this view" description="Adjust the search or lifecycle filters, or create a new check.">
+          <template #icon><Landmark :size="22" aria-hidden="true" /></template>
+          <template #action>
+            <button v-if="rows.length" class="btn btn-primary btn-sm" type="button" @click="clearFilters">Clear filters</button>
+            <button v-else class="btn btn-primary btn-sm gap-2" type="button" @click="begin"><Plus :size="15" aria-hidden="true" /> Create check</button>
+          </template>
+        </EmptyState>
       </RegisterList>
       <InspectorShell
         v-if="createMode"
@@ -373,14 +382,14 @@ function date(v: string) {
                 </tr>
               </tbody>
             </DataTable>
-            <EmptyState v-else title="No lifecycle events" description="Status changes will appear here." />
+            <EmptyState v-else title="No lifecycle events" description="Status changes will appear here."><template #icon><Landmark :size="21" aria-hidden="true" /></template></EmptyState>
           </InspectorSection>
         </div></InspectorShell
       ><InspectorShell
         v-else
         title="Check inspector"
         subtitle="Select a check to inspect lifecycle and history."
-        ><div>No check selected.</div></InspectorShell
+        ><EmptyState compact title="No check selected" description="Choose a check from the register to inspect its lifecycle and history."><template #icon><Landmark :size="21" aria-hidden="true" /></template></EmptyState></InspectorShell
       ></MasterDetail
     >
   </div></div>

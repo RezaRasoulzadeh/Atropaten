@@ -90,9 +90,17 @@ func (s *PricingService) Calculate(ctx context.Context, request PricingRequest) 
 			if s.material == nil {
 				return PricingView{}, fmt.Errorf("material lookup is not available")
 			}
-			material, getErr := s.material.Get(ctx, component.ReferenceID)
+			materialID := component.ReferenceID
+			if component.UsageMode == domain.UsageParameter && component.ReferenceID == "" {
+				parameter, exists := parameterMap[component.ParameterKey]
+				if !exists || parameter.MaterialID == "" {
+					return PricingView{}, fmt.Errorf("component %q: material parameter %q has no selected material", component.Name, component.ParameterKey)
+				}
+				materialID = parameter.MaterialID
+			}
+			material, getErr := s.material.Get(ctx, materialID)
 			if getErr != nil {
-				return PricingView{}, fmt.Errorf("component %q: %w", component.Name, getErr)
+				return PricingView{}, fmt.Errorf("component %q: material reference: %w", component.Name, getErr)
 			}
 			if !material.Active {
 				return PricingView{}, fmt.Errorf("component %q: material is archived", component.Name)
@@ -167,6 +175,7 @@ func (s *PricingService) resolveParameters(ctx context.Context, definitions []do
 			if !valid {
 				return nil, fmt.Errorf("parameter %q must use one of its configured choices", definition.Label)
 			}
+			item.MaterialID = s.materialIDForChoice(ctx, value)
 		case domain.ParameterMaterialReference:
 			if s.material == nil {
 				return nil, fmt.Errorf("material lookup is not available")
@@ -193,6 +202,58 @@ func (s *PricingService) resolveParameters(ctx context.Context, definitions []do
 		resolved = append(resolved, item)
 	}
 	return resolved, nil
+}
+
+func (s *PricingService) materialIDForChoice(ctx context.Context, value string) string {
+	if s.material == nil {
+		return ""
+	}
+	wanted := normalizeMaterialChoice(value)
+	if materials, ok := s.material.(interface {
+		List(context.Context, bool) ([]domain.Material, error)
+	}); ok {
+		items, err := materials.List(ctx, false)
+		if err == nil {
+			var fuzzyID string
+			fuzzyAmbiguous := false
+			for _, material := range items {
+				if !material.Active {
+					continue
+				}
+				candidates := []string{material.ID, material.Name, material.SKU}
+				for _, candidate := range candidates {
+					if wanted != "" && wanted == normalizeMaterialChoice(candidate) {
+						return material.ID
+					}
+				}
+				if wanted == "" || len([]rune(wanted)) < 2 {
+					continue
+				}
+				for _, candidate := range candidates {
+					candidate = normalizeMaterialChoice(candidate)
+					if candidate != "" && (strings.Contains(candidate, wanted) || strings.Contains(wanted, candidate)) {
+						if fuzzyID == "" {
+							fuzzyID = material.ID
+						} else if fuzzyID != material.ID {
+							fuzzyAmbiguous = true
+						}
+						break
+					}
+				}
+			}
+			if fuzzyID != "" && !fuzzyAmbiguous {
+				return fuzzyID
+			}
+		}
+	}
+	if material, err := s.material.Get(ctx, value); err == nil && material.Active {
+		return material.ID
+	}
+	return ""
+}
+
+func normalizeMaterialChoice(value string) string {
+	return strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(value)), " "))
 }
 
 func pricingView(service domain.Service, result domain.PricingResult) PricingView {

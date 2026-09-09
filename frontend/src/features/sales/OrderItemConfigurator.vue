@@ -5,6 +5,7 @@ import FormField from '../../components/ui/FormField.vue';
 import { computed, nextTick, ref, watch } from 'vue';
 import { Calculator, Plus } from 'lucide-vue-next';
 import SelectField from '../../components/ui/SelectField.vue';
+import EmptyState from '../../components/ui/EmptyState.vue';
 import { pricingApi, type PricingRecord } from '../../api/pricing';
 import type { OrderItemPayload } from '../../api/orders';
 import {
@@ -253,9 +254,7 @@ function save() {
         </FormField>
       </template>
 
-      <p v-if="!activeParams.length" class="text-xs text-base-content/60 lg:col-span-2">
-        This service has no dynamic parameters.
-      </p>
+      <EmptyState v-if="!activeParams.length" compact class="lg:col-span-2" title="No dynamic parameters" description="This service uses its standard configuration."><template #icon><Calculator :size="21" aria-hidden="true" /></template></EmptyState>
 
       <FormField class="gap-1">
         <span class="text-xs text-base-content/60">Item quantity</span>
@@ -346,7 +345,7 @@ function save() {
           >
         </div>
       </div>
-      <div class="mt-4 divide-y divide-base-300 rounded-box border border-base-300">
+      <div v-if="pricing.components.length" class="mt-4 divide-y divide-base-300 rounded-box border border-base-300">
         <div
           v-for="component in pricing.components"
           :key="component.id"
@@ -358,6 +357,7 @@ function save() {
           }}</strong>
         </div>
       </div>
+      <EmptyState v-else compact title="No cost breakdown yet" description="The calculated price has no cost components to display."><template #icon><Calculator :size="21" aria-hidden="true" /></template></EmptyState>
       <div class="mt-4 flex justify-end">
         <button class="btn btn-primary gap-2" type="button" @click="save" :disabled="busy || calculating">
           <Plus :size="15" aria-hidden="true" />
@@ -365,5 +365,6 @@ function save() {
         </button>
       </div>
     </div>
+    <EmptyState v-else compact title="No pricing preview yet" description="Choose a service and calculate its price to preview this item."><template #icon><Calculator :size="21" aria-hidden="true" /></template></EmptyState>
   </div>
 </template>

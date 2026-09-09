@@ -4,6 +4,7 @@ import ServiceCostEditor from './ServiceCostEditor.vue'
 import {componentNeedsRate,componentNeedsReference,componentNeedsPercentage} from './serviceFields'
 import type {ServiceFilter,EditorMode,ParameterType,ParameterForm,ComponentType,ComponentForm,PricingTierForm,PricingRuleForm,ServiceForm} from './types'
 import LoadingState from '../../components/ui/LoadingState.vue'
+import EmptyState from '../../components/ui/EmptyState.vue'
 import SearchFilterBar from '../../components/ui/SearchFilterBar.vue'
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 import FormGrid from '../../components/ui/FormGrid.vue';
@@ -50,7 +51,7 @@ import ServiceConfigurator from './ServiceConfigurator.vue';
 const emit = defineEmits<{ notify: [message: string] }>();
 const props = defineProps<{ currencyUnit: CurrencyUnit }>();
 import {useServicesWorkspace} from './useServicesWorkspace'
-const {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,remove,typeLabel,dateLabel}=useServicesWorkspace(props,emit)
+const {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,validationAttempted,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,normalizeParameter,addOption,removeOption,saveService,setActive,remove,typeLabel,dateLabel}=useServicesWorkspace(props,emit)
 function backToServices() {
   selectedId.value = null;
   cancelEditor();
@@ -124,27 +125,14 @@ watch(
             </template>
           </RegisterRow>
         </div>
-        <div v-else class="min-w-0 space-y-3">
-          <div aria-hidden="true"><SlidersHorizontal :size="21" :stroke-width="1.8" /></div>
-          <h2 class="text-base font-semibold">
-            {{ services.length ? 'No services match this view' : 'No services yet' }}
-          </h2>
-          <p>
-            {{
-              services.length
-                ? 'Try another status or search term.'
-                : 'Create the first reusable operation for your shop.'
-            }}
-          </p>
-          <button
-            class="btn btn-primary"
-            v-if="!services.length"
-            type="button"
-            @click="startCreate"
-          >
-            <Plus :size="15" :stroke-width="1.8" aria-hidden="true" />Create service
-          </button>
-        </div>
+        <EmptyState
+          v-else
+          :title="services.length ? 'No services match this view' : 'No services yet'"
+          :description="services.length ? 'Try another status or search term.' : 'Create the first reusable operation for your shop.'"
+        >
+          <template #icon><SlidersHorizontal :size="22" :stroke-width="1.8" aria-hidden="true" /></template>
+          <template v-if="!services.length" #action><button class="btn btn-primary btn-sm" type="button" @click="startCreate"><Plus :size="15" :stroke-width="1.8" aria-hidden="true" />Create service</button></template>
+        </EmptyState>
       </RegisterList>
     </div>
 
@@ -198,7 +186,7 @@ watch(
         :title="editorMode === 'create' ? 'New service' : 'Edit service'"
         subtitle="The full definition saves atomically with its parameters."
       >
-        <form id="service-editor" @submit.prevent="saveService" class="min-w-0 space-y-5">
+        <form id="service-editor" @submit.prevent="saveService" class="service-editor min-w-0 space-y-5">
           <section class="rounded-box border border-base-300 bg-base-200/25 p-4">
             <div class="mb-4">
               <h3 class="text-sm font-semibold">Service identity</h3>
@@ -212,6 +200,7 @@ watch(
               v-model="form.name"
               type="text"
               placeholder="Digital Print"
+              required
               autocomplete="off"
           /></FormField>
           <FormGrid
@@ -246,40 +235,38 @@ watch(
             <header class="flex min-w-0 flex-wrap items-start justify-between gap-3">
               <div class="min-w-0">
                 <h3 class="text-sm font-semibold">Parameters</h3>
-                <p class="mt-1 text-xs text-base-content/60">Order is saved as shown and keys are stable references.</p>
+                <p class="mt-1 text-xs text-base-content/60">For variable paper, add one Material reference parameter such as “Paper size” and mark it required.</p>
               </div>
               <button class="btn btn-outline btn-sm shrink-0" type="button" @click="addParameter">
                 <ListPlus :size="14" :stroke-width="1.8" aria-hidden="true" />Add parameter
               </button>
             </header>
           <div v-if="form.parameters.length" class="overflow-hidden rounded-box border border-base-300 bg-base-100">
-            <ServiceParameterEditor v-for="(parameter,index) in form.parameters" :key="parameter.id" :parameter="parameter" :index="index" :count="form.parameters.length" :materials="materials" @move="moveParameter(index,$event)" @remove="removeParameter(index)" @normalize="normalizeParameter(parameter)" @add-option="addOption(parameter)" @remove-option="removeOption(parameter,$event)" />
+            <ServiceParameterEditor v-for="(parameter,index) in form.parameters" :key="parameter.id" :parameter="parameter" :index="index" :count="form.parameters.length" :materials="materials" :show-errors="validationAttempted" @move="moveParameter(index,$event)" @remove="removeParameter(index)" @normalize="normalizeParameter(parameter)" @add-option="addOption(parameter)" @remove-option="removeOption(parameter,$event)" />
           </div>
-          <div v-else class="flex min-w-0 items-center gap-2 rounded-box border border-dashed border-base-300 p-4 text-sm text-base-content/60">
-            <ListPlus :size="17" :stroke-width="1.8" aria-hidden="true" /><span
-              >No parameters yet. Add one when the service needs operator input.</span
-            >
-          </div>
+          <EmptyState v-else compact title="No parameters yet" description="Add one when the service needs operator input.">
+            <template #icon><ListPlus :size="20" aria-hidden="true" /></template>
+            <template #action><button class="btn btn-primary btn-sm gap-2" type="button" @click="addParameter"><ListPlus :size="14" aria-hidden="true" /> Add parameter</button></template>
+          </EmptyState>
           </section>
 
           <section class="min-w-0 space-y-3">
             <header class="flex min-w-0 flex-wrap items-start justify-between gap-3">
               <div class="min-w-0">
                 <h3 class="text-sm font-semibold">Cost components</h3>
-                <p class="mt-1 text-xs text-base-content/60">Ordered reusable inputs evaluated by the generic pricing preview.</p>
+                <p class="mt-1 text-xs text-base-content/60">Add a fixed Machine cost, then add a Material cost and choose the Paper size parameter as its source.</p>
               </div>
               <button class="btn btn-outline btn-sm shrink-0" type="button" @click="addComponent">
                 <Plus :size="14" :stroke-width="1.8" aria-hidden="true" />Add component
               </button>
             </header>
           <div v-if="form.components.length" class="overflow-hidden rounded-box border border-base-300 bg-base-100">
-            <ServiceCostEditor v-for="(component,index) in form.components" :key="component.id" :component="component" :index="index" :count="form.components.length" :materials="materials" :machines="machines" :parameters="numericParameters()" :currency-unit="currencyUnit" @move="moveComponent(index,$event)" @remove="removeComponent(index)" @change-type="updateComponentType(component)" @change-rate="updateComponentRate(component)" />
+            <ServiceCostEditor v-for="(component,index) in form.components" :key="component.id" :component="component" :index="index" :count="form.components.length" :materials="materials" :machines="machines" :parameters="form.parameters" :currency-unit="currencyUnit" :show-errors="validationAttempted" @move="moveComponent(index,$event)" @remove="removeComponent(index)" @change-type="updateComponentType(component)" @change-rate="updateComponentRate(component)" />
           </div>
-          <div v-else class="flex min-w-0 items-center gap-2 rounded-box border border-dashed border-base-300 p-4 text-sm text-base-content/60">
-            <Plus :size="17" :stroke-width="1.8" aria-hidden="true" /><span
-              >No cost components yet. Add reusable material, machine, labor, or other inputs.</span
-            >
-          </div>
+          <EmptyState v-else compact title="No cost components yet" description="Add reusable material, machine, labor, or other inputs.">
+            <template #icon><Plus :size="20" aria-hidden="true" /></template>
+            <template #action><button class="btn btn-primary btn-sm gap-2" type="button" @click="addComponent"><Plus :size="14" aria-hidden="true" /> Add component</button></template>
+          </EmptyState>
           </section>
 
           <section v-if="form.pricingRule" class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-200/25 p-4">
@@ -446,7 +433,7 @@ watch(
                 </div>
               </div>
             </div>
-            <p v-else class="rounded-box border border-dashed border-base-300 p-3 text-sm text-base-content/60">No parameters configured.</p>
+            <EmptyState v-else compact title="No parameters configured" description="Add parameters in the service editor when operators need input."><template #icon><ListPlus :size="21" aria-hidden="true" /></template></EmptyState>
           </InspectorSection>
 
           <InspectorSection title="Cost components" description="Ordered inputs used by the pricing engine.">
@@ -465,7 +452,7 @@ watch(
                 </div>
               </div>
             </div>
-            <p v-else class="rounded-box border border-dashed border-base-300 p-3 text-sm text-base-content/60">No cost components configured.</p>
+            <EmptyState v-else compact title="No cost components configured" description="Add reusable inputs in the service editor."><template #icon><Plus :size="21" aria-hidden="true" /></template></EmptyState>
           </InspectorSection>
         </div>
 

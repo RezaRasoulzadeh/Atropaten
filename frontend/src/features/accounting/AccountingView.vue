@@ -14,10 +14,11 @@ import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref } from 'vue';
-import { Archive, BookOpen, Landmark, Pencil, Plus, Save, Trash2, WalletCards } from 'lucide-vue-next';
+import { Archive, BookOpen, Landmark, Pencil, Plus, Save, Trash2, Users, WalletCards } from 'lucide-vue-next';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import AccountingExtrasView from './AccountingExtrasView.vue';
+import ProfitAllocationView from './ProfitAllocationView.vue';
 import type { CurrencyUnit } from '../../utils/currency';
 import { formatMoney } from '../../utils/currency';
 import {
@@ -165,7 +166,7 @@ function transactionSource(entry: JournalEntryRecord) {
     >
     </WorkspaceHeader>
     <WorkspaceTabs
-      :tabs="['Overview', 'Accounts', 'Expenses', 'Transfers / Treasury']"
+      :tabs="['Overview', 'Accounts', 'Expenses', 'Transfers / Treasury', 'Profit Allocation']"
       :active-tab="tab"
       @change="tab = $event"
     />
@@ -228,7 +229,7 @@ function transactionSource(entry: JournalEntryRecord) {
               <span class="shrink-0 text-sm font-semibold tabular-nums">{{ money(journalAmount(entry)) }}</span>
             </div>
           </div>
-          <EmptyState v-else title="No recent transactions" description="Posted accounting activity will appear here." />
+          <EmptyState v-else title="No recent transactions" description="Posted accounting activity will appear here."><template #icon><BookOpen :size="21" aria-hidden="true" /></template></EmptyState>
         </AppPanel>
       </section>
     </template>
@@ -259,7 +260,7 @@ function transactionSource(entry: JournalEntryRecord) {
                 <div v-if="owners.length" class="grid gap-2 rounded-box border border-base-300 bg-base-200/30 p-3 sm:grid-cols-2">
                   <label v-for="owner in owners" :key="owner.id" class="flex min-w-0 items-center gap-2 text-sm"><input v-model="accountForm.ownerIds" class="checkbox checkbox-sm" type="checkbox" :value="owner.id" /><span class="truncate">{{ owner.name }}</span></label>
                 </div>
-                <p v-else class="text-xs text-base-content/60">Add owners from the Owners workspace to attach them here.</p>
+                <EmptyState v-else compact title="No owners available" description="Add owners from the Owners workspace to attach them here."><template #icon><Users :size="21" aria-hidden="true" /></template></EmptyState>
               </FormField>
             </div>
           </section>
@@ -271,7 +272,7 @@ function transactionSource(entry: JournalEntryRecord) {
       </AppPanel>
       <AppPanel title="Treasury accounts" subtitle="Cash and bank accounts available to payments, expenses, transfers, checks, loans, and owner movements." flush>
         <template #action><button class="btn btn-primary btn-sm" type="button" @click="startAccount()"><Plus :size="15" /> New account</button></template>
-        <DataTable>
+        <DataTable v-if="financial.length">
           <thead><tr><th>Account</th><th>Type</th><th>Owners</th><th class="text-end">Balance</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
           <tbody>
             <tr v-for="account in financial" :key="account.id">
@@ -284,10 +285,18 @@ function transactionSource(entry: JournalEntryRecord) {
             </tr>
           </tbody>
         </DataTable>
-        <EmptyState v-if="!financial.length" title="No treasury accounts" />
+        <EmptyState v-else title="No treasury accounts" description="Add a cash or bank account to start tracking treasury activity.">
+          <template #icon><Landmark :size="22" aria-hidden="true" /></template>
+          <template #action><button class="btn btn-primary btn-sm gap-2" type="button" @click="startAccount()"><Plus :size="15" aria-hidden="true" /> Create account</button></template>
+        </EmptyState>
       </AppPanel>
     </section>
 
+    <ProfitAllocationView
+      v-else-if="tab === 'Profit Allocation'"
+      :currency-unit="props.currencyUnit"
+      @notify="emit('notify', $event)"
+    />
     <AccountingExtrasView v-else :tab="tab" :currency-unit="currencyUnit" :accounts="accounts" :financial="financial" :suppliers="suppliers" @notify="emit('notify', $event)" />
   </div>
 </div>

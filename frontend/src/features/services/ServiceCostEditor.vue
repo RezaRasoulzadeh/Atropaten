@@ -10,11 +10,25 @@ import type {MaterialRecord} from '../../api/materials'
 import type {MachineRecord} from '../../api/machines'
 import type {CurrencyUnit} from '../../utils/currency'
 import {componentNeedsRate,componentNeedsReference,componentNeedsPercentage} from './serviceFields'
-const props=defineProps<{component:ComponentForm;index:number;count:number;materials:MaterialRecord[];machines:MachineRecord[];parameters:ParameterForm[];currencyUnit:CurrencyUnit}>()
+const props=defineProps<{component:ComponentForm;index:number;count:number;materials:MaterialRecord[];machines:MachineRecord[];parameters:ParameterForm[];currencyUnit:CurrencyUnit;showErrors?:boolean}>()
 const emit=defineEmits<{move:[direction:-1|1];remove:[];changeType:[];changeRate:[]}>()
 const expanded=ref(props.index === 0)
 function syncExpanded(event: Event) {
   expanded.value = (event.target as HTMLDetailsElement).open
+}
+function materialSource(component: ComponentForm) {
+  return component.referenceId || component.usageMode === 'fixed' ? 'fixed' : 'parameter'
+}
+function updateMaterialSource(component: ComponentForm, source: string) {
+  if (source === 'parameter') {
+    component.referenceId = ''
+    component.usageMode = 'parameter'
+    component.parameterKey = ''
+    return
+  }
+  const hasFixedMaterial = component.referenceId !== ''
+  component.usageMode = hasFixedMaterial ? component.usageMode : 'fixed'
+  if (!hasFixedMaterial) component.parameterKey = ''
 }
 </script>
 <template><details class="group min-w-0 border-t border-base-300" :open="expanded" @toggle="syncExpanded">
@@ -59,8 +73,10 @@ function syncExpanded(event: Event) {
                   ><span>Name</span
                   ><AppInput
                     class="input w-full min-w-0"
+                    :class="{ 'input-error': props.showErrors && !component.name.trim() }"
                     v-model="component.name"
                     type="text"
+                    required
                     placeholder="Paper cost" /></FormField
                 ><SelectField
                   v-model="component.type"
@@ -82,18 +98,59 @@ function syncExpanded(event: Event) {
                 future pricing</FormField
               >
               <SelectField
-                v-if="componentNeedsReference(component.type)"
-                v-model="component.referenceId"
-                :label="component.type === 'material' ? 'Material reference' : 'Machine reference'"
+                v-if="component.type === 'material'"
+                :model-value="materialSource(component)"
+                label="Material source"
                 :options="[
-                  { label: `Select an active ${component.type}`, value: '' },
-                  ...(component.type === 'material' ? materials : machines).map((item) => ({
-                    label: item.name,
-                    value: item.id,
+                  { label: 'Fixed material', value: 'fixed' },
+                  { label: 'Selected material parameter', value: 'parameter' },
+                ]"
+                @update:model-value="updateMaterialSource(component, $event)"
+              />
+              <SelectField
+                v-else-if="componentNeedsReference(component.type)"
+                v-model="component.referenceId"
+                label="Machine reference"
+                :invalid="props.showErrors && !component.referenceId"
+                :options="[
+                  { label: 'Select an active machine', value: '' },
+                  ...machines.map((machine) => ({ label: machine.name, value: machine.id })),
+                ]"
+              />
+              <SelectField
+                v-if="component.type === 'material' && materialSource(component) === 'fixed'"
+                v-model="component.referenceId"
+                label="Material"
+                :invalid="props.showErrors && !component.referenceId"
+                :options="[
+                  { label: 'Select an active material', value: '' },
+                  ...materials.map((material) => ({
+                    label: `${material.name}${material.sku ? ` · ${material.sku}` : ''}`,
+                    value: material.id,
                   })),
                 ]"
               />
-              <FormGrid v-if="!componentNeedsPercentage(component.type)"
+              <SelectField
+                v-if="component.type === 'material' && materialSource(component) === 'parameter'"
+                v-model="component.parameterKey"
+                label="Material selection parameter"
+                :invalid="props.showErrors && !component.parameterKey"
+                :options="[
+                  { label: 'Select material parameter', value: '' },
+                  ...parameters
+                    .filter((parameter) => parameter.type === 'material-reference' || parameter.type === 'choice')
+                    .map((parameter) => ({
+                      label: `${parameter.label || parameter.key} · ${parameter.key}`,
+                      value: parameter.key,
+                    })),
+                ]"
+              />
+              <small
+                v-if="component.type === 'material' && materialSource(component) === 'parameter' && parameters.find((parameter) => parameter.key === component.parameterKey)?.type === 'choice'"
+                class="block text-xs leading-5 text-base-content/60"
+                >Choice values must match an active material name, SKU, or ID.</small
+              >
+              <FormGrid v-if="!componentNeedsPercentage(component.type) && (component.type !== 'material' || (materialSource(component) === 'fixed' && component.usageMode === 'parameter'))"
                 ><SelectField
                   v-model="component.usageMode"
                   label="Usage source"
@@ -105,6 +162,7 @@ function syncExpanded(event: Event) {
                   ><AppInput
                     class="input w-full min-w-0"
                     v-model="component.usageQuantity"
+                    :class="{ 'input-error': props.showErrors && !component.usageQuantity.trim() }"
                     type="text"
                     inputmode="decimal"
                     placeholder="1" /></FormField
@@ -113,6 +171,27 @@ function syncExpanded(event: Event) {
                   ><AppInput
                     class="input w-full min-w-0"
                     v-model="component.multiplier"
+                    :class="{ 'input-error': props.showErrors && !component.multiplier.trim() }"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="1" /></FormField
+              ></FormGrid>
+              <FormGrid v-if="component.type === 'material' && materialSource(component) === 'parameter'"
+                ><FormField class="gap-1"
+                  ><span>Material quantity</span
+                  ><AppInput
+                    class="input w-full min-w-0"
+                    v-model="component.usageQuantity"
+                    :class="{ 'input-error': props.showErrors && !component.usageQuantity.trim() }"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="1" /></FormField
+                ><FormField class="gap-1"
+                  ><span>Multiplier</span
+                  ><AppInput
+                    class="input w-full min-w-0"
+                    v-model="component.multiplier"
+                    :class="{ 'input-error': props.showErrors && !component.multiplier.trim() }"
                     type="text"
                     inputmode="decimal"
                     placeholder="1" /></FormField
@@ -120,14 +199,17 @@ function syncExpanded(event: Event) {
               <div
                 class="gap-1"
                 v-if="
-                  component.usageMode === 'parameter' && !componentNeedsPercentage(component.type)
+                  component.usageMode === 'parameter' &&
+                  (component.type !== 'material' || materialSource(component) === 'fixed') &&
+                  !componentNeedsPercentage(component.type)
                 "
                 ><SelectField
                   v-model="component.parameterKey"
                   label="Usage parameter"
+                  :invalid="props.showErrors && !component.parameterKey"
                   :options="[
                     { label: 'Select numeric parameter', value: '' },
-                    ...parameters.map((parameter) => ({
+                    ...parameters.filter((parameter) => parameter.type === 'integer' || parameter.type === 'decimal').map((parameter) => ({
                       label: `${parameter.label || parameter.key} · ${parameter.key}`,
                       value: parameter.key,
                     })),
@@ -149,6 +231,7 @@ function syncExpanded(event: Event) {
                   ><AppInput
                     class="input w-full min-w-0"
                     v-model="component.rateInput"
+                    :class="{ 'input-error': props.showErrors && !component.rateInput.trim() }"
                     :money="currencyUnit"
                     type="text"
                     inputmode="decimal"
@@ -169,6 +252,7 @@ function syncExpanded(event: Event) {
                 ><AppInput
                   class="input w-full min-w-0"
                   v-model="component.percentage"
+                  :class="{ 'input-error': props.showErrors && !component.percentage.trim() }"
                   type="text"
                   inputmode="decimal"
                   placeholder="10"

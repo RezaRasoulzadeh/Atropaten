@@ -314,14 +314,24 @@ func (s Service) Validate() error {
 		parameterTypes[parameter.Key] = parameter.Type
 	}
 	for index, component := range s.Components {
-		if component.UsageMode == UsageParameter {
-			parameterType, exists := parameterTypes[component.ParameterKey]
-			if !exists {
-				return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference an existing service parameter")
+		if component.UsageMode != UsageParameter {
+			continue
+		}
+		parameterType, exists := parameterTypes[component.ParameterKey]
+		if !exists {
+			return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference an existing service parameter")
+		}
+		if component.Type == CostMaterial {
+			if component.ReferenceID == "" && parameterType != ParameterMaterialReference && parameterType != ParameterChoice {
+				return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference a material or choice parameter")
 			}
-			if parameterType != ParameterInteger && parameterType != ParameterDecimal {
+			if component.ReferenceID != "" && parameterType != ParameterInteger && parameterType != ParameterDecimal {
 				return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference an integer or decimal parameter")
 			}
+			continue
+		}
+		if parameterType != ParameterInteger && parameterType != ParameterDecimal {
+			return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference an integer or decimal parameter")
 		}
 	}
 	return nil
@@ -353,7 +363,14 @@ func (c ServiceCostComponent) Validate() error {
 		return validationError("percentage", "must be between 0 and 100")
 	}
 	switch c.Type {
-	case CostMaterial, CostMachine:
+	case CostMaterial:
+		if c.UsageMode == UsageFixed && strings.TrimSpace(c.ReferenceID) == "" {
+			return validationError("referenceId", "is required")
+		}
+		if c.RateRial != 0 || c.Percentage != 0 {
+			return validationError("rateRial", "is not supported for referenced components")
+		}
+	case CostMachine:
 		if strings.TrimSpace(c.ReferenceID) == "" {
 			return validationError("referenceId", "is required")
 		}

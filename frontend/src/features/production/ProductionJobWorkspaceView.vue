@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   Pause,
+  PackageOpen,
   Pencil,
   Play,
   RotateCcw,
@@ -23,6 +24,7 @@ import SelectField from '../../components/ui/SelectField.vue';
 import JalaliDatePicker from '../../components/ui/JalaliDatePicker.vue';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import LoadingState from '../../components/ui/LoadingState.vue';
+import EmptyState from '../../components/ui/EmptyState.vue';
 import { confirmAction } from '../../ui/feedback';
 import { formatMoney, type CurrencyUnit } from '../../utils/currency';
 import { formatQuantityInput } from '../../utils/quantity';
@@ -380,7 +382,7 @@ async function back() {
               {{ action.label }}
             </button>
           </div>
-          <span v-else class="text-xs text-base-content/60">No further status transitions are available.</span>
+          <EmptyState v-else compact title="No further status transitions" description="This job is at its current terminal or completed state."><template #icon><CheckCircle2 :size="21" aria-hidden="true" /></template></EmptyState>
         </div>
       </AppPanel>
       <section v-show="tab === 'Overview'" class="grid min-w-0 gap-4 xl:grid-cols-2">
@@ -441,9 +443,7 @@ async function back() {
       </section>
       <AppPanel v-show="tab === 'Reservations'" title="Reservations">
         <LoadingState v-if="reservationsLoading" label="Loading reservations…" />
-        <p v-else-if="!reservations.length" class="text-sm text-base-content/60">
-          No reservations for this job.
-        </p>
+        <EmptyState v-else-if="!reservations.length" compact title="No material reservations" description="Reserved materials for this job will appear here."><template #icon><PackageOpen :size="21" aria-hidden="true" /></template></EmptyState>
         <div
           v-for="r in reservations"
           :key="r.id"

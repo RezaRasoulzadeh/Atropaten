@@ -95,7 +95,7 @@ function back() {
       >
         <template #icon><Factory :size="32" :stroke-width="1.5" aria-hidden="true" /></template>
         <template v-if="!jobs.length" #action>
-          <button class="btn btn-outline btn-sm mt-3 gap-2" type="button" @click="beginCreate">
+            <button class="btn btn-primary btn-sm gap-2" type="button" @click="beginCreate">
             <Plus :size="14" aria-hidden="true" /> New production job
           </button>
         </template>

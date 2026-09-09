@@ -50,8 +50,8 @@ func TestPurchasePostingCancellationAndSupplierProtection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.PhysicalStock != 10*domain.QuantityScale || got.AverageUnitCostRial != 20 {
-		t.Fatalf("derived stock = %d, cost=%d", got.PhysicalStock, got.AverageUnitCostRial)
+	if got.PhysicalStock != 10*domain.QuantityScale || got.AverageUnitCostRial != 20 || got.HighestPurchaseUnitCostRial != 20 {
+		t.Fatalf("derived stock = %d, average cost=%d, highest purchase cost=%d", got.PhysicalStock, got.AverageUnitCostRial, got.HighestPurchaseUnitCostRial)
 	}
 	if err = store.DeleteDraftPurchase(ctx, p.ID); !errors.Is(err, domain.ErrPurchaseNotDraft) {
 		t.Fatalf("posted delete err=%v", err)

@@ -17,7 +17,7 @@
   --color-base-200: #1d2024;
   --color-base-300: #282c31;
   --color-base-content: #e8eaed;
-  --color-primary: #00b4d8;
+  --color-primary: #f2cc8f ;
   --color-primary-content: #1c1917;
   --color-secondary: #a3aab4;
   --color-secondary-content: #17191c;
@@ -60,6 +60,27 @@
   height: 2rem;
   min-height: 2rem;
   line-height: 1rem;
+}
+
+/* Empty-state actions always use the same solid primary treatment, even when
+   a view passes an older ghost or outline button class into the slot. */
+.empty-state-action :is(.btn, button) {
+  display: inline-flex !important;
+  min-height: 2rem !important;
+  height: 2rem !important;
+  padding-inline: 0.75rem !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.75rem !important;
+  line-height: 1rem !important;
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: var(--color-primary-content) !important;
+}
+.empty-state-action :is(.btn, button):hover {
+  background-color: color-mix(in srgb, var(--color-primary) 88%, black) !important;
+  border-color: color-mix(in srgb, var(--color-primary) 88%, black) !important;
 }
 
 .btn-outline:not(.btn-error):not(.btn-warning):not(.btn-success):not(.btn-primary) {
@@ -105,6 +126,9 @@ input[type='number']::-webkit-outer-spin-button {
 .select.select-error:focus, .select.select-error:focus-visible,
 .textarea.textarea-error:focus, .textarea.textarea-error:focus-visible {
   border-color: var(--color-error);
+}
+.service-editor :is(.input-error, .select-error, .textarea-error, [aria-invalid='true']) {
+  border-color: var(--color-error) !important;
 }
 .input.input-success:focus, .input.input-success:focus-visible,
 .select.select-success:focus, .select.select-success:focus-visible,

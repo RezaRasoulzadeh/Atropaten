@@ -26,13 +26,30 @@ func (r *serviceRepositoryStub) SaveServiceDefinition(_ context.Context, service
 	return nil
 }
 
-type materialLookupStub struct{ material domain.Material }
+type materialLookupStub struct {
+	material domain.Material
+	items    []domain.Material
+}
 
 func (m materialLookupStub) Get(_ context.Context, id string) (domain.Material, error) {
+	for _, material := range m.items {
+		if material.ID == id {
+			return material, nil
+		}
+	}
 	if m.material.ID == "" || m.material.ID != id {
 		return domain.Material{}, domain.ErrMaterialNotFound
 	}
 	return m.material, nil
+}
+func (m materialLookupStub) List(_ context.Context, _ bool) ([]domain.Material, error) {
+	if len(m.items) != 0 {
+		return m.items, nil
+	}
+	if m.material.ID == "" {
+		return []domain.Material{}, nil
+	}
+	return []domain.Material{m.material}, nil
 }
 
 type machineLookupStub struct{ machine domain.Machine }

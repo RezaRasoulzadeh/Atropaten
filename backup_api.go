@@ -34,9 +34,24 @@ func (a *App) backupService() (*platform.BackupService, error) {
 	return a.backup, nil
 }
 
+func (a *App) syncBackupDirectory(s *platform.BackupService) error {
+	reporting, err := a.reportingService()
+	if err != nil {
+		return err
+	}
+	settings, err := reporting.ShopSettings(a.materialContext())
+	if err != nil {
+		return err
+	}
+	return s.SetBackupDirectory(settings.BackupDirectory)
+}
+
 func (a *App) GetDataPaths() (DataPathsDTO, error) {
 	s, err := a.backupService()
 	if err != nil {
+		return DataPathsDTO{}, err
+	}
+	if err = a.syncBackupDirectory(s); err != nil {
 		return DataPathsDTO{}, err
 	}
 	p := s.Paths()
@@ -49,6 +64,9 @@ func (a *App) GetDataPaths() (DataPathsDTO, error) {
 func (a *App) CreateBackup() (BackupInfoDTO, error) {
 	s, err := a.backupService()
 	if err != nil {
+		return BackupInfoDTO{}, err
+	}
+	if err = a.syncBackupDirectory(s); err != nil {
 		return BackupInfoDTO{}, err
 	}
 	v, err := s.Create(a.materialContext())
@@ -67,6 +85,9 @@ func (a *App) GetLastBackup() (BackupInfoDTO, error) {
 	if err != nil {
 		return BackupInfoDTO{}, err
 	}
+	if err = a.syncBackupDirectory(s); err != nil {
+		return BackupInfoDTO{}, err
+	}
 	v, err := s.LastBackup()
 	return backupInfoDTO(v), err
 }
@@ -83,6 +104,12 @@ func (a *App) SelectBackupFile() (string, error) {
 		return "", fmt.Errorf("application context is not initialized")
 	}
 	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{Title: "Select Atropaten backup", Filters: []runtime.FileFilter{{DisplayName: "Atropaten backup", Pattern: "*.zip"}}})
+}
+func (a *App) SelectBackupDirectory() (string, error) {
+	if a.ctx == nil {
+		return "", fmt.Errorf("application context is not initialized")
+	}
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{Title: "Select Atropaten backup directory"})
 }
 func backupInfoDTO(v platform.BackupInfo) BackupInfoDTO {
 	return BackupInfoDTO{Path: v.Path, CreatedAt: v.CreatedAt, ApplicationVersion: v.ApplicationVersion, SchemaVersion: v.SchemaVersion, SizeBytes: v.SizeBytes, ManagedFileCount: v.ManagedFileCount}

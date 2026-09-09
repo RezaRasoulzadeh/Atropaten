@@ -106,7 +106,7 @@ function statusTone(status: string) {
       >
         <template #icon><ShoppingCart :size="21" :stroke-width="1.8" aria-hidden="true" /></template>
         <template v-if="!rows.length" #action>
-          <button class="btn btn-ghost" type="button" @click="startCreate">
+          <button class="btn btn-primary" type="button" @click="startCreate">
             <Plus :size="15" aria-hidden="true" />Record purchase
           </button>
         </template>

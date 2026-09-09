@@ -81,3 +81,53 @@ func TestEvaluatePricingReportsBelowCostOverride(t *testing.T) {
 		t.Fatalf("below-cost result incorrect: %+v", result)
 	}
 }
+
+func TestEvaluatePricingUsesHighestPostedPurchaseCostForMaterials(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := NewService("SVC-material-price", ServiceDraft{
+		Name: "Material pricing",
+		Components: []ServiceCostComponentDraft{{
+			ID: "C-material", Name: "Paper", Type: CostMaterial, ReferenceID: "MAT-paper",
+			UsageMode: UsageFixed, UsageQuantity: 2 * QuantityScale, Multiplier: QuantityScale, Enabled: true,
+		}},
+	}, now)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	result, err := EvaluatePricing(PricingInput{
+		Service:   service,
+		Materials: map[string]Material{"MAT-paper": {ID: "MAT-paper", AverageUnitCostRial: 100, HighestPurchaseUnitCostRial: 175}},
+	})
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if result.EstimatedCostRial != 350 || result.Components[0].RateRial != 175 {
+		t.Fatalf("material price = %+v, want cost 350 at rate 175", result)
+	}
+}
+
+func TestEvaluatePricingUsesSelectedMaterialParameter(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := NewService("SVC-material-parameter", ServiceDraft{
+		Name:       "Selectable paper",
+		Parameters: []ServiceParameterDraft{{ID: "P-paper", Key: "paper", Label: "Paper", Type: ParameterMaterialReference, Required: true}},
+		Components: []ServiceCostComponentDraft{{
+			ID: "C-paper", Name: "Paper", Type: CostMaterial, UsageMode: UsageParameter, ParameterKey: "paper",
+			UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true,
+		}},
+	}, now)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	result, err := EvaluatePricing(PricingInput{
+		Service:    service,
+		Parameters: map[string]ResolvedParameter{"paper": {Key: "paper", Type: ParameterMaterialReference, Value: "MAT-a5", MaterialID: "MAT-a5"}},
+		Materials:  map[string]Material{"MAT-a5": {ID: "MAT-a5", HighestPurchaseUnitCostRial: 225}},
+	})
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if result.EstimatedCostRial != 225 || result.Components[0].RateRial != 225 {
+		t.Fatalf("selected material price = %+v, want cost 225 at rate 225", result)
+	}
+}

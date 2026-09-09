@@ -4,6 +4,7 @@ import {
   Archive,
   ArrowLeft,
   Edit3,
+  Package,
   RefreshCw,
   RotateCcw,
   Save,
@@ -17,6 +18,7 @@ import FormField from '../../components/ui/FormField.vue';
 import FormSection from '../../components/ui/FormSection.vue';
 import InspectorSection from '../../components/layout/InspectorSection.vue';
 import LoadingState from '../../components/ui/LoadingState.vue';
+import EmptyState from '../../components/ui/EmptyState.vue';
 import SelectField from '../../components/ui/SelectField.vue';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
@@ -69,7 +71,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
         eyebrow="Catalog / material workspace"
         :description="
           isCreating
-            ? 'Create a stock item with units, conversion, and opening cost.'
+            ? 'Create a stock item with units, conversion, and an optional opening cost.'
             : isEditing
               ? 'Update catalog details without rewriting inventory history.'
               : 'Review stock position, cost basis, movements, and catalog details.'
@@ -126,7 +128,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
           </FormField>
         </FormSection>
 
-        <FormSection title="Units and opening stock" description="Keep purchase and production quantities explicit.">
+        <FormSection title="Units and opening stock" description="Keep purchase and production quantities explicit. Posted purchases set the pricing basis automatically.">
           <SelectField v-model="form.purchaseUnit" label="Purchase unit" :options="unitOptions.map((unit) => ({ label: unitLabel(unit), value: unit }))" />
           <SelectField v-model="form.consumptionUnit" label="Consumption unit" :options="unitOptions.map((unit) => ({ label: unitLabel(unit), value: unit }))" />
           <FormField class="gap-1 sm:col-span-2">
@@ -143,10 +145,10 @@ const isEditing = computed(() => editorMode.value === 'edit');
             <span class="text-xs">Reorder level</span>
             <AppInput v-model="form.reorderLevel" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="0" />
           </FormField>
-          <FormField class="gap-1 sm:col-span-2">
-            <span class="text-xs">Average cost / {{ form.consumptionUnit }} ({{ props.currencyUnit }})</span>
+          <FormField v-if="isCreating" class="gap-1 sm:col-span-2">
+            <span class="text-xs">Opening unit cost / {{ form.consumptionUnit }} ({{ props.currencyUnit }})</span>
             <AppInput :model-value="costDraft" :money="props.currencyUnit" type="text" inputmode="decimal" placeholder="0" @update:model-value="updateCost" />
-            <small class="text-xs text-base-content/60">Stored as integer Rial; use stock movements for later cost changes.</small>
+            <small class="text-xs text-base-content/60">Used for opening stock only. After a purchase is posted, pricing uses the highest landed purchase cost automatically.</small>
           </FormField>
         </FormSection>
 
@@ -166,7 +168,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
 
     <template v-else-if="selectedMaterial">
       <AppPanel title="Material overview" subtitle="Persisted catalog and inventory position.">
-        <div class="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
             <span class="block text-xs text-base-content/60">Physical stock</span>
             <strong class="mt-1 block text-xl leading-6 tabular-nums">{{ selectedMaterial.physicalStock }}</strong>
@@ -177,10 +179,15 @@ const isEditing = computed(() => editorMode.value === 'edit');
             <strong class="mt-1 block text-xl leading-6 tabular-nums">{{ selectedMaterial.availableStock }}</strong>
             <span class="mt-1 block text-xs text-base-content/55">{{ selectedMaterial.reservedStock }} reserved</span>
           </div>
+          <div class="rounded-box border border-primary/25 bg-primary/5 p-3">
+            <span class="block text-xs text-base-content/60">Pricing unit cost</span>
+            <strong class="mt-1 block truncate text-sm font-semibold text-primary">{{ formatMoney(selectedMaterial.highestPurchaseUnitCostRial || selectedMaterial.averageUnitCostRial, props.currencyUnit) }}</strong>
+            <span class="mt-1 block text-xs text-base-content/55">highest posted purchase</span>
+          </div>
           <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
-            <span class="block text-xs text-base-content/60">Average cost</span>
+            <span class="block text-xs text-base-content/60">Inventory average</span>
             <strong class="mt-1 block truncate text-sm font-semibold">{{ formatMoney(selectedMaterial.averageUnitCostRial, props.currencyUnit) }}</strong>
-            <span class="mt-1 block text-xs text-base-content/55">per {{ selectedMaterial.consumptionUnit }}</span>
+            <span class="mt-1 block text-xs text-base-content/55">valuation per {{ selectedMaterial.consumptionUnit }}</span>
           </div>
           <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
             <span class="block text-xs text-base-content/60">Inventory value</span>
@@ -278,7 +285,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
             </tr>
           </tbody>
         </DataTable>
-        <p v-else class="rounded-box border border-dashed border-base-300 p-4 text-sm text-base-content/60">No inventory movements yet.</p>
+        <EmptyState v-else compact title="No inventory movements" description="Stock receipts, usage, and adjustments will appear here."><template #icon><Package :size="21" aria-hidden="true" /></template></EmptyState>
       </AppPanel>
 
     </template>

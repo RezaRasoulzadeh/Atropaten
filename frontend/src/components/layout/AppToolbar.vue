@@ -15,6 +15,14 @@ import IconButton from '../ui/IconButton.vue';
 import SearchField from '../ui/SearchField.vue';
 import SelectField from '../ui/SelectField.vue';
 
+interface GlobalSearchResult {
+  id: string;
+  view: string;
+  title: string;
+  subtitle: string;
+  detail: string;
+}
+
 const searchField = ref<{ focus: () => void } | null>(null);
 
 function focusSearch(event: KeyboardEvent) {
@@ -30,12 +38,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', focusSearch));
 defineProps<{
   collapsed: boolean;
   searchQuery: string;
+  searchResults: GlobalSearchResult[];
+  searchLoading: boolean;
   currencyUnit: CurrencyUnit;
 }>();
 
 defineEmits<{
   'toggle-sidebar': [];
   'update:search-query': [value: string];
+  'select-search-result': [result: GlobalSearchResult];
   'update:currency-unit': [value: CurrencyUnit];
   'new-order': [];
   navigate: [view: string];
@@ -53,15 +64,52 @@ defineEmits<{
       <PanelLeftOpen v-if="collapsed" :size="18" :stroke-width="1.8" aria-hidden="true" />
       <PanelLeftClose v-else :size="18" :stroke-width="1.8" aria-hidden="true" />
     </IconButton>
+    <div class="relative min-w-0 flex-1">
     <SearchField
       ref="searchField"
-      class="flex-1"
+      class="w-full"
       :model-value="searchQuery"
-      placeholder="Search orders, customers, materials..."
+      placeholder="Search anything..."
       shortcut="Ctrl F"
       aria-label="Global search"
       @update:model-value="$emit('update:search-query', $event)"
+      @keydown.esc="$emit('update:search-query', '')"
+      @keydown.enter.prevent="searchResults[0] && $emit('select-search-result', searchResults[0])"
     />
+    <div
+      v-if="searchQuery.trim()"
+      class="absolute inset-x-0 top-[calc(100%+0.45rem)] z-50 overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-2xl"
+    >
+      <div v-if="searchLoading && !searchResults.length" class="px-4 py-3 text-xs text-base-content/60">
+        Searching workspace…
+      </div>
+      <div v-else-if="!searchResults.length" class="px-4 py-3 text-xs text-base-content/60">
+        No matching records.
+      </div>
+      <div v-else class="max-h-[min(28rem,calc(100vh-6rem))] overflow-y-auto p-1">
+        <button
+          v-for="result in searchResults"
+          :key="`${result.view}-${result.id}`"
+          class="flex w-full min-w-0 items-start gap-3 rounded-box px-3 py-2.5 text-start transition-colors hover:bg-base-200 focus:bg-base-200 focus:outline-none"
+          type="button"
+          @mousedown.prevent
+          @click="$emit('select-search-result', result)"
+        >
+          <span class="mt-0.5 grid size-7 shrink-0 place-items-center rounded bg-primary/10 text-[10px] font-bold text-primary">
+            {{ result.view.slice(0, 1) }}
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="flex min-w-0 items-center justify-between gap-3">
+              <strong class="truncate text-sm">{{ result.title }}</strong>
+              <span class="shrink-0 text-[10px] uppercase tracking-wide text-base-content/45">{{ result.view }}</span>
+            </span>
+            <span class="mt-0.5 block truncate text-xs text-base-content/60">{{ result.subtitle }}</span>
+            <span v-if="result.detail" class="mt-0.5 block truncate text-[11px] text-base-content/45">{{ result.detail }}</span>
+          </span>
+        </button>
+      </div>
+    </div>
+    </div>
     <button class="btn btn-ghost hidden" type="button" aria-label="Current shop: Central shop">
       <Store class="text-primary" :size="16" :stroke-width="1.8" aria-hidden="true" />
       <span><strong>Central shop</strong> · Tehran</span>

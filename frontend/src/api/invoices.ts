@@ -41,21 +41,30 @@ export interface InvoiceRecord {
   updatedAt: string
   items: InvoiceItemRecord[]
 }
+
+function normalizeInvoice(record: InvoiceRecord): InvoiceRecord {
+  return { ...record, items: Array.isArray(record.items) ? record.items : [] }
+}
+
 export const invoicesApi = {
   list(): Promise<InvoiceRecord[]> {
-    return ListInvoices() as unknown as Promise<InvoiceRecord[]>
+    return (ListInvoices() as unknown as Promise<InvoiceRecord[]>).then((rows) =>
+      rows.map(normalizeInvoice),
+    )
   },
   get(id: string): Promise<InvoiceRecord> {
-    return GetInvoice(id) as unknown as Promise<InvoiceRecord>
+    return (GetInvoice(id) as unknown as Promise<InvoiceRecord>).then(normalizeInvoice)
   },
   createFromOrder(orderId: string): Promise<InvoiceRecord> {
-    return CreateInvoiceFromOrder(orderId) as unknown as Promise<InvoiceRecord>
+    return (CreateInvoiceFromOrder(orderId) as unknown as Promise<InvoiceRecord>).then(
+      normalizeInvoice,
+    )
   },
   post(id: string): Promise<InvoiceRecord> {
-    return PostInvoice(id) as unknown as Promise<InvoiceRecord>
+    return (PostInvoice(id) as unknown as Promise<InvoiceRecord>).then(normalizeInvoice)
   },
   void(id: string): Promise<InvoiceRecord> {
-    return VoidInvoice(id) as unknown as Promise<InvoiceRecord>
+    return (VoidInvoice(id) as unknown as Promise<InvoiceRecord>).then(normalizeInvoice)
   },
   deleteDraft(id: string): Promise<void> {
     return DeleteDraftInvoice(id)

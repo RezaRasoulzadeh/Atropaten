@@ -73,6 +73,10 @@ function newCustomer() {
   editing.value = true;
   form.value = { name: '', phone: '', email: '', address: '', notes: '' };
 }
+function clearFilters() {
+  query.value = '';
+  filter.value = 'All';
+}
 function editCustomer() {
   if (!selected.value) return;
   form.value = {
@@ -192,7 +196,13 @@ watch(() => props.refreshKey, load, { immediate: true });
           v-else-if="!visible.length"
           title="No customers in this view"
           description="Adjust the search or create a new customer."
-        />
+        >
+          <template #icon><UserRound :size="22" aria-hidden="true" /></template>
+          <template #action>
+            <button v-if="customers.length" class="btn btn-primary btn-sm" type="button" @click="clearFilters">Clear filters</button>
+            <button v-else class="btn btn-primary btn-sm gap-2" type="button" @click="newCustomer"><Plus :size="15" aria-hidden="true" /> Create customer</button>
+          </template>
+        </EmptyState>
         <RegisterRow
           v-for="customer in visible"
           v-else
@@ -368,7 +378,7 @@ watch(() => props.refreshKey, load, { immediate: true });
         title="Customer inspector"
         subtitle="Choose a customer from the register."
       >
-        <EmptyState title="Select a customer" description="Choose a row to inspect its details." />
+        <EmptyState title="Select a customer" description="Choose a row to inspect its details."><template #icon><UserRound :size="21" aria-hidden="true" /></template></EmptyState>
       </InspectorShell>
     </MasterDetail>
   </div>

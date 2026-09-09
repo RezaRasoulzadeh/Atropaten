@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import LoadingState from '../../components/ui/LoadingState.vue'
+import EmptyState from '../../components/ui/EmptyState.vue'
 import SearchFilterBar from '../../components/ui/SearchFilterBar.vue'
 import {useWorkspaceActions} from '../../composables/useWorkspaceActions'
 const {busy,runAction}=useWorkspaceActions()
@@ -319,27 +320,14 @@ function message(errorValue: unknown, fallback: string) {
             <template #status><StatusBadge :label="machine.active ? 'Active' : 'Archived'" :tone="machine.active ? 'green' : 'slate'" /></template>
           </RegisterRow>
         </div>
-        <div v-else class="min-w-0 space-y-3">
-          <div><Factory :size="21" :stroke-width="1.8" /></div>
-          <h2 class="text-base font-semibold">
-            {{ machines.length ? 'No machines match this view' : 'No machines yet' }}
-          </h2>
-          <p>
-            {{
-              machines.length
-                ? 'Try another status or search term.'
-                : 'Add the first reusable rate input for production.'
-            }}
-          </p>
-          <button
-            class="btn btn-primary"
-            v-if="!machines.length"
-            type="button"
-            @click="startCreate"
-          >
-            <Plus :size="15" :stroke-width="1.8" aria-hidden="true" />Create machine
-          </button>
-        </div>
+        <EmptyState
+          v-else
+          :title="machines.length ? 'No machines match this view' : 'No machines yet'"
+          :description="machines.length ? 'Try another status or search term.' : 'Add the first reusable rate input for production.'"
+        >
+          <template #icon><Factory :size="22" :stroke-width="1.8" aria-hidden="true" /></template>
+          <template v-if="!machines.length" #action><button class="btn btn-primary btn-sm" type="button" @click="startCreate"><Plus :size="15" :stroke-width="1.8" aria-hidden="true" />Create machine</button></template>
+        </EmptyState>
       </RegisterList>
       <InspectorShell
         v-if="mode"
@@ -493,14 +481,12 @@ function message(errorValue: unknown, fallback: string) {
           </button>
         </div></InspectorShell
       >
-      <InspectorShell v-else title="Machine inspector" subtitle="Select a row to inspect it."
-        ><div class="min-w-0 space-y-3">
-          <Factory :size="20" :stroke-width="1.8" aria-hidden="true" />
-          <p>Machine details will appear here.</p>
-          <button class="btn btn-primary" type="button" @click="startCreate">
-            Create a machine <Plus :size="14" :stroke-width="1.8" aria-hidden="true" />
-          </button></div
-      ></InspectorShell>
+      <InspectorShell v-else title="Machine inspector" subtitle="Select a row to inspect it.">
+        <EmptyState title="No machine selected" description="Choose a machine from the register to inspect its rate and details.">
+          <template #icon><Factory :size="22" :stroke-width="1.8" aria-hidden="true" /></template>
+          <template #action><button class="btn btn-primary btn-sm" type="button" @click="startCreate">Create a machine <Plus :size="14" :stroke-width="1.8" aria-hidden="true" /></button></template>
+        </EmptyState>
+      </InspectorShell>
     </MasterDetail>
   </div>
 </template>

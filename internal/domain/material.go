@@ -23,23 +23,24 @@ var (
 type Quantity int64
 
 type Material struct {
-	ID                  string
-	Name                string
-	SKU                 string
-	Category            string
-	PurchaseUnit        string
-	ConsumptionUnit     string
-	ConversionFactor    Quantity
-	PhysicalStock       Quantity
-	ReservedStock       Quantity
-	AvailableStock      Quantity
-	ReorderLevel        Quantity
-	AverageUnitCostRial int64
-	PreferredSupplier   string
-	Notes               string
-	Active              bool
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	ID                          string
+	Name                        string
+	SKU                         string
+	Category                    string
+	PurchaseUnit                string
+	ConsumptionUnit             string
+	ConversionFactor            Quantity
+	PhysicalStock               Quantity
+	ReservedStock               Quantity
+	AvailableStock              Quantity
+	ReorderLevel                Quantity
+	AverageUnitCostRial         int64
+	HighestPurchaseUnitCostRial int64
+	PreferredSupplier           string
+	Notes                       string
+	Active                      bool
+	CreatedAt                   time.Time
+	UpdatedAt                   time.Time
 }
 
 type MaterialDraft struct {

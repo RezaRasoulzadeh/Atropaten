@@ -5,6 +5,7 @@ import { reportsApi } from '../../api/reports';
 import { currentCanonicalDate, formatDateTime } from '../../utils/date';
 import { formatMoney, type CurrencyUnit } from '../../utils/currency';
 import { normalizeError, useNotifications, useToast } from '../../ui/feedback';
+import EmptyState from './EmptyState.vue';
 const props = defineProps<{ currencyUnit: CurrencyUnit; refreshKey: string }>();
 const emit = defineEmits<{ navigate: [view: string] }>();
 const feed = useNotifications();
@@ -136,16 +137,14 @@ onBeforeUnmount(() => {
         >
           Loading notifications…
         </p>
-        <p
+        <EmptyState
           v-else-if="!visible.length"
-          class="p-4 text-sm text-base-content/60"
+          compact
+          :title="unreadOnly ? 'No unread notifications' : 'No notifications right now'"
+          :description="unreadOnly ? 'You are all caught up.' : 'New activity will appear here.'"
         >
-          {{
-            unreadOnly
-              ? 'No unread notifications.'
-              : 'No notifications right now.'
-          }}
-        </p>
+          <template #icon><Bell :size="21" aria-hidden="true" /></template>
+        </EmptyState>
         <div
           v-for="item in visible"
           :key="item.id"

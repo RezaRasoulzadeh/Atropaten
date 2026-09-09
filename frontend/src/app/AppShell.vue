@@ -14,7 +14,6 @@ import {
   ReceiptText,
   Settings,
   ShoppingCart,
-  Sparkles,
   Truck,
   UserRound,
   Users,
@@ -39,21 +38,42 @@ import PurchasesView from '../features/purchases/PurchasesView.vue';
 import ProductionView from '../features/production/ProductionView.vue';
 import { suppliersApi, type SupplierRecord } from '../api/suppliers';
 import { purchasesApi, type PurchaseRecord } from '../api/purchases';
+import { invoicesApi, type InvoiceRecord } from '../api/invoices';
+import { checksApi, type CheckRecord } from '../api/checks';
+import { loansApi, type LoanRecord } from '../api/loans';
+import { ownersApi, type OwnerRecord } from '../api/owners';
+import { productionApi, type ProductionJobRecord } from '../api/production';
+import { accountingApi, type AccountRecord, type ExpenseRecord, type FinancialAccountRecord, type PaymentRecord, type TransferRecord } from '../api/accounting';
 import AccountingView from '../features/accounting/AccountingView.vue';
 import InvoicesView from '../features/invoices/InvoicesView.vue';
+import InvoiceWorkspaceView from '../features/invoices/InvoiceWorkspaceView.vue';
 import ChecksView from '../features/checks/ChecksView.vue';
 import LoansView from '../features/loans/LoansView.vue';
+import LoanWorkspaceView from '../features/loans/LoanWorkspaceView.vue';
 import OwnersView from '../features/owners/OwnersView.vue';
 import DashboardView from '../features/dashboard/DashboardView.vue';
 import ReportsView from '../features/reports/ReportsView.vue';
 import SettingsView from '../features/settings/SettingsView.vue';
 import ToastHost from '../components/ui/ToastHost.vue';
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
 import { normalizeError, useToast } from '../ui/feedback';
 
 interface NavigationItem {
   label: string;
   icon: Component;
+}
+
+interface GlobalSearchResult {
+  id: string;
+  view: string;
+  title: string;
+  subtitle: string;
+  detail: string;
+}
+
+interface SearchIndexEntry extends GlobalSearchResult {
+  searchText: string;
 }
 
 const navigationSections: { label: string; items: NavigationItem[] }[] = [
@@ -108,6 +128,8 @@ const toolbarCollapsed = computed(() =>
 const searchQuery = ref('');
 const currencyUnit = ref<CurrencyUnit>('Toman');
 const selectedOrderId = ref<string | null>(null);
+const selectedInvoiceId = ref<string | null>(null);
+const selectedLoanId = ref<string | null>(null);
 const unsavedOrder = ref<OrderRecord | null>(null);
 const orders = ref<OrderRecord[]>([]);
 const suppliers = ref<SupplierRecord[]>([]);
@@ -117,7 +139,118 @@ const customers = ref<any[]>([]);
 const catalogServices = ref<any[]>([]);
 const catalogMaterials = ref<any[]>([]);
 const catalogMachines = ref<any[]>([]);
+const invoices = ref<InvoiceRecord[]>([]);
+const checks = ref<CheckRecord[]>([]);
+const loans = ref<LoanRecord[]>([]);
+const owners = ref<OwnerRecord[]>([]);
+const productionJobs = ref<ProductionJobRecord[]>([]);
+const accounts = ref<AccountRecord[]>([]);
+const financialAccounts = ref<FinancialAccountRecord[]>([]);
+const expenses = ref<ExpenseRecord[]>([]);
+const payments = ref<PaymentRecord[]>([]);
+const transfers = ref<TransferRecord[]>([]);
+const globalSearchLoading = ref(true);
 const toast = useToast();
+
+function searchValue(value: unknown) {
+  return value == null ? '' : String(value);
+}
+
+function searchEntry(
+  view: string,
+  id: unknown,
+  title: unknown,
+  subtitle: unknown,
+  detail: unknown,
+  ...extra: unknown[]
+): SearchIndexEntry {
+  const safeId = searchValue(id);
+  const safeTitle = searchValue(title) || safeId;
+  const safeSubtitle = searchValue(subtitle);
+  const safeDetail = searchValue(detail);
+  return {
+    id: safeId,
+    view,
+    title: safeTitle,
+    subtitle: safeSubtitle,
+    detail: safeDetail,
+    searchText: [safeTitle, safeSubtitle, safeDetail, ...extra.map(searchValue)]
+      .join(' ')
+      .toLocaleLowerCase(),
+  };
+}
+
+const globalSearchIndex = computed<SearchIndexEntry[]>(() => [
+  ...orders.value.map((order) =>
+    searchEntry(
+      'Orders',
+      order.id,
+      order.orderNumber,
+      order.customerName || 'Walk-in customer',
+      `${order.commercialStatus} · ${order.fulfillmentStatus}`,
+      order.customerPhone,
+      order.notes,
+    ),
+  ),
+  ...customers.value.map((customer) =>
+    searchEntry('Customers', customer.id, customer.name, customer.phone || customer.email, customer.active ? 'Active' : 'Archived', customer.address, customer.notes),
+  ),
+  ...catalogServices.value.map((service) =>
+    searchEntry('Services', service.id, service.name, service.code, service.category, service.description),
+  ),
+  ...catalogMaterials.value.map((material) =>
+    searchEntry('Materials', material.id, material.name, material.code, material.category || material.consumptionUnit, material.notes),
+  ),
+  ...catalogMachines.value.map((machine) =>
+    searchEntry('Machines', machine.id, machine.name, machine.code, machine.category, machine.notes),
+  ),
+  ...suppliers.value.map((supplier) =>
+    searchEntry('Suppliers', supplier.id, supplier.name, supplier.code || supplier.phone, supplier.active ? 'Active' : 'Archived', supplier.email, supplier.address),
+  ),
+  ...purchases.value.map((purchase) =>
+    searchEntry('Purchases', purchase.id, purchase.purchaseNumber, purchase.supplierName || 'No supplier', purchase.status, purchase.supplierInvoiceNumber, purchase.notes),
+  ),
+  ...invoices.value.map((invoice) =>
+    searchEntry('Invoices', invoice.id, invoice.invoiceNumber, invoice.customerName || 'Walk-in customer', invoice.status, invoice.orderId, invoice.notes),
+  ),
+  ...checks.value.map((check) =>
+    searchEntry('Checks', check.id, check.checkNumber, check.payerPayee, `${check.direction} · ${check.status}`, check.bank, check.accountDescriptor, check.notes),
+  ),
+  ...loans.value.map((loan) =>
+    searchEntry('Loans', loan.id, loan.loanNumber, loan.counterpartyName, `${loan.direction} · ${loan.status}`, loan.notes),
+  ),
+  ...owners.value.map((owner) =>
+    searchEntry('Owners', owner.id, owner.name, owner.phone || owner.email, owner.active ? 'Active' : 'Archived', owner.notes),
+  ),
+  ...productionJobs.value.map((job) =>
+    searchEntry('Production', job.id, job.jobNumber, job.serviceName, `${job.status} · ${job.orderId}`, job.notes, job.outsourceDescription),
+  ),
+  ...accounts.value.map((account) =>
+    searchEntry('Accounting', account.id, account.name, account.code, account.type, account.active ? 'Active' : 'Archived'),
+  ),
+  ...financialAccounts.value.map((account) =>
+    searchEntry('Accounting', account.id, account.name, account.type, account.bankName, account.accountNumber, account.details),
+  ),
+  ...expenses.value.map((expense) =>
+    searchEntry('Accounting', expense.id, expense.expenseNumber, expense.payee || expense.description, `${expense.status} · Expense`, expense.notes),
+  ),
+  ...payments.value.map((payment) =>
+    searchEntry('Accounting', payment.id, payment.paymentNumber, payment.reference || payment.method, `${payment.direction} · ${payment.status}`, payment.notes),
+  ),
+  ...transfers.value.map((transfer) =>
+    searchEntry('Accounting', transfer.id, transfer.transferNumber, transfer.reference, `Transfer · ${transfer.status}`, transfer.notes),
+  ),
+]);
+
+const searchResults = computed(() => {
+  const query = searchQuery.value.trim().toLocaleLowerCase();
+  if (!query) return [];
+  const terms = query.split(/\s+/).filter(Boolean);
+  return globalSearchIndex.value
+    .filter((result) => terms.every((term) => result.searchText.includes(term)))
+    .map(({ searchText: _searchText, ...result }) => result)
+    .slice(0, 12);
+});
 
 const currentView = computed(() => ({
   eyebrow: 'Atropaten workspace',
@@ -129,6 +262,8 @@ function selectView(label: string) {
   activeView.value = label;
   isDrawerOpen.value = false;
   selectedOrderId.value = null;
+  selectedInvoiceId.value = null;
+  selectedLoanId.value = null;
   unsavedOrder.value = null;
   if (label === 'Orders') {
     loadOrders();
@@ -185,6 +320,34 @@ async function loadPurchases() {
   }
 }
 
+async function loadGlobalSearchData() {
+  globalSearchLoading.value = true;
+  const results = await Promise.allSettled([
+    invoicesApi.list(),
+    checksApi.list(),
+    loansApi.list(),
+    ownersApi.list(true),
+    productionApi.list('All'),
+    accountingApi.accounts(),
+    accountingApi.financialAccounts(),
+    accountingApi.expenses(),
+    accountingApi.payments(),
+    accountingApi.transfers(),
+  ]);
+  const [invoiceResult, checkResult, loanResult, ownerResult, productionResult, accountResult, financialAccountResult, expenseResult, paymentResult, transferResult] = results;
+  if (invoiceResult.status === 'fulfilled') invoices.value = invoiceResult.value;
+  if (checkResult.status === 'fulfilled') checks.value = checkResult.value;
+  if (loanResult.status === 'fulfilled') loans.value = loanResult.value;
+  if (ownerResult.status === 'fulfilled') owners.value = ownerResult.value;
+  if (productionResult.status === 'fulfilled') productionJobs.value = productionResult.value;
+  if (accountResult.status === 'fulfilled') accounts.value = accountResult.value;
+  if (financialAccountResult.status === 'fulfilled') financialAccounts.value = financialAccountResult.value;
+  if (expenseResult.status === 'fulfilled') expenses.value = expenseResult.value;
+  if (paymentResult.status === 'fulfilled') payments.value = paymentResult.value;
+  if (transferResult.status === 'fulfilled') transfers.value = transferResult.value;
+  globalSearchLoading.value = false;
+}
+
 async function openDashboardOrder(orderId: string) {
   await Promise.all([loadOrders(), loadOrderCatalog()]);
   if (orders.value.some(order => order.id === orderId)) openOrder(orderId);
@@ -194,6 +357,45 @@ function openOrder(orderId: string) {
   activeView.value = 'Orders';
   unsavedOrder.value = null;
   selectedOrderId.value = orderId;
+}
+function openInvoice(invoiceId: string) {
+  activeView.value = 'Invoices';
+  selectedInvoiceId.value = invoiceId;
+}
+function closeInvoiceWorkspace() {
+  activeView.value = 'Invoices';
+  selectedInvoiceId.value = null;
+}
+function openLoan(loanId: string) {
+  activeView.value = 'Loans';
+  selectedLoanId.value = loanId;
+}
+
+async function selectSearchResult(result: GlobalSearchResult) {
+  searchQuery.value = '';
+  if (result.view === 'Orders') {
+    await loadOrders();
+    if (orders.value.some((order) => order.id === result.id)) openOrder(result.id);
+    else selectView('Orders');
+    return;
+  }
+  if (result.view === 'Invoices') {
+    openInvoice(result.id);
+    return;
+  }
+  if (result.view === 'Loans') {
+    openLoan(result.id);
+    return;
+  }
+  selectView(result.view);
+}
+function openNewLoan() {
+  activeView.value = 'Loans';
+  selectedLoanId.value = 'new';
+}
+function closeLoanWorkspace() {
+  activeView.value = 'Loans';
+  selectedLoanId.value = null;
 }
 function openNewOrder() {
   activeView.value = 'Orders';
@@ -277,6 +479,7 @@ onMounted(() => {
   loadOrders();
   loadSuppliers();
   loadPurchases();
+  loadGlobalSearchData();
 });
 
 onBeforeUnmount(() => {
@@ -305,10 +508,13 @@ function showToast(message: string) {
       <AppToolbar
         class="sticky top-0 z-20"
         :search-query="searchQuery"
+        :search-results="searchResults"
+        :search-loading="globalSearchLoading"
         :currency-unit="currencyUnit"
         :collapsed="toolbarCollapsed"
         @toggle-sidebar="toggleSidebar"
         @update:search-query="searchQuery = $event"
+        @select-search-result="selectSearchResult"
         @update:currency-unit="currencyUnit = $event"
         @new-order="openNewOrder"
         @navigate="selectView"
@@ -426,14 +632,28 @@ function showToast(message: string) {
             @notify="showToast"
           />
 
-          <InvoicesView
-            v-else-if="activeView === 'Invoices'"
-            key="invoices"
-            :currency-unit="currencyUnit"
-            :orders="orders"
-            @notify="showToast"
-            @refresh-orders="loadOrders"
-          />
+          <div v-else-if="activeView === 'Invoices'" key="invoices">
+            <Transition mode="out-in">
+              <InvoiceWorkspaceView
+                v-if="selectedInvoiceId"
+                :key="selectedInvoiceId"
+                :invoice-id="selectedInvoiceId"
+                :currency-unit="currencyUnit"
+                @back="closeInvoiceWorkspace"
+                @notify="showToast"
+                @refresh-orders="loadOrders"
+              />
+              <InvoicesView
+                v-else
+                key="invoices-list"
+                :currency-unit="currencyUnit"
+                :orders="orders"
+                @notify="showToast"
+                @refresh-orders="loadOrders"
+                @open-invoice="openInvoice"
+              />
+            </Transition>
+          </div>
 
           <ChecksView
             v-else-if="activeView === 'Checks'"
@@ -442,12 +662,27 @@ function showToast(message: string) {
             @notify="showToast"
           />
 
-          <LoansView
-            v-else-if="activeView === 'Loans'"
-            key="loans"
-            :currency-unit="currencyUnit"
-            @notify="showToast"
-          />
+          <div v-else-if="activeView === 'Loans'" key="loans">
+            <Transition mode="out-in">
+              <LoanWorkspaceView
+                v-if="selectedLoanId"
+                :key="selectedLoanId"
+                :loan-id="selectedLoanId === 'new' ? null : selectedLoanId"
+                :is-new="selectedLoanId === 'new'"
+                :currency-unit="currencyUnit"
+                @back="closeLoanWorkspace"
+                @notify="showToast"
+              />
+              <LoansView
+                v-else
+                key="loans-list"
+                :currency-unit="currencyUnit"
+                @notify="showToast"
+                @open-loan="openLoan"
+                @new-loan="openNewLoan"
+              />
+            </Transition>
+          </div>
 
           <OwnersView
             v-else-if="activeView === 'Owners'"
@@ -465,21 +700,18 @@ function showToast(message: string) {
 
           <SettingsView v-else-if="activeView === 'Settings'" key="settings" @notify="showToast" />
 
-          <section
+          <EmptyState
             v-else
             key="empty"
-            class="flex min-h-full flex-col items-center justify-center gap-3 text-center"
+            title="Workspace view unavailable"
+            :description="`${currentView.title} is not available yet. Return to the dashboard to continue.`"
           >
-            <div class="text-primary" aria-hidden="true">
-              <Sparkles :size="22" :stroke-width="1.8" />
-            </div>
-            <p class="text-xs uppercase tracking-wide text-base-content/60">Atropaten workspace</p>
-            <h1>{{ currentView.title }}</h1>
-            <p>{{ currentView.description }}</p>
-            <button class="btn btn-outline" type="button" @click="selectView('Dashboard')">
-              Back to dashboard
-            </button>
-          </section>
+            <template #action>
+              <button class="btn btn-primary" type="button" @click="selectView('Dashboard')">
+                Back to dashboard
+              </button>
+            </template>
+          </EmptyState>
         </Transition>
       </main>
     </div>

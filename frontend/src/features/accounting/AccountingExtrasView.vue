@@ -13,7 +13,7 @@ import EmptyState from '../../components/ui/EmptyState.vue'
 import AppInput from '../../components/ui/AppInput.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref } from 'vue';
-import { ArrowRightLeft, Edit3, Plus, RotateCcw, Trash2 } from 'lucide-vue-next';
+import { ArrowRightLeft, Edit3, Plus, ReceiptText, RotateCcw, Trash2 } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import {
   accountingApi,
@@ -137,6 +137,11 @@ const filteredHistory = computed(() => {
     return matchesType && matchesStatus && (!query || searchable.includes(query));
   });
 });
+function clearHistoryFilters() {
+  historyQuery.value = '';
+  historyType.value = 'All';
+  historyStatus.value = 'All';
+}
 function historyStatusTone(status: string) {
   return status === 'Posted' ? 'green' : status === 'Draft' ? 'amber' : 'slate';
 }
@@ -292,6 +297,7 @@ reportError(e);
     <SelectField v-model="historyStatus" label="Status" :options="['All', 'Posted', 'Reversed', 'Draft', 'Cancelled', 'Archived'].map((value) => ({ label: value, value }))" />
   </template>
   <template #count><span>{{ filteredHistory.length }} of {{ historyEntries.length }} records</span></template>
+  <template #actions><button v-if="historyQuery || historyType !== 'All' || historyStatus !== 'All'" class="btn btn-primary btn-sm" type="button" @click="clearHistoryFilters">Clear filters</button></template>
 </SearchFilterBar>
 <RegisterList title="Expense and purchase history" subtitle="Expenses and supplier purchases share one searchable financial history." :count="filteredHistory.length">
   <div v-if="filteredHistory.length">
@@ -322,7 +328,10 @@ reportError(e);
       </template>
     </RegisterRow>
   </div>
-  <EmptyState v-else title="No matching records" description="Try a different search or filter." />
+  <EmptyState v-else title="No matching records" description="Try a different search or filter.">
+    <template #icon><ReceiptText :size="21" aria-hidden="true" /></template>
+    <template #action><button class="btn btn-primary btn-sm" type="button" @click="clearHistoryFilters">Clear filters</button></template>
+  </EmptyState>
 </RegisterList></template>
 <template v-else><AppPanel title="Post transfer" subtitle="Move funds between cash and bank accounts."><form @submit.prevent="createTransfer" class="min-w-0 space-y-3"><FormGrid :columns="3">
           <SelectField
@@ -354,5 +363,5 @@ reportError(e);
           /></FormField><button class="btn btn-primary" type="submit" :disabled="busy">
             <ArrowRightLeft :size="15" /> Post transfer
           </button>
-        </FormGrid></form></AppPanel><AppPanel title="Transfer history" subtitle="Every transfer remains traceable and can be reversed." flush><DataTable><thead><tr><th>Transfer</th><th>Reference</th><th>Date</th><th class="text-end">Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr v-for="v in transfers" :key="v.id"><DataTableCell><strong>{{v.transferNumber}}</strong></DataTableCell><DataTableCell>{{v.reference || '—'}}</DataTableCell><DataTableCell>{{formatDateTime(v.transferDate)}}</DataTableCell><DataTableCell numeric>{{formatMoney(v.amountRial,currencyUnit)}}</DataTableCell><DataTableCell><StatusBadge :label="v.status" :tone="v.status==='Posted'?'green':'slate'" /></DataTableCell><DataTableCell><button v-if="v.status==='Posted'" class="btn btn-ghost btn-sm" @click="reverseTransfer(v)" :disabled="busy"><RotateCcw :size="14" /> Reverse</button></DataTableCell></tr></tbody></DataTable><EmptyState v-if="!transfers.length" title="No transfers" /></AppPanel></template>
+        </FormGrid></form></AppPanel><AppPanel title="Transfer history" subtitle="Every transfer remains traceable and can be reversed." flush><DataTable v-if="transfers.length"><thead><tr><th>Transfer</th><th>Reference</th><th>Date</th><th class="text-end">Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr v-for="v in transfers" :key="v.id"><DataTableCell><strong>{{v.transferNumber}}</strong></DataTableCell><DataTableCell>{{v.reference || '—'}}</DataTableCell><DataTableCell>{{formatDateTime(v.transferDate)}}</DataTableCell><DataTableCell numeric>{{formatMoney(v.amountRial,currencyUnit)}}</DataTableCell><DataTableCell><StatusBadge :label="v.status" :tone="v.status==='Posted'?'green':'slate'" /></DataTableCell><DataTableCell><button v-if="v.status==='Posted'" class="btn btn-ghost btn-sm" @click="reverseTransfer(v)" :disabled="busy"><RotateCcw :size="14" /> Reverse</button></DataTableCell></tr></tbody></DataTable><EmptyState v-else compact title="No transfers" description="Transfers between financial accounts will appear here."><template #icon><ArrowRightLeft :size="21" aria-hidden="true" /></template></EmptyState></AppPanel></template>
 </div></div></template>

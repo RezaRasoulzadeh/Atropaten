@@ -46,16 +46,34 @@ type BackupRepository interface {
 }
 type DatabaseValidator func(string) error
 type BackupService struct {
-	paths      DataPaths
-	repository BackupRepository
-	validate   DatabaseValidator
+	paths          DataPaths
+	defaultBackups string
+	repository     BackupRepository
+	validate       DatabaseValidator
 }
 
 func NewBackupService(paths DataPaths, repository BackupRepository, validate DatabaseValidator) *BackupService {
-	return &BackupService{paths: paths, repository: repository, validate: validate}
+	return &BackupService{paths: paths, defaultBackups: paths.Backups, repository: repository, validate: validate}
 }
 func (s *BackupService) SetRepository(repository BackupRepository) { s.repository = repository }
 func (s *BackupService) Paths() DataPaths                          { return s.paths }
+
+func (s *BackupService) SetBackupDirectory(directory string) error {
+	directory = strings.TrimSpace(directory)
+	if directory == "" {
+		s.paths.Backups = s.defaultBackups
+		return nil
+	}
+	abs, err := filepath.Abs(directory)
+	if err != nil {
+		return fmt.Errorf("resolve backup directory: %w", err)
+	}
+	if info, statErr := os.Stat(abs); statErr == nil && !info.IsDir() {
+		return fmt.Errorf("backup path %q is not a directory", abs)
+	}
+	s.paths.Backups = abs
+	return nil
+}
 
 func (s *BackupService) Create(ctx context.Context) (BackupInfo, error) {
 	if s.repository == nil {

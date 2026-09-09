@@ -15,6 +15,7 @@ import type { OrderRecord } from '../../api/orders';
 import type { CurrencyUnit } from '../../utils/currency';
 import { formatMoney } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
+import EmptyState from '../../components/ui/EmptyState.vue';
 const props = defineProps<{ order: OrderRecord; currencyUnit: CurrencyUnit }>();
 const jobs = ref<ProductionJobRecord[]>([]);
 const reserved = ref<Record<string, ReservationRecord[]>>({});
@@ -128,17 +129,12 @@ function tone(s: string) {
         </div>
       </div>
     </div>
-    <div
+    <EmptyState
       v-else
-      class="flex min-h-56 min-w-0 flex-col items-center justify-center rounded-box border border-dashed border-base-300 bg-base-100 p-8 text-center"
+      title="No production jobs linked"
+      description="Confirm the order, then create a job from the Production workspace."
     >
-      <div class="grid size-14 place-items-center rounded-full bg-base-200 text-primary">
-        <PackageOpen :size="28" :stroke-width="1.5" aria-hidden="true" />
-      </div>
-      <strong class="mt-4 text-base">No production jobs linked yet</strong>
-      <span class="mt-1 max-w-sm text-xs leading-5 text-base-content/60"
-        >Confirm the order, then create a job from the Production workspace.</span
-      >
-    </div>
+      <template #icon><PackageOpen :size="24" :stroke-width="1.6" aria-hidden="true" /></template>
+    </EmptyState>
   </section>
 </template>

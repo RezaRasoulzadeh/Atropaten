@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import ShopIdentityForm from './ShopIdentityForm.vue'
 import LoadingState from '../../components/ui/LoadingState.vue'
-import MasterDetail from '../../components/layout/MasterDetail.vue'
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 const {busy,runAction}=useWorkspaceActions()
 
-import FormGrid from '../../components/ui/FormGrid.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import FormField from '../../components/ui/FormField.vue';
@@ -32,6 +30,7 @@ const form = ref<ShopSettingsRecord>({
   logoPath: '',
   documentFooter: '',
   documentNotes: '',
+  backupDirectory: '',
 });
 const loading = ref(true);
 const backupBusy = ref(false);
@@ -44,7 +43,7 @@ onMounted(async () => {
       reportsApi.settings(),
       reportsApi.dataPaths(),
     ]);
-    form.value = settings;
+    form.value = {...settings, backupDirectory: settings.backupDirectory ?? ''};
     paths.value = dataPaths;
     try {
       lastBackup.value = await reportsApi.lastBackup();
@@ -59,7 +58,19 @@ async function save() {
 return runAction(async () => {
   try {
     await reportsApi.saveSettings(form.value);
-    emit('notify', 'Document identity saved.');
+    paths.value = await reportsApi.dataPaths();
+    emit('notify', 'Settings saved.');
+  } catch (e) {
+reportError(e);
+  }
+
+});
+}
+async function chooseBackupDirectory() {
+return runAction(async () => {
+  try {
+    const path = await reportsApi.selectBackupDirectory();
+    if (path) form.value.backupDirectory = path;
   } catch (e) {
 reportError(e);
   }
@@ -134,14 +145,21 @@ reportError(e);
 }
 </script>
 <template><div class="space-y-4">
-<WorkspaceStickyStack><WorkspaceHeader eyebrow="Insights & setup" title="Shop settings" description="Document identity, contact details and data safety."><button class="btn btn-primary" type="submit" form="shop-settings" :disabled="loading || busy">Save settings</button></WorkspaceHeader></WorkspaceStickyStack>
+<WorkspaceStickyStack><WorkspaceHeader eyebrow="Insights & setup" title="Shop settings" description="Document identity, contact details and data safety." /></WorkspaceStickyStack>
 <LoadingState v-if="loading" label="Loading settings…" />
-<MasterDetail v-else wide>
-<AppPanel title="Document identity"><form id="shop-settings" @submit.prevent="save"><ShopIdentityForm v-model="form" /></form></AppPanel>
+<form v-else id="shop-settings" class="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_30rem]" @submit.prevent="save">
+<AppPanel title="Document identity">
+<ShopIdentityForm v-model="form" />
+<div class="mt-4 flex justify-end border-t border-base-300 pt-4"><button class="btn btn-primary" type="submit" :disabled="loading || busy">Save settings</button></div>
+</AppPanel>
 <AppPanel title="Backup & restore" subtitle="Backups include the database and managed files.">
 <dl v-if="paths" class="space-y-3 text-sm"><div v-for="item in [{label:'Data location',value:paths.root},{label:'Database',value:paths.database},{label:'Version / schema',value:paths.applicationVersion+' · v'+paths.schemaVersion},{label:'Backups folder',value:paths.backups}]" :key="item.label"><dt class="text-xs text-base-content/60">{{item.label}}</dt><dd class="mt-1 wrap-anywhere">{{item.value}}</dd></div></dl>
-<div class="flex flex-wrap gap-2 border-t border-base-300 pt-3"><button class="btn btn-primary" :disabled="backupBusy || busy" @click="createBackup">Create backup</button><button class="btn btn-outline" :disabled="backupBusy || busy" @click="chooseBackup">Choose backup</button></div>
+<div class="space-y-3 border-t border-base-300 pt-3">
+<FormField label="Backup directory" help="Leave empty to use the application-managed backups folder."><div class="flex min-w-0 gap-2"><AppInput v-model="form.backupDirectory" placeholder="Application-managed backup folder" /><button class="btn btn-outline shrink-0" type="button" :disabled="busy || backupBusy" @click="chooseBackupDirectory">Browse</button></div></FormField>
+<div class="flex flex-wrap gap-2"><button class="btn btn-primary" type="button" :disabled="backupBusy || busy" @click="createBackup">Create backup</button><button class="btn btn-outline" type="button" :disabled="backupBusy || busy" @click="chooseBackup">Choose backup</button></div>
+</div>
 <FormField label="Selected backup"><AppInput v-model="backupPath" placeholder="Path to a .zip backup" /></FormField>
-<div class="flex flex-wrap gap-2"><button class="btn btn-outline" :disabled="backupBusy || busy || !backupPath" @click="verifyBackup">Verify selected</button><button class="btn btn-ghost text-error" :disabled="backupBusy || busy || !backupPath" @click="restoreBackup">Restore selected</button></div>
+<div class="flex flex-wrap gap-2"><button class="btn btn-outline" type="button" :disabled="backupBusy || busy || !backupPath" @click="verifyBackup">Verify selected</button><button class="btn btn-ghost text-error" type="button" :disabled="backupBusy || busy || !backupPath" @click="restoreBackup">Restore selected</button></div>
 <p v-if="lastBackup" class="text-xs leading-5 text-base-content/60 wrap-anywhere">{{lastBackup.path}} · schema v{{lastBackup.schemaVersion}} · {{lastBackup.managedFileCount}} managed files</p>
-</AppPanel></MasterDetail></div></template>
+</AppPanel>
+</form></div></template>

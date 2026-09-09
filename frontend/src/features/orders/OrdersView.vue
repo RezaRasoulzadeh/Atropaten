@@ -2,10 +2,11 @@
 import LoadingState from '../../components/ui/LoadingState.vue'
 import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, ref } from 'vue';
-import { Plus, SearchX } from 'lucide-vue-next';
+import { ClipboardList, Plus } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import SearchFilterBar from '../../components/ui/SearchFilterBar.vue';
 import SearchField from '../../components/ui/SearchField.vue';
+import EmptyState from '../../components/ui/EmptyState.vue';
 import SelectField from '../../components/ui/SelectField.vue';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
@@ -163,23 +164,17 @@ function clear() {
       </template>
 
       <LoadingState v-if="loading" label="Loading records…" />
-      <div
+      <EmptyState
         v-else-if="!filtered.length"
-        class="flex min-h-40 flex-col items-center justify-center gap-3 p-6 text-center"
+        :title="props.orders.length ? 'No orders match these filters' : 'No persisted orders yet'"
+        :description="props.orders.length ? 'Adjust the search or status filters to find an order.' : 'Create an order to start a commercial workflow.'"
       >
-        <SearchX class="text-base-content/50" :size="24" aria-hidden="true" />
-        <strong>{{
-          props.orders.length ? 'No orders match these filters' : 'No persisted orders yet'
-        }}</strong>
-        <button
-          v-if="props.orders.length"
-          class="btn btn-ghost btn-sm"
-          type="button"
-          @click="clear"
-        >
-          Clear filters
-        </button>
-      </div>
+        <template #icon><ClipboardList :size="22" aria-hidden="true" /></template>
+        <template #action>
+          <button v-if="props.orders.length" class="btn btn-primary btn-sm" type="button" @click="clear">Clear filters</button>
+          <button v-else class="btn btn-primary btn-sm gap-2" type="button" @click="emit('new-order')"><Plus :size="15" aria-hidden="true" /> Create order</button>
+        </template>
+      </EmptyState>
       <div v-else>
         <div class="divide-y divide-base-300">
           <article

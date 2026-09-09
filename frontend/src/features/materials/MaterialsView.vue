@@ -33,6 +33,12 @@ const {
   unitLabel,
 } = workspace;
 
+function pricingUnitCost(material: { highestPurchaseUnitCostRial: number; averageUnitCostRial: number }) {
+  return material.highestPurchaseUnitCostRial > 0
+    ? material.highestPurchaseUnitCostRial
+    : material.averageUnitCostRial;
+}
+
 watch(
   [selectedId, editorMode],
   () => {
@@ -94,7 +100,7 @@ watch(
       >
         <template #icon><Package :size="21" :stroke-width="1.8" aria-hidden="true" /></template>
         <template v-if="!materials.length" #action>
-          <button class="btn btn-ghost" type="button" @click="startCreate">
+          <button class="btn btn-primary" type="button" @click="startCreate">
             <Plus :size="15" :stroke-width="1.8" aria-hidden="true" />Create material
           </button>
         </template>
@@ -130,9 +136,9 @@ watch(
                 </span>
               </div>
               <div class="min-w-0">
-                <span class="block text-base-content/50">Cost / value</span>
+                <span class="block text-base-content/50">Pricing / value</span>
                 <span class="block text-base-content/80 tabular-nums">
-                  {{ formatMoney(material.averageUnitCostRial, props.currencyUnit) }} per {{ material.consumptionUnit }} · {{ formatMoney(material.inventoryValueRial, props.currencyUnit) }} total
+                  {{ formatMoney(pricingUnitCost(material), props.currencyUnit) }} per {{ material.consumptionUnit }} · {{ formatMoney(material.inventoryValueRial, props.currencyUnit) }} total
                 </span>
               </div>
               <div class="min-w-0">

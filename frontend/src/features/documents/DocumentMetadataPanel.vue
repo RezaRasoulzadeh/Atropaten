@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import LoadingState from '../../components/ui/LoadingState.vue'
+import EmptyState from '../../components/ui/EmptyState.vue'
 import FormField from '../../components/ui/FormField.vue'
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 const {busy,runAction}=useWorkspaceActions()
@@ -378,13 +379,14 @@ onBeforeUnmount(clearSelectedFiles);
 
       <div class="border-t border-base-300 p-4">
         <LoadingState v-if="loading" label="Loading attachments…" />
-        <div
+        <EmptyState
           v-else-if="!attachments.length && !proofs.length"
-          class="flex min-h-24 flex-col items-center justify-center gap-2 rounded-box border border-dashed border-base-300 bg-base-200/25 p-4 text-center"
+          compact
+          title="No attachment references"
+          description="Files and proofs linked to this record will appear here."
         >
-          <FilePlus2 :size="20" class="text-base-content/40" aria-hidden="true" />
-          <span class="text-sm text-base-content/60">No attachment references yet.</span>
-        </div>
+          <template #icon><FilePlus2 :size="21" aria-hidden="true" /></template>
+        </EmptyState>
         <div v-else class="grid min-w-0 gap-2">
           <div
             v-for="file in attachments"

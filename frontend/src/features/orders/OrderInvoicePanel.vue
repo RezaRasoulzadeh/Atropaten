@@ -11,6 +11,7 @@ import { ordersApi, type OrderRecord } from '../../api/orders';
 import type { CurrencyUnit } from '../../utils/currency';
 import { formatMoney } from '../../utils/currency';
 import { confirmAction } from '../../ui/feedback';
+import EmptyState from '../../components/ui/EmptyState.vue';
 const props = defineProps<{ order: OrderRecord; currencyUnit: CurrencyUnit }>();
 const emit = defineEmits<{ notify: [string]; saved: [order: OrderRecord] }>();
 const invoice = ref<InvoiceRecord | null>(null);
@@ -117,9 +118,9 @@ return runAction(async () => {
         </button>
       </div>
     </div>
-    <div v-else class="min-w-0 space-y-3">
-      <p>No invoice linked to this order.</p>
-      <button class="btn btn-primary" @click="create" :disabled="busy"><Plus :size="15" /> Create invoice</button>
-    </div></AppPanel
+    <EmptyState v-else compact title="No invoice linked" description="Create an invoice when this order is ready to bill.">
+      <template #icon><FileText :size="22" aria-hidden="true" /></template>
+      <template #action><button class="btn btn-primary btn-sm" type="button" @click="create" :disabled="busy"><Plus :size="15" /> Create invoice</button></template>
+    </EmptyState></AppPanel
   >
 </template>

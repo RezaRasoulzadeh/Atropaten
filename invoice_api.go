@@ -104,7 +104,7 @@ func (a *App) DeleteDraftInvoice(id string) error {
 	return s.DeleteDraft(a.materialContext(), id)
 }
 func invoiceDTO(v application.InvoiceView) InvoiceDTO {
-	out := InvoiceDTO{ID: v.ID, InvoiceNumber: v.InvoiceNumber, CustomerID: v.CustomerID, CustomerName: v.CustomerName, CustomerPhone: v.CustomerPhone, OrderID: v.OrderID, IssueDate: v.IssueDate, DueDate: v.DueDate, Status: v.Status, Notes: v.Notes, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, TotalRial: v.TotalRial, PaidRial: v.PaidRial, RemainingRial: v.RemainingRial, AccountingJournalEntryID: v.AccountingJournalEntryID, COGSJournalEntryID: v.COGSJournalEntryID, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt}
+	out := InvoiceDTO{ID: v.ID, InvoiceNumber: v.InvoiceNumber, CustomerID: v.CustomerID, CustomerName: v.CustomerName, CustomerPhone: v.CustomerPhone, OrderID: v.OrderID, IssueDate: v.IssueDate, DueDate: v.DueDate, Status: v.Status, Notes: v.Notes, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, TotalRial: v.TotalRial, PaidRial: v.PaidRial, RemainingRial: v.RemainingRial, AccountingJournalEntryID: v.AccountingJournalEntryID, COGSJournalEntryID: v.COGSJournalEntryID, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt, Items: make([]InvoiceItemDTO, 0, len(v.Items))}
 	for _, x := range v.Items {
 		out.Items = append(out.Items, InvoiceItemDTO{ID: x.ID, OrderItemID: x.OrderItemID, Description: x.Description, ServiceID: x.ServiceID, QuantityUnit: x.QuantityUnit, Notes: x.Notes, Position: x.Position, Quantity: x.Quantity, UnitPriceRial: x.UnitPriceRial, LineTotalRial: x.LineTotalRial})
 	}

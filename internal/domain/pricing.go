@@ -93,19 +93,39 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 			amount, err = percentageAmount(total, component.Percentage)
 			item.Explanation = fmt.Sprintf("%s of accumulated cost before this component", component.Percentage.String())
 		default:
-			usage, usageErr := componentUsage(component, input.Parameters)
-			if usageErr != nil {
-				return PricingResult{}, usageErr
+			var usage Quantity
+			if component.Type == CostMaterial && component.UsageMode == UsageParameter && component.ReferenceID == "" {
+				usage, err = quantityProduct(component.UsageQuantity, component.Multiplier)
+			} else {
+				usage, err = componentUsage(component, input.Parameters)
+			}
+			if err != nil {
+				return PricingResult{}, err
 			}
 			item.UsageQuantity = usage
 			switch component.Type {
 			case CostMaterial:
-				material, exists := input.Materials[component.ReferenceID]
-				if !exists {
-					return PricingResult{}, fmt.Errorf("component %q: material %q not found", component.Name, component.ReferenceID)
+				materialID := component.ReferenceID
+				if component.UsageMode == UsageParameter && component.ReferenceID == "" {
+					parameter, exists := input.Parameters[component.ParameterKey]
+					if !exists || parameter.MaterialID == "" {
+						return PricingResult{}, fmt.Errorf("component %q: material parameter %q has no selected material", component.Name, component.ParameterKey)
+					}
+					materialID = parameter.MaterialID
 				}
-				amount, err = scaledMoney(usage, material.AverageUnitCostRial)
-				item.Explanation = fmt.Sprintf("%s × %d Rial average unit cost", usage.String(), material.AverageUnitCostRial)
+				material, exists := input.Materials[materialID]
+				if !exists {
+					return PricingResult{}, fmt.Errorf("component %q: material %q not found", component.Name, materialID)
+				}
+				materialUnitCost := material.HighestPurchaseUnitCostRial
+				costBasis := "highest posted purchase unit cost"
+				if materialUnitCost <= 0 {
+					materialUnitCost = material.AverageUnitCostRial
+					costBasis = "opening/average unit cost"
+				}
+				amount, err = scaledMoney(usage, materialUnitCost)
+				item.RateRial = materialUnitCost
+				item.Explanation = fmt.Sprintf("%s × %d Rial %s", usage.String(), materialUnitCost, costBasis)
 			case CostMachine:
 				machine, exists := input.Machines[component.ReferenceID]
 				if !exists {

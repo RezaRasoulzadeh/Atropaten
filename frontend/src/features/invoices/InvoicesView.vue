@@ -1,50 +1,53 @@
 <script setup lang="ts">
-import { formatQuantityUnits } from '../../utils/quantity'
+import { computed, onMounted, ref } from 'vue'
+import { FileText, Plus } from 'lucide-vue-next'
+import AppPanel from '../../components/layout/AppPanel.vue'
+import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue'
+import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import DataTableCell from '../../components/ui/DataTableCell.vue'
+import DataTableRow from '../../components/ui/DataTableRow.vue'
+import EmptyState from '../../components/ui/EmptyState.vue'
 import LoadingState from '../../components/ui/LoadingState.vue'
+import SearchField from '../../components/ui/SearchField.vue'
 import SearchFilterBar from '../../components/ui/SearchFilterBar.vue'
-import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
-const {busy,runAction}=useWorkspaceActions()
+import SelectField from '../../components/ui/SelectField.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
+import { useWorkspaceActions, reportError } from '../../composables/useWorkspaceActions'
+import { invoicesApi, type InvoiceRecord } from '../../api/invoices'
+import type { OrderRecord } from '../../api/orders'
+import { formatMoney, type CurrencyUnit } from '../../utils/currency'
+import { formatDateTime } from '../../utils/date'
 
-import InspectorShell from '../../components/layout/InspectorShell.vue';
-import InspectorSection from '../../components/layout/InspectorSection.vue';
-import MasterDetail from '../../components/layout/MasterDetail.vue';
-import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
-import RegisterList from '../../components/ui/RegisterList.vue';
-import RegisterRow from '../../components/ui/RegisterRow.vue';
-import DataTableCell from '../../components/ui/DataTableCell.vue';
-import DataTable from '../../components/ui/DataTable.vue';
-import AppPanel from '../../components/layout/AppPanel.vue';
-import { computed, onMounted, ref } from 'vue';
-import { FileText, Plus, RotateCcw, Trash2, X } from 'lucide-vue-next';
-import StatusBadge from '../../components/ui/StatusBadge.vue';
-import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
-import { invoicesApi, type InvoiceRecord } from '../../api/invoices';
-import type { OrderRecord } from '../../api/orders';
-import { formatMoney, type CurrencyUnit } from '../../utils/currency';
-import { formatDateTime } from '../../utils/date';
-import { confirmAction } from '../../ui/feedback';
-import SearchField from '../../components/ui/SearchField.vue';
-import SelectField from '../../components/ui/SelectField.vue';
+const { busy, runAction } = useWorkspaceActions()
+const props = defineProps<{ currencyUnit: CurrencyUnit; orders: OrderRecord[] }>()
+const emit = defineEmits<{
+  notify: [string]
+  refreshOrders: []
+  'open-invoice': [string]
+}>()
 
-const props = defineProps<{ currencyUnit: CurrencyUnit; orders: OrderRecord[] }>();
-const emit = defineEmits<{ notify: [string]; refreshOrders: [] }>();
-const rows = ref<InvoiceRecord[]>([]);
-const selected = ref<string | null>(null);
-const query = ref('');
-const status = ref('All');
-const loading = ref(false);
-const current = computed(() => rows.value.find((v) => v.id === selected.value) ?? null);
-const filtered = computed(() =>
-  rows.value.filter(
-    (v) =>
-      (status.value === 'All' || v.status === status.value) &&
-      (!query.value.trim() ||
-        [v.invoiceNumber, v.customerName, v.orderId]
+const rows = ref<InvoiceRecord[]>([])
+const query = ref('')
+const status = ref('All')
+const loading = ref(false)
+
+const filtered = computed(() => {
+  const search = query.value.trim().toLowerCase()
+  return rows.value.filter(
+    (value) =>
+      (status.value === 'All' || value.status === status.value) &&
+      (!search ||
+        [value.invoiceNumber, value.customerName, value.orderId]
           .join(' ')
           .toLowerCase()
-          .includes(query.value.trim().toLowerCase())),
-  ),
-);
+          .includes(search)),
+  )
+})
+const readyOrders = computed(() =>
+  props.orders.filter((value) => !value.invoiceId && value.totalRial > 0),
+)
+
 function tone(value: string) {
   return value === 'Paid' || value === 'Posted'
     ? 'green'
@@ -52,259 +55,177 @@ function tone(value: string) {
       ? 'blue'
       : value === 'Voided'
         ? 'slate'
-        : 'amber';
+        : 'amber'
 }
+
+function clearFilters() {
+  query.value = ''
+  status.value = 'All'
+}
+
 async function load() {
-  loading.value = true;
+  loading.value = true
   try {
-    rows.value = await invoicesApi.list();
-    if (!selected.value && rows.value[0]) selected.value = rows.value[0].id;
-  } catch (e) {
-    reportError(e);
+    rows.value = await invoicesApi.list()
+  } catch (error) {
+    reportError(error)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
-onMounted(load);
+
+onMounted(load)
+
 async function create(orderId: string) {
-return runAction(async () => {
-  try {
-    const value = await invoicesApi.createFromOrder(orderId);
-    rows.value = [value, ...rows.value];
-    selected.value = value.id;
-    emit('notify', 'Draft invoice created from the saved order snapshot.');
-    emit('refreshOrders');
-  } catch (e) {
-reportError(e);
-  }
-
-});
-}
-async function post() {
-return runAction(async () => {
-  if (!current.value) return;
-  try {
-    const value = await invoicesApi.post(current.value.id);
-    rows.value = rows.value.map((v) => (v.id === value.id ? value : v));
-    emit('notify', 'Invoice posted with AR, revenue, and eligible actual COGS.');
-    emit('refreshOrders');
-  } catch (e) {
-reportError(e);
-  }
-
-});
-}
-async function reverse() {
-return runAction(async () => {
-  if (
-    !current.value ||
-    !(await confirmAction({
-      title: 'Void invoice',
-      message: 'Void this invoice with reversing journal entries?',
-      confirmLabel: 'Void invoice',
-      danger: true,
-    }))
-  )
-    return;
-  try {
-    const value = await invoicesApi.void(current.value.id);
-    rows.value = rows.value.map((v) => (v.id === value.id ? value : v));
-    emit('notify', 'Invoice voided with history preserved.');
-    emit('refreshOrders');
-  } catch (e) {
-reportError(e);
-  }
-
-});
-}
-async function remove() {
-return runAction(async () => {
-  if (
-    !current.value ||
-    !(await confirmAction({
-      title: 'Delete draft invoice',
-      message: 'Delete this draft invoice permanently?',
-      confirmLabel: 'Delete invoice',
-      danger: true,
-    }))
-  )
-    return;
-  try {
-    await invoicesApi.deleteDraft(current.value.id);
-    rows.value = rows.value.filter((v) => v.id !== current.value!.id);
-    selected.value = null;
-    emit('notify', 'Draft invoice deleted.');
-  } catch (e) {
-reportError(e);
-  }
-
-});
+  return runAction(async () => {
+    try {
+      const value = await invoicesApi.createFromOrder(orderId)
+      emit('notify', 'Draft invoice created from the saved order snapshot.')
+      emit('refreshOrders')
+      emit('open-invoice', value.id)
+    } catch (error) {
+      reportError(error)
+    }
+  })
 }
 </script>
+
 <template>
-  <div class="min-w-0 space-y-3">
-    <WorkspaceStickyStack
-      ><WorkspaceHeader
-        title="Invoices"
+  <div class="min-w-0 space-y-4">
+    <WorkspaceStickyStack>
+      <WorkspaceHeader
         eyebrow="Finance / receivables"
-        description="Invoice saved order snapshots once; derive receivables from allocations."
-        ><span>{{ rows.length }} invoices</span></WorkspaceHeader
+        title="Invoices"
+        description="Review saved commercial snapshots, payment progress, and posting history."
       >
-      <SearchFilterBar><template #search><SearchField
-          v-model="query"
-          label="Search invoices"
-          placeholder="Search invoice, customer, or order"
-        /></template><template #filters><SelectField
-          v-model="status"
-          label="Status"
-          :options="
-            ['All', 'Draft', 'Posted', 'Partially Paid', 'Paid', 'Voided'].map((value) => ({
-              label: value,
-              value,
-            }))
-          "
-        /></template><template #count><span class="self-end pb-2">{{ filtered.length }} shown</span></template></SearchFilterBar></WorkspaceStickyStack
+      </WorkspaceHeader>
+
+      <SearchFilterBar>
+        <template #search>
+          <SearchField
+            v-model="query"
+            label="Search invoices"
+            placeholder="Invoice, customer, or order"
+          />
+        </template>
+        <template #filters>
+          <SelectField
+            v-model="status"
+            label="Status"
+            :options="
+              ['All', 'Draft', 'Posted', 'Partially Paid', 'Paid', 'Voided'].map((value) => ({
+                label: value,
+                value,
+              }))
+            "
+          />
+        </template>
+        <template #count>
+          <span>{{ filtered.length }} of {{ rows.length }} shown</span>
+        </template>
+        <template #actions>
+          <button
+            v-if="query || status !== 'All'"
+            class="btn btn-ghost btn-sm"
+            type="button"
+            @click="clearFilters"
+          >
+            Clear
+          </button>
+        </template>
+      </SearchFilterBar>
+    </WorkspaceStickyStack>
+
+    <AppPanel
+      title="Invoice register"
+      subtitle="Select a row to open the full invoice workspace."
+      :flush="true"
     >
-    <MasterDetail
-      ><RegisterList
-        title="Invoice register"
-        subtitle="Invoice status and amounts are derived in Go from posted allocations."
-        :count="filtered.length"
-        ><LoadingState v-if="loading" label="Loading records…" />
-        <div v-else-if="filtered.length">
-          <RegisterRow
+      <template #action><span class="text-xs text-base-content/60">{{ filtered.length }} shown</span></template>
+
+      <LoadingState v-if="loading" label="Loading invoices…" />
+      <EmptyState
+        v-else-if="!filtered.length"
+        title="No invoices in this view"
+        :description="rows.length ? 'Adjust the search or status filter.' : 'Create an invoice from a priced order below.'"
+      >
+        <template #icon><FileText :size="22" aria-hidden="true" /></template>
+        <template #action>
+          <button v-if="rows.length" class="btn btn-primary btn-sm" type="button" @click="clearFilters">
+            Clear filters
+          </button>
+        </template>
+      </EmptyState>
+      <DataTable v-else label="Invoice register">
+        <thead>
+          <tr>
+            <th scope="col" class="w-[17%]">Invoice</th>
+            <th scope="col" class="w-[25%]">Customer</th>
+            <th scope="col" class="w-[17%]">Order</th>
+            <th scope="col" class="w-[16%]">Issued / due</th>
+            <th scope="col" class="w-[8%] text-center">Lines</th>
+            <th scope="col" class="w-[17%] text-end">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <DataTableRow
             v-for="value in filtered"
             :key="value.id"
-            :selected="selected === value.id"
-            @activate="selected = value.id"
+            interactive
+            @activate="emit('open-invoice', value.id)"
           >
-            <template #identity>
-              <div class="flex min-w-0 items-center justify-between gap-3">
-                <div class="min-w-0">
-                  <strong class="block truncate text-sm">{{ value.invoiceNumber }}</strong>
-                  <span class="block truncate text-xs text-base-content/60">{{ value.customerName || 'Walk-in customer' }} · {{ value.orderId || 'No order link' }}</span>
-                </div>
-                <strong class="shrink-0 whitespace-nowrap text-sm tabular-nums">{{ formatMoney(value.totalRial, props.currencyUnit) }}</strong>
-              </div>
-            </template>
-            <template #meta>
-              <div class="mt-2 grid min-w-0 grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2">
-                <div><span class="block text-base-content/50">Issue date</span><span class="block text-base-content/80">{{ formatDateTime(value.issueDate) }}</span></div>
-                <div><span class="block text-base-content/50">Remaining</span><span class="block text-base-content/80 tabular-nums">{{ formatMoney(value.remainingRial, props.currencyUnit) }}</span></div>
-                <div><span class="block text-base-content/50">Lines</span><span class="block text-base-content/80">{{ value.items.length }} line items</span></div>
-              </div>
-            </template>
-            <template #status><StatusBadge :label="value.status" :tone="tone(value.status)" /></template>
-          </RegisterRow>
-        </div>
-        <div v-else class="min-w-0 space-y-3">
-          <FileText :size="22" /><strong>{{
-            rows.length ? 'No invoices match this filter' : 'No invoices yet'
-          }}</strong>
-        </div>
-      </RegisterList>
-      <InspectorShell
-        v-if="current"
-        title="Invoice inspector"
-        subtitle="Exact immutable line and accounting snapshots."
-        ><div class="min-w-0 space-y-3">
-          <div class="min-w-0 space-y-3">
-            <div><FileText :size="19" /></div>
-            <div class="min-w-0 space-y-3">
-              <h3 class="text-sm font-semibold">{{ current.invoiceNumber }}</h3>
-              <p>
-                {{ current.customerName || 'Walk-in customer' }} ·
-                {{ current.orderId || 'No order link' }}
-              </p>
-            </div>
-          </div>
-          <StatusBadge :label="current.status" :tone="tone(current.status)" />
-          <InspectorSection title="Invoice lines">
-            <DataTable label="Invoice lines">
-              <thead><tr><th scope="col">Description</th><th scope="col">Quantity</th><th scope="col" class="text-end">Unit price</th><th scope="col" class="text-end">Line total</th></tr></thead>
-              <tbody>
-                <tr v-for="line in current.items" :key="line.id">
-                  <DataTableCell><strong>{{ line.description }}</strong></DataTableCell>
-                  <DataTableCell>{{ formatQuantityUnits(line.quantity) }} {{ line.quantityUnit }}</DataTableCell>
-                  <DataTableCell numeric>{{ formatMoney(line.unitPriceRial, props.currencyUnit) }}</DataTableCell>
-                  <DataTableCell numeric>{{ formatMoney(line.lineTotalRial, props.currencyUnit) }}</DataTableCell>
-                </tr>
-              </tbody>
-            </DataTable>
-          </InspectorSection>
-          <InspectorSection title="Totals">
-          <dl class="grid min-w-0 gap-2 text-sm">
-            <div
-              class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-3 border-b border-base-300 py-2 last:border-0"
-            >
-              <dt class="text-xs text-base-content/60">Subtotal</dt>
-              <dd class="min-w-0 text-end tabular-nums wrap-anywhere">
-                {{ formatMoney(current.subtotalRial, props.currencyUnit) }}
-              </dd>
-            </div>
-            <div
-              class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-3 border-b border-base-300 py-2 last:border-0"
-            >
-              <dt class="text-xs text-base-content/60">Paid</dt>
-              <dd class="min-w-0 text-end tabular-nums wrap-anywhere">
-                {{ formatMoney(current.paidRial, props.currencyUnit) }}
-              </dd>
-            </div>
-            <div
-              class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-3 border-b border-base-300 py-2 last:border-0"
-            >
-              <dt class="text-xs text-base-content/60">Remaining</dt>
-              <dd class="min-w-0 text-end tabular-nums wrap-anywhere">
-                {{ formatMoney(current.remainingRial, props.currencyUnit) }}
-              </dd>
-            </div>
-          </dl>
-          </InspectorSection>
-          <div class="flex flex-wrap items-center gap-2">
-            <button class="btn btn-primary" v-if="current.status === 'Draft'" @click="post" :disabled="busy">
-              <Plus :size="15" /> Post invoice</button
-            ><button class="btn btn-outline btn-error" v-if="current.status === 'Draft'" @click="remove" :disabled="busy">
-              <Trash2 :size="15" /> Delete draft</button
-            ><button
-              class="btn btn-ghost"
-              v-if="['Posted', 'Partially Paid', 'Paid'].includes(current.status)"
-              @click="reverse"
-             :disabled="busy">
-              <RotateCcw :size="15" /> Void / reverse
-            </button>
-          </div>
-        </div></InspectorShell
-      ><InspectorShell
-        v-else
-        title="Invoice inspector"
-        subtitle="Select an invoice or create one from a saved order."
-        ><div>No invoice selected.</div></InspectorShell
-      ></MasterDetail
-    >
+            <DataTableCell>
+              <strong class="block whitespace-nowrap text-sm">{{ value.invoiceNumber }}</strong>
+              <span class="mt-1 block text-xs text-base-content/55">{{ value.items.length }} line items</span>
+            </DataTableCell>
+            <DataTableCell>
+              <strong class="block max-w-64 truncate text-sm font-medium">{{ value.customerName || 'Walk-in customer' }}</strong>
+              <StatusBadge class="mt-1" :label="value.status" :tone="tone(value.status)" />
+            </DataTableCell>
+            <DataTableCell>
+              <span class="block max-w-44 truncate text-sm">{{ value.orderId || 'No order link' }}</span>
+              <span class="mt-1 block text-xs text-base-content/55">Saved snapshot</span>
+            </DataTableCell>
+            <DataTableCell>
+              <span class="block whitespace-nowrap text-sm">{{ formatDateTime(value.issueDate) }}</span>
+              <span class="mt-1 block whitespace-nowrap text-xs text-base-content/55">Due {{ value.dueDate ? formatDateTime(value.dueDate) : 'on receipt' }}</span>
+            </DataTableCell>
+            <DataTableCell class="text-center">
+              <span class="badge badge-ghost min-w-8 justify-center tabular-nums">{{ value.items.length }}</span>
+            </DataTableCell>
+            <DataTableCell numeric>
+              <strong class="text-sm text-primary">{{ formatMoney(value.totalRial, props.currencyUnit) }}</strong>
+              <span class="mt-1 block text-xs text-base-content/55">{{ formatMoney(value.remainingRial, props.currencyUnit) }} due</span>
+            </DataTableCell>
+          </DataTableRow>
+        </tbody>
+      </DataTable>
+    </AppPanel>
+
     <AppPanel
       title="Orders ready to invoice"
-      subtitle="Creating an invoice copies stored order pricing snapshots exactly."
-      ><div class="min-w-0 space-y-3">
+      subtitle="Creating an invoice copies the order's stored pricing snapshots exactly."
+      :flush="true"
+    >
+      <template #action><span class="text-xs text-base-content/60">{{ readyOrders.length }} ready</span></template>
+      <div v-if="readyOrders.length" class="divide-y divide-base-300">
         <div
-          v-for="order in props.orders.filter((value) => !value.invoiceId && value.totalRial > 0)"
+          v-for="order in readyOrders"
           :key="order.id"
-          class="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-base-300 py-3 last:border-0"
+          class="flex min-w-0 flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-base-200/60"
         >
-          <span
-            ><strong
-              >{{ order.orderNumber }} · {{ order.customerName || 'Walk-in customer' }}</strong
-            ><small class="block text-xs leading-5 text-base-content/60"
-              >{{ formatMoney(order.totalRial, props.currencyUnit) }} ·
-              {{ order.items.length }} items</small
-            ></span
-          ><button class="btn btn-primary" @click="create(order.id)" :disabled="busy">
+          <div class="min-w-0">
+            <strong class="block truncate text-sm">{{ order.orderNumber }} · {{ order.customerName || 'Walk-in customer' }}</strong>
+            <span class="mt-1 block truncate text-xs text-base-content/60">
+              {{ order.items.length }} items · {{ formatMoney(order.totalRial, props.currencyUnit) }}
+            </span>
+          </div>
+          <button class="btn btn-primary btn-sm shrink-0" type="button" :disabled="busy" @click="create(order.id)">
             <Plus :size="14" /> Create invoice
           </button>
         </div>
-        <div v-if="!props.orders.some((value) => !value.invoiceId && value.totalRial > 0)">
-          All priced orders already have invoices.
-        </div>
-      </div></AppPanel
-    >
+      </div>
+      <EmptyState v-else title="All priced orders are invoiced" description="New eligible orders will appear here." />
+    </AppPanel>
   </div>
 </template>

@@ -15,6 +15,7 @@ import {
   type CurrencyUnit,
 } from '../../utils/currency';
 import SelectField from '../../components/ui/SelectField.vue';
+import EmptyState from '../../components/ui/EmptyState.vue';
 import { useToast } from '../../ui/feedback';
 
 const props = defineProps<{
@@ -188,7 +189,7 @@ function typeLabel(type: string) {
             <SelectField
               v-else-if="parameter.type === 'choice'"
               v-model="values[parameter.key]"
-              :label="parameter.label"
+              :aria-label="parameter.label"
               :options="[
                 { label: `Select ${parameter.label.toLowerCase()}`, value: '' },
                 ...parameter.options.map((option) => ({ label: option, value: option })),
@@ -197,7 +198,7 @@ function typeLabel(type: string) {
             <SelectField
               v-else-if="parameter.type === 'material-reference'"
               v-model="values[parameter.key]"
-              :label="parameter.label"
+              :aria-label="parameter.label"
               :options="[
                 { label: 'Select material', value: '' },
                 ...materials.map((material) => ({
@@ -224,7 +225,7 @@ function typeLabel(type: string) {
             >
           </FormField>
         </div>
-        <div v-else class="rounded-box border border-dashed border-base-300 p-3 text-sm text-base-content/60">This service has no operator parameters.</div>
+        <EmptyState v-else compact title="No operator parameters" description="This service can be priced without additional operator input."><template #icon><Calculator :size="21" aria-hidden="true" /></template></EmptyState>
       </div>
       <div class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-200/25 p-4">
         <div class="flex min-w-0 items-start justify-between gap-3">
@@ -248,6 +249,7 @@ function typeLabel(type: string) {
             <span class="block text-xs text-base-content/60">Profit</span><strong class="mt-1 block text-sm" :class="{ 'text-error': result.profitRial < 0, 'text-success': result.profitRial > 0 }">{{ signedMoney(result.profitRial) }}</strong>
           </div>
         </div>
+        <EmptyState v-else compact title="No price preview yet" description="Enter the current inputs and calculate a price to see the estimate."><template #icon><Calculator :size="21" aria-hidden="true" /></template></EmptyState>
         <div class="rounded-box border border-base-300 bg-base-100 p-3"
           ><span class="text-xs font-semibold">Selling price override <em class="font-normal text-base-content/55">optional</em></span>
           <div class="mt-2 flex min-w-0 items-end gap-2">
@@ -299,7 +301,7 @@ function typeLabel(type: string) {
           components</span
         >
       </div>
-      <div>
+      <div v-if="result.components.length">
         <DataTable
           ><thead>
             <tr>
@@ -331,6 +333,7 @@ function typeLabel(type: string) {
           </tbody></DataTable
         >
       </div>
+      <EmptyState v-else compact title="No cost breakdown yet" description="The calculated service has no cost components to display."><template #icon><Calculator :size="21" aria-hidden="true" /></template></EmptyState>
     </div>
   </section>
 </template>

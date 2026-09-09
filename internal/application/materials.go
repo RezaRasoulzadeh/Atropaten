@@ -33,25 +33,26 @@ type MaterialInput struct {
 }
 
 type MaterialView struct {
-	ID                  string
-	Name                string
-	SKU                 string
-	Category            string
-	PurchaseUnit        string
-	ConsumptionUnit     string
-	ConversionFactor    string
-	PhysicalStock       string
-	ReservedStock       string
-	AvailableStock      string
-	ReorderLevel        string
-	AverageUnitCostRial int64
-	InventoryValueRial  int64
-	PreferredSupplier   string
-	Notes               string
-	Active              bool
-	LowStock            bool
-	CreatedAt           string
-	UpdatedAt           string
+	ID                          string
+	Name                        string
+	SKU                         string
+	Category                    string
+	PurchaseUnit                string
+	ConsumptionUnit             string
+	ConversionFactor            string
+	PhysicalStock               string
+	ReservedStock               string
+	AvailableStock              string
+	ReorderLevel                string
+	AverageUnitCostRial         int64
+	HighestPurchaseUnitCostRial int64
+	InventoryValueRial          int64
+	PreferredSupplier           string
+	Notes                       string
+	Active                      bool
+	LowStock                    bool
+	CreatedAt                   string
+	UpdatedAt                   string
 }
 
 type MaterialsService struct {
@@ -134,7 +135,7 @@ func (s *MaterialsService) Update(ctx context.Context, id string, input Material
 	if err != nil {
 		return MaterialView{}, err
 	}
-	oldStock, oldCost := material.PhysicalStock, material.AverageUnitCostRial
+	oldStock, oldCost, oldHighestPurchaseCost := material.PhysicalStock, material.AverageUnitCostRial, material.HighestPurchaseUnitCostRial
 	draft, err := parseDraft(input)
 	if err != nil {
 		return MaterialView{}, err
@@ -143,7 +144,7 @@ func (s *MaterialsService) Update(ctx context.Context, id string, input Material
 		return MaterialView{}, err
 	}
 	// Physical stock and average cost are ledger read-model fields.
-	material.PhysicalStock, material.AverageUnitCostRial = oldStock, oldCost
+	material.PhysicalStock, material.AverageUnitCostRial, material.HighestPurchaseUnitCostRial = oldStock, oldCost, oldHighestPurchaseCost
 	if err := s.repository.Update(ctx, material); err != nil {
 		return MaterialView{}, err
 	}
@@ -221,8 +222,9 @@ func toView(material domain.Material) MaterialView {
 		ConversionFactor: material.ConversionFactor.String(), PhysicalStock: material.PhysicalStock.String(),
 		ReservedStock: material.ReservedStock.String(), AvailableStock: material.AvailableStock.String(),
 		ReorderLevel: material.ReorderLevel.String(), AverageUnitCostRial: material.AverageUnitCostRial,
-		InventoryValueRial: 0,
-		PreferredSupplier:  material.PreferredSupplier, Notes: material.Notes, Active: material.Active,
+		HighestPurchaseUnitCostRial: material.HighestPurchaseUnitCostRial,
+		InventoryValueRial:          0,
+		PreferredSupplier:           material.PreferredSupplier, Notes: material.Notes, Active: material.Active,
 		LowStock: material.LowStock(), CreatedAt: material.CreatedAt.UTC().Format(time.RFC3339Nano),
 		UpdatedAt: material.UpdatedAt.UTC().Format(time.RFC3339Nano),
 	}

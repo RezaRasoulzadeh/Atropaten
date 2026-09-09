@@ -24,25 +24,26 @@ type MaterialInput struct {
 }
 
 type MaterialDTO struct {
-	ID                  string `json:"id"`
-	Name                string `json:"name"`
-	SKU                 string `json:"sku"`
-	Category            string `json:"category"`
-	PurchaseUnit        string `json:"purchaseUnit"`
-	ConsumptionUnit     string `json:"consumptionUnit"`
-	ConversionFactor    string `json:"conversionFactor"`
-	PhysicalStock       string `json:"physicalStock"`
-	ReservedStock       string `json:"reservedStock"`
-	AvailableStock      string `json:"availableStock"`
-	ReorderLevel        string `json:"reorderLevel"`
-	AverageUnitCostRial int64  `json:"averageUnitCostRial"`
-	InventoryValueRial  int64  `json:"inventoryValueRial"`
-	PreferredSupplier   string `json:"preferredSupplier"`
-	Notes               string `json:"notes"`
-	Active              bool   `json:"active"`
-	LowStock            bool   `json:"lowStock"`
-	CreatedAt           string `json:"createdAt"`
-	UpdatedAt           string `json:"updatedAt"`
+	ID                          string `json:"id"`
+	Name                        string `json:"name"`
+	SKU                         string `json:"sku"`
+	Category                    string `json:"category"`
+	PurchaseUnit                string `json:"purchaseUnit"`
+	ConsumptionUnit             string `json:"consumptionUnit"`
+	ConversionFactor            string `json:"conversionFactor"`
+	PhysicalStock               string `json:"physicalStock"`
+	ReservedStock               string `json:"reservedStock"`
+	AvailableStock              string `json:"availableStock"`
+	ReorderLevel                string `json:"reorderLevel"`
+	AverageUnitCostRial         int64  `json:"averageUnitCostRial"`
+	HighestPurchaseUnitCostRial int64  `json:"highestPurchaseUnitCostRial"`
+	InventoryValueRial          int64  `json:"inventoryValueRial"`
+	PreferredSupplier           string `json:"preferredSupplier"`
+	Notes                       string `json:"notes"`
+	Active                      bool   `json:"active"`
+	LowStock                    bool   `json:"lowStock"`
+	CreatedAt                   string `json:"createdAt"`
+	UpdatedAt                   string `json:"updatedAt"`
 }
 
 func (a *App) materialService() (*application.MaterialsService, error) {
@@ -152,7 +153,7 @@ func materialDTO(view application.MaterialView) MaterialDTO {
 		PurchaseUnit: view.PurchaseUnit, ConsumptionUnit: view.ConsumptionUnit,
 		ConversionFactor: view.ConversionFactor, PhysicalStock: view.PhysicalStock,
 		ReservedStock: view.ReservedStock, AvailableStock: view.AvailableStock,
-		ReorderLevel: view.ReorderLevel, AverageUnitCostRial: view.AverageUnitCostRial, InventoryValueRial: view.InventoryValueRial,
+		ReorderLevel: view.ReorderLevel, AverageUnitCostRial: view.AverageUnitCostRial, HighestPurchaseUnitCostRial: view.HighestPurchaseUnitCostRial, InventoryValueRial: view.InventoryValueRial,
 		PreferredSupplier: view.PreferredSupplier, Notes: view.Notes, Active: view.Active,
 		LowStock: view.LowStock, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt,
 	}

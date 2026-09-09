@@ -7,7 +7,7 @@ import { ref } from 'vue'
 import {ChevronUp,ChevronDown,ChevronRight,Trash2,Plus} from 'lucide-vue-next'
 import type {ParameterForm} from './types'
 import type {MaterialRecord} from '../../api/materials'
-const props=defineProps<{parameter:ParameterForm;index:number;count:number;materials:MaterialRecord[]}>()
+const props=defineProps<{parameter:ParameterForm;index:number;count:number;materials:MaterialRecord[];showErrors?:boolean}>()
 const emit=defineEmits<{move:[direction:-1|1];remove:[];normalize:[];addOption:[];removeOption:[index:number]}>()
 const expanded=ref(props.index === 0)
 function syncExpanded(event: Event) {
@@ -56,22 +56,27 @@ function syncExpanded(event: Event) {
                   ><span>Key</span
                   ><AppInput
                     class="input w-full min-w-0"
+                    :class="{ 'input-error': props.showErrors && !parameter.key.trim() }"
                     v-model="parameter.key"
                     type="text"
+                    required
                     placeholder="paper_size"
                     autocomplete="off" /></FormField
                 ><FormField class="gap-1"
                   ><span>Label</span
                   ><AppInput
                     class="input w-full min-w-0"
+                    :class="{ 'input-error': props.showErrors && !parameter.label.trim() }"
                     v-model="parameter.label"
                     type="text"
+                    required
                     placeholder="Paper size"
                     autocomplete="off" /></FormField
               ></FormGrid>
               <FormGrid
                 ><SelectField
                   v-model="parameter.type"
+                  :invalid="props.showErrors && !parameter.type"
                   label="Type"
                   :options="[
                     { label: 'Integer', value: 'integer' },
@@ -149,8 +154,8 @@ function syncExpanded(event: Event) {
                     })),
                   ]"
                 /><small class="block text-xs leading-5 text-base-content/60"
-                  >Operators may select an active material later; consumption is not configured
-                  here.</small
+                  >Use this parameter when a material cost should follow the operator's selected
+                  paper or stock item.</small
                 >
               </div>
               <div v-if="parameter.type === 'choice'" class="min-w-0 space-y-3">
@@ -167,8 +172,10 @@ function syncExpanded(event: Event) {
                 >
                   <AppInput
                     class="input w-full min-w-0"
+                    :class="{ 'input-error': props.showErrors && !parameter.options[optionIndex].trim() }"
                     v-model="parameter.options[optionIndex]"
                     type="text"
+                    required
                     :aria-label="`Choice option ${optionIndex + 1}`"
                     placeholder="A4"
                     @input="
