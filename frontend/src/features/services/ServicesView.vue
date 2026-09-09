@@ -150,7 +150,7 @@ watch(
       </RegisterList>
     </div>
 
-  <div v-else class="min-w-0 space-y-4" aria-label="Service workspace">
+  <div v-else class="min-w-0" :class="editorMode ? 'min-h-0 xl:h-full' : 'space-y-4'" aria-label="Service workspace">
       <WorkspaceStickyStack v-if="!editorMode" :flush="true">
         <WorkspaceHeader
           :title="editorMode === 'create' ? 'New service' : selectedService?.name || 'Service'"

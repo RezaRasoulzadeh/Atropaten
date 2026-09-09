@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { ArrowLeft, ArrowRight, CircleHelp, FileText, ImagePlus, Package, Save, Upload, X } from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
+import { ArrowLeft, ArrowRight, CheckCheck, CircleHelp, FileText, ImagePlus, Package, Save, Upload, X } from 'lucide-vue-next'
 import AppInput from '../../components/ui/AppInput.vue'
 import AppTextarea from '../../components/ui/AppTextarea.vue'
 import FormField from '../../components/ui/FormField.vue'
@@ -24,6 +24,8 @@ const emit = defineEmits<{
 
 const activeStep = ref(1)
 const imageInput = ref<HTMLInputElement | null>(null)
+const codeWasEdited = ref(Boolean(props.form.code.trim()))
+const lastGeneratedCode = ref('')
 const imagePreview = computed(() => props.form.imagePath || '')
 const steps = [
   { number: 1, title: 'Basic', description: 'Name, category, description' },
@@ -73,11 +75,36 @@ function stepClass(number: number) {
   if (number < activeStep.value) return 'wizard-step-complete'
   return 'wizard-step-idle'
 }
+function generateServiceCode(name: string) {
+  const words = name
+    .normalize('NFKC')
+    .trim()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean)
+  if (!words.length) return ''
+  const value = words.length === 1 ? words[0].slice(0, 4) : words.slice(0, 4).map((word) => word[0]).join('')
+  return value.toLocaleUpperCase()
+}
+function markCodeEdited() {
+  codeWasEdited.value = true
+}
+watch(
+  () => props.form.name,
+  (name) => {
+    if (codeWasEdited.value) return
+    const generated = generateServiceCode(name)
+    if (!generated || !props.form.code || props.form.code === lastGeneratedCode.value) {
+      props.form.code = generated
+      lastGeneratedCode.value = generated
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
-  <div class="service-wizard min-w-0 space-y-4" aria-label="Service editor">
-    <header class="flex min-w-0 flex-wrap items-end justify-between gap-4 border-b border-base-300 px-1 pt-4 pb-4">
+  <div class="service-wizard flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Service editor">
+    <header class="service-wizard-header flex min-w-0 shrink-0 flex-wrap items-end justify-between gap-4 border-b border-base-300 bg-base-200 px-1 pt-4 pb-4">
       <div class="min-w-0">
         <h1 class="mt-2 text-2xl font-semibold tracking-tight text-primary">{{ editorMode === 'create' ? 'Add service' : 'Edit service' }}</h1>
         <p class="mt-1 text-sm text-base-content/65">Define a printing service that can be used in orders.</p>
@@ -90,18 +117,18 @@ function stepClass(number: number) {
       </div>
     </header>
 
-    <div class="grid min-w-0 gap-4 xl:grid-cols-[16rem_minmax(0,1fr)_20rem]">
-      <aside class="min-w-0 rounded-box border border-base-300 bg-base-200/35 p-3">
-        <nav aria-label="Service setup steps" class="space-y-1">
-          <button v-for="step in steps" :key="step.number" class="wizard-step w-full text-start" :class="stepClass(step.number)" type="button" @click="activeStep = step.number">
-            <span class="wizard-step-number">{{ step.number < activeStep ? '✓' : step.number }}</span>
+    <div class="grid min-w-0 gap-4 overflow-visible xl:min-h-0 xl:flex-1 xl:grid-cols-[16rem_minmax(0,1fr)_20rem] xl:overflow-hidden">
+      <aside class="service-wizard-steps flex min-w-0 flex-col p-1 xl:min-h-0 xl:overflow-y-auto">
+        <nav aria-label="Service setup steps" class="service-wizard-step-nav flex min-w-0 gap-1 overflow-x-auto pb-1 xl:block xl:space-y-1 xl:overflow-visible">
+          <button v-for="step in steps" :key="step.number" class="wizard-step w-auto min-w-[11rem] shrink-0 text-start xl:w-full xl:min-w-0" :class="stepClass(step.number)" type="button" @click="activeStep = step.number">
+            <span class="wizard-step-number"><CheckCheck v-if="step.number < activeStep" :size="17" :stroke-width="2.2" aria-hidden="true" /><span v-else>{{ step.number }}</span></span>
             <span class="min-w-0"><strong class="block text-sm">{{ step.title }}</strong><small class="mt-0.5 block text-xs leading-4 text-base-content/60">{{ step.description }}</small></span>
           </button>
         </nav>
-        <button class="btn btn-outline mt-6 w-full justify-start gap-2" type="button" :disabled="busy || isSaving" @click="emit('save')"><Save :size="15" aria-hidden="true" />Save as draft</button>
+        <button class="btn btn-outline mt-6 w-full justify-center gap-2 xl:mt-auto" type="button" :disabled="busy || isSaving" @click="emit('save')"><Save :size="15" aria-hidden="true" />Save as draft</button>
       </aside>
 
-      <main class="min-w-0 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-6">
+      <section class="min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-6 xl:overflow-y-auto">
         <form id="service-editor" class="service-editor min-w-0" @submit.prevent="next">
           <section v-if="activeStep === 1" class="min-w-0 space-y-6">
             <div class="flex items-start gap-3 border-b border-base-300 pb-4">
@@ -110,7 +137,7 @@ function stepClass(number: number) {
             </div>
             <div class="grid min-w-0 gap-4 sm:grid-cols-2">
               <FormField class="gap-1 sm:col-span-2"><span>Service name <em class="text-error">*</em></span><AppInput v-model="form.name" class="input w-full min-w-0" :class="{ 'input-error': validationAttempted && !form.name.trim() }" type="text" required placeholder="Business card printing" autocomplete="off" /><small class="text-xs leading-5 text-base-content/60">A clear name shown to your team and customers.</small></FormField>
-              <FormField class="gap-1"><span>Code <em class="text-error">*</em></span><AppInput v-model="form.code" class="input w-full min-w-0" type="text" required placeholder="SVC-001" autocomplete="off" /><small class="text-xs leading-5 text-base-content/60">An internal reference code.</small></FormField>
+              <FormField class="gap-1"><span>Code <em class="text-error">*</em></span><AppInput v-model="form.code" class="input w-full min-w-0" type="text" required placeholder="Auto-generated" autocomplete="off" @update:model-value="markCodeEdited" /><small class="text-xs leading-5 text-base-content/60">Generated from the service name. Edit it to use a custom code.</small></FormField>
               <FormField class="gap-1"><span>Category <em class="text-error">*</em></span><SelectField v-model="form.category" :options="categoryOptions()" aria-label="Service category" /><small class="text-xs leading-5 text-base-content/60">Helps organize services in lists and reports.</small></FormField>
               <FormField class="gap-1"><span>Default unit <em class="text-error">*</em></span><SelectField v-model="form.defaultUnit" aria-label="Default service unit" :options="[
                 { label: 'Piece', value: 'piece' },
@@ -125,7 +152,7 @@ function stepClass(number: number) {
                 { label: 'Normal', value: 'Normal' },
                 { label: 'Low', value: 'Low' },
               ]" /><small class="text-xs leading-5 text-base-content/60">Used for new order suggestions.</small></FormField>
-              <FormField class="gap-1 sm:col-span-2"><span>Service image <em>optional</em></span><input ref="imageInput" class="hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="onImageSelected" /><div class="flex flex-wrap items-center gap-3 rounded-box border border-dashed border-base-300 bg-base-100 p-3"><div v-if="imagePreview" class="relative size-20 shrink-0 overflow-hidden rounded-box border border-base-300 bg-base-200"><img :src="imagePreview" alt="Service preview" class="size-full object-cover" /><button class="btn btn-circle btn-error btn-xs absolute right-1 top-1" type="button" aria-label="Remove service image" @click="clearImage"><X :size="12" aria-hidden="true" /></button></div><div class="min-w-0"><strong class="block text-sm">{{ imagePreview ? 'Service image selected' : 'Add a service image' }}</strong><small class="mt-1 block text-xs leading-5 text-base-content/60">Use a clear image to recognize this service in lists and orders.</small></div><button class="btn btn-outline btn-sm ml-auto gap-2" type="button" @click="browseImage"><Upload :size="14" aria-hidden="true" />{{ imagePreview ? 'Replace image' : 'Choose image' }}</button></div></FormField>
+              <FormField class="gap-1 sm:col-span-2"><span>Service image <em>optional</em></span><input ref="imageInput" class="hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="onImageSelected" /><div class="flex flex-wrap items-center gap-3 rounded-box border border-dashed border-base-300 bg-base-100 p-3"><div v-if="imagePreview" class="relative size-20 shrink-0 overflow-hidden rounded-box border border-base-300 bg-base-200"><img :src="imagePreview" alt="Service preview" class="size-full object-cover" /><button class="btn btn-circle btn-error btn-xs absolute right-1 top-1" type="button" aria-label="Remove service image" @click.stop.prevent="clearImage"><X :size="12" aria-hidden="true" /></button></div><div class="min-w-0"><strong class="block text-sm">{{ imagePreview ? 'Service image selected' : 'Add a service image' }}</strong><small class="mt-1 block text-xs leading-5 text-base-content/60">Use a clear image to recognize this service in lists and orders.</small></div><button class="btn btn-outline btn-sm ml-auto gap-2" type="button" @click.stop.prevent="browseImage"><Upload :size="14" aria-hidden="true" />{{ imagePreview ? 'Replace image' : 'Choose image' }}</button></div></FormField>
               <FormField class="gap-1 sm:col-span-2"><span>Description</span><AppTextarea v-model="form.description" class="textarea w-full min-w-0" rows="6" maxlength="500" placeholder="High-quality printing with paper options and finishing." /><small class="text-xs leading-5 text-base-content/60">Add helpful details for your team and customers.</small></FormField>
             </div>
           </section>
@@ -137,9 +164,9 @@ function stepClass(number: number) {
             <button class="btn btn-outline mt-5 gap-2" type="button" @click="previous"><ArrowLeft :size="15" aria-hidden="true" />Back to basic information</button>
           </section>
         </form>
-      </main>
+      </section>
 
-      <aside class="min-w-0 rounded-box border border-base-300 bg-base-200/35 p-4">
+      <aside class="min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/35 p-4 xl:overflow-y-auto">
         <div class="flex items-start gap-3 border-b border-base-300 pb-4"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><Package :size="19" aria-hidden="true" /></span><div><h2 class="text-base font-semibold">Live summary</h2><p class="mt-1 text-xs leading-5 text-base-content/60">A quick preview of this service.</p></div></div>
         <div class="mt-4 rounded-box border border-base-300 bg-base-100 p-4">
           <div class="relative grid aspect-[16/8] place-items-center overflow-hidden rounded-box bg-base-200 text-base-content/25"><img v-if="imagePreview" :src="imagePreview" alt="" class="size-full object-cover" /><ImagePlus v-else :size="42" stroke-width="1.2" aria-hidden="true" /></div>

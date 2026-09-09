@@ -13,6 +13,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: T] }>();
 const id = useId();
 const root = ref<HTMLElement | null>(null);
 const open = ref(false);
+const suppressNextToggle = ref(false);
 const selectedOption = computed(() => props.options.find((option) => option.value === props.modelValue));
 const isDisabled = computed(() => props.disabled || !props.options.length);
 
@@ -28,12 +29,21 @@ function closeOnOutsideClick(event: MouseEvent) {
 }
 
 function toggle() {
+  if (suppressNextToggle.value) {
+    suppressNextToggle.value = false;
+    open.value = false;
+    return;
+  }
   if (!isDisabled.value) open.value = !open.value;
 }
 
 function choose(value: T) {
-  emit('update:modelValue', value);
+  suppressNextToggle.value = true;
   open.value = false;
+  emit('update:modelValue', value);
+  queueMicrotask(() => {
+    suppressNextToggle.value = false;
+  });
 }
 
 onMounted(() => document.addEventListener('click', closeOnOutsideClick));
@@ -80,7 +90,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutsideClick)
             :aria-selected="option.value === modelValue"
             class="min-h-9 text-start text-sm"
             :class="option.value === modelValue ? 'active' : ''"
-            @click.stop="choose(option.value)"
+            @click.stop.prevent="choose(option.value)"
           >
             {{ option.label }}
           </button>

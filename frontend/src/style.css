@@ -176,6 +176,12 @@ input[type='number']::-webkit-outer-spin-button {
 .service-wizard .wizard-step-idle {
   color: color-mix(in srgb, var(--color-base-content) 78%, transparent);
 }
+.service-wizard-step-nav {
+  scrollbar-width: none;
+}
+.service-wizard-step-nav::-webkit-scrollbar {
+  display: none;
+}
 .workspace-breadcrumb-link {
   cursor: pointer;
   color: color-mix(in srgb, var(--color-base-content) 62%, transparent);
