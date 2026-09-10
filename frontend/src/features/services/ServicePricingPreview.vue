@@ -24,7 +24,7 @@ const selectedQuantity = computed(() => {
   const value = Number(parameter?.defaultValue || 0)
   return Number.isFinite(value) ? value : 0
 })
-const markupAmount = computed(() => Math.round(props.estimatedCostRial * (Number(props.pricingRule.markupPercentage) || 0) / 100))
+const markupAmount = computed(() => Math.ceil(props.estimatedCostRial * (Number(props.pricingRule.markupPercentage) || 0) / 100))
 const selectedTier = computed(() => {
   let selected = props.pricingRule.tiers[0]
   for (const tier of props.pricingRule.tiers) if (Number(tier.minimumQuantity) <= selectedQuantity.value) selected = tier
@@ -36,7 +36,7 @@ const sellingPrice = computed(() => {
     case 'fixed-margin': return props.estimatedCostRial + props.pricingRule.fixedMarginRial
     case 'fixed': return props.pricingRule.fixedPriceRial
     case 'quantity-tiers': return selectedTier.value?.priceRial || 0
-    case 'per-unit': return Math.round(selectedQuantity.value * props.pricingRule.perUnitRateRial)
+    case 'per-unit': return Math.ceil(selectedQuantity.value * props.pricingRule.perUnitRateRial)
     default: return 0
   }
 })

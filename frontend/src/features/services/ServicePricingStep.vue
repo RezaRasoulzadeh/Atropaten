@@ -94,7 +94,7 @@ function updateTierPrice(index: number, value: string) {
       <h3 class="text-base font-semibold">Cost + markup settings</h3><p class="mt-1 text-sm text-base-content/65">The selling price is calculated by adding a percentage to the total cost.</p>
       <FormGrid class="mt-4">
         <FormField class="gap-1"><span>Markup percentage <em class="text-error">*</em></span><div class="join w-full"><AppInput v-model="pricingRule.markupPercentage" class="input join-item w-full min-w-0" :class="{ 'input-error': showErrors && !pricingRule.markupPercentage.trim() }" type="text" inputmode="decimal" placeholder="30" /><span class="join-item grid w-12 place-items-center border border-base-300 bg-base-200 text-sm">%</span></div><small class="text-xs leading-5 text-base-content/60">For example, 30% markup on 50,000 {{ currencyUnit }} adds 15,000 {{ currencyUnit }}.</small></FormField>
-        <div class="flex items-end text-sm text-base-content/70">Estimated selling price: <strong class="ml-1 text-primary">{{ formatMoney(Math.round(estimatedCostRial * (1 + (Number(pricingRule.markupPercentage) || 0) / 100)), currencyUnit) }}</strong></div>
+        <div class="flex items-end text-sm text-base-content/70">Estimated selling price: <strong class="ml-1 text-primary">{{ formatMoney(Math.ceil(estimatedCostRial * (1 + (Number(pricingRule.markupPercentage) || 0) / 100)), currencyUnit) }}</strong></div>
       </FormGrid>
     </div>
 
@@ -104,8 +104,8 @@ function updateTierPrice(index: number, value: string) {
     </div>
 
     <div v-else-if="pricingRule.type === 'fixed'" class="rounded-box border border-base-300 bg-base-100 p-4">
-      <h3 class="text-base font-semibold">Fixed price settings</h3><p class="mt-1 text-sm text-base-content/65">Use one selling price regardless of the calculated cost.</p>
-      <FormField class="mt-4 max-w-md gap-1"><span>Selling price ({{ currencyUnit }}) <em class="text-error">*</em></span><AppInput :model-value="pricingRule.fixedPriceInput" class="input w-full" :class="{ 'input-error': showErrors && !pricingRule.fixedPriceInput.trim() }" :money="currencyUnit" type="text" inputmode="numeric" placeholder="87,800" @update:model-value="updateMoney('fixedPriceInput', $event)" /></FormField>
+      <h3 class="text-base font-semibold">Fixed price settings</h3><p class="mt-1 text-sm text-base-content/65">Set the selling price charged for one service unit. It is compared with the estimated cost, but it does not add to or replace the cost calculation.</p>
+      <FormField class="mt-4 max-w-md gap-1"><span>Selling price per service unit ({{ currencyUnit }}) <em class="text-error">*</em></span><AppInput :model-value="pricingRule.fixedPriceInput" class="input w-full" :class="{ 'input-error': showErrors && !pricingRule.fixedPriceInput.trim() }" :money="currencyUnit" type="text" inputmode="numeric" placeholder="87,800" @update:model-value="updateMoney('fixedPriceInput', $event)" /></FormField>
     </div>
 
     <div v-else-if="pricingRule.type === 'quantity-tiers'" class="rounded-box border border-base-300 bg-base-100 p-4">

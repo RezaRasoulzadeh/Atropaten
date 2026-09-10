@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ArrowLeft, ArrowRight, CheckCheck, CircleHelp, Save, Upload, X } from 'lucide-vue-next'
+import { ArrowLeft, CheckCheck, CircleHelp, Save, Upload, X } from 'lucide-vue-next'
 import AppInput from '../../components/ui/AppInput.vue'
 import AppTextarea from '../../components/ui/AppTextarea.vue'
 import FormField from '../../components/ui/FormField.vue'
@@ -11,6 +11,8 @@ import ServiceOrderPreview from './ServiceOrderPreview.vue'
 import ServiceCostBreakdownPreview from './ServiceCostBreakdownPreview.vue'
 import ServicePricingStep from './ServicePricingStep.vue'
 import ServicePricingPreview from './ServicePricingPreview.vue'
+import ServiceTestStep from './ServiceTestStep.vue'
+import ServiceTestPreview from './ServiceTestPreview.vue'
 import ServiceOverviewIdentity from './ServiceOverviewIdentity.vue'
 import ServiceOverviewSection from './ServiceOverviewSection.vue'
 import type { MaterialRecord } from '../../api/materials'
@@ -19,6 +21,7 @@ import type { ServiceRecord } from '../../api/services'
 import type { CurrencyUnit } from '../../utils/currency'
 import ServiceCostComponentsStep from './ServiceCostComponentsStep.vue'
 import type { ParameterTemplateSeed, ServiceForm } from './types'
+import type { TestPricingResult, TestValues } from './serviceTestPricing'
 
 const props = defineProps<{
   form: ServiceForm
@@ -44,6 +47,8 @@ const codeWasEdited = ref(Boolean(props.form.code.trim()))
 const lastGeneratedCode = ref('')
 const pricingCostEstimate = ref(0)
 const pricingBreakdown = ref<Array<{ name: string; amount: number; detail: string; missing: boolean }>>([])
+const testValues = ref<TestValues>({})
+const testResult = ref<TestPricingResult | null>(null)
 const imagePreview = computed(() => props.form.imagePath || '')
 const steps = [
   { number: 1, title: 'Basic', description: 'Name, category, description' },
@@ -146,10 +151,9 @@ watch(
         <WorkspaceBreadcrumb class="mt-2" :items="[{ label: 'Services' }, { label: editorMode === 'create' ? 'Add service' : 'Edit service', current: true }]" @navigate="emit('cancel')" />
       </div>
       <div class="flex shrink-0 items-center gap-2">
-        <button class="btn btn-outline" type="button" :disabled="busy || isSaving" @click="activeStep > 1 ? previous() : emit('cancel')">{{ activeStep > 1 ? 'Back' : 'Cancel' }}</button>
-        <button class="btn btn-outline gap-2" type="button" :disabled="busy || isSaving" @click="emit('save')"><Save :size="15" aria-hidden="true" />Save as draft</button>
-        <button v-if="activeStep < steps.length" class="btn btn-primary gap-2" type="button" @click="next">Next<span v-if="activeStep > 1">: {{ steps[activeStep].title }}</span> <ArrowRight :size="16" aria-hidden="true" /></button>
-        <button v-else class="btn btn-primary gap-2" type="button" :disabled="busy || isSaving" @click="emit('save')"><Save :size="16" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save service' }}</button>
+        <button class="btn btn-error" type="button" :disabled="busy || isSaving" @click="emit('cancel')">Cancel</button>
+        <button v-if="editorMode === 'create'" class="btn btn-primary gap-2" type="button" :disabled="busy || isSaving" @click="emit('save')"><Save :size="15" aria-hidden="true" />Save as draft</button>
+        <button class="btn btn-success gap-2" type="button" :disabled="busy || isSaving" @click="emit('save')"><Save :size="16" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save' }}</button>
       </div>
     </header>
 
@@ -219,6 +223,17 @@ watch(
             :estimated-cost-rial="pricingCostEstimate"
             :show-errors="validationAttempted"
           />
+          <ServiceTestStep
+            v-else-if="activeStep === 5"
+            :form="form"
+            :parameters="form.parameters"
+            :materials="materials"
+            :machines="machines"
+            :services="services"
+            :values="testValues"
+            :currency-unit="currencyUnit"
+            @update:result="testResult = $event"
+          />
           <section v-else class="flex min-h-[28rem] flex-col items-center justify-center text-center">
             <span class="grid size-14 place-items-center rounded-full bg-primary/15 text-primary"><CircleHelp :size="27" aria-hidden="true" /></span>
             <h2 class="mt-4 text-xl font-semibold">{{ steps[activeStep - 1].title }} is coming soon</h2>
@@ -232,7 +247,8 @@ watch(
         <ServiceOrderPreview v-if="activeStep === 2" :form="form" :materials="materials" :machines="machines" :active="active" />
         <ServiceCostBreakdownPreview v-show="activeStep === 3" :form="form" :active="active" :components="form.components" :parameters="form.parameters" :materials="materials" :machines="machines" :services="services" :currency-unit="currencyUnit" @update:total="pricingCostEstimate = $event" @update:breakdown="pricingBreakdown = $event" />
         <ServicePricingPreview v-if="activeStep === 4" :form="form" :active="active" :pricing-rule="form.pricingRule" :parameters="form.parameters" :estimated-cost-rial="pricingCostEstimate" :breakdown="pricingBreakdown" :currency-unit="currencyUnit" />
-        <template v-if="activeStep === 1 || activeStep === 5">
+        <ServiceTestPreview v-if="activeStep === 5" :form="form" :active="active" :parameters="form.parameters" :values="testValues" :materials="materials" :machines="machines" :result="testResult" :currency-unit="currencyUnit" @edit="activeStep = 2" />
+        <template v-if="activeStep === 1">
         <div class="space-y-4">
           <ServiceOverviewIdentity :form="form" :active="active" />
           <ServiceOverviewSection title="Configuration" description="Current defaults for this service.">
@@ -247,7 +263,7 @@ watch(
             <p class="text-sm leading-6 text-base-content/70">{{ form.description }}</p>
           </ServiceOverviewSection>
         </div>
-        <div class="mt-4 flex gap-2 border-t border-base-300 pt-3 text-sm"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="17" aria-hidden="true" /><p class="leading-5 text-base-content/70">{{ activeStep === 1 ? 'Configure parameters that customers can choose when adding this service to an order.' : 'More setup options will be available here soon.' }}</p></div>
+        <div class="mt-4 flex gap-2 border-t border-base-300 pt-3 text-sm"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="17" aria-hidden="true" /><p class="leading-5 text-base-content/70">Configure parameters that customers can choose when adding this service to an order.</p></div>
         </template>
         </aside>
       </div>

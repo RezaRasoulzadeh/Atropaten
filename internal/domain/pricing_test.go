@@ -66,6 +66,25 @@ func TestEvaluatePricingSupportsGenericRules(t *testing.T) {
 	}
 }
 
+func TestEvaluatePricingRoundsAutomaticSellingPriceUp(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := NewService("SVC-ceil", ServiceDraft{
+		Name:        "Ceiling price",
+		Components:  []ServiceCostComponentDraft{{ID: "C", Name: "Cost", Type: CostFixed, RateRial: 100, UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true}},
+		PricingRule: &ServicePricingRuleDraft{Type: PricingMarkup, MarkupPercentage: Quantity(12_500_000)},
+	}, now)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	result, err := EvaluatePricing(PricingInput{Service: service})
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if result.SuggestedSellingPriceRial != 113 {
+		t.Fatalf("selling price = %d, want 113", result.SuggestedSellingPriceRial)
+	}
+}
+
 func TestEvaluatePricingReportsBelowCostOverride(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	service, err := NewService("SVC-override", ServiceDraft{Name: "Override", Components: []ServiceCostComponentDraft{{ID: "C", Name: "Cost", Type: CostFixed, RateRial: 100, UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true}}, PricingRule: &ServicePricingRuleDraft{Type: PricingFixed, FixedPriceRial: 100}}, now)

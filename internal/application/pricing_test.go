@@ -30,7 +30,7 @@ func TestPricingServiceResolvesDynamicParametersAndRejectsInvalidValues(t *testi
 	if err != nil {
 		t.Fatalf("calculate: %v", err)
 	}
-	if result.Parameters[0].Quantity != "0.125001" || result.EstimatedCostRial != 125001 || result.SuggestedSellingPriceRial != 150001 {
+	if result.Parameters[0].Quantity != "0.125001" || result.EstimatedCostRial != 125001 || result.SuggestedSellingPriceRial != 150002 {
 		t.Fatalf("unexpected pricing result: %+v", result)
 	}
 	_, err = pricing.Calculate(context.Background(), PricingRequest{ServiceID: service.ID, Parameters: map[string]string{"estimated_hours": "0.1", "paper": "MAT-paper"}})

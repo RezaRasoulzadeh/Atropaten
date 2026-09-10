@@ -55,8 +55,9 @@ type PricingResult struct {
 }
 
 // EvaluatePricing evaluates the persisted definition in display order. All
-// fractional work uses integers and big.Int; monetary results use half-up
-// rounding at each explicitly defined operation.
+// fractional work uses integers and big.Int; monetary cost results use half-up
+// rounding at each explicitly defined operation. Automatically calculated
+// customer prices are rounded up so the final charge never loses a fraction.
 func EvaluatePricing(input PricingInput) (PricingResult, error) {
 	if err := input.Service.Validate(); err != nil {
 		return PricingResult{}, err
@@ -267,9 +268,18 @@ func scaledMoney(quantity Quantity, rate int64) (int64, error) {
 	return roundBig(new(big.Int).Mul(big.NewInt(int64(quantity)), big.NewInt(rate)), big.NewInt(QuantityScale))
 }
 
+func scaledMoneyCeil(quantity Quantity, rate int64) (int64, error) {
+	return ceilBig(new(big.Int).Mul(big.NewInt(int64(quantity)), big.NewInt(rate)), big.NewInt(QuantityScale))
+}
+
 func percentageAmount(base int64, percentage Quantity) (int64, error) {
 	denominator := big.NewInt(100 * QuantityScale)
 	return roundBig(new(big.Int).Mul(big.NewInt(base), big.NewInt(int64(percentage))), denominator)
+}
+
+func percentageAmountCeil(base int64, percentage Quantity) (int64, error) {
+	denominator := big.NewInt(100 * QuantityScale)
+	return ceilBig(new(big.Int).Mul(big.NewInt(base), big.NewInt(int64(percentage))), denominator)
 }
 
 func suggestedPrice(rule *ServicePricingRule, parameters map[string]ResolvedParameter, cost int64) (int64, []string, error) {
@@ -280,7 +290,7 @@ func suggestedPrice(rule *ServicePricingRule, parameters map[string]ResolvedPara
 	case PricingFixed:
 		return rule.FixedPriceRial, nil, nil
 	case PricingMarkup:
-		markup, err := percentageAmount(cost, rule.MarkupPercentage)
+		markup, err := percentageAmountCeil(cost, rule.MarkupPercentage)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -294,7 +304,7 @@ func suggestedPrice(rule *ServicePricingRule, parameters map[string]ResolvedPara
 		if !exists {
 			return 0, nil, fmt.Errorf("pricing rule parameter %q is not resolved", rule.ParameterKey)
 		}
-		price, err := scaledMoney(parameter.Quantity, rule.PerUnitRateRial)
+		price, err := scaledMoneyCeil(parameter.Quantity, rule.PerUnitRateRial)
 		return price, nil, err
 	case PricingTiers:
 		parameter, exists := parameters[rule.ParameterKey]
@@ -335,6 +345,21 @@ func roundBig(numerator, denominator *big.Int) (int64, error) {
 	}
 	if negative {
 		quotient.Neg(quotient)
+	}
+	if !quotient.IsInt64() {
+		return 0, fmt.Errorf("pricing result exceeds Rial range")
+	}
+	return quotient.Int64(), nil
+}
+
+func ceilBig(numerator, denominator *big.Int) (int64, error) {
+	if denominator.Sign() <= 0 {
+		return 0, fmt.Errorf("pricing denominator must be positive")
+	}
+	quotient, remainder := new(big.Int), new(big.Int)
+	quotient.QuoRem(numerator, denominator, remainder)
+	if numerator.Sign() > 0 && remainder.Sign() != 0 {
+		quotient.Add(quotient, big.NewInt(1))
 	}
 	if !quotient.IsInt64() {
 		return 0, fmt.Errorf("pricing result exceeds Rial range")
