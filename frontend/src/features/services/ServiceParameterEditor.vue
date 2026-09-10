@@ -37,6 +37,14 @@ function typeLabel(type: string) {
     'material-reference': 'Material or paper',
   }[type] || 'Input'
 }
+function updateLabel(value: string) {
+  props.parameter.label = value
+  emit('labelChange')
+}
+function updateOption(index: number, previous: string, value: string) {
+  props.parameter.options[index] = value
+  if (props.parameter.defaultValue === previous) props.parameter.defaultValue = value
+}
 </script>
 
 <template>
@@ -62,7 +70,7 @@ function typeLabel(type: string) {
         <div class="grid min-w-0 gap-3 rounded-box border border-primary/20 bg-primary/5 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(13rem,0.7fr)]">
           <FormField class="gap-1">
             <span>What should the operator enter?</span>
-            <AppInput v-model="parameter.label" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !parameter.label.trim() }" type="text" required placeholder="Paper size, quantity, or color" autocomplete="off" @input="emit('labelChange')" />
+            <AppInput :model-value="parameter.label" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !parameter.label.trim() }" type="text" required placeholder="Paper size, quantity, or color" autocomplete="off" @update:model-value="updateLabel" />
           </FormField>
           <SelectField v-model="parameter.type" label="Answer type" :invalid="props.showErrors && !parameter.type" :options="[
             { label: 'Quantity or count', value: 'integer' },
@@ -104,7 +112,7 @@ function typeLabel(type: string) {
           </div>
           <div v-if="parameter.options.length" class="grid min-w-0 gap-2 sm:grid-cols-2">
             <div v-for="(option, optionIndex) in parameter.options" :key="`${parameter.id}-${optionIndex}`" class="flex min-w-0 items-center gap-2">
-              <AppInput v-model="parameter.options[optionIndex]" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !parameter.options[optionIndex].trim() }" type="text" required :aria-label="`Choice ${optionIndex + 1}`" placeholder="A4" @input="parameter.defaultValue = parameter.defaultValue === option ? parameter.options[optionIndex] : parameter.defaultValue" />
+              <AppInput :model-value="parameter.options[optionIndex]" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !parameter.options[optionIndex].trim() }" type="text" required :aria-label="`Choice ${optionIndex + 1}`" placeholder="A4" @update:model-value="updateOption(optionIndex, option, $event)" />
               <button class="btn btn-outline btn-error btn-sm shrink-0" type="button" :aria-label="`Remove choice ${optionIndex + 1}`" @click="emit('removeOption', optionIndex)"><Trash2 :size="13" aria-hidden="true" /></button>
             </div>
           </div>

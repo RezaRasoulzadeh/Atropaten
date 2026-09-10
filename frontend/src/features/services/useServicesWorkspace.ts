@@ -224,6 +224,7 @@ function defaultComponentName(type: ComponentType) {
   return {
     material: 'Material cost',
     machine: 'Machine cost',
+    service: 'Service cost',
     labor: 'Labor cost',
     outsourced: 'Outsourced work',
     fixed: 'Fixed cost',
@@ -236,6 +237,7 @@ function normalizeComponent(component: ComponentForm) {
   const defaultNames = Object.values({
     material: 'Material cost',
     machine: 'Machine cost',
+    service: 'Service cost',
     labor: 'Labor cost',
     outsourced: 'Outsourced work',
     fixed: 'Fixed cost',
@@ -252,6 +254,13 @@ function normalizeComponent(component: ComponentForm) {
     component.rateBasis = '';
     component.usageMode = 'fixed';
     component.parameterKey = '';
+  } else if (component.type === 'service') {
+    component.usageMode = 'fixed';
+    component.parameterKey = '';
+    component.rateRial = 0;
+    component.rateInput = '';
+    component.percentage = '';
+    component.rateBasis = '';
   } else if (component.type === 'overhead' || component.type === 'waste') {
     component.referenceId = '';
     component.usageMode = 'fixed';
@@ -284,8 +293,8 @@ function moveComponent(index: number, direction: -1 | 1) {
   const [component] = form.value.components.splice(index, 1);
   form.value.components.splice(target, 0, component);
 }
-function updateComponentRate(component: ComponentForm) {
-  const value = component.rateInput;
+function updateComponentRate(component: ComponentForm, value = component.rateInput) {
+  component.rateInput = value;
   const parsed = parseMoneyInput(value, props.currencyUnit);
   if (parsed !== null) {
     component.rateRial = parsed;
@@ -343,6 +352,8 @@ function componentSummary(component: {
         : materials.value.find((item) => item.id === component.referenceId)?.name || 'Material'
       : component.type === 'machine'
         ? machines.value.find((item) => item.id === component.referenceId)?.name || 'Machine'
+        : component.type === 'service'
+          ? services.value.find((item) => item.id === component.referenceId)?.name || 'Service'
         : component.type;
   if (component.type === 'overhead' || component.type === 'waste')
     return `${component.name || typeLabel(component.type)} · ${component.percentage}%${component.enabled ? '' : ' · disabled'}`;

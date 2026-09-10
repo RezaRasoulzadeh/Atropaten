@@ -103,3 +103,61 @@ func TestPricingServiceMapsChoiceMaterialOptionToMaterialCost(t *testing.T) {
 		t.Fatalf("alternate choice material cost = %d, want 450", result.EstimatedCostRial)
 	}
 }
+
+type serviceMapRepository struct {
+	services map[string]domain.Service
+}
+
+func (r *serviceMapRepository) ListServices(_ context.Context, _ bool) ([]domain.Service, error) {
+	services := make([]domain.Service, 0, len(r.services))
+	for _, service := range r.services {
+		services = append(services, service)
+	}
+	return services, nil
+}
+
+func (r *serviceMapRepository) GetService(_ context.Context, id string) (domain.Service, error) {
+	service, ok := r.services[id]
+	if !ok {
+		return domain.Service{}, domain.ErrServiceNotFound
+	}
+	return service, nil
+}
+
+func (r *serviceMapRepository) SaveServiceDefinition(_ context.Context, service domain.Service) error {
+	r.services[service.ID] = service
+	return nil
+}
+
+func TestPricingServiceIncludesNestedServiceCostAndRejectsCycles(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	finishing, err := domain.NewService("SVC-finishing", domain.ServiceDraft{
+		Name:       "Lamination",
+		Components: []domain.ServiceCostComponentDraft{{ID: "C-lamination", Name: "Lamination labor", Type: domain.CostFixed, UsageMode: domain.UsageFixed, UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, RateRial: 300, Enabled: true}},
+	}, now)
+	if err != nil {
+		t.Fatalf("new finishing service: %v", err)
+	}
+	printing, err := domain.NewService("SVC-printing", domain.ServiceDraft{
+		Name:       "Full color printing",
+		Components: []domain.ServiceCostComponentDraft{{ID: "C-finishing", Name: "Lamination service", Type: domain.CostService, ReferenceID: finishing.ID, UsageMode: domain.UsageFixed, UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true}},
+	}, now)
+	if err != nil {
+		t.Fatalf("new printing service: %v", err)
+	}
+	repository := &serviceMapRepository{services: map[string]domain.Service{finishing.ID: finishing, printing.ID: printing}}
+	pricing := NewPricingService(repository, materialLookupStub{}, machineLookupStub{})
+	result, err := pricing.Calculate(context.Background(), PricingRequest{ServiceID: printing.ID})
+	if err != nil {
+		t.Fatalf("calculate nested service cost: %v", err)
+	}
+	if result.EstimatedCostRial != 300 || len(result.Components) != 1 || result.Components[0].RateRial != 300 {
+		t.Fatalf("nested service cost = %+v, want 300 Rial", result)
+	}
+
+	finishing.Components = []domain.ServiceCostComponent{{ID: "C-printing", Name: "Printing service", Type: domain.CostService, ReferenceID: printing.ID, UsageMode: domain.UsageFixed, UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true, CreatedAt: now, UpdatedAt: now}}
+	repository.services[finishing.ID] = finishing
+	if _, err := pricing.Calculate(context.Background(), PricingRequest{ServiceID: printing.ID}); err == nil {
+		t.Fatal("circular service cost was accepted")
+	}
+}

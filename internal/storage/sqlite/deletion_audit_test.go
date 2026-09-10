@@ -91,6 +91,10 @@ func TestCatalogDeletionPurgesOnlyUnreferencedRecords(t *testing.T) {
 	if err = s.SaveServiceDefinition(ctx, protectedService); err != nil {
 		t.Fatal(err)
 	}
+	dependentService := domain.Service{ID: "SRV-dependent", Name: "Dependent service", Active: true, CreatedAt: now, UpdatedAt: now, Components: []domain.ServiceCostComponent{{ID: "COMP-service-reference", ServiceID: "SRV-dependent", Name: "Included service", Type: domain.CostService, ReferenceID: protectedService.ID, UsageMode: domain.UsageFixed, UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true, CreatedAt: now, UpdatedAt: now}}}
+	if err = s.SaveServiceDefinition(ctx, dependentService); err != nil {
+		t.Fatal(err)
+	}
 	if err = s.DeleteService(ctx, protectedService.ID); !errors.Is(err, domain.ErrServiceDeleteProtected) {
 		t.Fatalf("referenced service delete error=%v", err)
 	}

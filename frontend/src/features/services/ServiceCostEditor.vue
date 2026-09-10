@@ -8,6 +8,7 @@ import SelectField from '../../components/ui/SelectField.vue'
 import type { ComponentForm, ParameterForm } from './types'
 import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
+import type { ServiceRecord } from '../../api/services'
 import type { CurrencyUnit } from '../../utils/currency'
 import { componentNeedsPercentage, componentNeedsRate } from './serviceFields'
 
@@ -17,15 +18,18 @@ const props = defineProps<{
   count: number
   materials: MaterialRecord[]
   machines: MachineRecord[]
+  services: ServiceRecord[]
   parameters: ParameterForm[]
   currencyUnit: CurrencyUnit
   showErrors?: boolean
+  hideSummary?: boolean
+  currentServiceId?: string
 }>()
 const emit = defineEmits<{
   move: [direction: -1 | 1]
   remove: []
   changeType: []
-  changeRate: []
+  changeRate: [value: string]
 }>()
 const expanded = ref(true)
 
@@ -36,6 +40,7 @@ function typeLabel(type: string) {
   return {
     material: 'Material or paper',
     machine: 'Machine',
+    service: 'Another service',
     labor: 'Labor',
     outsourced: 'Outsourced work',
     fixed: 'Fixed cost',
@@ -73,8 +78,9 @@ function usesQuantityFields() {
 
 <template>
   <article class="border-t border-base-300 first:border-t-0">
-    <details class="group min-w-0" :open="expanded" @toggle="syncExpanded">
-      <summary class="flex min-w-0 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+    <details class="group min-w-0" :open="hideSummary || expanded" @toggle="syncExpanded">
+      <summary v-if="hideSummary" class="hidden" aria-hidden="true"></summary>
+      <summary v-else class="flex min-w-0 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
         <div class="flex min-w-0 items-center gap-3">
           <span class="grid size-8 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-semibold text-primary tabular-nums">{{ String(index + 1).padStart(2, '0') }}</span>
           <div class="min-w-0">
@@ -96,6 +102,7 @@ function usesQuantityFields() {
           <SelectField v-model="component.type" label="Cost type" :options="[
             { label: 'Material or paper', value: 'material' },
             { label: 'Machine', value: 'machine' },
+            { label: 'Another service', value: 'service' },
             { label: 'Labor', value: 'labor' },
             { label: 'Outsourced work', value: 'outsourced' },
             { label: 'Fixed cost', value: 'fixed' },
@@ -134,6 +141,15 @@ function usesQuantityFields() {
           ]" />
         </div>
 
+        <div v-else-if="component.type === 'service'" class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-100 p-3">
+          <div><h4 class="text-sm font-semibold">Which service is included?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">The selected service's estimated cost will be included in this service. Its own components are evaluated using their default values.</p></div>
+          <SelectField v-model="component.referenceId" label="Service" :invalid="props.showErrors && !component.referenceId" :options="[
+            { label: 'Select an active service', value: '' },
+            ...services.filter((service) => service.active && service.id !== currentServiceId).map((service) => ({ label: `${service.name}${service.code ? ` · ${service.code}` : ''}`, value: service.id })),
+          ]" />
+          <p v-if="currentServiceId" class="text-xs leading-5 text-base-content/60">A service cannot include itself. Circular service dependencies are also rejected when you save.</p>
+        </div>
+
         <div v-if="usesQuantitySource()" class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
           <div><h4 class="text-sm font-semibold">How much is used?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">Set the amount consumed for one service unit. Use an operator input when it changes with the order.</p></div>
           <SelectField v-if="component.type !== 'material' || materialSource(component) === 'fixed'" v-model="component.usageMode" label="Quantity comes from" :options="[
@@ -153,7 +169,7 @@ function usesQuantityFields() {
         <div v-if="componentNeedsRate(component.type)" class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
           <div><h4 class="text-sm font-semibold">What does it cost?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">Enter the rate for this cost. Material and machine rates come from their records.</p></div>
           <FormGrid>
-            <FormField><span>{{ component.type === 'manual' ? 'Manual amount' : 'Rate' }} ({{ currencyUnit }})</span><AppInput v-model="component.rateInput" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.rateInput.trim() }" :money="currencyUnit" type="text" inputmode="decimal" placeholder="0" @input="emit('changeRate')" /></FormField>
+            <FormField><span>{{ component.type === 'manual' ? 'Manual amount' : 'Rate' }} ({{ currencyUnit }})</span><AppInput :model-value="component.rateInput" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.rateInput.trim() }" :money="currencyUnit" type="text" inputmode="decimal" placeholder="0" @update:model-value="emit('changeRate', $event)" /></FormField>
             <SelectField v-if="component.type === 'labor' || component.type === 'outsourced'" v-model="component.rateBasis" label="Rate is charged per" :options="[{ label: 'Unit', value: 'unit' }, { label: 'Minute', value: 'minute' }, { label: 'Hour', value: 'hour' }]" />
           </FormGrid>
         </div>

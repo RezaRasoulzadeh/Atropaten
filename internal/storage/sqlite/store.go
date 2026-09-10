@@ -551,6 +551,33 @@ var migrations = []migration{{
 		ALTER TABLE services ADD COLUMN default_unit TEXT NOT NULL DEFAULT 'piece';
 		ALTER TABLE services ADD COLUMN default_priority TEXT NOT NULL DEFAULT 'Normal';`,
 	},
+	{
+		version: 19,
+		sql: `ALTER TABLE service_cost_components RENAME TO service_cost_components_v18;
+		CREATE TABLE service_cost_components (
+			id TEXT PRIMARY KEY,
+			service_id TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+			component_name TEXT NOT NULL CHECK(length(trim(component_name)) > 0),
+			component_type TEXT NOT NULL CHECK(component_type IN ('material', 'machine', 'service', 'labor', 'outsourced', 'fixed', 'overhead', 'waste', 'manual')),
+			reference_id TEXT NOT NULL DEFAULT '',
+			usage_mode TEXT NOT NULL CHECK(usage_mode IN ('fixed', 'parameter')),
+			parameter_key TEXT NOT NULL DEFAULT '',
+			usage_quantity_units INTEGER NOT NULL DEFAULT 1000000 CHECK(usage_quantity_units >= 0),
+			multiplier_units INTEGER NOT NULL CHECK(multiplier_units > 0),
+			rate_rial INTEGER NOT NULL DEFAULT 0 CHECK(rate_rial >= 0),
+			percentage_units INTEGER NOT NULL DEFAULT 0 CHECK(percentage_units >= 0),
+			rate_basis TEXT NOT NULL DEFAULT '',
+			enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1)),
+			display_order INTEGER NOT NULL CHECK(display_order >= 0),
+			notes TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		);
+		INSERT INTO service_cost_components (id, service_id, component_name, component_type, reference_id, usage_mode, parameter_key, multiplier_units, rate_rial, percentage_units, rate_basis, enabled, display_order, notes, created_at, updated_at, usage_quantity_units)
+		SELECT id, service_id, component_name, component_type, reference_id, usage_mode, parameter_key, multiplier_units, rate_rial, percentage_units, rate_basis, enabled, display_order, notes, created_at, updated_at, usage_quantity_units
+		FROM service_cost_components_v18;
+		DROP TABLE service_cost_components_v18;`,
+	},
 }
 
 func (s *Store) seedAccounting(ctx context.Context) error {
@@ -1114,6 +1141,7 @@ func (s *Store) DeleteService(ctx context.Context, serviceID string) error {
 	for _, query := range []string{
 		`SELECT COUNT(*) FROM order_items WHERE service_id=?`,
 		`SELECT COUNT(*) FROM invoice_items WHERE service_id=?`,
+		`SELECT COUNT(*) FROM service_cost_components WHERE component_type='service' AND reference_id=?`,
 	} {
 		if err = tx.QueryRowContext(ctx, query, serviceID).Scan(&count); err != nil {
 			return fail(err)

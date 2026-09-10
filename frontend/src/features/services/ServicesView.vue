@@ -202,6 +202,11 @@ watch(
         :is-saving="isSaving"
         :validation-attempted="validationAttempted"
         :active="editorMode === 'edit' ? (selectedService?.active ?? true) : true"
+        :materials="materials"
+        :machines="machines"
+        :services="services"
+        :service-id="selectedService?.id || ''"
+        :currency-unit="currencyUnit"
         @cancel="cancelEditor"
         @save="saveService"
       />
@@ -311,6 +316,7 @@ watch(
                   { label: 'Add a cost…', value: '' },
                   { label: 'Material or paper', value: 'material' },
                   { label: 'Machine', value: 'machine' },
+                  { label: 'Another service', value: 'service' },
                   { label: 'Labor', value: 'labor' },
                   { label: 'Outsourced work', value: 'outsourced' },
                   { label: 'Fixed cost', value: 'fixed' },
@@ -322,7 +328,7 @@ watch(
               />
             </header>
           <div v-if="form.components.length" class="overflow-hidden rounded-box border border-base-300 bg-base-100">
-            <ServiceCostEditor v-for="(component,index) in form.components" :key="component.id" :component="component" :index="index" :count="form.components.length" :materials="materials" :machines="machines" :parameters="form.parameters" :currency-unit="currencyUnit" :show-errors="validationAttempted" @move="moveComponent(index,$event)" @remove="removeComponent(index)" @change-type="updateComponentType(component)" @change-rate="updateComponentRate(component)" />
+            <ServiceCostEditor v-for="(component,index) in form.components" :key="component.id" :component="component" :index="index" :count="form.components.length" :materials="materials" :machines="machines" :services="services" :current-service-id="selectedService?.id || ''" :parameters="form.parameters" :currency-unit="currencyUnit" :show-errors="validationAttempted" @move="moveComponent(index,$event)" @remove="removeComponent(index)" @change-type="updateComponentType(component)" @change-rate="updateComponentRate(component, $event)" />
           </div>
           <EmptyState v-else compact title="No cost components yet" description="Add reusable material, machine, labor, or other inputs.">
             <template #icon><Plus :size="20" aria-hidden="true" /></template>
@@ -333,6 +339,7 @@ watch(
                 { label: 'Add a cost…', value: '' },
                 { label: 'Material or paper', value: 'material' },
                 { label: 'Machine', value: 'machine' },
+                { label: 'Another service', value: 'service' },
                 { label: 'Labor', value: 'labor' },
                 { label: 'Outsourced work', value: 'outsourced' },
                 { label: 'Fixed cost', value: 'fixed' },

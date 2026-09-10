@@ -65,7 +65,18 @@ func NewPricingService(repository ServiceRepository, material MaterialLookup, ma
 }
 
 func (s *PricingService) Calculate(ctx context.Context, request PricingRequest) (PricingView, error) {
-	service, err := s.repository.GetService(ctx, strings.TrimSpace(request.ServiceID))
+	return s.calculate(ctx, request, map[string]bool{})
+}
+
+func (s *PricingService) calculate(ctx context.Context, request PricingRequest, stack map[string]bool) (PricingView, error) {
+	serviceID := strings.TrimSpace(request.ServiceID)
+	if stack[serviceID] {
+		return PricingView{}, fmt.Errorf("service cost cycle detected at %q", serviceID)
+	}
+	stack[serviceID] = true
+	defer delete(stack, serviceID)
+
+	service, err := s.repository.GetService(ctx, serviceID)
 	if err != nil {
 		return PricingView{}, err
 	}
@@ -82,6 +93,7 @@ func (s *PricingService) Calculate(ctx context.Context, request PricingRequest) 
 	}
 	materials := make(map[string]domain.Material)
 	machines := make(map[string]domain.Machine)
+	serviceCosts := make(map[string]int64)
 	for _, component := range service.Components {
 		if !component.Enabled {
 			continue
@@ -120,8 +132,15 @@ func (s *PricingService) Calculate(ctx context.Context, request PricingRequest) 
 			}
 			machines[machine.ID] = machine
 		}
+		if component.Type == domain.CostService {
+			nested, nestedErr := s.calculate(ctx, PricingRequest{ServiceID: component.ReferenceID}, stack)
+			if nestedErr != nil {
+				return PricingView{}, fmt.Errorf("component %q: %w", component.Name, nestedErr)
+			}
+			serviceCosts[component.ReferenceID] = nested.EstimatedCostRial
+		}
 	}
-	result, err := domain.EvaluatePricing(domain.PricingInput{Service: service, Parameters: parameterMap, Materials: materials, Machines: machines, ManualCosts: request.ManualCosts, SellingPriceOverrideRial: request.SellingPriceOverrideRial})
+	result, err := domain.EvaluatePricing(domain.PricingInput{Service: service, Parameters: parameterMap, Materials: materials, Machines: machines, ServiceCosts: serviceCosts, ManualCosts: request.ManualCosts, SellingPriceOverrideRial: request.SellingPriceOverrideRial})
 	if err != nil {
 		return PricingView{}, err
 	}

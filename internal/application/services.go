@@ -510,6 +510,46 @@ func (s *ServicesService) validateReferences(ctx context.Context, service domain
 				return fmt.Errorf("component %q: machine reference must be active", component.Name)
 			}
 		}
+		if component.Type == domain.CostService {
+			referenceID := strings.TrimSpace(component.ReferenceID)
+			if referenceID == service.ID {
+				return fmt.Errorf("component %q: a service cannot include itself", component.Name)
+			}
+			referenced, err := s.repository.GetService(ctx, referenceID)
+			if err != nil {
+				return fmt.Errorf("component %q: service reference: %w", component.Name, err)
+			}
+			if !referenced.Active {
+				return fmt.Errorf("component %q: referenced service is archived", component.Name)
+			}
+			if err := s.validateServiceDependency(ctx, service.ID, referenceID, map[string]bool{}); err != nil {
+				return fmt.Errorf("component %q: %w", component.Name, err)
+			}
+		}
+	}
+	return nil
+}
+
+func (s *ServicesService) validateServiceDependency(ctx context.Context, rootID, serviceID string, visited map[string]bool) error {
+	if serviceID == rootID || visited[serviceID] {
+		return fmt.Errorf("service dependency cycle detected")
+	}
+	visited[serviceID] = true
+	defer delete(visited, serviceID)
+	service, err := s.repository.GetService(ctx, serviceID)
+	if err != nil {
+		return err
+	}
+	if !service.Active {
+		return fmt.Errorf("referenced service is archived")
+	}
+	for _, component := range service.Components {
+		if component.Type != domain.CostService {
+			continue
+		}
+		if err := s.validateServiceDependency(ctx, rootID, strings.TrimSpace(component.ReferenceID), visited); err != nil {
+			return err
+		}
 	}
 	return nil
 }

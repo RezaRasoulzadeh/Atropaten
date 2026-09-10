@@ -13,9 +13,11 @@ export type ParameterForm = {
   maxValue: string | null;
   unit: string;
 };
+export type ParameterTemplateSeed = Omit<ParameterForm, 'id'>;
 export type ComponentType =
   | 'material'
   | 'machine'
+  | 'service'
   | 'labor'
   | 'outsourced'
   | 'fixed'

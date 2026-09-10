@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ArrowLeft, ArrowRight, CheckCheck, CircleHelp, FileText, ImagePlus, Package, Save, Upload, X } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, CheckCheck, CircleHelp, Printer, Save, Upload, X } from 'lucide-vue-next'
 import AppInput from '../../components/ui/AppInput.vue'
 import AppTextarea from '../../components/ui/AppTextarea.vue'
 import FormField from '../../components/ui/FormField.vue'
 import SelectField from '../../components/ui/SelectField.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import WorkspaceBreadcrumb from '../../components/layout/WorkspaceBreadcrumb.vue'
-import type { ServiceForm } from './types'
+import ServiceParametersStep from './ServiceParametersStep.vue'
+import ServiceOrderPreview from './ServiceOrderPreview.vue'
+import ServiceCostBreakdownPreview from './ServiceCostBreakdownPreview.vue'
+import type { MaterialRecord } from '../../api/materials'
+import type { MachineRecord } from '../../api/machines'
+import type { ServiceRecord } from '../../api/services'
+import type { CurrencyUnit } from '../../utils/currency'
+import ServiceCostComponentsStep from './ServiceCostComponentsStep.vue'
+import type { ParameterTemplateSeed, ServiceForm } from './types'
 
 const props = defineProps<{
   form: ServiceForm
@@ -16,6 +24,11 @@ const props = defineProps<{
   isSaving: boolean
   validationAttempted: boolean
   active: boolean
+  materials: MaterialRecord[]
+  machines: MachineRecord[]
+  services: ServiceRecord[]
+  serviceId?: string
+  currencyUnit: CurrencyUnit
 }>()
 const emit = defineEmits<{
   cancel: []
@@ -62,7 +75,18 @@ function clearImage() {
   props.form.imagePath = ''
 }
 function categoryOptions() {
-  const defaults = ['Print products', 'Finishing', 'Design', 'Packaging']
+  const defaults = [
+    'Print products',
+    'Paper printing',
+    'Large format',
+    'Banners & signage',
+    'Cards & stationery',
+    'Flyers & brochures',
+    'Labels & stickers',
+    'Finishing',
+    'Design',
+    'Packaging',
+  ]
   const current = props.form.category.trim()
   return [
     { label: 'Select a category', value: '' },
@@ -74,6 +98,12 @@ function stepClass(number: number) {
   if (number === activeStep.value) return 'wizard-step-active'
   if (number < activeStep.value) return 'wizard-step-complete'
   return 'wizard-step-idle'
+}
+function applyParameterTemplate(parameters: ParameterTemplateSeed[]) {
+  props.form.parameters = parameters.map((parameter, index) => ({
+    ...parameter,
+    id: `draft-parameter-${Date.now()}-${index}-${Math.random().toString(16).slice(2)}`,
+  }))
 }
 function generateServiceCode(name: string) {
   const words = name
@@ -111,30 +141,27 @@ watch(
         <WorkspaceBreadcrumb class="mt-2" :items="[{ label: 'Services' }, { label: editorMode === 'create' ? 'Add service' : 'Edit service', current: true }]" @navigate="emit('cancel')" />
       </div>
       <div class="flex shrink-0 items-center gap-2">
-        <button class="btn btn-outline" type="button" :disabled="busy || isSaving" @click="emit('cancel')">Cancel</button>
-        <button v-if="activeStep < steps.length" class="btn btn-primary gap-2" type="button" @click="next">Next <ArrowRight :size="16" aria-hidden="true" /></button>
+        <button class="btn btn-outline" type="button" :disabled="busy || isSaving" @click="activeStep > 1 ? previous() : emit('cancel')">{{ activeStep > 1 ? 'Back' : 'Cancel' }}</button>
+        <button class="btn btn-outline gap-2" type="button" :disabled="busy || isSaving" @click="emit('save')"><Save :size="15" aria-hidden="true" />Save as draft</button>
+        <button v-if="activeStep < steps.length" class="btn btn-primary gap-2" type="button" @click="next">Next<span v-if="activeStep > 1">: {{ steps[activeStep].title }}</span> <ArrowRight :size="16" aria-hidden="true" /></button>
         <button v-else class="btn btn-primary gap-2" type="button" :disabled="busy || isSaving" @click="emit('save')"><Save :size="16" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save service' }}</button>
       </div>
     </header>
 
-    <div class="grid min-w-0 gap-4 overflow-visible xl:min-h-0 xl:flex-1 xl:grid-cols-[16rem_minmax(0,1fr)_20rem] xl:overflow-hidden">
-      <aside class="service-wizard-steps flex min-w-0 flex-col p-1 xl:min-h-0 xl:overflow-y-auto">
-        <nav aria-label="Service setup steps" class="service-wizard-step-nav flex min-w-0 gap-1 overflow-x-auto pb-1 xl:block xl:space-y-1 xl:overflow-visible">
-          <button v-for="step in steps" :key="step.number" class="wizard-step w-auto min-w-[11rem] shrink-0 text-start xl:w-full xl:min-w-0" :class="stepClass(step.number)" type="button" @click="activeStep = step.number">
+    <div class="service-wizard-main flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-visible xl:overflow-hidden">
+      <aside class="service-wizard-steps flex min-w-0 shrink-0 flex-col border-b border-base-300 pb-3 xl:sticky xl:top-0 xl:z-20 xl:bg-base-200">
+        <nav aria-label="Service setup steps" class="service-wizard-step-nav flex min-w-0 gap-1 overflow-x-auto pb-1 xl:overflow-visible">
+          <button v-for="step in steps" :key="step.number" class="wizard-step w-auto min-w-[11rem] shrink-0 text-start xl:min-w-0 xl:flex-1" :class="stepClass(step.number)" type="button" @click="activeStep = step.number">
             <span class="wizard-step-number"><CheckCheck v-if="step.number < activeStep" :size="17" :stroke-width="2.2" aria-hidden="true" /><span v-else>{{ step.number }}</span></span>
-            <span class="min-w-0"><strong class="block text-sm">{{ step.title }}</strong><small class="mt-0.5 block text-xs leading-4 text-base-content/60">{{ step.description }}</small></span>
+            <span class="min-w-0"><strong class="block truncate whitespace-nowrap text-sm">{{ step.title }}</strong><small class="mt-0.5 block truncate whitespace-nowrap text-xs leading-4 text-base-content/60">{{ step.description }}</small></span>
           </button>
         </nav>
-        <button class="btn btn-outline mt-6 w-full justify-center gap-2 xl:mt-auto" type="button" :disabled="busy || isSaving" @click="emit('save')"><Save :size="15" aria-hidden="true" />Save as draft</button>
       </aside>
 
-      <section class="min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-6 xl:overflow-y-auto">
+      <div class="grid min-h-0 min-w-0 flex-1 gap-4 overflow-visible xl:grid-cols-[minmax(0,1fr)_20rem] xl:overflow-hidden">
+        <section class="service-wizard-form-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-6 xl:overflow-y-auto">
         <form id="service-editor" class="service-editor min-w-0" @submit.prevent="next">
           <section v-if="activeStep === 1" class="min-w-0 space-y-6">
-            <div class="flex items-start gap-3 border-b border-base-300 pb-4">
-              <span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><FileText :size="21" aria-hidden="true" /></span>
-              <div><h2 class="text-lg font-semibold">Basic information</h2><p class="mt-1 text-sm text-base-content/65">Set the essential details for this service. You can configure other settings in the next steps.</p></div>
-            </div>
             <div class="grid min-w-0 gap-4 sm:grid-cols-2">
               <FormField class="gap-1 sm:col-span-2"><span>Service name <em class="text-error">*</em></span><AppInput v-model="form.name" class="input w-full min-w-0" :class="{ 'input-error': validationAttempted && !form.name.trim() }" type="text" required placeholder="Business card printing" autocomplete="off" /><small class="text-xs leading-5 text-base-content/60">A clear name shown to your team and customers.</small></FormField>
               <FormField class="gap-1"><span>Code <em class="text-error">*</em></span><AppInput v-model="form.code" class="input w-full min-w-0" type="text" required placeholder="Auto-generated" autocomplete="off" @update:model-value="markCodeEdited" /><small class="text-xs leading-5 text-base-content/60">Generated from the service name. Edit it to use a custom code.</small></FormField>
@@ -157,6 +184,27 @@ watch(
             </div>
           </section>
 
+          <ServiceParametersStep
+            v-else-if="activeStep === 2"
+            :parameters="form.parameters"
+            :category="form.category"
+            :default-unit="form.defaultUnit"
+            :materials="materials"
+            :template-scope="form.code || form.name || 'new-service'"
+            :show-errors="validationAttempted"
+            @apply-template="applyParameterTemplate"
+          />
+          <ServiceCostComponentsStep
+            v-else-if="activeStep === 3"
+            :components="form.components"
+            :parameters="form.parameters"
+            :materials="materials"
+            :machines="machines"
+            :services="services"
+            :current-service-id="serviceId"
+            :currency-unit="currencyUnit"
+            :show-errors="validationAttempted"
+          />
           <section v-else class="flex min-h-[28rem] flex-col items-center justify-center text-center">
             <span class="grid size-14 place-items-center rounded-full bg-primary/15 text-primary"><CircleHelp :size="27" aria-hidden="true" /></span>
             <h2 class="mt-4 text-xl font-semibold">{{ steps[activeStep - 1].title }} is coming soon</h2>
@@ -164,25 +212,32 @@ watch(
             <button class="btn btn-outline mt-5 gap-2" type="button" @click="previous"><ArrowLeft :size="15" aria-hidden="true" />Back to basic information</button>
           </section>
         </form>
-      </section>
+        </section>
 
-      <aside class="min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/35 p-4 xl:overflow-y-auto">
-        <div class="flex items-start gap-3 border-b border-base-300 pb-4"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><Package :size="19" aria-hidden="true" /></span><div><h2 class="text-base font-semibold">Live summary</h2><p class="mt-1 text-xs leading-5 text-base-content/60">A quick preview of this service.</p></div></div>
-        <div class="mt-4 rounded-box border border-base-300 bg-base-100 p-4">
-          <div class="relative grid aspect-[16/8] place-items-center overflow-hidden rounded-box bg-base-200 text-base-content/25"><img v-if="imagePreview" :src="imagePreview" alt="" class="size-full object-cover" /><ImagePlus v-else :size="42" stroke-width="1.2" aria-hidden="true" /></div>
-          <h3 class="mt-4 break-words text-lg font-semibold">{{ form.name || 'Your service name' }}</h3>
-          <p class="mt-1 break-words text-sm text-base-content/60">{{ form.code || 'SVC-001' }}<span v-if="form.category"> · {{ form.category }}</span></p>
-          <StatusBadge class="mt-3" :label="active ? 'Active' : 'Archived'" :tone="active ? 'green' : 'slate'" />
-          <dl class="mt-4 divide-y divide-base-300 rounded-box border border-base-300">
-            <div class="flex items-center justify-between gap-3 px-3 py-2.5 text-sm"><dt class="text-base-content/60">Setup</dt><dd>{{ form.parameters.length ? `${form.parameters.length} input${form.parameters.length === 1 ? '' : 's'}` : 'Not configured yet' }}</dd></div>
-            <div class="flex items-center justify-between gap-3 px-3 py-2.5 text-sm"><dt class="text-base-content/60">Costs</dt><dd>{{ form.components.length ? `${form.components.length} component${form.components.length === 1 ? '' : 's'}` : 'Not configured yet' }}</dd></div>
-            <div class="flex items-center justify-between gap-3 px-3 py-2.5 text-sm"><dt class="text-base-content/60">Unit</dt><dd>{{ form.defaultUnit }}</dd></div>
-            <div class="flex items-center justify-between gap-3 px-3 py-2.5 text-sm"><dt class="text-base-content/60">Default priority</dt><dd>{{ form.defaultPriority }}</dd></div>
+        <aside class="service-wizard-preview-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/35 p-4 xl:overflow-y-auto">
+        <ServiceOrderPreview v-if="activeStep === 2" :form="form" :materials="materials" />
+        <ServiceCostBreakdownPreview v-else-if="activeStep === 3" :components="form.components" :parameters="form.parameters" :materials="materials" :machines="machines" :services="services" :currency-unit="currencyUnit" />
+        <template v-else>
+        <div class="space-y-4">
+          <div class="relative flex min-h-36 overflow-hidden rounded-box bg-base-300 bg-cover bg-center" :style="imagePreview ? { backgroundImage: `url('${imagePreview}')` } : undefined">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/5" aria-hidden="true"></div>
+            <div class="relative z-10 mt-auto flex min-w-0 items-end gap-3 p-3">
+              <div v-if="!imagePreview" class="grid size-10 shrink-0 place-items-center rounded-box bg-black/25 text-white/75"><Printer :size="21" aria-hidden="true" /></div>
+              <div class="min-w-0 text-white"><h3 class="truncate text-base font-semibold">{{ form.name || 'Your service name' }}</h3><p class="mt-1 truncate text-sm text-white/70">{{ form.code || 'SVC-001' }}<span v-if="form.category"> · {{ form.category }}</span></p><StatusBadge class="mt-2" :label="active ? 'Active' : 'Archived'" :tone="active ? 'green' : 'slate'" /></div>
+            </div>
+          </div>
+          <dl class="divide-y divide-base-300">
+            <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Setup</dt><dd>{{ form.parameters.length ? `${form.parameters.length} input${form.parameters.length === 1 ? '' : 's'}` : 'Not configured yet' }}</dd></div>
+            <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Costs</dt><dd>{{ form.components.length ? `${form.components.length} component${form.components.length === 1 ? '' : 's'}` : 'Not configured yet' }}</dd></div>
+            <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Unit</dt><dd>{{ form.defaultUnit }}</dd></div>
+            <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Default priority</dt><dd>{{ form.defaultPriority }}</dd></div>
           </dl>
-          <p v-if="form.description" class="mt-4 border-t border-base-300 pt-4 text-sm leading-6 text-base-content/70">{{ form.description }}</p>
+          <p v-if="form.description" class="border-t border-base-300 pt-4 text-sm leading-6 text-base-content/70">{{ form.description }}</p>
         </div>
-        <div class="mt-4 flex gap-2 rounded-box border border-info/20 bg-info/5 p-3 text-sm"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="17" aria-hidden="true" /><p class="leading-5 text-base-content/70"><strong class="font-semibold text-info">Next step</strong><br />{{ activeStep === 1 ? 'Configure parameters that customers can choose when adding this service to an order.' : 'More setup options will be available here soon.' }}</p></div>
-      </aside>
+        <div class="mt-4 flex gap-2 border-t border-base-300 pt-3 text-sm"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="17" aria-hidden="true" /><p class="leading-5 text-base-content/70">{{ activeStep === 1 ? 'Configure parameters that customers can choose when adding this service to an order.' : 'More setup options will be available here soon.' }}</p></div>
+        </template>
+        </aside>
+      </div>
     </div>
   </div>
 </template>

@@ -21,6 +21,7 @@ type PricingInput struct {
 	Parameters               map[string]ResolvedParameter
 	Materials                map[string]Material
 	Machines                 map[string]Machine
+	ServiceCosts             map[string]int64
 	ManualCosts              map[string]int64
 	SellingPriceOverrideRial *int64
 }
@@ -134,6 +135,14 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 				amount, err = scaledMoney(usage, machine.RateRial)
 				item.RateRial = machine.RateRial
 				item.Explanation = fmt.Sprintf("%s × %d Rial %s rate", usage.String(), machine.RateRial, machine.RateBasis)
+			case CostService:
+				serviceCost, exists := input.ServiceCosts[component.ReferenceID]
+				if !exists {
+					return PricingResult{}, fmt.Errorf("component %q: service %q cost is not available", component.Name, component.ReferenceID)
+				}
+				amount, err = scaledMoney(usage, serviceCost)
+				item.RateRial = serviceCost
+				item.Explanation = fmt.Sprintf("%s × %d Rial service cost", usage.String(), serviceCost)
 			case CostLabor, CostOutsourced, CostFixed:
 				amount, err = scaledMoney(usage, component.RateRial)
 				item.Explanation = fmt.Sprintf("%s × %d Rial rate", usage.String(), component.RateRial)

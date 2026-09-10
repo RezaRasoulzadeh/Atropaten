@@ -12,7 +12,7 @@ import (
 
 var (
 	ErrServiceNotFound        = errors.New("service not found")
-	ErrServiceDeleteProtected = errors.New("service has order or invoice history; archive it instead")
+	ErrServiceDeleteProtected = errors.New("service has order, invoice, or service dependency history; archive it instead")
 	ErrParameterNotFound      = errors.New("service parameter not found")
 	ErrCostComponentNotFound  = errors.New("service cost component not found")
 )
@@ -66,6 +66,7 @@ const (
 	// overhead and waste to the enabled subtotal accumulated before them.
 	CostMaterial   CostComponentType = "material"
 	CostMachine    CostComponentType = "machine"
+	CostService    CostComponentType = "service"
 	CostLabor      CostComponentType = "labor"
 	CostOutsourced CostComponentType = "outsourced"
 	CostFixed      CostComponentType = "fixed"
@@ -386,6 +387,13 @@ func (c ServiceCostComponent) Validate() error {
 			return validationError("rateRial", "is not supported for referenced components")
 		}
 	case CostMachine:
+		if strings.TrimSpace(c.ReferenceID) == "" {
+			return validationError("referenceId", "is required")
+		}
+		if c.RateRial != 0 || c.Percentage != 0 {
+			return validationError("rateRial", "is not supported for referenced components")
+		}
+	case CostService:
 		if strings.TrimSpace(c.ReferenceID) == "" {
 			return validationError("referenceId", "is required")
 		}

@@ -1,0 +1,104 @@
+{
+  "format": "atropaten.service-parameter-template",
+  "version": 1,
+  "name": "Paper printing",
+  "description": "A reusable starting point for sheet-based print products.",
+  "parameters": [
+    {
+      "key": "quantity",
+      "label": "Quantity",
+      "type": "integer",
+      "required": true,
+      "defaultValue": "100",
+      "options": [],
+      "minValue": "1",
+      "maxValue": "50000",
+      "unit": "piece"
+    },
+    {
+      "key": "paper_type",
+      "label": "Paper type",
+      "type": "choice",
+      "required": true,
+      "defaultValue": "120gsm uncoated",
+      "options": [
+        "80gsm uncoated",
+        "120gsm uncoated",
+        "170gsm matte coated",
+        "250gsm matte coated",
+        "300gsm matte coated",
+        "350gsm silk coated",
+        "300gsm recycled"
+      ],
+      "minValue": null,
+      "maxValue": null,
+      "unit": ""
+    },
+    {
+      "key": "size",
+      "label": "Size",
+      "type": "choice",
+      "required": true,
+      "defaultValue": "A4 (210 × 297 mm)",
+      "options": [
+        "A6 (105 × 148 mm)",
+        "A5 (148 × 210 mm)",
+        "A4 (210 × 297 mm)",
+        "A3 (297 × 420 mm)",
+        "Custom"
+      ],
+      "minValue": null,
+      "maxValue": null,
+      "unit": ""
+    },
+    {
+      "key": "color",
+      "label": "Color",
+      "type": "choice",
+      "required": true,
+      "defaultValue": "Full color (2 sides)",
+      "options": [
+        "Full color (2 sides)",
+        "Full color (1 side)",
+        "Black & white (2 sides)",
+        "Black & white (1 side)"
+      ],
+      "minValue": null,
+      "maxValue": null,
+      "unit": ""
+    },
+    {
+      "key": "finishing",
+      "label": "Finishing",
+      "type": "choice",
+      "required": true,
+      "defaultValue": "Standard trim",
+      "options": [
+        "Standard trim",
+        "Crease",
+        "Fold",
+        "Die cut",
+        "UV coating",
+        "Foil stamping"
+      ],
+      "minValue": null,
+      "maxValue": null,
+      "unit": ""
+    },
+    {
+      "key": "turnaround",
+      "label": "Turnaround",
+      "type": "choice",
+      "required": true,
+      "defaultValue": "Standard (3–5 business days)",
+      "options": [
+        "Standard (3–5 business days)",
+        "Express (1–2 business days)",
+        "Same day (subject to approval)"
+      ],
+      "minValue": null,
+      "maxValue": null,
+      "unit": ""
+    }
+  ]
+}
