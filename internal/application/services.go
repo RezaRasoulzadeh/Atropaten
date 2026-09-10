@@ -835,7 +835,7 @@ func serviceView(service domain.Service) ServiceView {
 			pricingRule.Tiers = append(pricingRule.Tiers, PricingTierView{Position: tier.Position, MinimumQuantity: tier.MinimumQuantity.String(), PriceRial: tier.PriceRial})
 		}
 	}
-	return ServiceView{ID: service.ID, Name: service.Name, Code: service.Code, Category: service.Category, Description: service.Description, Active: service.Active, CreatedAt: service.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: service.UpdatedAt.UTC().Format(time.RFC3339Nano), Parameters: parameters, Components: components, PricingRule: pricingRule}
+	return ServiceView{ID: service.ID, Name: service.Name, Code: service.Code, Category: service.Category, Description: service.Description, ImagePath: service.ImagePath, Active: service.Active, CreatedAt: service.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: service.UpdatedAt.UTC().Format(time.RFC3339Nano), Parameters: parameters, Components: components, PricingRule: pricingRule}
 }
 
 func newID(prefix string) (string, error) {

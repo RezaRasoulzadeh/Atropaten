@@ -68,6 +68,7 @@ func TestServiceComponentReferencesAndBrokenParameterUpdateAreRejected(t *testin
 	service := NewServicesService(repository, materialLookupStub{material: material}, machineLookupStub{machine: machine})
 	created, err := service.Create(context.Background(), ServiceInput{
 		Name:       "Digital Print",
+		ImagePath:  "data:image/png;base64,preview",
 		Parameters: []ParameterInput{{ID: "P-quantity", Key: "quantity", Label: "Quantity", Type: string(domain.ParameterInteger)}},
 		Components: []CostComponentInput{{ID: "C-paper", Name: "Paper", Type: string(domain.CostMaterial), ReferenceID: "MAT-1", UsageMode: string(domain.UsageParameter), ParameterKey: "quantity", Multiplier: "1"}, {ID: "C-printer", Name: "Printer", Type: string(domain.CostMachine), ReferenceID: "MAC-1", UsageMode: string(domain.UsageFixed), Multiplier: "1"}},
 	})
@@ -76,6 +77,9 @@ func TestServiceComponentReferencesAndBrokenParameterUpdateAreRejected(t *testin
 	}
 	if len(created.Components) != 2 {
 		t.Fatalf("components = %+v", created.Components)
+	}
+	if created.ImagePath != "data:image/png;base64,preview" {
+		t.Fatalf("image path was not returned in service view: %q", created.ImagePath)
 	}
 	_, err = service.Update(context.Background(), created.ID, ServiceInput{Name: "Digital Print", Components: []CostComponentInput{{ID: "C-paper", Name: "Paper", Type: string(domain.CostMaterial), ReferenceID: "MAT-1", UsageMode: string(domain.UsageParameter), ParameterKey: "quantity", Multiplier: "1"}}})
 	if err == nil {

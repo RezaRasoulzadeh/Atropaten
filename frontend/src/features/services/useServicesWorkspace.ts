@@ -22,7 +22,7 @@ const materials = ref<MaterialRecord[]>([]);
 const machines = ref<MachineRecord[]>([]);
 const selectedId = ref<string | null>(null);
 const searchQuery = ref('');
-const serviceFilter = ref<ServiceFilter>('Active');
+const serviceFilter = ref<ServiceFilter>('All');
 const editorMode = ref<EditorMode>(null);
 const form = ref<ServiceForm>(emptyForm());
 const isLoading = ref(false);
@@ -132,6 +132,10 @@ async function loadServices() {
     services.value = serviceData;
     materials.value = materialData;
     machines.value = machineData;
+    if (!selectedId.value) {
+      const firstService = serviceData.find((service) => service.active) ?? serviceData[0];
+      selectedId.value = firstService?.id ?? null;
+    }
   } catch (error) {
     toast.error(errorMessageFrom(error, 'Services could not be loaded.'), 'Services');
   } finally {
