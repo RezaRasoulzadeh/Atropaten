@@ -86,8 +86,8 @@ function pricingLabel(type?: string) {
 </script>
 
 <template>
-  <section class="service-detail-panel h-full min-h-0 min-w-0 overflow-y-auto rounded-box border border-base-300 bg-base-100" aria-label="Service details">
-    <div class="border-b border-base-300 p-4 sm:p-5">
+  <section class="service-detail-panel h-auto min-h-0 min-w-0 overflow-visible rounded-box border border-base-300 bg-base-100 xl:h-full xl:overflow-y-auto" aria-label="Service details">
+    <div class="border-b border-base-300 p-3 sm:p-5">
       <div class="relative min-h-52 overflow-hidden rounded-box bg-base-300 bg-cover bg-center sm:min-h-60" :style="service.imagePath ? { backgroundImage: `url('${service.imagePath}')` } : undefined">
         <div class="absolute inset-0 bg-gradient-to-l from-black/95 via-black/65 to-black/10" aria-hidden="true"></div>
         <div v-if="!service.imagePath" class="absolute inset-0 grid place-items-center text-base-content/35"><Layers3 :size="42" :stroke-width="1.4" aria-hidden="true" /></div>
@@ -100,14 +100,14 @@ function pricingLabel(type?: string) {
         </div>
       </div>
 
-      <div class="mt-2 grid grid-cols-3 gap-2">
+      <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <button class="btn btn-outline btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('edit')"><Edit3 :size="14" aria-hidden="true" />Edit</button>
         <button v-if="service.active" class="btn btn-outline btn-warning btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('archive')"><Archive :size="14" aria-hidden="true" />Archive</button>
         <button v-else class="btn btn-outline btn-success btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('reactivate')"><RotateCcw :size="14" aria-hidden="true" />Reactivate</button>
         <button class="btn btn-outline btn-error btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('remove')"><Trash2 :size="14" aria-hidden="true" />Remove</button>
       </div>
 
-      <div class="mt-5 grid min-w-0 divide-y divide-base-300 border-y border-base-300 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+      <div class="mt-4 grid min-w-0 divide-y divide-base-300 border-y border-base-300 sm:mt-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div class="flex items-center gap-3 py-3 sm:px-3 sm:first:pl-0"><Tag :size="20" class="shrink-0 text-primary" aria-hidden="true" /><div><span class="block text-xs text-base-content/55">Last price</span><strong class="block text-sm">{{ estimatedPrice !== null ? formatMoney(estimatedPrice, currencyUnit) : 'Needs setup' }}</strong></div></div>
         <div class="flex items-center gap-3 py-3 sm:px-3"><Package :size="20" class="shrink-0 text-primary" aria-hidden="true" /><div><span class="block text-xs text-base-content/55">Default unit</span><strong class="block text-sm">{{ service.defaultUnit || 'piece' }}</strong></div></div>
         <div class="flex items-center gap-3 py-3 sm:px-3 sm:pr-0"><Flag :size="20" class="shrink-0 text-primary" aria-hidden="true" /><div><span class="block text-xs text-base-content/55">Priority</span><strong class="block text-sm">{{ service.defaultPriority || 'Normal' }}</strong></div></div>

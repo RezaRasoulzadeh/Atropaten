@@ -126,12 +126,12 @@ watch(
         eyebrow="Catalog / sellable operations"
         description="Manage reusable printing services, customer parameters, and pricing rules."
       >
-        <SearchField v-model="searchQuery" class="w-full sm:w-64" placeholder="Search services…" aria-label="Search services" />
-        <button class="btn btn-primary gap-2" type="button" @click="startCreate"><Plus :size="16" aria-hidden="true" />Add service</button>
+        <SearchField v-model="searchQuery" class="w-full min-w-0 sm:w-64" placeholder="Search services…" aria-label="Search services" />
+        <button class="btn btn-primary w-full gap-2 sm:w-auto" type="button" @click="startCreate"><Plus :size="16" aria-hidden="true" />Add service</button>
       </WorkspaceHeader>
     </WorkspaceStickyStack>
 
-    <div class="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(20rem,auto)] gap-4 overflow-y-auto xl:grid-cols-[minmax(0,1.15fr)_minmax(24rem,0.85fr)] xl:grid-rows-1 xl:overflow-hidden">
+    <div class="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(22rem,auto)_auto] gap-4 overflow-y-auto xl:grid-cols-[minmax(0,1.15fr)_minmax(24rem,0.85fr)] xl:grid-rows-1 xl:overflow-hidden">
       <section class="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-box border border-base-300 bg-base-100" aria-label="Service register">
         <div class="shrink-0 border-b border-base-300 p-3 sm:p-4">
           <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
@@ -139,7 +139,7 @@ watch(
               <button v-for="status in statusOptions" :key="status" class="inline-flex h-9 items-center gap-2 rounded-box border px-3 text-sm transition-colors" :class="serviceFilter === status ? 'border-primary bg-primary/10 text-primary' : 'border-base-300 text-base-content/70 hover:border-primary/50 hover:text-base-content'" type="button" @click="serviceFilter = status"><span class="size-2 rounded-full" :class="status === 'Active' ? 'bg-success' : status === 'Archived' ? 'bg-base-content/35' : 'bg-primary'"></span>{{ status }}<span class="rounded-full bg-base-200 px-1.5 py-0.5 text-xs tabular-nums">{{ statusCount(status) }}</span></button>
             </div>
             <span class="hidden h-6 w-px bg-base-300 sm:block" aria-hidden="true"></span>
-            <div class="flex min-w-0 flex-wrap items-center justify-end gap-2"><SelectField v-model="categoryFilter" class="w-36" aria-label="Filter by category" :options="categoryOptions" /><SelectField v-model="sortOrder" class="w-36" aria-label="Sort services" :options="[{ label: 'Sort by name', value: 'name' }, { label: 'Sort by category', value: 'category' }, { label: 'Recently updated', value: 'updated' }]" /></div>
+            <div class="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 sm:w-auto"><SelectField v-model="categoryFilter" class="min-w-0 flex-1 sm:w-36 sm:flex-none" aria-label="Filter by category" :options="categoryOptions" /><SelectField v-model="sortOrder" class="min-w-0 flex-1 sm:w-36 sm:flex-none" aria-label="Sort services" :options="[{ label: 'Sort by name', value: 'name' }, { label: 'Sort by category', value: 'category' }, { label: 'Recently updated', value: 'updated' }]" /></div>
           </div>
         </div>
 
