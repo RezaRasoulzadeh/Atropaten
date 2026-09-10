@@ -9,6 +9,16 @@ import {
 import type { main as mainTypes } from '../../wailsjs/go/models'
 
 export type MachineRecord = mainTypes.MachineDTO
+export type MachineRateRecord = mainTypes.MachineRateDTO
+export type MachineRatePayload = {
+  id: string
+  name: string
+  selectorValue: string
+  rateBasis: string
+  rateRial: number
+  setupCostRial: number
+  active: boolean
+}
 export type MachinePayload = {
   name: string
   code: string
@@ -17,6 +27,7 @@ export type MachinePayload = {
   rateRial: number
   setupCostRial: number
   notes: string
+  rates: MachineRatePayload[]
 }
 
 export const machinesApi = {

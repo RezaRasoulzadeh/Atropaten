@@ -7,27 +7,49 @@ import (
 )
 
 type MachineInput struct {
+	Name          string             `json:"name"`
+	Code          string             `json:"code"`
+	Category      string             `json:"category"`
+	RateBasis     string             `json:"rateBasis"`
+	RateRial      int64              `json:"rateRial"`
+	SetupCostRial int64              `json:"setupCostRial"`
+	Notes         string             `json:"notes"`
+	Rates         []MachineRateInput `json:"rates"`
+}
+
+type MachineRateInput struct {
+	ID            string `json:"id"`
 	Name          string `json:"name"`
-	Code          string `json:"code"`
-	Category      string `json:"category"`
+	SelectorValue string `json:"selectorValue"`
 	RateBasis     string `json:"rateBasis"`
 	RateRial      int64  `json:"rateRial"`
 	SetupCostRial int64  `json:"setupCostRial"`
-	Notes         string `json:"notes"`
+	Active        bool   `json:"active"`
 }
 
 type MachineDTO struct {
+	ID            string           `json:"id"`
+	Name          string           `json:"name"`
+	Code          string           `json:"code"`
+	Category      string           `json:"category"`
+	RateBasis     string           `json:"rateBasis"`
+	RateRial      int64            `json:"rateRial"`
+	SetupCostRial int64            `json:"setupCostRial"`
+	Notes         string           `json:"notes"`
+	Active        bool             `json:"active"`
+	CreatedAt     string           `json:"createdAt"`
+	UpdatedAt     string           `json:"updatedAt"`
+	Rates         []MachineRateDTO `json:"rates"`
+}
+
+type MachineRateDTO struct {
 	ID            string `json:"id"`
 	Name          string `json:"name"`
-	Code          string `json:"code"`
-	Category      string `json:"category"`
+	SelectorValue string `json:"selectorValue"`
 	RateBasis     string `json:"rateBasis"`
 	RateRial      int64  `json:"rateRial"`
 	SetupCostRial int64  `json:"setupCostRial"`
-	Notes         string `json:"notes"`
 	Active        bool   `json:"active"`
-	CreatedAt     string `json:"createdAt"`
-	UpdatedAt     string `json:"updatedAt"`
 }
 
 func (a *App) machineService() (*application.MachinesService, error) {
@@ -73,7 +95,7 @@ func (a *App) CreateMachine(input MachineInput) (MachineDTO, error) {
 	if err != nil {
 		return MachineDTO{}, err
 	}
-	view, err := service.Create(a.materialContext(), application.MachineInput{Name: input.Name, Code: input.Code, Category: input.Category, RateBasis: input.RateBasis, RateRial: input.RateRial, SetupCostRial: input.SetupCostRial, Notes: input.Notes})
+	view, err := service.Create(a.materialContext(), application.MachineInput{Name: input.Name, Code: input.Code, Category: input.Category, RateBasis: input.RateBasis, RateRial: input.RateRial, SetupCostRial: input.SetupCostRial, Notes: input.Notes, Rates: machineRateInputs(input.Rates)})
 	if err != nil {
 		return MachineDTO{}, err
 	}
@@ -85,7 +107,7 @@ func (a *App) UpdateMachine(id string, input MachineInput) (MachineDTO, error) {
 	if err != nil {
 		return MachineDTO{}, err
 	}
-	view, err := service.Update(a.materialContext(), id, application.MachineInput{Name: input.Name, Code: input.Code, Category: input.Category, RateBasis: input.RateBasis, RateRial: input.RateRial, SetupCostRial: input.SetupCostRial, Notes: input.Notes})
+	view, err := service.Update(a.materialContext(), id, application.MachineInput{Name: input.Name, Code: input.Code, Category: input.Category, RateBasis: input.RateBasis, RateRial: input.RateRial, SetupCostRial: input.SetupCostRial, Notes: input.Notes, Rates: machineRateInputs(input.Rates)})
 	if err != nil {
 		return MachineDTO{}, err
 	}
@@ -124,5 +146,17 @@ func (a *App) DeleteMachine(id string) error {
 }
 
 func machineDTO(view application.MachineView) MachineDTO {
-	return MachineDTO{ID: view.ID, Name: view.Name, Code: view.Code, Category: view.Category, RateBasis: view.RateBasis, RateRial: view.RateRial, SetupCostRial: view.SetupCostRial, Notes: view.Notes, Active: view.Active, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt}
+	rates := make([]MachineRateDTO, 0, len(view.Rates))
+	for _, rate := range view.Rates {
+		rates = append(rates, MachineRateDTO{ID: rate.ID, Name: rate.Name, SelectorValue: rate.SelectorValue, RateBasis: rate.RateBasis, RateRial: rate.RateRial, SetupCostRial: rate.SetupCostRial, Active: rate.Active})
+	}
+	return MachineDTO{ID: view.ID, Name: view.Name, Code: view.Code, Category: view.Category, RateBasis: view.RateBasis, RateRial: view.RateRial, SetupCostRial: view.SetupCostRial, Notes: view.Notes, Active: view.Active, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt, Rates: rates}
+}
+
+func machineRateInputs(inputs []MachineRateInput) []application.MachineRateInput {
+	rates := make([]application.MachineRateInput, 0, len(inputs))
+	for _, rate := range inputs {
+		rates = append(rates, application.MachineRateInput{ID: rate.ID, Name: rate.Name, SelectorValue: rate.SelectorValue, RateBasis: rate.RateBasis, RateRial: rate.RateRial, SetupCostRial: rate.SetupCostRial, Active: rate.Active})
+	}
+	return rates
 }

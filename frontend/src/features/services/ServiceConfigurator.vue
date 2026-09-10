@@ -7,6 +7,7 @@ import { ref, watch } from 'vue';
 import { Calculator, LoaderCircle, RotateCcw } from 'lucide-vue-next';
 import type { ServiceRecord } from '../../api/services';
 import type { MaterialRecord } from '../../api/materials';
+import type { MachineRecord } from '../../api/machines';
 import { pricingApi, type PricingRecord } from '../../api/pricing';
 import {
   formatMoney,
@@ -21,6 +22,7 @@ import { useToast } from '../../ui/feedback';
 const props = defineProps<{
   service: ServiceRecord;
   materials: MaterialRecord[];
+  machines: MachineRecord[];
   currencyUnit: CurrencyUnit;
 }>();
 const values = ref<Record<string, string>>({});
@@ -145,6 +147,7 @@ function typeLabel(type: string) {
         boolean: 'Boolean',
         choice: 'Choice',
         'material-reference': 'Material',
+        'machine-reference': 'Machine',
       } as Record<string, string>
     )[type] ?? type
   );
@@ -204,6 +207,18 @@ function typeLabel(type: string) {
                 ...materials.map((material) => ({
                   label: `${material.name}${material.sku ? ` · ${material.sku}` : ''}`,
                   value: material.id,
+                })),
+              ]"
+            />
+            <SelectField
+              v-else-if="parameter.type === 'machine-reference'"
+              v-model="values[parameter.key]"
+              :aria-label="parameter.label"
+              :options="[
+                { label: 'Select machine', value: '' },
+                ...machines.filter((machine) => machine.active).map((machine) => ({
+                  label: `${machine.name}${machine.code ? ` · ${machine.code}` : ''}`,
+                  value: machine.id,
                 })),
               ]"
             />

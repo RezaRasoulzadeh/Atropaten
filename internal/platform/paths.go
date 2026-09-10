@@ -7,7 +7,7 @@ import (
 )
 
 const ApplicationVersion = "0.1.0"
-const CurrentSchemaVersion = 19
+const CurrentSchemaVersion = 21
 
 type DataPaths struct {
 	Root, Database, Attachments, Backups string

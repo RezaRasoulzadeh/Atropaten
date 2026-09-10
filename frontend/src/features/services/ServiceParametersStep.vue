@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Download,
   FileJson,
+  Factory,
   FolderOpen,
   GripVertical,
   Hash,
@@ -24,6 +25,7 @@ import AppInput from '../../components/ui/AppInput.vue'
 import FormField from '../../components/ui/FormField.vue'
 import SelectField from '../../components/ui/SelectField.vue'
 import type { MaterialRecord } from '../../api/materials'
+import type { MachineRecord } from '../../api/machines'
 import type { ParameterForm, ParameterTemplateSeed, ParameterType } from './types'
 
 const props = defineProps<{
@@ -31,6 +33,7 @@ const props = defineProps<{
   category: string
   defaultUnit: string
   materials: MaterialRecord[]
+  machines: MachineRecord[]
   templateScope: string
   showErrors?: boolean
 }>()
@@ -120,6 +123,7 @@ onBeforeUnmount(() => {
 
 const activeParameter = computed(() => props.parameters[selectedIndex.value] || null)
 const activeMaterials = computed(() => props.materials.filter((material) => material.active))
+const activeMachines = computed(() => props.machines.filter((machine) => machine.active))
 
 watch(
   () => props.parameters.length,
@@ -182,6 +186,8 @@ function normalizeParameter(parameter: ParameterForm) {
     parameter.defaultValue = parameter.defaultValue === 'true' || parameter.defaultValue === 'false' ? parameter.defaultValue : ''
   } else if (parameter.type === 'material-reference') {
     parameter.defaultValue = activeMaterials.value.some((material) => material.id === parameter.defaultValue) ? parameter.defaultValue : ''
+  } else if (parameter.type === 'machine-reference') {
+    parameter.defaultValue = activeMachines.value.some((machine) => machine.id === parameter.defaultValue) ? parameter.defaultValue : ''
   } else if (parameter.type === 'integer' || parameter.type === 'decimal') {
     const valid = parameter.type === 'integer' ? /^\d+$/.test(parameter.defaultValue) : /^\d+(?:\.\d{1,6})?$/.test(parameter.defaultValue)
     if (parameter.defaultValue && !valid) parameter.defaultValue = ''
@@ -206,6 +212,7 @@ function typeLabel(type: ParameterType) {
     boolean: 'Yes / no',
     choice: 'Choice',
     'material-reference': 'Material',
+    'machine-reference': 'Machine',
   }[type]
 }
 
@@ -216,6 +223,7 @@ function typeIcon(type: ParameterType) {
     boolean: Check,
     choice: Layers3,
     'material-reference': Square,
+    'machine-reference': Factory,
   }[type]
 }
 
@@ -225,6 +233,7 @@ function parameterSummary(parameter: ParameterForm) {
     return `${typeLabel(parameter.type)}${range ? ` · ${range}` : ''}${parameter.unit ? ` ${parameter.unit}` : ''}`
   }
   if (parameter.type === 'material-reference') return `Material · ${activeMaterials.value.length} available`
+  if (parameter.type === 'machine-reference') return `Machine · ${activeMachines.value.length} available`
   if (parameter.type === 'choice') return `Choice · ${parameter.options.length} option${parameter.options.length === 1 ? '' : 's'}`
   return `${typeLabel(parameter.type)} · ${parameter.required ? 'Required' : 'Optional'}`
 }
@@ -545,7 +554,7 @@ function exportTemplate(template: TemplateOption) {
 
 function normalizeImportedParameters(raw: unknown): ParameterTemplateSeed[] {
   if (!Array.isArray(raw)) throw new Error('The template must contain a parameters array.')
-  const allowedTypes: ParameterType[] = ['integer', 'decimal', 'boolean', 'choice', 'material-reference']
+  const allowedTypes: ParameterType[] = ['integer', 'decimal', 'boolean', 'choice', 'material-reference', 'machine-reference']
   const result = raw.map((item, index) => {
     if (!item || typeof item !== 'object') throw new Error(`Parameter ${index + 1} is invalid.`)
     const source = item as Record<string, unknown>
@@ -642,6 +651,7 @@ function applyTemplate(template: TemplateOption) {
             { label: 'Decimal measurement', value: 'decimal' },
             { label: 'Choose from options', value: 'choice' },
             { label: 'Choose a material or paper', value: 'material-reference' },
+            { label: 'Choose a machine', value: 'machine-reference' },
             { label: 'Yes / no choice', value: 'boolean' },
           ]" @update:model-value="normalizeParameter(activeParameter)" /></FormField>
         </div>
@@ -654,6 +664,7 @@ function applyTemplate(template: TemplateOption) {
           <FormField class="gap-1"><span>Maximum value</span><AppInput v-model="activeParameter.maxValue" class="input w-full min-w-0" inputmode="decimal" placeholder="No maximum" /></FormField>
         </div>
         <div v-else-if="activeParameter.type === 'material-reference'" class="mt-4 rounded-box border border-base-300 bg-base-200/25 p-3"><SelectField v-model="activeParameter.defaultValue" label="Default material" :options="[{ label: 'No default material', value: '' }, ...activeMaterials.map((material) => ({ label: `${material.name}${material.sku ? ` · ${material.sku}` : ''}`, value: material.id }))]" /><p class="mt-2 text-xs leading-5 text-base-content/60">Customers will choose from active materials. Add materials in the Materials view to expand this list.</p></div>
+        <div v-else-if="activeParameter.type === 'machine-reference'" class="mt-4 rounded-box border border-base-300 bg-base-200/25 p-3"><SelectField v-model="activeParameter.defaultValue" label="Default machine" :options="[{ label: 'No default machine', value: '' }, ...activeMachines.map((machine) => ({ label: `${machine.name}${machine.code ? ` · ${machine.code}` : ''}`, value: machine.id }))]" /><p class="mt-2 text-xs leading-5 text-base-content/60">Customers will choose from active machines. Add machines in the Machines view to expand this list.</p></div>
         <div v-else-if="activeParameter.type === 'boolean'" class="mt-4 rounded-box border border-base-300 bg-base-200/25 p-3"><SelectField v-model="activeParameter.defaultValue" label="Default answer" :options="[{ label: 'No default answer', value: '' }, { label: 'Yes', value: 'true' }, { label: 'No', value: 'false' }]" /></div>
         <div v-else class="mt-4 rounded-box border border-base-300 bg-base-200/25 p-3"><div class="flex flex-wrap items-center justify-between gap-2"><div><h4 class="text-sm font-semibold">Options customers can choose</h4><p class="mt-1 text-xs text-base-content/60">Add values such as A4, A5, or Matte.</p></div><button class="btn btn-outline btn-sm gap-2" type="button" @click="addOption(activeParameter)"><Plus :size="14" aria-hidden="true" />Add option</button></div><div v-if="activeParameter.options.length" class="mt-3 grid min-w-0 gap-2 sm:grid-cols-2"><div v-for="(option, optionIndex) in activeParameter.options" :key="`${activeParameter.id}-${optionIndex}`" class="flex min-w-0 items-center gap-2"><AppInput v-model="activeParameter.options[optionIndex]" class="input w-full min-w-0" :class="{ 'input-error': showErrors && !activeParameter.options[optionIndex].trim() }" required :aria-label="`Option ${optionIndex + 1}`" placeholder="A4" /><button class="btn btn-outline btn-error btn-sm shrink-0" type="button" :aria-label="`Remove option ${optionIndex + 1}`" @click="removeOption(activeParameter, optionIndex)"><Trash2 :size="13" aria-hidden="true" /></button></div></div><p v-else class="mt-3 rounded-box border border-dashed border-base-300 p-3 text-sm text-base-content/60">No options yet.</p><SelectField v-if="activeParameter.options.length" v-model="activeParameter.defaultValue" class="mt-3" label="Default option" :options="[{ label: 'No default option', value: '' }, ...activeParameter.options.map((option) => ({ label: option, value: option }))]" /></div>
         <details class="mt-4 rounded-box border border-base-300 px-3 py-2"><summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-base-content/70 [&::-webkit-details-marker]:hidden"><Settings2 :size="14" aria-hidden="true" />Advanced settings</summary><FormField class="mt-3 gap-1"><span>Internal key</span><AppInput v-model="activeParameter.key" class="input w-full min-w-0" placeholder="Generated from the label" /><small class="text-xs leading-5 text-base-content/60">Used internally by pricing. Leave it unchanged unless you know why it needs a custom key.</small></FormField></details>

@@ -1,6 +1,6 @@
 export type ServiceFilter = 'Active' | 'Archived' | 'All';
 export type EditorMode = 'create' | 'edit' | null;
-export type ParameterType = 'integer' | 'decimal' | 'boolean' | 'choice' | 'material-reference';
+export type ParameterType = 'integer' | 'decimal' | 'boolean' | 'choice' | 'material-reference' | 'machine-reference';
 export type ParameterForm = {
   id: string;
   key: string;
@@ -31,6 +31,8 @@ export type ComponentForm = {
   referenceId: string;
   usageMode: 'fixed' | 'parameter';
   parameterKey: string;
+  rateId: string;
+  rateParameterKey: string;
   usageQuantity: string;
   multiplier: string;
   rateRial: number;

@@ -33,6 +33,8 @@ export type ServiceCostComponentPayload = {
   referenceId: string
   usageMode: string
   parameterKey: string
+  rateId: string
+  rateParameterKey: string
   usageQuantity: string
   multiplier: string
   rateRial: number

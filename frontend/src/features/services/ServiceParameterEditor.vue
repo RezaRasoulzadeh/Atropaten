@@ -7,12 +7,14 @@ import AppInput from '../../components/ui/AppInput.vue'
 import SelectField from '../../components/ui/SelectField.vue'
 import type { ParameterForm } from './types'
 import type { MaterialRecord } from '../../api/materials'
+import type { MachineRecord } from '../../api/machines'
 
 const props = defineProps<{
   parameter: ParameterForm
   index: number
   count: number
   materials: MaterialRecord[]
+  machines: MachineRecord[]
   showErrors?: boolean
 }>()
 const emit = defineEmits<{
@@ -35,6 +37,7 @@ function typeLabel(type: string) {
     boolean: 'Yes / no choice',
     choice: 'Choice from a list',
     'material-reference': 'Material or paper',
+    'machine-reference': 'Machine',
   }[type] || 'Input'
 }
 function updateLabel(value: string) {
@@ -77,6 +80,7 @@ function updateOption(index: number, previous: string, value: string) {
             { label: 'Decimal measurement', value: 'decimal' },
             { label: 'Choose from options', value: 'choice' },
             { label: 'Choose a material or paper', value: 'material-reference' },
+            { label: 'Choose a machine', value: 'machine-reference' },
             { label: 'Yes / no choice', value: 'boolean' },
           ]" @update:model-value="emit('normalize')" />
         </div>
@@ -103,6 +107,14 @@ function updateOption(index: number, previous: string, value: string) {
             ...materials.map((material) => ({ label: `${material.name}${material.sku ? ` · ${material.sku}` : ''}`, value: material.id })),
           ]" />
           <p class="mt-2 text-xs leading-5 text-base-content/60">Use this input when the operator should choose the paper or stock item used by the service.</p>
+        </div>
+
+        <div v-else-if="parameter.type === 'machine-reference'" class="rounded-box border border-base-300 bg-base-100 p-3">
+          <SelectField v-model="parameter.defaultValue" label="Default machine" :options="[
+            { label: 'No default machine', value: '' },
+            ...machines.map((machine) => ({ label: `${machine.name}${machine.code ? ` · ${machine.code}` : ''}`, value: machine.id })),
+          ]" />
+          <p class="mt-2 text-xs leading-5 text-base-content/60">Use this input when the operator should choose the machine used by the service.</p>
         </div>
 
         <div v-else class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-100 p-3">

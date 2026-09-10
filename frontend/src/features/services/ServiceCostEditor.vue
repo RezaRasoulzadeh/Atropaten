@@ -62,17 +62,62 @@ function updateMaterialSource(component: ComponentForm, source: string) {
   component.usageMode = component.referenceId ? component.usageMode : 'fixed'
   component.parameterKey = ''
 }
+function machineSource(component: ComponentForm) {
+  return component.referenceId || component.usageMode === 'fixed' ? 'fixed' : 'parameter'
+}
+function updateMachineSource(component: ComponentForm, source: string) {
+  if (source === 'parameter') {
+    component.referenceId = ''
+    component.usageMode = 'parameter'
+    component.parameterKey = ''
+    component.rateId = ''
+    return
+  }
+  component.usageMode = component.referenceId ? component.usageMode : 'fixed'
+  component.parameterKey = ''
+}
+function machineFor(component: ComponentForm) {
+  if (component.usageMode === 'parameter' && !component.referenceId) return null
+  return props.machines.find((machine) => machine.id === component.referenceId) || null
+}
+function machineRates(component: ComponentForm) {
+  const machine = machineFor(component)
+  if (!machine) return []
+  const rates = machine.rates?.length
+    ? machine.rates
+    : [{ id: 'default', name: 'Standard', selectorValue: '', rateBasis: machine.rateBasis, rateRial: machine.rateRial, setupCostRial: machine.setupCostRial, active: true }]
+  return rates.filter((rate) => rate.active)
+}
+function choiceParameters() {
+  return props.parameters.filter((parameter) => parameter.type === 'choice' && parameter.options.length)
+}
+function updateRateParameter(component: ComponentForm, value: string) {
+  component.rateParameterKey = value
+  if (value) component.rateId = ''
+}
+function updateRateId(component: ComponentForm, value: string) {
+  component.rateId = value
+  if (value) component.rateParameterKey = ''
+}
 function numericParameters() {
   return props.parameters.filter((parameter) => parameter.type === 'integer' || parameter.type === 'decimal')
 }
 function materialParameters() {
   return props.parameters.filter((parameter) => parameter.type === 'material-reference' || parameter.type === 'choice')
 }
+function machineParameters() {
+  return props.parameters.filter((parameter) => parameter.type === 'machine-reference' || parameter.type === 'choice')
+}
 function usesQuantitySource() {
   return !componentNeedsPercentage(props.component.type) && props.component.type !== 'manual'
 }
 function usesQuantityFields() {
   return usesQuantitySource() && (props.component.type !== 'material' || materialSource(props.component) === 'parameter' || props.component.usageMode === 'fixed')
+}
+function usesFixedQuantitySourceSelector() {
+  if (props.component.type === 'material') return materialSource(props.component) === 'fixed'
+  if (props.component.type === 'machine') return machineSource(props.component) === 'fixed'
+  return true
 }
 </script>
 
@@ -134,11 +179,33 @@ function usesQuantityFields() {
         </div>
 
         <div v-else-if="component.type === 'machine'" class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-100 p-3">
-          <div><h4 class="text-sm font-semibold">Which machine does the work?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">The machine's configured rate will be used automatically.</p></div>
-          <SelectField v-model="component.referenceId" label="Machine" :invalid="props.showErrors && !component.referenceId" :options="[
+          <div><h4 class="text-sm font-semibold">Which machine does the work?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">Use one fixed machine, or let the operator choose a machine when placing the order.</p></div>
+          <SelectField :model-value="machineSource(component)" label="Machine selection" :options="[
+            { label: 'Always use one machine', value: 'fixed' },
+            { label: 'Let the operator choose a machine', value: 'parameter' },
+          ]" @update:model-value="updateMachineSource(component, $event)" />
+          <SelectField v-if="machineSource(component) === 'fixed'" v-model="component.referenceId" label="Machine" :invalid="props.showErrors && !component.referenceId" :options="[
             { label: 'Select an active machine', value: '' },
-            ...machines.map((machine) => ({ label: machine.name, value: machine.id })),
+            ...machines.map((machine) => ({ label: `${machine.name}${machine.code ? ` · ${machine.code}` : ''}`, value: machine.id })),
           ]" />
+          <div v-else class="space-y-2">
+            <SelectField v-model="component.parameterKey" label="Which operator input chooses it?" :invalid="props.showErrors && !component.parameterKey" :options="[
+              { label: 'Select a machine input', value: '' },
+              ...machineParameters().map((parameter) => ({ label: `${parameter.label || parameter.key} · ${parameter.type === 'choice' ? 'choices' : 'machines'}`, value: parameter.key })),
+            ]" />
+            <p class="text-xs leading-5 text-base-content/60">Example: connect this cost to a “Print method” input with machine choices.</p>
+          </div>
+          <div class="space-y-2 border-t border-base-300 pt-4">
+            <SelectField v-if="machineSource(component) === 'fixed'" :model-value="component.rateId" label="Machine rate" :options="[
+              { label: machineRates(component).length ? 'Use the machine standard rate' : 'No rate profiles configured', value: '' },
+              ...machineRates(component).map((rate) => ({ label: `${rate.name} · ${rate.rateRial.toLocaleString()} / ${rate.rateBasis}`, value: rate.id })),
+            ]" @update:model-value="updateRateId(component, $event)" />
+            <SelectField :model-value="component.rateParameterKey" label="Rate varies with (optional)" :options="[
+              { label: 'Use the selected machine rate', value: '' },
+              ...choiceParameters().map((parameter) => ({ label: `${parameter.label || parameter.key} · matches a machine rate`, value: parameter.key })),
+            ]" @update:model-value="updateRateParameter(component, $event)" />
+            <p class="text-xs leading-5 text-base-content/60">For example, add “Black & white” and “Full color” rates to the machine, then connect this cost to the Color input. Each option is matched to the rate profile’s selector value or name.</p>
+          </div>
         </div>
 
         <div v-else-if="component.type === 'service'" class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-100 p-3">
@@ -152,7 +219,7 @@ function usesQuantityFields() {
 
         <div v-if="usesQuantitySource()" class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
           <div><h4 class="text-sm font-semibold">How much is used?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">Set the amount consumed for one service unit. Use an operator input when it changes with the order.</p></div>
-          <SelectField v-if="component.type !== 'material' || materialSource(component) === 'fixed'" v-model="component.usageMode" label="Quantity comes from" :options="[
+          <SelectField v-if="usesFixedQuantitySourceSelector()" v-model="component.usageMode" label="Quantity comes from" :options="[
             { label: 'A fixed amount', value: 'fixed' },
             { label: 'An operator input', value: 'parameter' },
           ]" />
@@ -160,7 +227,7 @@ function usesQuantityFields() {
             <FormField class="gap-1"><span>Amount per service</span><AppInput v-model="component.usageQuantity" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.usageQuantity.trim() }" type="text" inputmode="decimal" placeholder="1" /></FormField>
             <FormField class="gap-1"><span>Multiply by</span><AppInput v-model="component.multiplier" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.multiplier.trim() }" type="text" inputmode="decimal" placeholder="1" /></FormField>
           </FormGrid>
-          <SelectField v-if="component.usageMode === 'parameter' && (component.type !== 'material' || materialSource(component) === 'fixed')" v-model="component.parameterKey" label="Which quantity input?" :invalid="props.showErrors && !component.parameterKey" :options="[
+          <SelectField v-if="component.usageMode === 'parameter' && usesFixedQuantitySourceSelector()" v-model="component.parameterKey" label="Which quantity input?" :invalid="props.showErrors && !component.parameterKey" :options="[
             { label: 'Select a quantity input', value: '' },
             ...numericParameters().map((parameter) => ({ label: `${parameter.label || parameter.key}${parameter.unit ? ` · ${parameter.unit}` : ''}`, value: parameter.key })),
           ]" />

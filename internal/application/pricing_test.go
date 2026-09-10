@@ -104,6 +104,30 @@ func TestPricingServiceMapsChoiceMaterialOptionToMaterialCost(t *testing.T) {
 	}
 }
 
+func TestPricingServiceCalculatesMachineSelectedByParameter(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := domain.NewService("SVC-machine-selection", domain.ServiceDraft{
+		Name:       "Selectable machine service",
+		Parameters: []domain.ServiceParameterDraft{{ID: "P-machine", Key: "print_method", Label: "Print method", Type: domain.ParameterMachineReference, Required: true}},
+		Components: []domain.ServiceCostComponentDraft{{ID: "C-machine", Name: "Machine", Type: domain.CostMachine, UsageMode: domain.UsageParameter, ParameterKey: "print_method", UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true}},
+	}, now)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	pricing := NewPricingService(
+		&serviceRepositoryStub{service: service},
+		materialLookupStub{},
+		machineLookupStub{machine: domain.Machine{ID: "MAC-dtf", Name: "DTF printer", Active: true, RateRial: 750}},
+	)
+	result, err := pricing.Calculate(context.Background(), PricingRequest{ServiceID: service.ID, Parameters: map[string]string{"print_method": "MAC-dtf"}})
+	if err != nil {
+		t.Fatalf("calculate: %v", err)
+	}
+	if result.EstimatedCostRial != 750 {
+		t.Fatalf("machine cost = %d, want 750", result.EstimatedCostRial)
+	}
+}
+
 type serviceMapRepository struct {
 	services map[string]domain.Service
 }

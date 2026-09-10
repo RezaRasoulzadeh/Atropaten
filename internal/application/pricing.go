@@ -123,7 +123,15 @@ func (s *PricingService) calculate(ctx context.Context, request PricingRequest, 
 			if s.machine == nil {
 				return PricingView{}, fmt.Errorf("machine lookup is not available")
 			}
-			machine, getErr := s.machine.GetMachine(ctx, component.ReferenceID)
+			machineID := component.ReferenceID
+			if component.UsageMode == domain.UsageParameter && component.ReferenceID == "" {
+				parameter, exists := parameterMap[component.ParameterKey]
+				if !exists || parameter.MachineID == "" {
+					return PricingView{}, fmt.Errorf("component %q: machine parameter %q has no selected machine", component.Name, component.ParameterKey)
+				}
+				machineID = parameter.MachineID
+			}
+			machine, getErr := s.machine.GetMachine(ctx, machineID)
 			if getErr != nil {
 				return PricingView{}, fmt.Errorf("component %q: %w", component.Name, getErr)
 			}
@@ -195,6 +203,7 @@ func (s *PricingService) resolveParameters(ctx context.Context, definitions []do
 				return nil, fmt.Errorf("parameter %q must use one of its configured choices", definition.Label)
 			}
 			item.MaterialID = s.materialIDForChoice(ctx, value)
+			item.MachineID = s.machineIDForChoice(ctx, value)
 		case domain.ParameterMaterialReference:
 			if s.material == nil {
 				return nil, fmt.Errorf("material lookup is not available")
@@ -207,6 +216,18 @@ func (s *PricingService) resolveParameters(ctx context.Context, definitions []do
 				return nil, fmt.Errorf("parameter %q must reference an active material", definition.Label)
 			}
 			item.MaterialID = material.ID
+		case domain.ParameterMachineReference:
+			if s.machine == nil {
+				return nil, fmt.Errorf("machine lookup is not available")
+			}
+			machine, getErr := s.machine.GetMachine(ctx, value)
+			if getErr != nil {
+				return nil, fmt.Errorf("parameter %q: %w", definition.Label, getErr)
+			}
+			if !machine.Active {
+				return nil, fmt.Errorf("parameter %q must reference an active machine", definition.Label)
+			}
+			item.MachineID = machine.ID
 		default:
 			return nil, fmt.Errorf("parameter %q has unsupported type", definition.Label)
 		}
@@ -267,6 +288,54 @@ func (s *PricingService) materialIDForChoice(ctx context.Context, value string) 
 	}
 	if material, err := s.material.Get(ctx, value); err == nil && material.Active {
 		return material.ID
+	}
+	return ""
+}
+
+func (s *PricingService) machineIDForChoice(ctx context.Context, value string) string {
+	if s.machine == nil {
+		return ""
+	}
+	wanted := normalizeMaterialChoice(value)
+	if machines, ok := s.machine.(interface {
+		ListMachines(context.Context, bool) ([]domain.Machine, error)
+	}); ok {
+		items, err := machines.ListMachines(ctx, false)
+		if err == nil {
+			var fuzzyID string
+			fuzzyAmbiguous := false
+			for _, machine := range items {
+				if !machine.Active {
+					continue
+				}
+				candidates := []string{machine.ID, machine.Name, machine.Code}
+				for _, candidate := range candidates {
+					if wanted != "" && wanted == normalizeMaterialChoice(candidate) {
+						return machine.ID
+					}
+				}
+				if wanted == "" || len([]rune(wanted)) < 2 {
+					continue
+				}
+				for _, candidate := range []string{machine.Name, machine.Code} {
+					candidate = normalizeMaterialChoice(candidate)
+					if candidate != "" && (strings.Contains(candidate, wanted) || strings.Contains(wanted, candidate)) {
+						if fuzzyID == "" {
+							fuzzyID = machine.ID
+						} else if fuzzyID != machine.ID {
+							fuzzyAmbiguous = true
+						}
+						break
+					}
+				}
+			}
+			if fuzzyID != "" && !fuzzyAmbiguous {
+				return fuzzyID
+			}
+		}
+	}
+	if machine, err := s.machine.GetMachine(ctx, value); err == nil && machine.Active {
+		return machine.ID
 	}
 	return ""
 }

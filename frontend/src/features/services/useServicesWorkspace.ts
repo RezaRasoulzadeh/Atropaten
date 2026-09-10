@@ -109,6 +109,8 @@ function emptyComponent(type: ComponentType = 'fixed'): ComponentForm {
     referenceId: '',
     usageMode: 'fixed',
     parameterKey: '',
+    rateId: '',
+    rateParameterKey: '',
     usageQuantity: '1',
     multiplier: '1',
     rateRial: 0,
@@ -176,6 +178,8 @@ function startEdit() {
       referenceId: component.referenceId,
       usageMode: component.usageMode as 'fixed' | 'parameter',
       parameterKey: component.parameterKey,
+      rateId: component.rateId || '',
+      rateParameterKey: component.rateParameterKey || '',
       usageQuantity: component.usageQuantity || '1',
       multiplier: component.multiplier,
       rateRial: component.rateRial,
@@ -254,25 +258,33 @@ function normalizeComponent(component: ComponentForm) {
     component.rateBasis = '';
     component.usageMode = 'fixed';
     component.parameterKey = '';
-  } else if (component.type === 'service') {
-    component.usageMode = 'fixed';
-    component.parameterKey = '';
+    component.rateId = '';
+    component.rateParameterKey = '';
+	} else if (component.type === 'service') {
+		component.usageMode = 'fixed';
+		component.parameterKey = '';
+		component.rateId = '';
+		component.rateParameterKey = '';
     component.rateRial = 0;
     component.rateInput = '';
     component.percentage = '';
     component.rateBasis = '';
-  } else if (component.type === 'overhead' || component.type === 'waste') {
-    component.referenceId = '';
+	} else if (component.type === 'overhead' || component.type === 'waste') {
+		component.referenceId = '';
+		component.rateId = '';
+		component.rateParameterKey = '';
     component.usageMode = 'fixed';
     component.parameterKey = '';
     component.rateRial = 0;
     component.rateInput = '';
     component.multiplier = '1';
     component.rateBasis = '';
-  } else {
-    component.referenceId = '';
-    component.usageMode = 'fixed';
-    component.parameterKey = '';
+	} else {
+		component.referenceId = '';
+		component.usageMode = 'fixed';
+		component.parameterKey = '';
+		component.rateId = '';
+		component.rateParameterKey = '';
     component.percentage = '';
     if (component.type !== 'labor' && component.type !== 'outsourced') component.rateBasis = '';
   }
@@ -423,6 +435,12 @@ function normalizeParameter(parameter: ParameterForm) {
     )
       ? parameter.defaultValue
       : '';
+  } else if (parameter.type === 'machine-reference') {
+    parameter.defaultValue = machines.value.some(
+      (machine) => machine.id === parameter.defaultValue,
+    )
+      ? parameter.defaultValue
+      : '';
   } else if (parameter.type === 'integer' || parameter.type === 'decimal') {
     const decimalDefault = /^\d+(?:\.\d{1,6})?$/.test(parameter.defaultValue);
     const integerDefault = /^\d+$/.test(parameter.defaultValue);
@@ -476,6 +494,8 @@ return runAction(async () => {
         referenceId: component.referenceId,
         usageMode: component.usageMode,
         parameterKey: component.parameterKey,
+        rateId: component.rateId,
+        rateParameterKey: component.rateParameterKey,
         usageQuantity: component.usageQuantity,
         multiplier: component.multiplier,
         rateRial: component.rateRial,
@@ -583,6 +603,7 @@ function typeLabel(type: string) {
       boolean: 'Boolean',
       choice: 'Choice',
       'material-reference': 'Material reference',
+      'machine-reference': 'Machine reference',
     }[type] ?? type
   );
 }

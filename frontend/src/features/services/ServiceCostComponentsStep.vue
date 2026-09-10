@@ -51,6 +51,8 @@ function emptyComponent(type: ComponentType): ComponentForm {
     referenceId: '',
     usageMode: 'fixed',
     parameterKey: '',
+    rateId: '',
+    rateParameterKey: '',
     usageQuantity: '1',
     multiplier: '1',
     rateRial: 0,
@@ -83,6 +85,8 @@ function normalizeComponent(component: ComponentForm) {
     component.rateInput = ''
     component.percentage = ''
     component.rateBasis = ''
+    component.rateId = ''
+    component.rateParameterKey = ''
   } else if (component.type === 'service') {
     component.referenceId = ''
     component.usageMode = 'fixed'
@@ -109,8 +113,13 @@ function normalizeComponent(component: ComponentForm) {
 }
 
 function costParameter(parameter: ParameterForm) {
+  if (parameter.type === 'machine-reference') return true
   if (parameter.type !== 'choice' && parameter.type !== 'material-reference') return false
-  return /paper|stock|substrate|material|media|finish|lamination|ink|color/i.test(`${parameter.key} ${parameter.label}`)
+  return /paper|stock|substrate|material|media|finish|lamination|ink|color|machine|printer|press|plotter|cutter|print.?method/i.test(`${parameter.key} ${parameter.label}`)
+}
+
+function suggestedComponentType(parameter: ParameterForm): ComponentType {
+  return parameter.type === 'machine-reference' || /machine|printer|press|plotter|cutter|print.?method/i.test(`${parameter.key} ${parameter.label}`) ? 'machine' : 'material'
 }
 
 function addSuggestedComponents() {
@@ -118,8 +127,9 @@ function addSuggestedComponents() {
   const candidates = props.parameters.filter(costParameter)
   if (!candidates.length) return
   for (const parameter of candidates) {
+    const type = suggestedComponentType(parameter)
     props.components.push({
-      ...emptyComponent('material'),
+      ...emptyComponent(type),
       name: `${parameter.label || parameter.key} cost`,
       usageMode: 'parameter',
       parameterKey: parameter.key,
@@ -177,7 +187,12 @@ function sourceLabel(component: ComponentForm) {
     }
     return props.materials.find((material) => material.id === component.referenceId)?.name || 'Choose material'
   }
-  if (component.type === 'machine') return props.machines.find((machine) => machine.id === component.referenceId)?.name || 'Choose machine'
+  if (component.type === 'machine') {
+    if (component.usageMode === 'parameter' && !component.referenceId) return `${props.parameters.find((parameter) => parameter.key === component.parameterKey)?.label || 'Parameter selected'}${component.rateParameterKey ? ` · ${props.parameters.find((parameter) => parameter.key === component.rateParameterKey)?.label || 'rate'}` : ''}`
+    const machine = props.machines.find((item) => item.id === component.referenceId)
+    const rate = machine?.rates?.find((item) => item.id === component.rateId)
+    return `${machine?.name || 'Choose machine'}${rate ? ` · ${rate.name}` : component.rateParameterKey ? ` · ${props.parameters.find((parameter) => parameter.key === component.rateParameterKey)?.label || 'rate'}` : ''}`
+  }
   if (component.type === 'service') return props.services.find((service) => service.id === component.referenceId)?.name || 'Choose service'
   if (component.type === 'overhead' || component.type === 'waste') return `${component.percentage || '0'}%`
   if (component.type === 'labor' || component.type === 'outsourced' || component.type === 'fixed' || component.type === 'manual') return component.rateRial ? formatMoney(component.rateRial, props.currencyUnit) : 'Set rate'

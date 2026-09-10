@@ -20,6 +20,7 @@ const props = withDefaults(
   defineProps<{
     services: any[];
     materials: any[];
+    machines: any[];
     currencyUnit: CurrencyUnit;
     initial?: any;
     documentLabel?: string;
@@ -236,6 +237,19 @@ function save() {
             ...materials
               .filter((value: any) => value.active)
               .map((value: any) => ({ label: value.name, value: value.id })),
+          ]"
+          :aria-label="parameter.label"
+          @update:model-value="setValue(parameter.key, $event)"
+        />
+        <SelectField
+          v-else-if="parameter.type === 'machine-reference'"
+          :model-value="values[parameter.key] || ''"
+          :label="parameter.label"
+          :options="[
+            { label: 'Select machine…', value: '' },
+            ...machines
+              .filter((value: any) => value.active)
+              .map((value: any) => ({ label: value.code ? `${value.name} · ${value.code}` : value.name, value: value.id })),
           ]"
           :aria-label="parameter.label"
           @update:model-value="setValue(parameter.key, $event)"

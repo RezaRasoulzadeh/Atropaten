@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"strings"
 )
 
 // ResolvedParameter is the canonical, validated value used by the pricing engine.
@@ -14,6 +15,7 @@ type ResolvedParameter struct {
 	Value      string
 	Quantity   Quantity
 	MaterialID string
+	MachineID  string
 }
 
 type PricingInput struct {
@@ -95,7 +97,7 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 			item.Explanation = fmt.Sprintf("%s of accumulated cost before this component", component.Percentage.String())
 		default:
 			var usage Quantity
-			if component.Type == CostMaterial && component.UsageMode == UsageParameter && component.ReferenceID == "" {
+			if (component.Type == CostMaterial || component.Type == CostMachine) && component.UsageMode == UsageParameter && component.ReferenceID == "" {
 				usage, err = quantityProduct(component.UsageQuantity, component.Multiplier)
 			} else {
 				usage, err = componentUsage(component, input.Parameters)
@@ -128,13 +130,25 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 				item.RateRial = materialUnitCost
 				item.Explanation = fmt.Sprintf("%s × %d Rial %s", usage.String(), materialUnitCost, costBasis)
 			case CostMachine:
-				machine, exists := input.Machines[component.ReferenceID]
+				machineID := component.ReferenceID
+				if component.UsageMode == UsageParameter && component.ReferenceID == "" {
+					parameter, exists := input.Parameters[component.ParameterKey]
+					if !exists || parameter.MachineID == "" {
+						return PricingResult{}, fmt.Errorf("component %q: machine parameter %q has no selected machine", component.Name, component.ParameterKey)
+					}
+					machineID = parameter.MachineID
+				}
+				machine, exists := input.Machines[machineID]
 				if !exists {
 					return PricingResult{}, fmt.Errorf("component %q: machine %q not found", component.Name, component.ReferenceID)
 				}
-				amount, err = scaledMoney(usage, machine.RateRial)
-				item.RateRial = machine.RateRial
-				item.Explanation = fmt.Sprintf("%s × %d Rial %s rate", usage.String(), machine.RateRial, machine.RateBasis)
+				rate, rateExists := machineRateFor(machine, component, input.Parameters)
+				if !rateExists {
+					return PricingResult{}, fmt.Errorf("component %q: machine rate is not configured for the selected option", component.Name)
+				}
+				amount, err = scaledMoney(usage, rate.RateRial)
+				item.RateRial = rate.RateRial
+				item.Explanation = fmt.Sprintf("%s × %d Rial %s rate (%s)", usage.String(), rate.RateRial, rate.RateBasis, rate.Name)
 			case CostService:
 				serviceCost, exists := input.ServiceCosts[component.ReferenceID]
 				if !exists {
@@ -200,6 +214,30 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 		result.Warnings = append(result.Warnings, "Selling price is below estimated cost")
 	}
 	return result, nil
+}
+
+func machineRateFor(machine Machine, component ServiceCostComponent, parameters map[string]ResolvedParameter) (MachineRate, bool) {
+	if component.RateID != "" {
+		return machine.Rate(component.RateID)
+	}
+	if component.RateParameterKey != "" {
+		parameter, exists := parameters[component.RateParameterKey]
+		if !exists || strings.TrimSpace(parameter.Value) == "" {
+			return MachineRate{}, false
+		}
+		wanted := normalizeRateSelector(parameter.Value)
+		for _, rate := range machine.Rates {
+			if rate.Active && wanted != "" && (wanted == normalizeRateSelector(rate.SelectorValue) || wanted == normalizeRateSelector(rate.Name) || wanted == normalizeRateSelector(rate.ID)) {
+				return rate, true
+			}
+		}
+		return MachineRate{}, false
+	}
+	return machine.Rate("")
+}
+
+func normalizeRateSelector(value string) string {
+	return strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(value)), " "))
 }
 
 func componentUsage(component ServiceCostComponent, parameters map[string]ResolvedParameter) (Quantity, error) {

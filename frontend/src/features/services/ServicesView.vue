@@ -8,8 +8,6 @@ import EmptyState from '../../components/ui/EmptyState.vue'
 import SearchFilterBar from '../../components/ui/SearchFilterBar.vue'
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 import FormGrid from '../../components/ui/FormGrid.vue';
-import InspectorShell from '../../components/layout/InspectorShell.vue';
-import InspectorSection from '../../components/layout/InspectorSection.vue';
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
 import RegisterList from '../../components/ui/RegisterList.vue';
 import RegisterRow from '../../components/ui/RegisterRow.vue';
@@ -52,7 +50,7 @@ import ServiceEditorWizard from './ServiceEditorWizard.vue';
 const emit = defineEmits<{ notify: [message: string] }>();
 const props = defineProps<{ currencyUnit: CurrencyUnit }>();
 import {useServicesWorkspace} from './useServicesWorkspace'
-const {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,validationAttempted,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,syncParameterKey,normalizeParameter,addOption,removeOption,saveService,setActive,remove,typeLabel,dateLabel}=useServicesWorkspace(props,emit)
+const {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,validationAttempted,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,cancelEditor,addParameter,removeParameter,moveParameter,syncParameterKey,normalizeParameter,addOption,removeOption,saveService,setActive,remove,dateLabel}=useServicesWorkspace(props,emit)
 const newInputType = ref<ParameterType | ''>('');
 const newCostType = ref<ComponentType | ''>('');
 function addInput(type: string) {
@@ -283,7 +281,7 @@ watch(
               />
             </header>
           <div v-if="form.parameters.length" class="overflow-hidden rounded-box border border-base-300 bg-base-100">
-            <ServiceParameterEditor v-for="(parameter,index) in form.parameters" :key="parameter.id" :parameter="parameter" :index="index" :count="form.parameters.length" :materials="materials" :show-errors="validationAttempted" @move="moveParameter(index,$event)" @remove="removeParameter(index)" @normalize="normalizeParameter(parameter)" @label-change="syncParameterKey(parameter)" @add-option="addOption(parameter)" @remove-option="removeOption(parameter,$event)" />
+            <ServiceParameterEditor v-for="(parameter,index) in form.parameters" :key="parameter.id" :parameter="parameter" :index="index" :count="form.parameters.length" :materials="materials" :machines="machines" :show-errors="validationAttempted" @move="moveParameter(index,$event)" @remove="removeParameter(index)" @normalize="normalizeParameter(parameter)" @label-change="syncParameterKey(parameter)" @add-option="addOption(parameter)" @remove-option="removeOption(parameter,$event)" />
           </div>
           <EmptyState v-else compact title="No parameters yet" description="Add one when the service needs operator input.">
             <template #icon><ListPlus :size="20" aria-hidden="true" /></template>
@@ -457,95 +455,11 @@ watch(
         </form>
       </AppPanel>
 
-      <InspectorShell
-        v-else-if="selectedService"
-        title="Service overview"
-        subtitle="Definition used by orders and production."
-      >
-        <div class="grid min-w-0 gap-3 sm:grid-cols-3">
-          <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
-            <span class="block text-xs text-base-content/60">Operator inputs</span>
-            <strong class="mt-1 block text-xl leading-6 tabular-nums">{{ selectedService.parameters.length }}</strong>
-            <span class="mt-1 block text-xs text-base-content/55">{{ selectedService.parameters.filter((parameter) => parameter.required).length }} required</span>
-          </div>
-          <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
-            <span class="block text-xs text-base-content/60">Cost components</span>
-            <strong class="mt-1 block text-xl leading-6 tabular-nums">{{ selectedService.components.length }}</strong>
-            <span class="mt-1 block text-xs text-base-content/55">Ordered pricing inputs</span>
-          </div>
-          <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
-            <span class="block text-xs text-base-content/60">Price rule</span>
-            <strong class="mt-1 block truncate text-sm font-semibold">{{ selectedService.pricingRule?.type || 'Manual' }}</strong>
-            <span class="mt-1 block text-xs text-base-content/55">Used in order pricing</span>
-          </div>
-        </div>
-
-        <div
-          v-if="selectedService.description"
-          class="rounded-box border border-primary/25 bg-primary/5 p-3"
-        >
-          <span class="block text-xs font-semibold text-primary">Service notes</span>
-          <p class="mt-1 text-sm leading-5">{{ selectedService.description }}</p>
-        </div>
-
-        <div class="grid min-w-0 gap-4 xl:grid-cols-2">
-          <InspectorSection title="Operator parameters" description="Inputs available when this service is used in an order.">
-            <div v-if="selectedService.parameters.length" class="min-w-0 space-y-2">
-              <div
-                v-for="parameter in selectedService.parameters"
-                :key="parameter.id"
-                class="flex min-w-0 items-start gap-3 rounded-box border border-base-300 bg-base-200/30 p-3"
-              >
-                <span class="grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
-                  {{ String(parameter.position + 1).padStart(2, '0') }}
-                </span>
-                <div class="min-w-0 flex-1">
-                  <div class="flex min-w-0 flex-wrap items-center gap-2">
-                    <strong class="wrap-anywhere">{{ parameter.label || parameter.key }}</strong>
-                    <span v-if="parameter.required" class="text-[0.6875rem] font-semibold text-primary">Required</span>
-                  </div>
-                  <small class="mt-1 block break-words text-xs leading-5 text-base-content/60">
-                    <code>{{ parameter.key }}</code> · {{ typeLabel(parameter.type) }}<span v-if="parameter.unit"> · {{ parameter.unit }}</span>
-                  </small>
-                  <small v-if="parameter.type === 'choice'" class="mt-1 block break-words text-xs leading-5 text-base-content/60">
-                    {{ parameter.options.join(' / ') || 'No choices configured' }}
-                  </small>
-                  <small v-if="parameter.defaultValue" class="mt-1 block break-words text-xs leading-5 text-base-content/60">
-                    Default: {{ parameter.type === 'material-reference' ? materials.find((material) => material.id === parameter.defaultValue)?.name || parameter.defaultValue : parameter.defaultValue }}
-                  </small>
-                </div>
-              </div>
-            </div>
-            <EmptyState v-else compact title="No parameters configured" description="Add parameters in the service editor when operators need input."><template #icon><ListPlus :size="21" aria-hidden="true" /></template></EmptyState>
-          </InspectorSection>
-
-          <InspectorSection title="Cost components" description="Ordered inputs used by the pricing engine.">
-            <div v-if="selectedService.components.length" class="min-w-0 space-y-2">
-              <div
-                v-for="component in selectedService.components"
-                :key="component.id"
-                class="flex min-w-0 items-start gap-3 rounded-box border border-base-300 bg-base-200/30 p-3"
-              >
-                <span class="grid size-7 shrink-0 place-items-center rounded-full bg-base-300 text-xs font-semibold tabular-nums">
-                  {{ String(component.position + 1).padStart(2, '0') }}
-                </span>
-                <div class="min-w-0 flex-1">
-                  <strong class="block wrap-anywhere">{{ component.name || typeLabel(component.type) }}</strong>
-                  <small class="mt-1 block break-words text-xs leading-5 text-base-content/60">{{ componentSummary(component) }}</small>
-                </div>
-              </div>
-            </div>
-            <EmptyState v-else compact title="No cost components configured" description="Add reusable inputs in the service editor."><template #icon><Plus :size="21" aria-hidden="true" /></template></EmptyState>
-          </InspectorSection>
-        </div>
-
-        <div class="border-t border-base-300 pt-3 text-xs text-base-content/55">Updated {{ dateLabel(selectedService.updatedAt) }}</div>
-      </InspectorShell>
-
       <div v-if="selectedService && !editorMode && selectedService.active" class="min-w-0 rounded-box border border-base-300 bg-base-100 p-4">
         <ServiceConfigurator
           :service="selectedService"
           :materials="materials"
+          :machines="machines"
           :currency-unit="props.currencyUnit"
         />
       </div>

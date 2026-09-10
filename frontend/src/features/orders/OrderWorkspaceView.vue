@@ -36,6 +36,7 @@ const props = defineProps<{
   customers: any[];
   services: any[];
   materials: any[];
+  machines: any[];
   isNew?: boolean;
 }>();
 
@@ -492,6 +493,7 @@ function snapshot(item: any, key: string) {
         <OrderItemConfigurator
           :services="services"
           :materials="materials"
+          :machines="machines"
           :currency-unit="currencyUnit"
           :initial="editingItem" :busy="busy"
           @configured="configured"

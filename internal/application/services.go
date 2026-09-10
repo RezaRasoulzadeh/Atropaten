@@ -53,19 +53,21 @@ type ServiceInput struct {
 }
 
 type CostComponentInput struct {
-	ID            string
-	Name          string
-	Type          string
-	ReferenceID   string
-	UsageMode     string
-	ParameterKey  string
-	UsageQuantity string
-	Multiplier    string
-	RateRial      int64
-	Percentage    string
-	RateBasis     string
-	Enabled       bool
-	Notes         string
+	ID               string
+	Name             string
+	Type             string
+	ReferenceID      string
+	UsageMode        string
+	ParameterKey     string
+	RateID           string
+	RateParameterKey string
+	UsageQuantity    string
+	Multiplier       string
+	RateRial         int64
+	Percentage       string
+	RateBasis        string
+	Enabled          bool
+	Notes            string
 }
 
 type PricingRuleInput struct {
@@ -118,20 +120,22 @@ type ServiceView struct {
 }
 
 type CostComponentView struct {
-	ID            string
-	Name          string
-	Type          string
-	ReferenceID   string
-	UsageMode     string
-	ParameterKey  string
-	UsageQuantity string
-	Multiplier    string
-	RateRial      int64
-	Percentage    string
-	RateBasis     string
-	Enabled       bool
-	Position      int
-	Notes         string
+	ID               string
+	Name             string
+	Type             string
+	ReferenceID      string
+	UsageMode        string
+	ParameterKey     string
+	RateID           string
+	RateParameterKey string
+	UsageQuantity    string
+	Multiplier       string
+	RateRial         int64
+	Percentage       string
+	RateBasis        string
+	Enabled          bool
+	Position         int
+	Notes            string
 }
 
 type PricingRuleView struct {
@@ -458,18 +462,32 @@ func (s *ServicesService) saveDefinition(ctx context.Context, service domain.Ser
 
 func (s *ServicesService) validateReferences(ctx context.Context, service domain.Service) error {
 	for _, parameter := range service.Parameters {
-		if parameter.Type != domain.ParameterMaterialReference || parameter.DefaultValue == "" {
+		if parameter.DefaultValue == "" {
 			continue
 		}
-		if s.material == nil {
-			return fmt.Errorf("material-reference default cannot be checked")
-		}
-		material, err := s.material.Get(ctx, parameter.DefaultValue)
-		if err != nil {
-			return fmt.Errorf("parameter %q: material reference: %w", parameter.Key, err)
-		}
-		if !material.Active {
-			return fmt.Errorf("parameter %q: material reference must be active", parameter.Key)
+		switch parameter.Type {
+		case domain.ParameterMaterialReference:
+			if s.material == nil {
+				return fmt.Errorf("material-reference default cannot be checked")
+			}
+			material, err := s.material.Get(ctx, parameter.DefaultValue)
+			if err != nil {
+				return fmt.Errorf("parameter %q: material reference: %w", parameter.Key, err)
+			}
+			if !material.Active {
+				return fmt.Errorf("parameter %q: material reference must be active", parameter.Key)
+			}
+		case domain.ParameterMachineReference:
+			if s.machine == nil {
+				return fmt.Errorf("machine-reference default cannot be checked")
+			}
+			machine, err := s.machine.GetMachine(ctx, parameter.DefaultValue)
+			if err != nil {
+				return fmt.Errorf("parameter %q: machine reference: %w", parameter.Key, err)
+			}
+			if !machine.Active {
+				return fmt.Errorf("parameter %q: machine reference must be active", parameter.Key)
+			}
 		}
 	}
 	for _, component := range service.Components {
@@ -499,6 +517,31 @@ func (s *ServicesService) validateReferences(ctx context.Context, service domain
 			}
 		}
 		if component.Type == domain.CostMachine {
+			if component.RateParameterKey != "" {
+				validRateParameter := false
+				for _, parameter := range service.Parameters {
+					if parameter.Key == component.RateParameterKey && parameter.Type == domain.ParameterChoice {
+						validRateParameter = true
+						break
+					}
+				}
+				if !validRateParameter {
+					return fmt.Errorf("component %q: machine rate parameter is invalid", component.Name)
+				}
+			}
+			if component.UsageMode == domain.UsageParameter && component.ReferenceID == "" {
+				validParameter := false
+				for _, parameter := range service.Parameters {
+					if parameter.Key == component.ParameterKey && (parameter.Type == domain.ParameterMachineReference || parameter.Type == domain.ParameterChoice) {
+						validParameter = true
+						break
+					}
+				}
+				if !validParameter {
+					return fmt.Errorf("component %q: machine parameter reference is invalid", component.Name)
+				}
+				continue
+			}
 			if s.machine == nil {
 				return fmt.Errorf("machine component reference cannot be checked")
 			}
@@ -508,6 +551,11 @@ func (s *ServicesService) validateReferences(ctx context.Context, service domain
 			}
 			if !machine.Active {
 				return fmt.Errorf("component %q: machine reference must be active", component.Name)
+			}
+			if component.RateID != "" {
+				if _, exists := machine.Rate(component.RateID); !exists {
+					return fmt.Errorf("component %q: machine rate %q was not found", component.Name, component.RateID)
+				}
 			}
 		}
 		if component.Type == domain.CostService {
@@ -625,7 +673,7 @@ func (s *ServicesService) parseComponent(input CostComponentInput) (domain.Servi
 	if usageMode == "" {
 		usageMode = domain.UsageFixed
 	}
-	return domain.ServiceCostComponentDraft{ID: id, Name: input.Name, Type: domain.CostComponentType(strings.ToLower(strings.TrimSpace(input.Type))), ReferenceID: input.ReferenceID, UsageMode: usageMode, ParameterKey: input.ParameterKey, UsageQuantity: usageQuantity, Multiplier: multiplier, RateRial: input.RateRial, Percentage: percentage, RateBasis: input.RateBasis, Enabled: input.Enabled, Notes: input.Notes}, nil
+	return domain.ServiceCostComponentDraft{ID: id, Name: input.Name, Type: domain.CostComponentType(strings.ToLower(strings.TrimSpace(input.Type))), ReferenceID: input.ReferenceID, UsageMode: usageMode, ParameterKey: input.ParameterKey, RateID: strings.TrimSpace(input.RateID), RateParameterKey: strings.TrimSpace(input.RateParameterKey), UsageQuantity: usageQuantity, Multiplier: multiplier, RateRial: input.RateRial, Percentage: percentage, RateBasis: input.RateBasis, Enabled: input.Enabled, Notes: input.Notes}, nil
 }
 
 func (s *ServicesService) parsePricingRule(input *PricingRuleInput, serviceID string, existing *domain.ServicePricingRule) (*domain.ServicePricingRuleDraft, error) {
@@ -667,7 +715,7 @@ func componentFromDraft(serviceID string, draft domain.ServiceCostComponentDraft
 	if usageQuantity == 0 {
 		usageQuantity = domain.Quantity(domain.QuantityScale)
 	}
-	return domain.ServiceCostComponent{ID: draft.ID, ServiceID: serviceID, Name: strings.TrimSpace(draft.Name), Type: domain.CostComponentType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), ReferenceID: strings.TrimSpace(draft.ReferenceID), UsageMode: usageMode, ParameterKey: strings.TrimSpace(draft.ParameterKey), UsageQuantity: usageQuantity, Multiplier: draft.Multiplier, RateRial: draft.RateRial, Percentage: draft.Percentage, RateBasis: strings.TrimSpace(draft.RateBasis), Enabled: draft.Enabled, Position: position, Notes: strings.TrimSpace(draft.Notes), CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
+	return domain.ServiceCostComponent{ID: draft.ID, ServiceID: serviceID, Name: strings.TrimSpace(draft.Name), Type: domain.CostComponentType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), ReferenceID: strings.TrimSpace(draft.ReferenceID), UsageMode: usageMode, ParameterKey: strings.TrimSpace(draft.ParameterKey), RateID: strings.TrimSpace(draft.RateID), RateParameterKey: strings.TrimSpace(draft.RateParameterKey), UsageQuantity: usageQuantity, Multiplier: draft.Multiplier, RateRial: draft.RateRial, Percentage: draft.Percentage, RateBasis: strings.TrimSpace(draft.RateBasis), Enabled: draft.Enabled, Position: position, Notes: strings.TrimSpace(draft.Notes), CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
 }
 
 func (s *ServicesService) parseParameter(_ context.Context, input ParameterInput, _ string, _ []domain.ServiceParameter) (domain.ServiceParameterDraft, error) {
@@ -716,7 +764,7 @@ func (s *ServicesService) parseParameter(_ context.Context, input ParameterInput
 			return domain.ServiceParameterDraft{}, domain.ValidationError{Field: "defaultValue", Message: "must be true or false"}
 		}
 		minimum, maximum = nil, nil
-	case domain.ParameterChoice, domain.ParameterMaterialReference:
+	case domain.ParameterChoice, domain.ParameterMaterialReference, domain.ParameterMachineReference:
 		minimum, maximum = nil, nil
 	default:
 		options = nil
@@ -777,7 +825,7 @@ func serviceView(service domain.Service) ServiceView {
 	}
 	components := make([]CostComponentView, 0, len(service.Components))
 	for _, component := range service.Components {
-		components = append(components, CostComponentView{ID: component.ID, Name: component.Name, Type: string(component.Type), ReferenceID: component.ReferenceID, UsageMode: string(component.UsageMode), ParameterKey: component.ParameterKey, UsageQuantity: component.UsageQuantity.String(), Multiplier: component.Multiplier.String(), RateRial: component.RateRial, Percentage: component.Percentage.String(), RateBasis: component.RateBasis, Enabled: component.Enabled, Position: component.Position, Notes: component.Notes})
+		components = append(components, CostComponentView{ID: component.ID, Name: component.Name, Type: string(component.Type), ReferenceID: component.ReferenceID, UsageMode: string(component.UsageMode), ParameterKey: component.ParameterKey, RateID: component.RateID, RateParameterKey: component.RateParameterKey, UsageQuantity: component.UsageQuantity.String(), Multiplier: component.Multiplier.String(), RateRial: component.RateRial, Percentage: component.Percentage.String(), RateBasis: component.RateBasis, Enabled: component.Enabled, Position: component.Position, Notes: component.Notes})
 	}
 	var pricingRule *PricingRuleView
 	if service.PricingRule != nil {

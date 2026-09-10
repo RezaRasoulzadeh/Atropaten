@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ArrowLeft, ArrowRight, CheckCheck, CircleHelp, Printer, Save, Upload, X } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, CheckCheck, CircleHelp, Save, Upload, X } from 'lucide-vue-next'
 import AppInput from '../../components/ui/AppInput.vue'
 import AppTextarea from '../../components/ui/AppTextarea.vue'
 import FormField from '../../components/ui/FormField.vue'
 import SelectField from '../../components/ui/SelectField.vue'
-import StatusBadge from '../../components/ui/StatusBadge.vue'
 import WorkspaceBreadcrumb from '../../components/layout/WorkspaceBreadcrumb.vue'
 import ServiceParametersStep from './ServiceParametersStep.vue'
 import ServiceOrderPreview from './ServiceOrderPreview.vue'
 import ServiceCostBreakdownPreview from './ServiceCostBreakdownPreview.vue'
+import ServicePricingStep from './ServicePricingStep.vue'
+import ServicePricingPreview from './ServicePricingPreview.vue'
+import ServiceOverviewIdentity from './ServiceOverviewIdentity.vue'
+import ServiceOverviewSection from './ServiceOverviewSection.vue'
 import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
@@ -39,6 +42,8 @@ const activeStep = ref(1)
 const imageInput = ref<HTMLInputElement | null>(null)
 const codeWasEdited = ref(Boolean(props.form.code.trim()))
 const lastGeneratedCode = ref('')
+const pricingCostEstimate = ref(0)
+const pricingBreakdown = ref<Array<{ name: string; amount: number; detail: string; missing: boolean }>>([])
 const imagePreview = computed(() => props.form.imagePath || '')
 const steps = [
   { number: 1, title: 'Basic', description: 'Name, category, description' },
@@ -190,6 +195,7 @@ watch(
             :category="form.category"
             :default-unit="form.defaultUnit"
             :materials="materials"
+            :machines="machines"
             :template-scope="form.code || form.name || 'new-service'"
             :show-errors="validationAttempted"
             @apply-template="applyParameterTemplate"
@@ -205,6 +211,14 @@ watch(
             :currency-unit="currencyUnit"
             :show-errors="validationAttempted"
           />
+          <ServicePricingStep
+            v-else-if="activeStep === 4"
+            :pricing-rule="form.pricingRule"
+            :parameters="form.parameters"
+            :currency-unit="currencyUnit"
+            :estimated-cost-rial="pricingCostEstimate"
+            :show-errors="validationAttempted"
+          />
           <section v-else class="flex min-h-[28rem] flex-col items-center justify-center text-center">
             <span class="grid size-14 place-items-center rounded-full bg-primary/15 text-primary"><CircleHelp :size="27" aria-hidden="true" /></span>
             <h2 class="mt-4 text-xl font-semibold">{{ steps[activeStep - 1].title }} is coming soon</h2>
@@ -215,24 +229,23 @@ watch(
         </section>
 
         <aside class="service-wizard-preview-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/35 p-4 xl:overflow-y-auto">
-        <ServiceOrderPreview v-if="activeStep === 2" :form="form" :materials="materials" />
-        <ServiceCostBreakdownPreview v-else-if="activeStep === 3" :components="form.components" :parameters="form.parameters" :materials="materials" :machines="machines" :services="services" :currency-unit="currencyUnit" />
-        <template v-else>
+        <ServiceOrderPreview v-if="activeStep === 2" :form="form" :materials="materials" :machines="machines" :active="active" />
+        <ServiceCostBreakdownPreview v-show="activeStep === 3" :form="form" :active="active" :components="form.components" :parameters="form.parameters" :materials="materials" :machines="machines" :services="services" :currency-unit="currencyUnit" @update:total="pricingCostEstimate = $event" @update:breakdown="pricingBreakdown = $event" />
+        <ServicePricingPreview v-if="activeStep === 4" :form="form" :active="active" :pricing-rule="form.pricingRule" :parameters="form.parameters" :estimated-cost-rial="pricingCostEstimate" :breakdown="pricingBreakdown" :currency-unit="currencyUnit" />
+        <template v-if="activeStep === 1 || activeStep === 5">
         <div class="space-y-4">
-          <div class="relative flex min-h-36 overflow-hidden rounded-box bg-base-300 bg-cover bg-center" :style="imagePreview ? { backgroundImage: `url('${imagePreview}')` } : undefined">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/5" aria-hidden="true"></div>
-            <div class="relative z-10 mt-auto flex min-w-0 items-end gap-3 p-3">
-              <div v-if="!imagePreview" class="grid size-10 shrink-0 place-items-center rounded-box bg-black/25 text-white/75"><Printer :size="21" aria-hidden="true" /></div>
-              <div class="min-w-0 text-white"><h3 class="truncate text-base font-semibold">{{ form.name || 'Your service name' }}</h3><p class="mt-1 truncate text-sm text-white/70">{{ form.code || 'SVC-001' }}<span v-if="form.category"> · {{ form.category }}</span></p><StatusBadge class="mt-2" :label="active ? 'Active' : 'Archived'" :tone="active ? 'green' : 'slate'" /></div>
-            </div>
-          </div>
-          <dl class="divide-y divide-base-300">
-            <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Setup</dt><dd>{{ form.parameters.length ? `${form.parameters.length} input${form.parameters.length === 1 ? '' : 's'}` : 'Not configured yet' }}</dd></div>
-            <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Costs</dt><dd>{{ form.components.length ? `${form.components.length} component${form.components.length === 1 ? '' : 's'}` : 'Not configured yet' }}</dd></div>
-            <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Unit</dt><dd>{{ form.defaultUnit }}</dd></div>
-            <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Default priority</dt><dd>{{ form.defaultPriority }}</dd></div>
-          </dl>
-          <p v-if="form.description" class="border-t border-base-300 pt-4 text-sm leading-6 text-base-content/70">{{ form.description }}</p>
+          <ServiceOverviewIdentity :form="form" :active="active" />
+          <ServiceOverviewSection title="Configuration" description="Current defaults for this service.">
+            <dl class="divide-y divide-base-300/70">
+              <div class="flex items-center justify-between gap-3 py-2.5 first:pt-0 text-sm"><dt class="text-base-content/60">Setup</dt><dd>{{ form.parameters.length ? `${form.parameters.length} input${form.parameters.length === 1 ? '' : 's'}` : 'Not configured yet' }}</dd></div>
+              <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Costs</dt><dd>{{ form.components.length ? `${form.components.length} component${form.components.length === 1 ? '' : 's'}` : 'Not configured yet' }}</dd></div>
+              <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Unit</dt><dd>{{ form.defaultUnit }}</dd></div>
+              <div class="flex items-center justify-between gap-3 py-2.5 last:pb-0 text-sm"><dt class="text-base-content/60">Default priority</dt><dd>{{ form.defaultPriority }}</dd></div>
+            </dl>
+          </ServiceOverviewSection>
+          <ServiceOverviewSection v-if="form.description" title="Description">
+            <p class="text-sm leading-6 text-base-content/70">{{ form.description }}</p>
+          </ServiceOverviewSection>
         </div>
         <div class="mt-4 flex gap-2 border-t border-base-300 pt-3 text-sm"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="17" aria-hidden="true" /><p class="leading-5 text-base-content/70">{{ activeStep === 1 ? 'Configure parameters that customers can choose when adding this service to an order.' : 'More setup options will be available here soon.' }}</p></div>
         </template>

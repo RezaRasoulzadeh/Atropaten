@@ -25,6 +25,7 @@ const (
 	ParameterBoolean           ParameterType = "boolean"
 	ParameterChoice            ParameterType = "choice"
 	ParameterMaterialReference ParameterType = "material-reference"
+	ParameterMachineReference  ParameterType = "machine-reference"
 )
 
 var parameterKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
@@ -83,39 +84,43 @@ const (
 )
 
 type ServiceCostComponent struct {
-	ID            string
-	ServiceID     string
-	Name          string
-	Type          CostComponentType
-	ReferenceID   string
-	UsageMode     UsageMode
-	ParameterKey  string
-	UsageQuantity Quantity
-	Multiplier    Quantity
-	RateRial      int64
-	Percentage    Quantity
-	RateBasis     string
-	Enabled       bool
-	Position      int
-	Notes         string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID               string
+	ServiceID        string
+	Name             string
+	Type             CostComponentType
+	ReferenceID      string
+	UsageMode        UsageMode
+	ParameterKey     string
+	RateID           string
+	RateParameterKey string
+	UsageQuantity    Quantity
+	Multiplier       Quantity
+	RateRial         int64
+	Percentage       Quantity
+	RateBasis        string
+	Enabled          bool
+	Position         int
+	Notes            string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 type ServiceCostComponentDraft struct {
-	ID            string
-	Name          string
-	Type          CostComponentType
-	ReferenceID   string
-	UsageMode     UsageMode
-	ParameterKey  string
-	UsageQuantity Quantity
-	Multiplier    Quantity
-	RateRial      int64
-	Percentage    Quantity
-	RateBasis     string
-	Enabled       bool
-	Notes         string
+	ID               string
+	Name             string
+	Type             CostComponentType
+	ReferenceID      string
+	UsageMode        UsageMode
+	ParameterKey     string
+	RateID           string
+	RateParameterKey string
+	UsageQuantity    Quantity
+	Multiplier       Quantity
+	RateRial         int64
+	Percentage       Quantity
+	RateBasis        string
+	Enabled          bool
+	Notes            string
 }
 
 type ServiceParameter struct {
@@ -330,6 +335,12 @@ func (s Service) Validate() error {
 		parameterTypes[parameter.Key] = parameter.Type
 	}
 	for index, component := range s.Components {
+		if component.RateParameterKey != "" {
+			rateParameterType, rateParameterExists := parameterTypes[component.RateParameterKey]
+			if component.Type != CostMachine || !rateParameterExists || rateParameterType != ParameterChoice {
+				return validationError(fmt.Sprintf("components[%d].rateParameterKey", index), "must reference a choice parameter on a machine component")
+			}
+		}
 		if component.UsageMode != UsageParameter {
 			continue
 		}
@@ -340,6 +351,15 @@ func (s Service) Validate() error {
 		if component.Type == CostMaterial {
 			if component.ReferenceID == "" && parameterType != ParameterMaterialReference && parameterType != ParameterChoice {
 				return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference a material or choice parameter")
+			}
+			if component.ReferenceID != "" && parameterType != ParameterInteger && parameterType != ParameterDecimal {
+				return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference an integer or decimal parameter")
+			}
+			continue
+		}
+		if component.Type == CostMachine {
+			if component.ReferenceID == "" && parameterType != ParameterMachineReference && parameterType != ParameterChoice {
+				return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference a machine or choice parameter")
 			}
 			if component.ReferenceID != "" && parameterType != ParameterInteger && parameterType != ParameterDecimal {
 				return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference an integer or decimal parameter")
@@ -386,8 +406,11 @@ func (c ServiceCostComponent) Validate() error {
 		if c.RateRial != 0 || c.Percentage != 0 {
 			return validationError("rateRial", "is not supported for referenced components")
 		}
+		if c.RateID != "" || c.RateParameterKey != "" {
+			return validationError("rateId", "is only supported for machine components")
+		}
 	case CostMachine:
-		if strings.TrimSpace(c.ReferenceID) == "" {
+		if c.UsageMode == UsageFixed && strings.TrimSpace(c.ReferenceID) == "" {
 			return validationError("referenceId", "is required")
 		}
 		if c.RateRial != 0 || c.Percentage != 0 {
@@ -400,8 +423,11 @@ func (c ServiceCostComponent) Validate() error {
 		if c.RateRial != 0 || c.Percentage != 0 {
 			return validationError("rateRial", "is not supported for referenced components")
 		}
+		if c.RateID != "" || c.RateParameterKey != "" {
+			return validationError("rateId", "is only supported for machine components")
+		}
 	case CostLabor, CostOutsourced, CostFixed, CostManual:
-		if c.ReferenceID != "" || c.Percentage != 0 {
+		if c.ReferenceID != "" || c.Percentage != 0 || c.RateID != "" || c.RateParameterKey != "" {
 			return validationError("referenceId", "is not supported for this component type")
 		}
 		if c.Type == CostLabor {
@@ -591,6 +617,10 @@ func (p ServiceParameter) Validate() error {
 		if p.DefaultValue != "" && strings.TrimSpace(p.DefaultValue) == "" {
 			return validationError("defaultValue", "must reference a material")
 		}
+	case ParameterMachineReference:
+		if p.DefaultValue != "" && strings.TrimSpace(p.DefaultValue) == "" {
+			return validationError("defaultValue", "must reference a machine")
+		}
 	default:
 		return validationError("type", "is not supported")
 	}
@@ -620,7 +650,7 @@ func componentFromDraft(serviceID string, draft ServiceCostComponentDraft, posit
 	if usageQuantity == 0 {
 		usageQuantity = Quantity(QuantityScale)
 	}
-	return ServiceCostComponent{ID: draft.ID, ServiceID: serviceID, Name: strings.TrimSpace(draft.Name), Type: CostComponentType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), ReferenceID: strings.TrimSpace(draft.ReferenceID), UsageMode: usageMode, ParameterKey: strings.TrimSpace(draft.ParameterKey), UsageQuantity: usageQuantity, Multiplier: draft.Multiplier, RateRial: draft.RateRial, Percentage: draft.Percentage, RateBasis: strings.TrimSpace(draft.RateBasis), Enabled: draft.Enabled, Position: position, Notes: strings.TrimSpace(draft.Notes), CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
+	return ServiceCostComponent{ID: draft.ID, ServiceID: serviceID, Name: strings.TrimSpace(draft.Name), Type: CostComponentType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), ReferenceID: strings.TrimSpace(draft.ReferenceID), UsageMode: usageMode, ParameterKey: strings.TrimSpace(draft.ParameterKey), RateID: strings.TrimSpace(draft.RateID), RateParameterKey: strings.TrimSpace(draft.RateParameterKey), UsageQuantity: usageQuantity, Multiplier: draft.Multiplier, RateRial: draft.RateRial, Percentage: draft.Percentage, RateBasis: strings.TrimSpace(draft.RateBasis), Enabled: draft.Enabled, Position: position, Notes: strings.TrimSpace(draft.Notes), CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
 }
 
 func pricingRuleFromDraft(serviceID string, draft ServicePricingRuleDraft, now time.Time) ServicePricingRule {

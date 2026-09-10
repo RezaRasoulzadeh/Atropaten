@@ -16,7 +16,7 @@ func TestMachinePersistenceAndLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Date(2024, time.August, 12, 7, 0, 0, 0, time.UTC)
-	machine, err := domain.NewMachine("MAC-printer", domain.MachineDraft{Name: "Production Printer", Code: "PR-01", Category: "Digital print", RateBasis: domain.RatePerUnit, RateRial: 123456789, SetupCostRial: 987654321, Notes: "Main production line"}, now)
+	machine, err := domain.NewMachine("MAC-printer", domain.MachineDraft{Name: "Production Printer", Code: "PR-01", Category: "Digital print", RateBasis: domain.RatePerUnit, RateRial: 123456789, SetupCostRial: 987654321, Rates: []domain.MachineRate{{ID: "standard", Name: "Standard", RateBasis: domain.RatePerUnit, RateRial: 123456789, SetupCostRial: 987654321, Active: true}, {ID: "full-color", Name: "Full color", SelectorValue: "Full color", RateBasis: domain.RatePerUnit, RateRial: 456789123, Active: true}}, Notes: "Main production line"}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,6 +38,9 @@ func TestMachinePersistenceAndLifecycle(t *testing.T) {
 	}
 	if got.RateRial != 123456789 || got.SetupCostRial != 987654321 || got.RateBasis != domain.RatePerUnit {
 		t.Fatalf("machine rate changed: %+v", got)
+	}
+	if len(got.Rates) != 2 || got.Rates[1].Name != "Full color" || got.Rates[1].RateRial != 456789123 {
+		t.Fatalf("machine rate profiles changed: %+v", got.Rates)
 	}
 	got.Active = false
 	got.UpdatedAt = now.Add(time.Hour)

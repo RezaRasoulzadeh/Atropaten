@@ -131,3 +131,35 @@ func TestEvaluatePricingUsesSelectedMaterialParameter(t *testing.T) {
 		t.Fatalf("selected material price = %+v, want cost 225 at rate 225", result)
 	}
 }
+
+func TestEvaluatePricingUsesMachineRateSelectedByChoice(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := NewService("SVC-machine-rates", ServiceDraft{
+		Name:       "Color print",
+		Parameters: []ServiceParameterDraft{{ID: "P-color", Key: "color", Label: "Color", Type: ParameterChoice, Required: true, Options: []string{"Black & white", "Full color"}, DefaultValue: "Black & white"}},
+		Components: []ServiceCostComponentDraft{{ID: "C-machine", Name: "Printer", Type: CostMachine, ReferenceID: "MAC-printer", UsageMode: UsageFixed, UsageQuantity: QuantityScale, Multiplier: QuantityScale, RateParameterKey: "color", Enabled: true}},
+	}, now)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	machine := Machine{ID: "MAC-printer", Name: "Printer", RateBasis: RatePerUnit, RateRial: 100, Active: true, Rates: []MachineRate{
+		{ID: "bw", Name: "Black & white", SelectorValue: "Black & white", RateBasis: RatePerUnit, RateRial: 100, Active: true},
+		{ID: "color", Name: "Full color", SelectorValue: "Full color", RateBasis: RatePerUnit, RateRial: 250, Active: true},
+	}}
+	input := PricingInput{Service: service, Parameters: map[string]ResolvedParameter{"color": {Key: "color", Type: ParameterChoice, Value: "Black & white"}}, Machines: map[string]Machine{"MAC-printer": machine}}
+	result, err := EvaluatePricing(input)
+	if err != nil {
+		t.Fatalf("evaluate black and white: %v", err)
+	}
+	if result.EstimatedCostRial != 100 || result.Components[0].RateRial != 100 {
+		t.Fatalf("black and white rate = %+v, want 100", result)
+	}
+	input.Parameters["color"] = ResolvedParameter{Key: "color", Type: ParameterChoice, Value: "Full color"}
+	result, err = EvaluatePricing(input)
+	if err != nil {
+		t.Fatalf("evaluate full color: %v", err)
+	}
+	if result.EstimatedCostRial != 250 || result.Components[0].RateRial != 250 {
+		t.Fatalf("full color rate = %+v, want 250", result)
+	}
+}

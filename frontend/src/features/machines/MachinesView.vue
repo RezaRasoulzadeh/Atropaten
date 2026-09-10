@@ -21,7 +21,7 @@ import StatusBadge from '../../components/ui/StatusBadge.vue';
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
 import SearchField from '../../components/ui/SearchField.vue';
 import SelectField from '../../components/ui/SelectField.vue';
-import { machinesApi, type MachineRecord, type MachinePayload } from '../../api/machines';
+import { machinesApi, type MachineRecord, type MachinePayload, type MachineRatePayload } from '../../api/machines';
 import {
   formatMoney,
   formatMoneyInput,
@@ -36,7 +36,12 @@ const emit = defineEmits<{ notify: [message: string] }>();
 const toast = useToast();
 type Filter = 'Active' | 'Archived' | 'All';
 type Mode = 'create' | 'edit' | null;
-type MachineForm = Omit<MachinePayload, 'rateRial' | 'setupCostRial'> & {
+type MachineForm = Omit<MachinePayload, 'rateRial' | 'setupCostRial' | 'rates'> & {
+  rate: string;
+  setupCost: string;
+  rates: MachineRateForm[];
+};
+type MachineRateForm = Omit<MachineRatePayload, 'rateRial' | 'setupCostRial'> & {
   rate: string;
   setupCost: string;
 };
@@ -96,7 +101,17 @@ function emptyForm(): MachineForm {
     rate: '',
     setupCost: '',
     notes: '',
+    rates: [],
   };
+}
+function emptyRate(index = 1): MachineRateForm {
+  return { id: `rate-${Date.now()}-${index}`, name: `Rate ${index + 1}`, selectorValue: '', rateBasis: 'hour', rate: '', setupCost: '', active: true };
+}
+function rateForms(machine: MachineRecord): MachineRateForm[] {
+  const rates = Array.isArray(machine.rates) && machine.rates.length
+    ? machine.rates
+    : [{ id: 'default', name: 'Standard', selectorValue: '', rateBasis: machine.rateBasis, rateRial: machine.rateRial, setupCostRial: machine.setupCostRial, active: true }];
+  return rates.slice(1).map((rate) => ({ ...rate, rate: formatMoneyInput(rate.rateRial, props.currencyUnit), setupCost: formatMoneyInput(rate.setupCostRial, props.currencyUnit) }));
 }
 function load() {
   loading.value = true;
@@ -133,6 +148,7 @@ function startEdit() {
     rate: formatMoneyInput(machine.rateRial, props.currencyUnit),
     setupCost: formatMoneyInput(machine.setupCostRial, props.currencyUnit),
     notes: machine.notes,
+    rates: rateForms(machine),
   };
   mode.value = 'edit';
 }
@@ -168,6 +184,16 @@ return runAction(async () => {
     toast.error(`Enter whole ${props.currencyUnit.toLowerCase()} amounts.`, 'Machines');
     return;
   }
+  const parsedRates: MachineRatePayload[] = [{ id: 'default', name: 'Standard', selectorValue: '', rateBasis: form.value.rateBasis, rateRial: parsedRate, setupCostRial: parsedSetup, active: true }];
+  for (const [index, item] of form.value.rates.entries()) {
+    const itemRate = rate(item.rate);
+    const itemSetup = item.setupCost.trim() === '' ? 0 : rate(item.setupCost);
+    if (!item.name.trim() || itemRate === null || itemSetup === null) {
+      toast.error(`Complete rate profile ${index + 2}.`, 'Machines');
+      return;
+    }
+    parsedRates.push({ id: item.id, name: item.name.trim(), selectorValue: item.selectorValue.trim(), rateBasis: item.rateBasis, rateRial: itemRate, setupCostRial: itemSetup, active: item.active });
+  }
   saving.value = true;
   const wasEditing = mode.value === 'edit';
   try {
@@ -179,6 +205,7 @@ return runAction(async () => {
       rateRial: parsedRate,
       setupCostRial: parsedSetup,
       notes: form.value.notes,
+      rates: parsedRates,
     };
     const saved =
       mode.value === 'edit' && selectedId.value
@@ -392,6 +419,18 @@ function message(errorValue: unknown, fallback: string) {
               type="text"
               inputmode="decimal"
               placeholder="Optional" /></FormField
+          ><section class="space-y-3 rounded-box border border-base-300 bg-base-100 p-3" aria-label="Additional machine rates">
+            <div class="flex items-start justify-between gap-3"><div><h3 class="text-sm font-semibold">Additional rate profiles</h3><p class="mt-1 text-xs leading-5 text-base-content/60">The rate above is the machine’s standard rate. Add alternatives such as Black &amp; white or Full color.</p></div><button class="btn btn-outline btn-sm shrink-0" type="button" @click="form.rates.push(emptyRate(form.rates.length))"><Plus :size="14" aria-hidden="true" />Add rate</button></div>
+            <div v-if="form.rates.length" class="space-y-3">
+              <div v-for="(item, index) in form.rates" :key="item.id" class="space-y-3 rounded-box border border-base-300 p-3">
+                <div class="flex items-center justify-between gap-2"><strong class="text-sm">Rate profile {{ index + 2 }}</strong><button class="btn btn-ghost btn-sm text-error" type="button" @click="form.rates.splice(index, 1)"><Trash2 :size="14" aria-hidden="true" />Remove</button></div>
+                <FormGrid><FormField class="gap-1"><span>Name</span><AppInput v-model="item.name" class="input w-full min-w-0" type="text" placeholder="Full color" /></FormField><FormField class="gap-1"><span>Matches parameter value</span><AppInput v-model="item.selectorValue" class="input w-full min-w-0" type="text" placeholder="Full color" /></FormField></FormGrid>
+                <FormGrid><SelectField v-model="item.rateBasis" label="Rate basis" :options="[{ label: 'Per unit / page', value: 'unit' }, { label: 'Per minute', value: 'minute' }, { label: 'Per hour', value: 'hour' }]" /><FormField class="gap-1"><span>Rate ({{ props.currencyUnit }})</span><AppInput v-model="item.rate" class="input w-full min-w-0" :money="props.currencyUnit" type="text" inputmode="decimal" placeholder="0" /></FormField></FormGrid>
+                <FormField class="gap-1"><span>Setup / fixed cost ({{ props.currencyUnit }})</span><AppInput v-model="item.setupCost" class="input w-full min-w-0" :money="props.currencyUnit" type="text" inputmode="decimal" placeholder="Optional" /></FormField>
+              </div>
+            </div>
+            <p v-else class="text-xs text-base-content/55">No alternate rates yet. The standard rate will be used.</p>
+          </section>
           ><FormField class="gap-1"
             ><span>Notes</span
             ><AppTextarea
@@ -458,6 +497,13 @@ function message(errorValue: unknown, fallback: string) {
             </dd>
           </div>
         </dl>
+        <div v-if="selectedMachine.rates?.length > 1" class="space-y-2 border-t border-base-300 pt-3">
+          <h4 class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Rate profiles</h4>
+          <div v-for="rate in selectedMachine.rates" :key="rate.id" class="flex items-center justify-between gap-3 text-sm">
+            <span class="min-w-0 truncate">{{ rate.name }}<small v-if="rate.selectorValue" class="ml-1 text-xs text-base-content/55">· {{ rate.selectorValue }}</small></span>
+            <span class="shrink-0 tabular-nums">{{ formatMoney(rate.rateRial, props.currencyUnit) }} / {{ basisLabel(rate.rateBasis) }}</span>
+          </div>
+        </div>
         </InspectorSection>
         <p v-if="selectedMachine.notes">{{ selectedMachine.notes }}</p>
         <div>Updated {{ date(selectedMachine.updatedAt) }}</div>
