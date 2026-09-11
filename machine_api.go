@@ -10,6 +10,7 @@ type MachineInput struct {
 	Name          string             `json:"name"`
 	Code          string             `json:"code"`
 	Category      string             `json:"category"`
+	ImagePath     string             `json:"imagePath"`
 	RateBasis     string             `json:"rateBasis"`
 	RateRial      int64              `json:"rateRial"`
 	SetupCostRial int64              `json:"setupCostRial"`
@@ -32,6 +33,7 @@ type MachineDTO struct {
 	Name          string           `json:"name"`
 	Code          string           `json:"code"`
 	Category      string           `json:"category"`
+	ImagePath     string           `json:"imagePath"`
 	RateBasis     string           `json:"rateBasis"`
 	RateRial      int64            `json:"rateRial"`
 	SetupCostRial int64            `json:"setupCostRial"`
@@ -95,7 +97,7 @@ func (a *App) CreateMachine(input MachineInput) (MachineDTO, error) {
 	if err != nil {
 		return MachineDTO{}, err
 	}
-	view, err := service.Create(a.materialContext(), application.MachineInput{Name: input.Name, Code: input.Code, Category: input.Category, RateBasis: input.RateBasis, RateRial: input.RateRial, SetupCostRial: input.SetupCostRial, Notes: input.Notes, Rates: machineRateInputs(input.Rates)})
+	view, err := service.Create(a.materialContext(), application.MachineInput{Name: input.Name, Code: input.Code, Category: input.Category, ImagePath: input.ImagePath, RateBasis: input.RateBasis, RateRial: input.RateRial, SetupCostRial: input.SetupCostRial, Notes: input.Notes, Rates: machineRateInputs(input.Rates)})
 	if err != nil {
 		return MachineDTO{}, err
 	}
@@ -107,7 +109,7 @@ func (a *App) UpdateMachine(id string, input MachineInput) (MachineDTO, error) {
 	if err != nil {
 		return MachineDTO{}, err
 	}
-	view, err := service.Update(a.materialContext(), id, application.MachineInput{Name: input.Name, Code: input.Code, Category: input.Category, RateBasis: input.RateBasis, RateRial: input.RateRial, SetupCostRial: input.SetupCostRial, Notes: input.Notes, Rates: machineRateInputs(input.Rates)})
+	view, err := service.Update(a.materialContext(), id, application.MachineInput{Name: input.Name, Code: input.Code, Category: input.Category, ImagePath: input.ImagePath, RateBasis: input.RateBasis, RateRial: input.RateRial, SetupCostRial: input.SetupCostRial, Notes: input.Notes, Rates: machineRateInputs(input.Rates)})
 	if err != nil {
 		return MachineDTO{}, err
 	}
@@ -150,7 +152,7 @@ func machineDTO(view application.MachineView) MachineDTO {
 	for _, rate := range view.Rates {
 		rates = append(rates, MachineRateDTO{ID: rate.ID, Name: rate.Name, SelectorValue: rate.SelectorValue, RateBasis: rate.RateBasis, RateRial: rate.RateRial, SetupCostRial: rate.SetupCostRial, Active: rate.Active})
 	}
-	return MachineDTO{ID: view.ID, Name: view.Name, Code: view.Code, Category: view.Category, RateBasis: view.RateBasis, RateRial: view.RateRial, SetupCostRial: view.SetupCostRial, Notes: view.Notes, Active: view.Active, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt, Rates: rates}
+	return MachineDTO{ID: view.ID, Name: view.Name, Code: view.Code, Category: view.Category, ImagePath: view.ImagePath, RateBasis: view.RateBasis, RateRial: view.RateRial, SetupCostRial: view.SetupCostRial, Notes: view.Notes, Active: view.Active, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt, Rates: rates}
 }
 
 func machineRateInputs(inputs []MachineRateInput) []application.MachineRateInput {

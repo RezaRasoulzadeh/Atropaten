@@ -116,6 +116,7 @@ type PurchaseRepository interface {
 	CancelPurchase(context.Context, string) error
 	ListInventoryMovements(context.Context, string) ([]domain.InventoryMovement, error)
 	AdjustInventory(context.Context, string, domain.Quantity, int64, string) error
+	CancelInventoryMovement(context.Context, string) error
 }
 type PurchasePaymentLookup interface {
 	PurchasePaymentSummary(context.Context, string) (int64, int64, error)
@@ -523,6 +524,10 @@ func (s *PurchasesService) Adjust(ctx context.Context, id, qty string, cost int6
 		return e
 	}
 	return s.repository.AdjustInventory(ctx, id, q, cost, note)
+}
+
+func (s *PurchasesService) CancelMovement(ctx context.Context, id string) error {
+	return s.repository.CancelInventoryMovement(ctx, id)
 }
 func purchaseView(p domain.Purchase) PurchaseView {
 	status := p.Status

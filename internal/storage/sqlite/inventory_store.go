@@ -467,7 +467,16 @@ func uniqueInventoryMovementID(ctx context.Context, tx *sql.Tx, preferred string
 }
 
 func (s *Store) ListInventoryMovements(ctx context.Context, materialID string) ([]domain.InventoryMovement, error) {
-	rows, e := s.db.QueryContext(ctx, `SELECT id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at FROM inventory_movements WHERE material_id=? ORDER BY occurred_at DESC,id DESC`, materialID)
+	rows, e := s.db.QueryContext(ctx, `SELECT id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at
+		FROM inventory_movements m
+		WHERE m.material_id=?
+		  AND NOT EXISTS (
+			SELECT 1 FROM inventory_movements c
+			WHERE c.reference_type='manual_adjustment_cancel'
+			  AND ((m.reference_type='manual_adjustment' AND c.reference_id=m.id)
+			   OR (m.reference_type='manual_adjustment_cancel' AND c.reference_id=m.reference_id))
+		  )
+		ORDER BY occurred_at DESC,id DESC`, materialID)
 	if e != nil {
 		return nil, e
 	}
@@ -481,6 +490,50 @@ func (s *Store) ListInventoryMovements(ctx context.Context, materialID string) (
 		out = append(out, v)
 	}
 	return out, rows.Err()
+}
+
+func (s *Store) CancelInventoryMovement(ctx context.Context, id string) error {
+	tx, e := s.db.BeginTx(ctx, nil)
+	if e != nil {
+		return e
+	}
+	fail := func(x error) error { _ = tx.Rollback(); return x }
+	var materialID, referenceType string
+	var quantity, unitCost, total int64
+	if e = tx.QueryRowContext(ctx, `SELECT material_id,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type FROM inventory_movements WHERE id=?`, id).Scan(&materialID, &quantity, &unitCost, &total, &referenceType); errors.Is(e, sql.ErrNoRows) {
+		return fail(domain.ErrMovementNotFound)
+	}
+	if e != nil {
+		return fail(e)
+	}
+	if referenceType != "manual_adjustment" {
+		return fail(domain.ErrMovementCannotCancel)
+	}
+	var canceled int
+	if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM inventory_movements WHERE reference_type='manual_adjustment_cancel' AND reference_id=?`, id).Scan(&canceled); e != nil {
+		return fail(e)
+	}
+	if canceled > 0 {
+		return fail(domain.ErrMovementAlreadyCanceled)
+	}
+	state, e := inventoryStateTx(ctx, tx, materialID)
+	if e != nil {
+		return fail(e)
+	}
+	reversedQuantity := -quantity
+	remainingStock := int64(state.PhysicalStock) + reversedQuantity
+	if remainingStock < 0 || int64(state.ReservedStock) > remainingStock {
+		return fail(domain.ErrInsufficientStock)
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	movementID, e := uniqueInventoryMovementID(ctx, tx, "MOV-CANCEL-"+id)
+	if e != nil {
+		return fail(e)
+	}
+	if _, e = tx.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, movementID, materialID, now, "adjustment", reversedQuantity, unitCost, -total, "manual_adjustment_cancel", id, "Cancelled manual adjustment", now); e != nil {
+		return fail(e)
+	}
+	return tx.Commit()
 }
 func (s *Store) AdjustInventory(ctx context.Context, materialID string, qty domain.Quantity, cost int64, note string) error {
 	if cost < 0 {

@@ -182,6 +182,237 @@ input[type='number']::-webkit-outer-spin-button {
 .service-wizard-step-nav::-webkit-scrollbar {
   display: none;
 }
+
+/* These panels are split by the workspace grid, so viewport breakpoints are
+   not reliable. Let each panel choose its table layout from its own width. */
+.material-register,
+.material-detail-panel,
+.machine-register {
+  container-type: inline-size;
+}
+
+.material-register-table-head,
+.material-register-row {
+  column-gap: 0.75rem;
+}
+
+.material-register-mobile-card {
+  display: grid;
+  grid-column: 1 / -1;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(2.25rem, auto) auto;
+  align-items: stretch;
+  gap: 0.25rem 0.75rem;
+}
+
+.material-register-mobile-icon {
+  grid-row: 1 / 3;
+  aspect-ratio: 1;
+  width: 2.25rem;
+  min-height: 0;
+  min-width: 2.25rem;
+  align-self: start;
+}
+
+.material-register-mobile-summary {
+  grid-column: 2 / -1;
+}
+
+.register-row-arrow {
+  transition: color 140ms ease, transform 140ms ease;
+}
+
+.group:hover .register-row-arrow,
+.group:focus-visible .register-row-arrow {
+  color: var(--color-primary);
+  transform: translateX(0.2rem);
+}
+
+.material-register-desktop-only {
+  display: none !important;
+}
+
+.material-register-row {
+  align-content: center;
+}
+
+.material-register-name,
+.material-register-name > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.material-movement-grid {
+  display: grid;
+  min-width: 0;
+  gap: 0.625rem;
+}
+
+.material-movement-metric {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-base-300) 70%, transparent);
+  padding-top: 0.5rem;
+}
+
+.material-movement-metric > :last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.material-movement-source {
+  min-width: 0;
+}
+
+@container (min-width: 42rem) {
+  .material-register-mobile-card {
+    display: none;
+  }
+
+  .material-register-desktop-only {
+    display: block !important;
+  }
+
+  .material-register-name.material-register-desktop-only {
+    display: flex !important;
+  }
+
+  .material-register-status.material-register-desktop-only {
+    display: inline-flex !important;
+  }
+
+  .material-register-table-head {
+    display: grid !important;
+  }
+
+  .material-register-row {
+    grid-template-columns: minmax(0, 1.5fr) minmax(7rem, 0.8fr) 8rem 7rem 6rem 1.25rem;
+  }
+
+  .material-register-category,
+  .material-register-cost,
+  .material-register-stock,
+  .material-register-chevron {
+    display: block !important;
+  }
+
+  .material-register-status {
+    justify-self: start;
+  }
+
+  .material-register-summary {
+    display: none;
+  }
+
+  .material-movement-grid {
+    grid-template-columns: minmax(0, 1.5fr) minmax(7rem, 0.8fr) minmax(7rem, 0.8fr) minmax(8rem, 1fr);
+    align-items: center;
+    column-gap: 1rem;
+    row-gap: 0.5rem;
+  }
+
+  .material-movement-metric {
+    display: block;
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .material-movement-mobile-label {
+    display: none;
+  }
+
+  .material-movement-metric > :last-child {
+    display: block;
+    text-align: start;
+  }
+
+  .material-movement-metric:nth-child(4) > :last-child {
+    text-align: end;
+  }
+}
+
+.material-movement-source {
+  grid-column: 1 / -1;
+}
+
+.machine-register-table-head,
+.machine-register-row {
+  column-gap: 0.75rem;
+}
+
+.machine-register-mobile-card {
+  display: grid;
+  grid-column: 1 / -1;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(2.25rem, auto) auto;
+  align-items: stretch;
+  gap: 0.25rem 0.75rem;
+}
+
+.machine-register-mobile-icon {
+  grid-row: 1 / 3;
+  aspect-ratio: 1;
+  width: 2.25rem;
+  min-height: 0;
+  min-width: 2.25rem;
+  align-self: start;
+}
+
+.machine-register-mobile-summary {
+  grid-column: 2 / -1;
+}
+
+.machine-register-desktop-only {
+  display: none !important;
+}
+
+.machine-register-row {
+  align-content: center;
+}
+
+@container (min-width: 42rem) {
+  .machine-register-mobile-card {
+    display: none;
+  }
+
+  .machine-register-desktop-only {
+    display: block !important;
+  }
+
+  .machine-register-name.machine-register-desktop-only {
+    display: flex !important;
+  }
+
+  .machine-register-status.machine-register-desktop-only {
+    display: inline-flex !important;
+  }
+
+  .machine-register-table-head {
+    display: grid !important;
+  }
+
+  .machine-register-row {
+    grid-template-columns: minmax(0, 1.5fr) minmax(7rem, 0.8fr) 8rem 8rem 6rem 1.25rem;
+  }
+
+  .machine-register-category,
+  .machine-register-rate,
+  .machine-register-basis,
+  .machine-register-chevron {
+    display: block !important;
+  }
+
+  .machine-register-status {
+    justify-self: start;
+  }
+}
 /* Template dialogs own the scroll while open; background wizard panels stay still. */
 body.service-template-dialog-open {
   overflow: hidden;

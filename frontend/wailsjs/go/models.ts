@@ -1358,6 +1358,7 @@ export namespace main {
 	    name: string;
 	    code: string;
 	    category: string;
+	    imagePath: string;
 	    rateBasis: string;
 	    rateRial: number;
 	    setupCostRial: number;
@@ -1377,6 +1378,7 @@ export namespace main {
 	        this.name = source["name"];
 	        this.code = source["code"];
 	        this.category = source["category"];
+	        this.imagePath = source["imagePath"];
 	        this.rateBasis = source["rateBasis"];
 	        this.rateRial = source["rateRial"];
 	        this.setupCostRial = source["setupCostRial"];
@@ -1433,6 +1435,7 @@ export namespace main {
 	    name: string;
 	    code: string;
 	    category: string;
+	    imagePath: string;
 	    rateBasis: string;
 	    rateRial: number;
 	    setupCostRial: number;
@@ -1448,6 +1451,7 @@ export namespace main {
 	        this.name = source["name"];
 	        this.code = source["code"];
 	        this.category = source["category"];
+	        this.imagePath = source["imagePath"];
 	        this.rateBasis = source["rateBasis"];
 	        this.rateRial = source["rateRial"];
 	        this.setupCostRial = source["setupCostRial"];

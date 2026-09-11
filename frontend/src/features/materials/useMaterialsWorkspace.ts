@@ -26,7 +26,7 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
   const materials = ref<MaterialRecord[]>([]);
   const selectedId = ref<string | null>(null);
   const searchQuery = ref('');
-  const materialFilter = ref<MaterialFilter>('Active');
+  const materialFilter = ref<MaterialFilter>('All');
   const editorMode = ref<EditorMode>(null);
   const form = ref<MaterialForm>(emptyForm());
   const costDraft = ref('0');
@@ -110,6 +110,10 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
     isLoading.value = true;
     try {
       materials.value = await materialsApi.list(true);
+      if (!selectedId.value) {
+        const firstMaterial = materials.value.find((material) => material.active) ?? materials.value[0];
+        selectedId.value = firstMaterial?.id ?? null;
+      }
     } catch (error) {
       toast.error(errorMessageFrom(error, 'Materials could not be loaded.'), 'Materials');
     } finally {
@@ -168,6 +172,10 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
 
   function cancelEditor() {
     editorMode.value = null;
+    if (!selectedId.value) {
+      const firstMaterial = materials.value.find((material) => material.active) ?? materials.value[0];
+      selectedId.value = firstMaterial?.id ?? null;
+    }
   }
 
   function backToMaterials() {
@@ -245,6 +253,27 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
         emit('notify', 'Stock adjustment recorded as an immutable movement.');
       } catch (error) {
         toast.error(errorMessageFrom(error, 'Stock adjustment could not be recorded.'), 'Materials');
+      }
+    });
+  }
+
+  async function cancelMovement(id: string) {
+    return runAction(async () => {
+      const movement = movements.value.find((item) => item.id === id);
+      if (!movement || movement.referenceType !== 'manual_adjustment') return;
+      if (!(await confirmAction({
+        title: 'Cancel manual movement',
+        message: 'Reverse this manual stock movement? Its movement row will be removed from the material history.',
+        confirmLabel: 'Cancel movement',
+        danger: true,
+      }))) return;
+      try {
+        await purchasesApi.cancelMovement(id);
+        await loadMaterials();
+        await loadMovements(selectedId.value ?? '');
+        emit('notify', 'Manual stock movement cancelled.');
+      } catch (error) {
+        toast.error(errorMessageFrom(error, 'The stock movement could not be cancelled.'), 'Materials');
       }
     });
   }
@@ -341,6 +370,7 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
     updateAdjustmentCost,
     saveMaterial,
     adjustStock,
+    cancelMovement,
     setActive,
     remove,
     unitLabel,

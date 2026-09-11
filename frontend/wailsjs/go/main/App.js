@@ -66,6 +66,10 @@ export function CalculateServicePrice(arg1) {
   return window['go']['main']['App']['CalculateServicePrice'](arg1);
 }
 
+export function CancelMaterialMovement(arg1) {
+  return window['go']['main']['App']['CancelMaterialMovement'](arg1);
+}
+
 export function CancelPurchase(arg1) {
   return window['go']['main']['App']['CancelPurchase'](arg1);
 }

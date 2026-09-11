@@ -13,6 +13,7 @@ import {
   UpdatePurchaseItem,
   ListMaterialMovements,
   AdjustMaterialStock,
+  CancelMaterialMovement,
 } from '../../wailsjs/go/main/App'
 export interface PurchaseItemRecord {
   id: string
@@ -111,5 +112,8 @@ export const purchasesApi = {
   },
   adjust(id: string, qty: string, cost: number, note: string) {
     return AdjustMaterialStock(id, qty, cost, note)
+  },
+  cancelMovement(id: string) {
+    return CancelMaterialMovement(id)
   },
 }

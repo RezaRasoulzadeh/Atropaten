@@ -628,6 +628,10 @@ var migrations = []migration{{
 		ALTER TABLE service_cost_components ADD COLUMN rate_id TEXT NOT NULL DEFAULT '';
 		ALTER TABLE service_cost_components ADD COLUMN rate_parameter_key TEXT NOT NULL DEFAULT '';`,
 	},
+	{
+		version: 22,
+		sql:     `ALTER TABLE machines ADD COLUMN image_path TEXT NOT NULL DEFAULT '';`,
+	},
 }
 
 func (s *Store) seedAccounting(ctx context.Context) error {
@@ -895,7 +899,7 @@ func (s *Store) InventoryValue(ctx context.Context, materialID string) (int64, e
 }
 
 func (s *Store) ListMachines(ctx context.Context, includeArchived bool) ([]domain.Machine, error) {
-	query := `SELECT id, name, code, category, rate_basis, rate_rial, setup_cost_rial, notes, active, created_at, updated_at FROM machines`
+	query := `SELECT id, name, code, category, image_path, rate_basis, rate_rial, setup_cost_rial, notes, active, created_at, updated_at FROM machines`
 	if !includeArchived {
 		query += ` WHERE active = 1`
 	}
@@ -928,7 +932,7 @@ func (s *Store) ListMachines(ctx context.Context, includeArchived bool) ([]domai
 }
 
 func (s *Store) GetMachine(ctx context.Context, id string) (domain.Machine, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, name, code, category, rate_basis, rate_rial, setup_cost_rial, notes, active, created_at, updated_at FROM machines WHERE id = ?`, id)
+	row := s.db.QueryRowContext(ctx, `SELECT id, name, code, category, image_path, rate_basis, rate_rial, setup_cost_rial, notes, active, created_at, updated_at FROM machines WHERE id = ?`, id)
 	machine, err := scanMachine(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return domain.Machine{}, domain.ErrMachineNotFound
@@ -948,7 +952,7 @@ func (s *Store) SaveMachine(ctx context.Context, machine domain.Machine) error {
 		return fmt.Errorf("begin machine write: %w", err)
 	}
 	fail := func(writeErr error) error { _ = tx.Rollback(); return writeErr }
-	result, err := tx.ExecContext(ctx, `UPDATE machines SET name = ?, code = ?, category = ?, rate_basis = ?, rate_rial = ?, setup_cost_rial = ?, notes = ?, active = ?, updated_at = ? WHERE id = ?`, machine.Name, machine.Code, machine.Category, machine.RateBasis, machine.RateRial, machine.SetupCostRial, machine.Notes, boolToInt(machine.Active), machine.UpdatedAt.UTC().Format(time.RFC3339Nano), machine.ID)
+	result, err := tx.ExecContext(ctx, `UPDATE machines SET name = ?, code = ?, category = ?, image_path = ?, rate_basis = ?, rate_rial = ?, setup_cost_rial = ?, notes = ?, active = ?, updated_at = ? WHERE id = ?`, machine.Name, machine.Code, machine.Category, machine.ImagePath, machine.RateBasis, machine.RateRial, machine.SetupCostRial, machine.Notes, boolToInt(machine.Active), machine.UpdatedAt.UTC().Format(time.RFC3339Nano), machine.ID)
 	if err != nil {
 		return fail(fmt.Errorf("update machine: %w", err))
 	}
@@ -957,7 +961,7 @@ func (s *Store) SaveMachine(ctx context.Context, machine domain.Machine) error {
 		return fail(fmt.Errorf("check machine update: %w", err))
 	}
 	if count == 0 {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO machines (id, name, code, category, rate_basis, rate_rial, setup_cost_rial, notes, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, machine.ID, machine.Name, machine.Code, machine.Category, machine.RateBasis, machine.RateRial, machine.SetupCostRial, machine.Notes, boolToInt(machine.Active), machine.CreatedAt.UTC().Format(time.RFC3339Nano), machine.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO machines (id, name, code, category, image_path, rate_basis, rate_rial, setup_cost_rial, notes, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, machine.ID, machine.Name, machine.Code, machine.Category, machine.ImagePath, machine.RateBasis, machine.RateRial, machine.SetupCostRial, machine.Notes, boolToInt(machine.Active), machine.CreatedAt.UTC().Format(time.RFC3339Nano), machine.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
 			return fail(fmt.Errorf("insert machine: %w", err))
 		}
 	}
@@ -1373,7 +1377,7 @@ func scanMachine(row scanner) (domain.Machine, error) {
 	var machine domain.Machine
 	var active int
 	var created, updated string
-	if err := row.Scan(&machine.ID, &machine.Name, &machine.Code, &machine.Category, &machine.RateBasis, &machine.RateRial, &machine.SetupCostRial, &machine.Notes, &active, &created, &updated); err != nil {
+	if err := row.Scan(&machine.ID, &machine.Name, &machine.Code, &machine.Category, &machine.ImagePath, &machine.RateBasis, &machine.RateRial, &machine.SetupCostRial, &machine.Notes, &active, &created, &updated); err != nil {
 		return domain.Machine{}, err
 	}
 	machine.Active = active == 1

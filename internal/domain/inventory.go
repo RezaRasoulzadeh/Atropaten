@@ -12,6 +12,8 @@ var (
 	ErrSupplierNotFound        = errors.New("supplier not found")
 	ErrPurchaseNotFound        = errors.New("purchase not found")
 	ErrMovementNotFound        = errors.New("inventory movement not found")
+	ErrMovementCannotCancel    = errors.New("only manual inventory movements can be cancelled directly")
+	ErrMovementAlreadyCanceled = errors.New("inventory movement is already cancelled")
 	ErrSupplierDeleteProtected = errors.New("supplier has purchase history; archive it instead")
 	ErrPurchaseNotDraft        = errors.New("only draft purchases can be edited or deleted")
 	ErrPurchaseDeleteProtected = errors.New("purchase has dependent inventory, production, or payment history; archive it instead")

@@ -214,6 +214,13 @@ func (a *App) AdjustMaterialStock(id, qty string, cost int64, note string) error
 	}
 	return s.Adjust(a.materialContext(), id, qty, cost, note)
 }
+func (a *App) CancelMaterialMovement(id string) error {
+	s, e := a.purchaseService()
+	if e != nil {
+		return e
+	}
+	return s.CancelMovement(a.materialContext(), id)
+}
 func purchaseDTO(v application.PurchaseView) PurchaseDTO {
 	out := PurchaseDTO{ID: v.ID, PurchaseNumber: v.PurchaseNumber, SupplierID: v.SupplierID, SupplierName: v.SupplierName, SupplierInvoiceNumber: v.SupplierInvoiceNumber, FinancialAccountID: v.FinancialAccountID, PurchaseDate: v.PurchaseDate, Status: v.Status, Notes: v.Notes, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, ShippingRial: v.ShippingRial, TaxRial: v.TaxRial, AdditionalCostsRial: v.AdditionalCostsRial, TotalRial: v.TotalRial, PaidRial: v.PaidRial, RemainingRial: v.RemainingRial, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt, Items: make([]PurchaseItemDTO, 0, len(v.Items))}
 	for _, i := range v.Items {

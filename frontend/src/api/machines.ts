@@ -23,6 +23,7 @@ export type MachinePayload = {
   name: string
   code: string
   category: string
+  imagePath: string
   rateBasis: string
   rateRial: number
   setupCostRial: number

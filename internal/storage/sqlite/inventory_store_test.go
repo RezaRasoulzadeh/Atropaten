@@ -42,6 +42,9 @@ func TestPurchasePostingCancellationAndSupplierProtection(t *testing.T) {
 	if err = store.PostPurchase(ctx, p.ID); err != nil {
 		t.Fatal(err)
 	}
+	if err = store.CancelInventoryMovement(ctx, "MOV-PITM-test"); !errors.Is(err, domain.ErrMovementCannotCancel) {
+		t.Fatalf("purchase movement cancellation err=%v", err)
+	}
 	entries, err := store.ListJournalEntries(ctx)
 	if err != nil || len(entries) != 1 || len(entries[0].Lines) != 2 {
 		t.Fatalf("purchase journal entries=%d err=%v", len(entries), err)
@@ -145,6 +148,28 @@ func TestDraftDeleteAndManualAdjustmentUseLedger(t *testing.T) {
 	got, err := store.Get(ctx, m.ID)
 	if err != nil || got.PhysicalStock != domain.QuantityScale {
 		t.Fatalf("adjusted stock=%d err=%v", got.PhysicalStock, err)
+	}
+	movements, err := store.ListInventoryMovements(ctx, m.ID)
+	if err != nil || len(movements) != 2 {
+		t.Fatalf("manual movements=%d err=%v", len(movements), err)
+	}
+	if err = store.CancelInventoryMovement(ctx, movements[0].ID); err != nil {
+		t.Fatalf("cancel manual movement: %v", err)
+	}
+	got, err = store.Get(ctx, m.ID)
+	if err != nil || got.PhysicalStock != 2*domain.QuantityScale {
+		t.Fatalf("stock after manual cancellation=%d err=%v", got.PhysicalStock, err)
+	}
+	movements, err = store.ListInventoryMovements(ctx, m.ID)
+	if err != nil || len(movements) != 1 {
+		t.Fatalf("visible movements after cancellation=%d err=%v", len(movements), err)
+	}
+	if err = store.CancelInventoryMovement(ctx, movements[0].ID); err != nil {
+		t.Fatalf("cancel remaining manual movement: %v", err)
+	}
+	movements, err = store.ListInventoryMovements(ctx, m.ID)
+	if err != nil || len(movements) != 0 {
+		t.Fatalf("visible movements after full cancellation=%d err=%v", len(movements), err)
 	}
 }
 

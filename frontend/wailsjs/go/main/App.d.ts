@@ -34,6 +34,8 @@ export function ArchiveSupplier(arg1:string):Promise<main.SupplierDTO>;
 
 export function CalculateServicePrice(arg1:main.PricingRequest):Promise<main.PricingDTO>;
 
+export function CancelMaterialMovement(arg1:string):Promise<void>;
+
 export function CancelPurchase(arg1:string):Promise<main.PurchaseDTO>;
 
 export function CloseFiscalPeriod(arg1:string,arg2:string):Promise<main.FiscalPeriodDTO>;

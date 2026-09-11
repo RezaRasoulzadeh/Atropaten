@@ -23,6 +23,7 @@ type Machine struct {
 	Name          string
 	Code          string
 	Category      string
+	ImagePath     string
 	RateBasis     string
 	RateRial      int64
 	SetupCostRial int64
@@ -47,6 +48,7 @@ type MachineDraft struct {
 	Name          string
 	Code          string
 	Category      string
+	ImagePath     string
 	RateBasis     string
 	RateRial      int64
 	SetupCostRial int64
@@ -90,7 +92,7 @@ func NewMachine(id string, draft MachineDraft, now time.Time) (Machine, error) {
 			break
 		}
 	}
-	machine := Machine{ID: strings.TrimSpace(id), Name: strings.TrimSpace(draft.Name), Code: strings.TrimSpace(draft.Code), Category: strings.TrimSpace(draft.Category), RateBasis: primary.RateBasis, RateRial: primary.RateRial, SetupCostRial: primary.SetupCostRial, Notes: strings.TrimSpace(draft.Notes), Active: true, Rates: rates, CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
+	machine := Machine{ID: strings.TrimSpace(id), Name: strings.TrimSpace(draft.Name), Code: strings.TrimSpace(draft.Code), Category: strings.TrimSpace(draft.Category), ImagePath: strings.TrimSpace(draft.ImagePath), RateBasis: primary.RateBasis, RateRial: primary.RateRial, SetupCostRial: primary.SetupCostRial, Notes: strings.TrimSpace(draft.Notes), Active: true, Rates: rates, CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
 	if err := machine.Validate(); err != nil {
 		return Machine{}, err
 	}

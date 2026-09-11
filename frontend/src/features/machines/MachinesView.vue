@@ -1,539 +1,101 @@
 <script setup lang="ts">
+import { computed, nextTick, ref, watch } from 'vue'
+import { ChevronLeft, ChevronRight, Factory, Layers3, Plus, Search } from 'lucide-vue-next'
+import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue'
+import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue'
+import SearchField from '../../components/ui/SearchField.vue'
+import SelectField from '../../components/ui/SelectField.vue'
 import LoadingState from '../../components/ui/LoadingState.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
-import SearchFilterBar from '../../components/ui/SearchFilterBar.vue'
-import {useWorkspaceActions} from '../../composables/useWorkspaceActions'
-const {busy,runAction}=useWorkspaceActions()
+import StatusBadge from '../../components/ui/StatusBadge.vue'
+import type { CurrencyUnit } from '../../utils/currency'
+import { formatMoney } from '../../utils/currency'
+import MachineDetailPanel from './MachineDetailPanel.vue'
+import MachineEditorWizard from './MachineEditorWizard.vue'
+import { useMachinesWorkspace, type MachineFilter } from './useMachinesWorkspace'
 
-import FormGrid from '../../components/ui/FormGrid.vue';
-import InspectorShell from '../../components/layout/InspectorShell.vue';
-import InspectorSection from '../../components/layout/InspectorSection.vue';
-import MasterDetail from '../../components/layout/MasterDetail.vue';
-import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
-import RegisterList from '../../components/ui/RegisterList.vue';
-import RegisterRow from '../../components/ui/RegisterRow.vue';
-import AppInput from '../../components/ui/AppInput.vue';
-import AppTextarea from '../../components/ui/AppTextarea.vue';
-import FormField from '../../components/ui/FormField.vue';
-import { computed, onMounted, ref, watch } from 'vue';
-import { Archive, Edit3, Factory, Plus, RotateCcw, Save, Trash2, X } from 'lucide-vue-next';
-import StatusBadge from '../../components/ui/StatusBadge.vue';
-import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
-import SearchField from '../../components/ui/SearchField.vue';
-import SelectField from '../../components/ui/SelectField.vue';
-import { machinesApi, type MachineRecord, type MachinePayload, type MachineRatePayload } from '../../api/machines';
-import {
-  formatMoney,
-  formatMoneyInput,
-  parseMoneyInput,
-  type CurrencyUnit,
-} from '../../utils/currency';
-import { formatDateTime } from '../../utils/date';
-import { confirmAction, useToast } from '../../ui/feedback';
+const props = defineProps<{ currencyUnit: CurrencyUnit }>()
+const emit = defineEmits<{ notify: [message: string] }>()
+const workspace = useMachinesWorkspace(props, emit)
+const { machines, selectedId, selectedMachine, machineFilter, searchQuery, editorMode, isLoading, filteredMachines, startCreate, selectMachine } = workspace
 
-const props = defineProps<{ currencyUnit: CurrencyUnit }>();
-const emit = defineEmits<{ notify: [message: string] }>();
-const toast = useToast();
-type Filter = 'Active' | 'Archived' | 'All';
-type Mode = 'create' | 'edit' | null;
-type MachineForm = Omit<MachinePayload, 'rateRial' | 'setupCostRial' | 'rates'> & {
-  rate: string;
-  setupCost: string;
-  rates: MachineRateForm[];
-};
-type MachineRateForm = Omit<MachineRatePayload, 'rateRial' | 'setupCostRial'> & {
-  rate: string;
-  setupCost: string;
-};
+const sortOrder = ref('name')
+const page = ref(1)
+const pageSize = 10
+const statusOptions: MachineFilter[] = ['All', 'Active', 'Archived']
 
-const machines = ref<MachineRecord[]>([]);
-const selectedId = ref<string | null>(null);
-const filter = ref<Filter>('Active');
-const query = ref('');
-const mode = ref<Mode>(null);
-const form = ref<MachineForm>(emptyForm());
-const loading = ref(false);
-const saving = ref(false);
-const selectedMachine = computed(
-  () => machines.value.find((machine) => machine.id === selectedId.value) ?? null,
-);
-const filtered = computed(() => {
-  const q = query.value.trim().toLowerCase();
-  return machines.value.filter(
-    (machine) =>
-      (filter.value === 'All' || (filter.value === 'Active' ? machine.active : !machine.active)) &&
-      (!q ||
-        [machine.name, machine.code, machine.category, machine.rateBasis].some((value) =>
-          value.toLowerCase().includes(q),
-        )),
-  );
-});
+const visibleMachines = computed(() => {
+  const items = filteredMachines.value
+  return [...items].sort((left, right) => {
+    if (sortOrder.value === 'updated') return String(right.updatedAt).localeCompare(String(left.updatedAt))
+    if (sortOrder.value === 'category') return `${left.category}${left.name}`.localeCompare(`${right.category}${right.name}`)
+    return left.name.localeCompare(right.name)
+  })
+})
+const pageCount = computed(() => Math.max(1, Math.ceil(visibleMachines.value.length / pageSize)))
+const pagedMachines = computed(() => visibleMachines.value.slice((page.value - 1) * pageSize, page.value * pageSize))
+const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1))
 
-onMounted(load);
-watch(
-  () => props.currencyUnit,
-  () => {
-    if (mode.value) {
-      const machine = selectedMachine.value;
-      if (machine) {
-        form.value.rate = formatMoneyInput(machine.rateRial, props.currencyUnit);
-        form.value.setupCost = formatMoneyInput(machine.setupCostRial, props.currencyUnit);
-      }
-    }
-  },
-);
-watch(
-  () => [form.value.rate, form.value.setupCost],
-  ([rateValue, setupValue]) => {
-    const parsedRate = parseMoneyInput(rateValue, props.currencyUnit);
-    const parsedSetup = parseMoneyInput(setupValue, props.currencyUnit);
-    if (parsedRate !== null) form.value.rate = formatMoneyInput(parsedRate, props.currencyUnit);
-    if (parsedSetup !== null)
-      form.value.setupCost = formatMoneyInput(parsedSetup, props.currencyUnit);
-  },
-);
-function emptyForm(): MachineForm {
-  return {
-    name: '',
-    code: '',
-    category: '',
-    rateBasis: 'hour',
-    rate: '',
-    setupCost: '',
-    notes: '',
-    rates: [],
-  };
+function statusCount(status: MachineFilter) {
+  if (status === 'All') return machines.value.length
+  return machines.value.filter((machine) => status === 'Active' ? machine.active : !machine.active).length
 }
-function emptyRate(index = 1): MachineRateForm {
-  return { id: `rate-${Date.now()}-${index}`, name: `Rate ${index + 1}`, selectorValue: '', rateBasis: 'hour', rate: '', setupCost: '', active: true };
-}
-function rateForms(machine: MachineRecord): MachineRateForm[] {
-  const rates = Array.isArray(machine.rates) && machine.rates.length
-    ? machine.rates
-    : [{ id: 'default', name: 'Standard', selectorValue: '', rateBasis: machine.rateBasis, rateRial: machine.rateRial, setupCostRial: machine.setupCostRial, active: true }];
-  return rates.slice(1).map((rate) => ({ ...rate, rate: formatMoneyInput(rate.rateRial, props.currencyUnit), setupCost: formatMoneyInput(rate.setupCostRial, props.currencyUnit) }));
-}
-function load() {
-  loading.value = true;
-  machinesApi
-    .list(true)
-    .then((data) => {
-      machines.value = data;
-      if (!selectedId.value && data.length) selectedId.value = data[0].id;
-    })
-    .catch((e) => {
-      toast.error(message(e, 'Machines could not be loaded.'), 'Machines');
-    })
-    .finally(() => {
-      loading.value = false;
-    });
-}
-function select(id: string) {
-  selectedId.value = id;
-  mode.value = null;
-}
-function startCreate() {
-  mode.value = 'create';
-  selectedId.value = null;
-  form.value = emptyForm();
-}
-function startEdit() {
-  const machine = selectedMachine.value;
-  if (!machine) return;
-  form.value = {
-    name: machine.name,
-    code: machine.code,
-    category: machine.category,
-    rateBasis: machine.rateBasis,
-    rate: formatMoneyInput(machine.rateRial, props.currencyUnit),
-    setupCost: formatMoneyInput(machine.setupCostRial, props.currencyUnit),
-    notes: machine.notes,
-    rates: rateForms(machine),
-  };
-  mode.value = 'edit';
-}
-function cancel() {
-  mode.value = null;
-}
-function rate(value: string) {
-  return parseMoneyInput(value, props.currencyUnit);
-}
-function date(value: string) {
-  try {
-    return formatDateTime(value);
-  } catch {
-    return 'Unknown date';
-  }
-}
-function basisLabel(value: string) {
-  return (
-    ({ unit: 'Per unit / page', minute: 'Per minute', hour: 'Per hour' } as Record<string, string>)[
-      value
-    ] ?? value
-  );
-}
-async function save() {
-return runAction(async () => {
-  const parsedRate = rate(form.value.rate);
-  const parsedSetup = form.value.setupCost.trim() === '' ? 0 : rate(form.value.setupCost);
-  if (!form.value.name.trim()) {
-    toast.error('Enter a machine name.', 'Machines');
-    return;
-  }
-  if (parsedRate === null || parsedSetup === null) {
-    toast.error(`Enter whole ${props.currencyUnit.toLowerCase()} amounts.`, 'Machines');
-    return;
-  }
-  const parsedRates: MachineRatePayload[] = [{ id: 'default', name: 'Standard', selectorValue: '', rateBasis: form.value.rateBasis, rateRial: parsedRate, setupCostRial: parsedSetup, active: true }];
-  for (const [index, item] of form.value.rates.entries()) {
-    const itemRate = rate(item.rate);
-    const itemSetup = item.setupCost.trim() === '' ? 0 : rate(item.setupCost);
-    if (!item.name.trim() || itemRate === null || itemSetup === null) {
-      toast.error(`Complete rate profile ${index + 2}.`, 'Machines');
-      return;
-    }
-    parsedRates.push({ id: item.id, name: item.name.trim(), selectorValue: item.selectorValue.trim(), rateBasis: item.rateBasis, rateRial: itemRate, setupCostRial: itemSetup, active: item.active });
-  }
-  saving.value = true;
-  const wasEditing = mode.value === 'edit';
-  try {
-    const payload = {
-      name: form.value.name,
-      code: form.value.code,
-      category: form.value.category,
-      rateBasis: form.value.rateBasis,
-      rateRial: parsedRate,
-      setupCostRial: parsedSetup,
-      notes: form.value.notes,
-      rates: parsedRates,
-    };
-    const saved =
-      mode.value === 'edit' && selectedId.value
-        ? await machinesApi.update(selectedId.value, payload)
-        : await machinesApi.create(payload);
-    const index = machines.value.findIndex((item) => item.id === saved.id);
-    if (index >= 0) machines.value.splice(index, 1, saved);
-    else machines.value.push(saved);
-    selectedId.value = saved.id;
-    mode.value = null;
-    emit('notify', wasEditing ? 'Machine updated.' : 'Machine created.');
-  } catch (e) {
-    toast.error(message(e, 'Machine could not be saved.'), 'Machines');
-  } finally {
-    saving.value = false;
-  }
 
-});
+function profileSummary(machine: typeof machines.value[number]) {
+  const count = machine.rates?.length || 1
+  return `${count} profile${count === 1 ? '' : 's'}`
 }
-async function setActive(active: boolean) {
-return runAction(async () => {
-  const machine = selectedMachine.value;
-  if (!machine) return;
-  try {
-    const updated = active
-      ? await machinesApi.reactivate(machine.id)
-      : await machinesApi.archive(machine.id);
-    const index = machines.value.findIndex((item) => item.id === updated.id);
-    if (index >= 0) machines.value.splice(index, 1, updated);
-    emit('notify', active ? 'Machine reactivated.' : 'Machine archived.');
-  } catch (e) {
-    toast.error(message(e, 'Machine status could not be changed.'), 'Machines');
-  }
 
-});
+function goToPage(value: number) {
+  page.value = Math.min(Math.max(value, 1), pageCount.value)
 }
-async function remove() {
-return runAction(async () => {
-  const machine = selectedMachine.value;
-  if (
-    !machine ||
-    !(await confirmAction({
-      title: 'Remove machine',
-      message: 'Remove this machine permanently when it has no production or service history?',
-      confirmLabel: 'Remove machine',
-      danger: true,
-    }))
-  )
-    return;
 
-  try {
-    await machinesApi.remove(machine.id);
-    machines.value = machines.value.filter((item) => item.id !== machine.id);
-    selectedId.value = machines.value[0]?.id ?? null;
-    mode.value = null;
-    emit('notify', 'Machine removed.');
-  } catch (error) {
-    if (!isDeletionProtected(error)) {
-      toast.error(message(error, 'Machine could not be removed.'), 'Machines');
-      return;
-    }
-    try {
-      const archived = await machinesApi.archive(machine.id);
-      const index = machines.value.findIndex((item) => item.id === archived.id);
-      if (index >= 0) machines.value.splice(index, 1, archived);
-      emit('notify', 'Machine is in use, so it was archived instead.');
-    } catch (archiveError) {
-      toast.error(message(archiveError, 'Machine could not be removed or archived.'), 'Machines');
-    }
-  }
+function clearFilters() {
+  searchQuery.value = ''
+  machineFilter.value = 'All'
+  sortOrder.value = 'name'
+  page.value = 1
+}
 
-});
-}
-function isDeletionProtected(errorValue: unknown) {
-  const detail = message(errorValue, '').toLowerCase();
-  return detail.includes('archive it instead') || detail.includes('delete protected');
-}
-function message(errorValue: unknown, fallback: string) {
-  return errorValue instanceof Error && errorValue.message
-    ? errorValue.message
-    : typeof errorValue === 'string'
-      ? errorValue
-      : fallback;
-}
+watch([searchQuery, machineFilter, sortOrder], () => { page.value = 1 })
+watch(pageCount, (count) => { if (page.value > count) page.value = count })
+watch([selectedId, editorMode], () => { void nextTick(() => document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' })) })
 </script>
 
 <template>
-  <div class="min-w-0 space-y-3">
-    <WorkspaceStickyStack>
-      <WorkspaceHeader
-        :show-breadcrumb="true"
-        title="Machines"
-        eyebrow="Catalog / production inputs"
-        description="Keep reusable equipment rates ready for service cost definitions."
-        ><button class="btn btn-primary" type="button" @click="startCreate">
-          <Plus :size="16" :stroke-width="1.8" aria-hidden="true" />New machine
-        </button></WorkspaceHeader
-      >
-      <SearchFilterBar><template #search><SearchField
-          v-model="query"
-          label="Search machines"
-          placeholder="Search machine, code, or category"
-        /></template><template #filters><SelectField
-          v-model="filter"
-          label="Status"
-          aria-label="Filter machines by status"
-          :options="['Active', 'Archived', 'All'].map((value) => ({ label: value, value }))"
-        /></template><template #count><span class="self-end pb-2">{{ filtered.length }} of {{ machines.length }} machines</span></template></SearchFilterBar>
+  <MachineEditorWizard v-if="editorMode" :workspace="workspace" :currency-unit="props.currencyUnit" @cancel="workspace.cancelEditor" />
+
+  <div v-else class="flex h-full min-h-0 min-w-0 flex-col overflow-hidden" aria-label="Machines workspace">
+    <WorkspaceStickyStack class="shrink-0" :flush="true">
+      <WorkspaceHeader :show-breadcrumb="true" title="Machines" eyebrow="Catalog / production inputs" description="Keep reusable equipment rates ready for service cost definitions.">
+        <SearchField v-model="searchQuery" class="w-full min-w-0 sm:w-64" placeholder="Search machines…" aria-label="Search machines" />
+        <button class="btn btn-primary w-full gap-2 sm:w-auto" type="button" @click="startCreate"><Plus :size="16" aria-hidden="true" />Add machine</button>
+      </WorkspaceHeader>
     </WorkspaceStickyStack>
-    <MasterDetail aria-label="Machines workspace">
-      <RegisterList
-        title="Machine register"
-        subtitle="Rates are stored as integer Rial; the toolbar controls display units."
-        :count="filtered.length"
-      >
-        <LoadingState v-if="loading" label="Loading records…" />
-        <div v-else-if="filtered.length">
-          <RegisterRow
-            v-for="machine in filtered"
-            :key="machine.id"
-            :selected="selectedId === machine.id"
-            @activate="select(machine.id)"
-          >
-            <template #identity>
-              <div class="flex min-w-0 items-center justify-between gap-3">
-                <div class="min-w-0">
-                  <strong class="block truncate text-sm">{{ machine.name }}</strong>
-                  <span class="block truncate text-xs text-base-content/60">{{ machine.code || 'No code' }} · {{ machine.category || 'Uncategorized' }}</span>
-                </div>
-                <strong class="shrink-0 whitespace-nowrap text-sm tabular-nums">{{ formatMoney(machine.rateRial, props.currencyUnit) }}</strong>
-              </div>
-            </template>
-            <template #meta>
-              <div class="mt-2 grid min-w-0 grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2">
-                <div><span class="block text-base-content/50">Rate basis</span><span class="block text-base-content/80">{{ basisLabel(machine.rateBasis) }}</span></div>
-                <div><span class="block text-base-content/50">Setup cost</span><span class="block text-base-content/80 tabular-nums">{{ formatMoney(machine.setupCostRial, props.currencyUnit) }}</span></div>
-                <div><span class="block text-base-content/50">Notes</span><span class="block truncate text-base-content/80">{{ machine.notes || 'No notes' }}</span></div>
-              </div>
-            </template>
-            <template #status><StatusBadge :label="machine.active ? 'Active' : 'Archived'" :tone="machine.active ? 'green' : 'slate'" /></template>
-          </RegisterRow>
-        </div>
-        <EmptyState
-          v-else
-          :title="machines.length ? 'No machines match this view' : 'No machines yet'"
-          :description="machines.length ? 'Try another status or search term.' : 'Add the first reusable rate input for production.'"
-        >
-          <template #icon><Factory :size="22" :stroke-width="1.8" aria-hidden="true" /></template>
-          <template v-if="!machines.length" #action><button class="btn btn-primary btn-sm" type="button" @click="startCreate"><Plus :size="15" :stroke-width="1.8" aria-hidden="true" />Create machine</button></template>
-        </EmptyState>
-      </RegisterList>
-      <InspectorShell
-        v-if="mode"
-        :title="mode === 'create' ? 'New machine' : 'Edit machine'"
-        subtitle="Save a reusable machine rate definition."
-        ><template #action
-          ><button
-            class="btn btn-ghost"
-            type="button"
-            aria-label="Close machine editor"
-            @click="cancel"
-          >
-            <X :size="16" :stroke-width="1.8" aria-hidden="true" /></button
-        ></template>
-        <form @submit.prevent="save" class="min-w-0 space-y-3">
-          <FormField class="gap-1"
-            ><span>Name</span
-            ><AppInput
-              class="input w-full min-w-0"
-              v-model="form.name"
-              type="text"
-              placeholder="Production printer" /></FormField
-          ><FormGrid
-            ><FormField class="gap-1"
-              ><span>Code</span
-              ><AppInput
-                class="input w-full min-w-0"
-                v-model="form.code"
-                type="text"
-                placeholder="PRINTER-01" /></FormField
-            ><FormField class="gap-1"
-              ><span>Category</span
-              ><AppInput
-                class="input w-full min-w-0"
-                v-model="form.category"
-                type="text"
-                placeholder="Print production" /></FormField></FormGrid
-          ><FormGrid
-            ><SelectField
-              v-model="form.rateBasis"
-              label="Rate basis"
-              :options="[
-                { label: 'Per unit / page', value: 'unit' },
-                { label: 'Per minute', value: 'minute' },
-                { label: 'Per hour', value: 'hour' },
-              ]" /><FormField class="gap-1"
-              ><span>Rate ({{ props.currencyUnit }})</span
-              ><AppInput
-                class="input w-full min-w-0"
-                v-model="form.rate"
-                :money="props.currencyUnit"
-                type="text"
-                inputmode="decimal"
-                placeholder="0" /></FormField></FormGrid
-          ><FormField class="gap-1"
-            ><span>Setup / fixed cost ({{ props.currencyUnit }})</span
-            ><AppInput
-              class="input w-full min-w-0"
-              v-model="form.setupCost"
-              :money="props.currencyUnit"
-              type="text"
-              inputmode="decimal"
-              placeholder="Optional" /></FormField
-          ><section class="space-y-3 rounded-box border border-base-300 bg-base-100 p-3" aria-label="Additional machine rates">
-            <div class="flex items-start justify-between gap-3"><div><h3 class="text-sm font-semibold">Additional rate profiles</h3><p class="mt-1 text-xs leading-5 text-base-content/60">The rate above is the machine’s standard rate. Add alternatives such as Black &amp; white or Full color.</p></div><button class="btn btn-outline btn-sm shrink-0" type="button" @click="form.rates.push(emptyRate(form.rates.length))"><Plus :size="14" aria-hidden="true" />Add rate</button></div>
-            <div v-if="form.rates.length" class="space-y-3">
-              <div v-for="(item, index) in form.rates" :key="item.id" class="space-y-3 rounded-box border border-base-300 p-3">
-                <div class="flex items-center justify-between gap-2"><strong class="text-sm">Rate profile {{ index + 2 }}</strong><button class="btn btn-ghost btn-sm text-error" type="button" @click="form.rates.splice(index, 1)"><Trash2 :size="14" aria-hidden="true" />Remove</button></div>
-                <FormGrid><FormField class="gap-1"><span>Name</span><AppInput v-model="item.name" class="input w-full min-w-0" type="text" placeholder="Full color" /></FormField><FormField class="gap-1"><span>Matches parameter value</span><AppInput v-model="item.selectorValue" class="input w-full min-w-0" type="text" placeholder="Full color" /></FormField></FormGrid>
-                <FormGrid><SelectField v-model="item.rateBasis" label="Rate basis" :options="[{ label: 'Per unit / page', value: 'unit' }, { label: 'Per minute', value: 'minute' }, { label: 'Per hour', value: 'hour' }]" /><FormField class="gap-1"><span>Rate ({{ props.currencyUnit }})</span><AppInput v-model="item.rate" class="input w-full min-w-0" :money="props.currencyUnit" type="text" inputmode="decimal" placeholder="0" /></FormField></FormGrid>
-                <FormField class="gap-1"><span>Setup / fixed cost ({{ props.currencyUnit }})</span><AppInput v-model="item.setupCost" class="input w-full min-w-0" :money="props.currencyUnit" type="text" inputmode="decimal" placeholder="Optional" /></FormField>
-              </div>
-            </div>
-            <p v-else class="text-xs text-base-content/55">No alternate rates yet. The standard rate will be used.</p>
-          </section>
-          ><FormField class="gap-1"
-            ><span>Notes</span
-            ><AppTextarea
-              v-model="form.notes"
-              rows="3"
-              placeholder="Capacity, operating notes, or rate context"
-            />
-          </FormField>
-          <div class="flex flex-wrap items-center gap-2">
-            <button class="btn btn-ghost" type="button" @click="cancel">Cancel</button
-            ><button class="btn btn-primary" type="submit" :disabled="busy || (saving)">
-              <Save :size="15" :stroke-width="1.8" aria-hidden="true" />{{
-                saving ? 'Saving…' : 'Save machine'
-              }}
-            </button>
-          </div>
-        </form></InspectorShell
-      >
-      <InspectorShell
-        v-else-if="selectedMachine"
-        title="Machine inspector"
-        subtitle="Current persisted rate definition"
-        ><template #action
-          ><button
-            class="btn btn-ghost"
-            type="button"
-            aria-label="Edit selected machine"
-            @click="startEdit"
-          >
-            <Edit3 :size="15" :stroke-width="1.8" aria-hidden="true" /></button
-        ></template>
-        <div class="flex min-w-0 flex-wrap items-center gap-2">
-          <StatusBadge
-            :label="selectedMachine.active ? 'Active' : 'Archived'"
-            :tone="selectedMachine.active ? 'green' : 'slate'"
-          /><span>{{ basisLabel(selectedMachine.rateBasis) }}</span>
-        </div>
-        <div class="min-w-0 space-y-3">
-          <div><Factory :size="19" :stroke-width="1.8" aria-hidden="true" /></div>
-          <div class="min-w-0 space-y-3">
-            <h3 class="text-sm font-semibold">{{ selectedMachine.name }}</h3>
-            <p>
-              {{ selectedMachine.code || 'No code'
-              }}<span v-if="selectedMachine.category"> · {{ selectedMachine.category }}</span>
-            </p>
-          </div>
-        </div>
-        <InspectorSection title="Rate definition">
-        <dl class="grid min-w-0 gap-2 text-sm">
-          <div
-            class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-3 border-b border-base-300 py-2 last:border-0"
-          >
-            <dt class="text-xs text-base-content/60">Rate</dt>
-            <dd class="min-w-0 text-end tabular-nums wrap-anywhere">
-              {{ formatMoney(selectedMachine.rateRial, props.currencyUnit) }}
-            </dd>
-          </div>
-          <div
-            class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-3 border-b border-base-300 py-2 last:border-0"
-          >
-            <dt class="text-xs text-base-content/60">Setup / fixed</dt>
-            <dd class="min-w-0 text-end tabular-nums wrap-anywhere">
-              {{ formatMoney(selectedMachine.setupCostRial, props.currencyUnit) }}
-            </dd>
-          </div>
-        </dl>
-        <div v-if="selectedMachine.rates?.length > 1" class="space-y-2 border-t border-base-300 pt-3">
-          <h4 class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Rate profiles</h4>
-          <div v-for="rate in selectedMachine.rates" :key="rate.id" class="flex items-center justify-between gap-3 text-sm">
-            <span class="min-w-0 truncate">{{ rate.name }}<small v-if="rate.selectorValue" class="ml-1 text-xs text-base-content/55">· {{ rate.selectorValue }}</small></span>
-            <span class="shrink-0 tabular-nums">{{ formatMoney(rate.rateRial, props.currencyUnit) }} / {{ basisLabel(rate.rateBasis) }}</span>
-          </div>
-        </div>
-        </InspectorSection>
-        <p v-if="selectedMachine.notes">{{ selectedMachine.notes }}</p>
-        <div>Updated {{ date(selectedMachine.updatedAt) }}</div>
-        <div class="flex flex-wrap items-center gap-2">
-          <button
-            class="btn btn-outline btn-warning"
-            v-if="selectedMachine.active"
-            type="button"
-            @click="setActive(false)"
-           :disabled="busy">
-            <Archive :size="15" :stroke-width="1.8" aria-hidden="true" />Archive</button
-          ><button class="btn btn-outline btn-success" v-else type="button" @click="setActive(true)" :disabled="busy">
-            <RotateCcw :size="15" :stroke-width="1.8" aria-hidden="true" />Reactivate
+
+    <div class="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(22rem,auto)_auto] gap-4 overflow-y-auto xl:grid-cols-[minmax(0,1.15fr)_minmax(24rem,0.85fr)] xl:grid-rows-1 xl:overflow-hidden">
+      <section class="machine-register flex min-h-0 min-w-0 flex-col overflow-hidden rounded-box border border-base-300 bg-base-100" aria-label="Machine register">
+        <div class="shrink-0 border-b border-base-300 p-3 sm:p-4"><div class="flex min-w-0 flex-wrap items-center justify-between gap-3"><div class="flex min-w-0 flex-wrap items-center gap-2"><button v-for="status in statusOptions" :key="status" class="inline-flex h-9 items-center gap-2 rounded-box border px-3 text-sm transition-colors" :class="machineFilter === status ? 'border-primary bg-primary/10 text-primary' : 'border-base-300 text-base-content/70 hover:border-primary/50 hover:text-base-content'" type="button" @click="machineFilter = status"><span class="size-2 rounded-full" :class="status === 'Active' ? 'bg-success' : status === 'Archived' ? 'bg-base-content/35' : 'bg-primary'"></span>{{ status }}<span class="rounded-full bg-base-200 px-1.5 py-0.5 text-xs tabular-nums">{{ statusCount(status) }}</span></button></div><span class="hidden h-6 w-px bg-base-300 sm:block" aria-hidden="true"></span><div class="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 sm:w-auto"><SelectField v-model="sortOrder" class="min-w-0 flex-1 sm:w-36 sm:flex-none" aria-label="Sort machines" :options="[{ label: 'Sort by name', value: 'name' }, { label: 'Sort by category', value: 'category' }, { label: 'Recently updated', value: 'updated' }]" /></div></div></div>
+
+        <div class="machine-register-table-head hidden grid-cols-[minmax(0,1.5fr)_minmax(7rem,0.8fr)_8rem_8rem_6rem_1.25rem] gap-3 border-b border-base-300 px-4 py-3 text-xs font-medium text-base-content/55"><span>Name</span><span>Category</span><span>Rate</span><span>Basis</span><span>Status</span><span></span></div>
+        <LoadingState v-if="isLoading" label="Loading machines…" />
+        <div v-else-if="pagedMachines.length" class="min-h-0 flex-1 overflow-y-auto divide-y divide-base-300">
+          <button v-for="machine in pagedMachines" :key="machine.id" class="machine-register-row group grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-base-200/60 focus-visible:bg-base-200/60 focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary" :class="selectedId === machine.id ? 'bg-primary/10' : ''" type="button" @click="selectMachine(machine.id)">
+            <span class="machine-register-mobile-card"><span class="machine-register-mobile-icon grid place-items-center rounded-box border border-base-300 bg-base-200 bg-cover bg-center text-primary" :style="machine.imagePath ? { backgroundImage: `url('${machine.imagePath}')` } : undefined"><Factory v-if="!machine.imagePath" :size="18" aria-hidden="true" /></span><span class="machine-register-mobile-identity min-w-0 self-center"><strong class="block truncate text-sm">{{ machine.name }}</strong><span class="block truncate text-xs text-base-content/60">{{ machine.code || 'No code' }}</span></span><StatusBadge class="machine-register-mobile-status justify-self-end self-center" :label="machine.active ? 'Active' : 'Archived'" :tone="machine.active ? 'green' : 'slate'" /><span class="register-row-arrow machine-register-mobile-arrow self-center text-base-content/45"><ChevronRight :size="17" aria-hidden="true" /></span><span class="machine-register-mobile-summary flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/55"><span>{{ machine.category || 'Uncategorized' }}</span><span>{{ formatMoney(machine.rateRial, props.currencyUnit) }}</span><span>{{ profileSummary(machine) }}</span></span></span>
+            <span class="machine-register-desktop-only machine-register-name flex min-w-0 items-center gap-3"><span class="grid size-9 shrink-0 place-items-center overflow-hidden rounded-box border border-base-300 bg-base-200 bg-cover bg-center text-primary" :style="machine.imagePath ? { backgroundImage: `url('${machine.imagePath}')` } : undefined"><Factory v-if="!machine.imagePath" :size="18" aria-hidden="true" /></span><span class="min-w-0"><strong class="block truncate text-sm">{{ machine.name }}</strong><span class="block truncate text-xs text-base-content/60">{{ machine.code || 'No code' }}</span></span></span>
+            <span class="machine-register-desktop-only machine-register-category hidden truncate text-xs text-base-content/70">{{ machine.category || 'Uncategorized' }}</span>
+            <span class="machine-register-desktop-only machine-register-rate hidden text-sm tabular-nums text-base-content/80">{{ formatMoney(machine.rateRial, props.currencyUnit) }}</span>
+            <span class="machine-register-desktop-only machine-register-basis hidden truncate text-xs text-base-content/70">{{ workspace.basisLabel(machine.rateBasis) }}</span>
+            <StatusBadge class="machine-register-desktop-only machine-register-status justify-self-end" :label="machine.active ? 'Active' : 'Archived'" :tone="machine.active ? 'green' : 'slate'" />
+            <ChevronRight class="register-row-arrow machine-register-desktop-only machine-register-chevron hidden text-base-content/45" :size="17" aria-hidden="true" />
           </button>
-          <button
-            class="btn btn-outline btn-error"
-            type="button"
-            @click="remove"
-            :disabled="busy"
-          >
-            <Trash2 :size="15" :stroke-width="1.8" aria-hidden="true" />Remove
-          </button>
-        </div></InspectorShell
-      >
-      <InspectorShell v-else title="Machine inspector" subtitle="Select a row to inspect it.">
-        <EmptyState title="No machine selected" description="Choose a machine from the register to inspect its rate and details.">
-          <template #icon><Factory :size="22" :stroke-width="1.8" aria-hidden="true" /></template>
-          <template #action><button class="btn btn-primary btn-sm" type="button" @click="startCreate">Create a machine <Plus :size="14" :stroke-width="1.8" aria-hidden="true" /></button></template>
-        </EmptyState>
-      </InspectorShell>
-    </MasterDetail>
+        </div>
+        <EmptyState v-else :title="machines.length ? 'No machines match this view' : 'No machines yet'" :description="machines.length ? 'Try another filter or search term.' : 'Add the first reusable rate input for production.'"><template #icon><Search :size="22" aria-hidden="true" /></template><template #action><button v-if="machines.length" class="btn btn-outline btn-sm" type="button" @click="clearFilters">Clear filters</button><button v-else class="btn btn-primary btn-sm gap-2" type="button" @click="startCreate"><Plus :size="15" aria-hidden="true" />Create machine</button></template></EmptyState>
+        <footer class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-base-300 bg-base-100 px-4 py-3 text-xs text-base-content/60"><span>{{ visibleMachines.length ? `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, visibleMachines.length)} of ${visibleMachines.length} machines` : '0 machines' }}</span><div class="flex items-center gap-1"><button class="btn btn-ghost btn-xs btn-square" type="button" :disabled="page === 1" aria-label="Previous page" @click="goToPage(page - 1)"><ChevronLeft :size="15" aria-hidden="true" /></button><button v-for="number in pageNumbers" :key="number" class="btn btn-xs min-w-8" :class="page === number ? 'btn-primary' : 'btn-ghost'" type="button" @click="goToPage(number)">{{ number }}</button><button class="btn btn-ghost btn-xs btn-square" type="button" :disabled="page === pageCount" aria-label="Next page" @click="goToPage(page + 1)"><ChevronRight :size="15" aria-hidden="true" /></button></div></footer>
+      </section>
+
+      <MachineDetailPanel v-if="selectedMachine" :workspace="workspace" :currency-unit="props.currencyUnit" @edit="workspace.startEdit" @archive="workspace.setActive(false)" @reactivate="workspace.setActive(true)" @remove="workspace.remove" />
+      <section v-else class="flex min-h-72 min-w-0 items-center justify-center rounded-box border border-dashed border-base-300 p-8 text-center"><EmptyState title="Select a machine" description="Choose a machine from the register to inspect rates and details."><template #icon><Layers3 :size="22" aria-hidden="true" /></template><template #action><button class="btn btn-primary btn-sm gap-2" type="button" @click="startCreate"><Plus :size="15" aria-hidden="true" />Create machine</button></template></EmptyState></section>
+    </div>
   </div>
 </template>

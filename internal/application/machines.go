@@ -19,6 +19,7 @@ type MachineInput struct {
 	Name          string
 	Code          string
 	Category      string
+	ImagePath     string
 	RateBasis     string
 	RateRial      int64
 	SetupCostRial int64
@@ -41,6 +42,7 @@ type MachineView struct {
 	Name          string
 	Code          string
 	Category      string
+	ImagePath     string
 	RateBasis     string
 	RateRial      int64
 	SetupCostRial int64
@@ -153,7 +155,7 @@ func machineDraft(input MachineInput) domain.MachineDraft {
 	for _, rate := range input.Rates {
 		rates = append(rates, domain.MachineRate{ID: rate.ID, Name: rate.Name, SelectorValue: rate.SelectorValue, RateBasis: rate.RateBasis, RateRial: rate.RateRial, SetupCostRial: rate.SetupCostRial, Active: rate.Active})
 	}
-	return domain.MachineDraft{Name: input.Name, Code: input.Code, Category: input.Category, RateBasis: input.RateBasis, RateRial: input.RateRial, SetupCostRial: input.SetupCostRial, Notes: input.Notes, Rates: rates}
+	return domain.MachineDraft{Name: input.Name, Code: input.Code, Category: input.Category, ImagePath: input.ImagePath, RateBasis: input.RateBasis, RateRial: input.RateRial, SetupCostRial: input.SetupCostRial, Notes: input.Notes, Rates: rates}
 }
 
 func machineView(machine domain.Machine) MachineView {
@@ -161,5 +163,5 @@ func machineView(machine domain.Machine) MachineView {
 	for _, rate := range machine.Rates {
 		rates = append(rates, MachineRateView{ID: rate.ID, Name: rate.Name, SelectorValue: rate.SelectorValue, RateBasis: rate.RateBasis, RateRial: rate.RateRial, SetupCostRial: rate.SetupCostRial, Active: rate.Active})
 	}
-	return MachineView{ID: machine.ID, Name: machine.Name, Code: machine.Code, Category: machine.Category, RateBasis: machine.RateBasis, RateRial: machine.RateRial, SetupCostRial: machine.SetupCostRial, Notes: machine.Notes, Active: machine.Active, CreatedAt: machine.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: machine.UpdatedAt.UTC().Format(time.RFC3339Nano), Rates: rates}
+	return MachineView{ID: machine.ID, Name: machine.Name, Code: machine.Code, Category: machine.Category, ImagePath: machine.ImagePath, RateBasis: machine.RateBasis, RateRial: machine.RateRial, SetupCostRial: machine.SetupCostRial, Notes: machine.Notes, Active: machine.Active, CreatedAt: machine.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: machine.UpdatedAt.UTC().Format(time.RFC3339Nano), Rates: rates}
 }
