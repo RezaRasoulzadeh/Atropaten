@@ -116,7 +116,6 @@ watch(
       <WorkspaceHeader
         :show-breadcrumb="true"
         title="Services"
-        eyebrow="Catalog / sellable operations"
         description="Manage reusable printing services, customer parameters, and pricing rules."
       >
         <SearchField v-model="searchQuery" class="w-full min-w-0 sm:w-64" placeholder="Search services…" aria-label="Search services" />

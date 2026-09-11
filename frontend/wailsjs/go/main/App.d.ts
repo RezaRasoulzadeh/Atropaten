@@ -278,6 +278,8 @@ export function SelectBackupFile():Promise<string>;
 
 export function TransitionCheck(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.CheckDTO>;
 
+export function UnarchivePurchase(arg1:string):Promise<main.PurchaseDTO>;
+
 export function UpdateCustomer(arg1:string,arg2:main.CustomerInput):Promise<main.CustomerDTO>;
 
 export function UpdateExpense(arg1:string,arg2:main.ExpenseInputDTO):Promise<main.ExpenseDTO>;

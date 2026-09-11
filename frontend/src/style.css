@@ -187,12 +187,15 @@ input[type='number']::-webkit-outer-spin-button {
    not reliable. Let each panel choose its table layout from its own width. */
 .material-register,
 .material-detail-panel,
-.machine-register {
+.machine-register,
+.purchase-register {
   container-type: inline-size;
 }
 
 .material-register-table-head,
-.material-register-row {
+.material-register-row,
+.purchase-register-table-head,
+.purchase-register-row {
   column-gap: 0.75rem;
 }
 
@@ -219,6 +222,29 @@ input[type='number']::-webkit-outer-spin-button {
   grid-column: 2 / -1;
 }
 
+.purchase-register-mobile-card {
+  display: grid;
+  grid-column: 1 / -1;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(2.25rem, auto) auto;
+  align-items: stretch;
+  gap: 0.25rem 0.75rem;
+}
+
+.purchase-register-mobile-icon {
+  grid-row: 1 / 3;
+  aspect-ratio: 1;
+  width: 2.25rem;
+  min-height: 0;
+  min-width: 2.25rem;
+  align-self: start;
+}
+
+.purchase-register-mobile-summary {
+  grid-column: 2 / -1;
+}
+
 .register-row-arrow {
   transition: color 140ms ease, transform 140ms ease;
 }
@@ -229,16 +255,24 @@ input[type='number']::-webkit-outer-spin-button {
   transform: translateX(0.2rem);
 }
 
-.material-register-desktop-only {
+.material-register-desktop-only,
+.purchase-register-desktop-only {
   display: none !important;
 }
 
-.material-register-row {
+.material-register-row,
+.purchase-register-row {
   align-content: center;
 }
 
 .material-register-name,
 .material-register-name > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.purchase-register-name,
+.purchase-register-name > span:last-child {
   min-width: 0;
   overflow: hidden;
 }
@@ -275,7 +309,12 @@ input[type='number']::-webkit-outer-spin-button {
     display: none;
   }
 
-  .material-register-desktop-only {
+  .purchase-register-mobile-card {
+    display: none;
+  }
+
+  .material-register-desktop-only,
+  .purchase-register-desktop-only {
     display: block !important;
   }
 
@@ -283,7 +322,15 @@ input[type='number']::-webkit-outer-spin-button {
     display: flex !important;
   }
 
+  .purchase-register-name.purchase-register-desktop-only {
+    display: flex !important;
+  }
+
   .material-register-status.material-register-desktop-only {
+    display: inline-flex !important;
+  }
+
+  .purchase-register-status.purchase-register-desktop-only {
     display: inline-flex !important;
   }
 
@@ -295,6 +342,10 @@ input[type='number']::-webkit-outer-spin-button {
     grid-template-columns: minmax(0, 1.5fr) minmax(7rem, 0.8fr) 8rem 7rem 6rem 1.25rem;
   }
 
+  .purchase-register-row {
+    grid-template-columns: minmax(0, 1.5fr) minmax(7rem, 0.8fr) 8rem 7rem 6rem 1.25rem;
+  }
+
   .material-register-category,
   .material-register-cost,
   .material-register-stock,
@@ -302,7 +353,15 @@ input[type='number']::-webkit-outer-spin-button {
     display: block !important;
   }
 
-  .material-register-status {
+  .purchase-register-supplier,
+  .purchase-register-date,
+  .purchase-register-total,
+  .purchase-register-chevron {
+    display: block !important;
+  }
+
+  .material-register-status,
+  .purchase-register-status {
     justify-self: start;
   }
 

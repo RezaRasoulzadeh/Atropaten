@@ -168,6 +168,19 @@ func (s *Store) SavePurchase(ctx context.Context, p domain.Purchase) error {
 	}
 	return nil
 }
+
+func (s *Store) UpdatePurchaseMetadata(ctx context.Context, p domain.Purchase) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE purchases SET supplier_invoice_number=?,notes=?,updated_at=? WHERE id=?`, p.SupplierInvoiceNumber, p.Notes, p.UpdatedAt.UTC().Format(time.RFC3339Nano), p.ID)
+	if err != nil {
+		return err
+	}
+	count, _ := result.RowsAffected()
+	if count == 0 {
+		return domain.ErrPurchaseNotFound
+	}
+	return nil
+}
+
 func (s *Store) DeleteDraftPurchase(ctx context.Context, id string) error {
 	var status string
 	e := s.db.QueryRowContext(ctx, `SELECT status FROM purchases WHERE id=?`, id).Scan(&status)
@@ -186,6 +199,18 @@ func (s *Store) DeleteDraftPurchase(ctx context.Context, id string) error {
 
 func (s *Store) ArchivePurchase(ctx context.Context, id string) error {
 	result, err := s.db.ExecContext(ctx, `UPDATE purchases SET archived=1,updated_at=? WHERE id=?`, time.Now().UTC().Format(time.RFC3339Nano), id)
+	if err != nil {
+		return err
+	}
+	count, _ := result.RowsAffected()
+	if count == 0 {
+		return domain.ErrPurchaseNotFound
+	}
+	return nil
+}
+
+func (s *Store) UnarchivePurchase(ctx context.Context, id string) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE purchases SET archived=0,updated_at=? WHERE id=?`, time.Now().UTC().Format(time.RFC3339Nano), id)
 	if err != nil {
 		return err
 	}

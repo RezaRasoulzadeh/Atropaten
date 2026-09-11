@@ -107,9 +107,11 @@ type PurchaseRepository interface {
 	ListPurchases(context.Context) ([]domain.Purchase, error)
 	GetPurchase(context.Context, string) (domain.Purchase, error)
 	SavePurchase(context.Context, domain.Purchase) error
+	UpdatePurchaseMetadata(context.Context, domain.Purchase) error
 	DeleteDraftPurchase(context.Context, string) error
 	DeletePurchase(context.Context, string) error
 	ArchivePurchase(context.Context, string) error
+	UnarchivePurchase(context.Context, string) error
 	PurchaseHasDependencies(context.Context, string) (bool, error)
 	PurchaseItemHasDependencies(context.Context, string, string) (bool, error)
 	PostPurchase(context.Context, string) error
@@ -206,6 +208,15 @@ func (s *PurchasesService) Update(ctx context.Context, id string, in PurchaseInp
 	if e != nil {
 		return PurchaseView{}, e
 	}
+	if p.Status != domain.PurchaseDraft || p.Archived {
+		p.SupplierInvoiceNumber = strings.TrimSpace(in.SupplierInvoiceNumber)
+		p.Notes = strings.TrimSpace(in.Notes)
+		p.UpdatedAt = s.now().UTC()
+		if e = s.repository.UpdatePurchaseMetadata(ctx, p); e != nil {
+			return PurchaseView{}, e
+		}
+		return s.Get(ctx, id)
+	}
 	updated := p
 	if e = s.applyPurchaseInput(ctx, &updated, in); e != nil {
 		return PurchaseView{}, e
@@ -215,29 +226,11 @@ func (s *PurchasesService) Update(ctx context.Context, id string, in PurchaseInp
 }
 
 func (s *PurchasesService) savePurchaseChange(ctx context.Context, previous, updated domain.Purchase) (PurchaseView, error) {
-	if previous.Status == domain.PurchasePosted {
-		if err := s.repository.CancelPurchase(ctx, previous.ID); err != nil {
-			return PurchaseView{}, fmt.Errorf("purchase cannot be changed because its inventory is already used or reserved; archive it instead: %w", err)
-		}
-		updated.Status = domain.PurchaseDraft
-		updated.Archived = false
-		for i := range updated.Items {
-			updated.Items[i].ID = mustID("PITM-")
-		}
-	} else if previous.Status == domain.PurchaseCancelled {
-		updated.Status = domain.PurchaseDraft
-		updated.Archived = false
-		for i := range updated.Items {
-			updated.Items[i].ID = mustID("PITM-")
-		}
+	if previous.Status != domain.PurchaseDraft || previous.Archived {
+		return PurchaseView{}, fmt.Errorf("only draft purchases can change inventory-affecting fields; edit the invoice reference or notes instead")
 	}
 	if err := s.repository.SavePurchase(ctx, updated); err != nil {
 		return PurchaseView{}, err
-	}
-	if previous.Status == domain.PurchasePosted {
-		if err := s.repository.PostPurchase(ctx, updated.ID); err != nil {
-			return PurchaseView{}, fmt.Errorf("purchase was reopened but could not be posted again: %w", err)
-		}
 	}
 	return s.Get(ctx, updated.ID)
 }
@@ -340,6 +333,9 @@ func (s *PurchasesService) AddItem(ctx context.Context, id string, in PurchaseIt
 	if e != nil {
 		return PurchaseView{}, e
 	}
+	if p.Status != domain.PurchaseDraft || p.Archived {
+		return PurchaseView{}, fmt.Errorf("purchase items cannot be changed after posting; edit the invoice reference or notes instead")
+	}
 	item, e := s.item(ctx, p.ID, in)
 	if e != nil {
 		return PurchaseView{}, e
@@ -377,16 +373,12 @@ func (s *PurchasesService) UpdateItem(ctx context.Context, id, itemID string, in
 	if e != nil {
 		return PurchaseView{}, e
 	}
+	if p.Status != domain.PurchaseDraft || p.Archived {
+		return PurchaseView{}, fmt.Errorf("purchase items cannot be changed after posting; edit the invoice reference or notes instead")
+	}
 	item, e := s.item(ctx, p.ID, in)
 	if e != nil {
 		return PurchaseView{}, e
-	}
-	if p.Status == domain.PurchasePosted {
-		if blocked, dependencyErr := s.repository.PurchaseItemHasDependencies(ctx, id, itemID); dependencyErr != nil {
-			return PurchaseView{}, dependencyErr
-		} else if blocked {
-			return PurchaseView{}, fmt.Errorf("purchase line cannot be changed because its material was already used in production; archive the purchase instead")
-		}
 	}
 	item.ID = itemID
 	found := false
@@ -413,12 +405,8 @@ func (s *PurchasesService) RemoveItem(ctx context.Context, id, itemID string) (P
 	if e != nil {
 		return PurchaseView{}, e
 	}
-	if p.Status == domain.PurchasePosted {
-		if blocked, dependencyErr := s.repository.PurchaseItemHasDependencies(ctx, id, itemID); dependencyErr != nil {
-			return PurchaseView{}, dependencyErr
-		} else if blocked {
-			return PurchaseView{}, fmt.Errorf("purchase line cannot be deleted because its material was already used in production; archive the purchase instead")
-		}
+	if p.Status != domain.PurchaseDraft || p.Archived {
+		return PurchaseView{}, fmt.Errorf("purchase items cannot be changed after posting; edit the invoice reference or notes instead")
 	}
 	updated := p
 	updated.Items = make([]domain.PurchaseItem, 0, len(p.Items))
@@ -443,6 +431,9 @@ func (s *PurchasesService) ReorderItems(ctx context.Context, id string, ids []st
 	p, e := s.repository.GetPurchase(ctx, id)
 	if e != nil {
 		return PurchaseView{}, e
+	}
+	if p.Status != domain.PurchaseDraft || p.Archived {
+		return PurchaseView{}, fmt.Errorf("purchase items cannot be reordered after posting; edit the invoice reference or notes instead")
 	}
 	by := map[string]domain.PurchaseItem{}
 	for _, i := range p.Items {
@@ -484,6 +475,12 @@ func (s *PurchasesService) DeleteDraft(ctx context.Context, id string) error {
 }
 func (s *PurchasesService) Archive(ctx context.Context, id string) (PurchaseView, error) {
 	if err := s.repository.ArchivePurchase(ctx, id); err != nil {
+		return PurchaseView{}, err
+	}
+	return s.Get(ctx, id)
+}
+func (s *PurchasesService) Unarchive(ctx context.Context, id string) (PurchaseView, error) {
+	if err := s.repository.UnarchivePurchase(ctx, id); err != nil {
 		return PurchaseView{}, err
 	}
 	return s.Get(ctx, id)

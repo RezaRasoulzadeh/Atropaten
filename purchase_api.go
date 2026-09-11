@@ -178,6 +178,14 @@ func (a *App) ArchivePurchase(id string) (PurchaseDTO, error) {
 	v, e := s.Archive(a.materialContext(), id)
 	return purchaseDTO(v), e
 }
+func (a *App) UnarchivePurchase(id string) (PurchaseDTO, error) {
+	s, e := a.purchaseService()
+	if e != nil {
+		return PurchaseDTO{}, e
+	}
+	v, e := s.Unarchive(a.materialContext(), id)
+	return purchaseDTO(v), e
+}
 func (a *App) DeletePurchase(id string) error {
 	s, e := a.purchaseService()
 	if e != nil {

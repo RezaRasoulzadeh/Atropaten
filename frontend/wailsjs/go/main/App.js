@@ -554,6 +554,10 @@ export function TransitionCheck(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['TransitionCheck'](arg1, arg2, arg3, arg4);
 }
 
+export function UnarchivePurchase(arg1) {
+  return window['go']['main']['App']['UnarchivePurchase'](arg1);
+}
+
 export function UpdateCustomer(arg1, arg2) {
   return window['go']['main']['App']['UpdateCustomer'](arg1, arg2);
 }

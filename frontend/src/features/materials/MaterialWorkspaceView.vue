@@ -68,7 +68,6 @@ const isEditing = computed(() => editorMode.value === 'edit');
     <WorkspaceStickyStack :flush="true">
       <WorkspaceHeader
         :title="isCreating ? 'New material' : isEditing ? 'Edit material' : selectedMaterial?.name || 'Material'"
-        eyebrow="Catalog / material workspace"
         :description="
           isCreating
             ? 'Create a stock item with units, conversion, and an optional opening cost.'

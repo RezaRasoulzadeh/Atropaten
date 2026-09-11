@@ -14,6 +14,7 @@ import {
   ListMaterialMovements,
   AdjustMaterialStock,
   CancelMaterialMovement,
+  UnarchivePurchase,
 } from '../../wailsjs/go/main/App'
 export interface PurchaseItemRecord {
   id: string
@@ -100,6 +101,9 @@ export const purchasesApi = {
   },
   archive(id: string) {
     return ArchivePurchase(id) as unknown as Promise<PurchaseRecord>
+  },
+  unarchive(id: string) {
+    return UnarchivePurchase(id) as unknown as Promise<PurchaseRecord>
   },
   remove(id: string) {
     return DeletePurchase(id)

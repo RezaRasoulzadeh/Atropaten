@@ -13,8 +13,9 @@ import {
   type JalaliDate,
 } from '../../utils/date';
 
-const props = withDefaults(defineProps<{ modelValue: string | null; placeholder?: string }>(), {
+const props = withDefaults(defineProps<{ modelValue: string | null; placeholder?: string; disabled?: boolean }>(), {
   placeholder: 'Select Jalali date',
+  disabled: false,
 });
 
 const emit = defineEmits<{
@@ -41,6 +42,7 @@ const dayCells = computed(() => {
 });
 
 function openPicker() {
+  if (props.disabled) return
   if (!isOpen.value && props.modelValue) calendarMonth.value = toJalaliDate(props.modelValue);
   isOpen.value = !isOpen.value;
   if (isOpen.value) void nextTick(positionPopover);
@@ -153,6 +155,7 @@ onBeforeUnmount(() => {
         :value="displayValue"
         type="text"
         readonly
+        :disabled="disabled"
         :placeholder="placeholder"
         aria-label="Promised date"
         :aria-expanded="isOpen"
@@ -164,6 +167,7 @@ onBeforeUnmount(() => {
       <button
         class="btn btn-ghost btn-square btn-sm absolute inset-e-1 top-1/2 -translate-y-1/2"
         type="button"
+        :disabled="disabled"
         aria-label="Open Jalali calendar"
         :aria-expanded="isOpen"
         @click="openPicker"

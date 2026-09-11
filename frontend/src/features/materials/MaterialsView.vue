@@ -61,7 +61,7 @@ watch([selectedId, editorMode], () => { void nextTick(() => document.querySelect
 
   <div v-else class="flex h-full min-h-0 min-w-0 flex-col overflow-hidden" aria-label="Materials workspace">
     <WorkspaceStickyStack class="shrink-0" :flush="true">
-      <WorkspaceHeader :show-breadcrumb="true" title="Materials" eyebrow="Catalog / purchasing foundation" description="Keep physical stock, conversion units, and cost basis ready for production.">
+      <WorkspaceHeader :show-breadcrumb="true" title="Materials" description="Keep physical stock, conversion units, and cost basis ready for production.">
         <SearchField v-model="searchQuery" class="w-full min-w-0 sm:w-64" placeholder="Search materials…" aria-label="Search materials" />
         <button class="btn btn-primary w-full gap-2 sm:w-auto" type="button" @click="startCreate"><Plus :size="16" aria-hidden="true" />Add material</button>
       </WorkspaceHeader>

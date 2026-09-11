@@ -259,7 +259,8 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
   async function save() {
     return runAction(async () => {
       if (!current.value) return;
-      if (!financial.value.some((account) => account.id === form.value.financialAccountId && account.active)) {
+      const historySafeEdit = !createMode.value && current.value.status !== 'Draft';
+      if (!historySafeEdit && !financial.value.some((account) => account.id === form.value.financialAccountId && account.active)) {
         toast.error('Select an active cash or bank account for this purchase.', 'Purchases');
         return;
       }
@@ -428,6 +429,19 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
     });
   }
 
+  async function unarchivePurchase() {
+    return runAction(async () => {
+      const value = current.value;
+      if (!value || value.status !== 'Archived') return;
+      try {
+        replace(await purchasesApi.unarchive(value.id));
+        emit('notify', 'Purchase unarchived.');
+      } catch (error) {
+        toast.error(errorMessageFrom(error, 'Purchase could not be unarchived.'), 'Purchases');
+      }
+    });
+  }
+
   async function removePurchase() {
     return runAction(async () => {
       if (
@@ -494,6 +508,7 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
     reorder,
     post,
     archivePurchase,
+    unarchivePurchase,
     removePurchase,
   };
 }
