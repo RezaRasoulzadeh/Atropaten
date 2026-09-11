@@ -63,7 +63,9 @@ watch([selectedId, editorMode], () => { void nextTick(() => document.querySelect
 </script>
 
 <template>
-  <MachineEditorWizard v-if="editorMode" :workspace="workspace" :currency-unit="props.currencyUnit" @cancel="workspace.cancelEditor" />
+  <div v-if="editorMode" class="h-full min-h-0 w-full min-w-0">
+    <MachineEditorWizard :workspace="workspace" :currency-unit="props.currencyUnit" @cancel="workspace.cancelEditor" />
+  </div>
 
   <div v-else class="flex h-full min-h-0 min-w-0 flex-col overflow-hidden" aria-label="Machines workspace">
     <WorkspaceStickyStack class="shrink-0" :flush="true">

@@ -180,10 +180,32 @@ export function useProductionWorkspace(
     form.value.quantity = i?.quantity ?? '';
     form.value.quantityUnit = i?.quantityUnit ?? '';
   }
+  function chooseItem() {
+    const item = selectedOrder.value?.items.find((x) => x.id === form.value.orderItemId);
+    form.value.quantity = item?.quantity ?? '';
+    form.value.quantityUnit = item?.quantityUnit ?? '';
+  }
+  function plannedAtInput() {
+    if (!form.value.plannedAt) return null;
+    return form.value.plannedAt.includes('T')
+      ? form.value.plannedAt
+      : `${form.value.plannedAt}T00:00:00Z`;
+  }
+  function validCreateDraft() {
+    const order = props.orders.find((item) => item.id === form.value.orderId);
+    const item = order?.items.find((entry) => entry.id === form.value.orderItemId);
+    const quantity = Number(parseQuantityInput(form.value.quantity));
+    if (!order || order.commercialStatus !== 'Confirmed') return 'Choose a confirmed order.';
+    if (!item) return 'Choose an order item.';
+    if (!Number.isFinite(quantity) || quantity <= 0) return 'Enter a quantity greater than zero.';
+    if (!form.value.quantityUnit.trim()) return 'Enter a quantity unit.';
+    return '';
+  }
   async function create() {
     return runAction(async () => {
-      if (!form.value.orderId || !form.value.orderItemId || !form.value.quantity) {
-        toast.warning('Select an order, item, and quantity before creating the job.');
+      const draftError = validCreateDraft();
+      if (draftError) {
+        toast.warning(draftError);
         return;
       }
       saving.value = true;
@@ -191,7 +213,7 @@ export function useProductionWorkspace(
         const j = await productionApi.create({
           ...form.value,
           quantity: parseQuantityInput(form.value.quantity),
-          plannedAt: null,
+          plannedAt: plannedAtInput(),
         });
         jobs.value.unshift(j);
         createMode.value = false;
@@ -212,11 +234,7 @@ export function useProductionWorkspace(
         const j = await productionApi.update(selected.value.id, {
           ...form.value,
           quantity: parseQuantityInput(form.value.quantity),
-          plannedAt: form.value.plannedAt
-            ? form.value.plannedAt.includes('T')
-              ? form.value.plannedAt
-              : `${form.value.plannedAt}T00:00:00Z`
-            : null,
+          plannedAt: plannedAtInput(),
         });
         replace(j);
         editing.value = false;
@@ -417,6 +435,7 @@ export function useProductionWorkspace(
     select,
     beginCreate,
     chooseOrder,
+    chooseItem,
     create,
     update,
     beginEdit,

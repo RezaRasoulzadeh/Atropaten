@@ -536,7 +536,7 @@ function showToast(message: string) {
       </AppToolbar>
 
       <main
-        class="min-h-0 min-w-0 overflow-y-auto bg-base-200 p-4 pt-0 lg:p-6 lg:pt-0"
+        class="flex min-h-0 min-w-0 flex-col overflow-y-auto bg-base-200 p-4 pt-0 lg:p-6 lg:pt-0"
         tabindex="-1"
       >
         <Transition mode="out-in">

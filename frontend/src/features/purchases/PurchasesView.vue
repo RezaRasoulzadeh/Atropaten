@@ -82,14 +82,15 @@ watch([selectedId, editing, createMode], () => {
 </script>
 
 <template>
-  <PurchaseWorkspaceView
-    v-if="editing || createMode"
-    :workspace="workspace"
-    :currency-unit="props.currencyUnit"
-    :suppliers="props.suppliers"
-    :materials="props.materials"
-    @back="backToPurchases"
-  />
+  <div v-if="editing || createMode" class="h-full min-h-0 w-full min-w-0">
+    <PurchaseWorkspaceView
+      :workspace="workspace"
+      :currency-unit="props.currencyUnit"
+      :suppliers="props.suppliers"
+      :materials="props.materials"
+      @back="backToPurchases"
+    />
+  </div>
 
   <div v-else class="flex h-full min-h-0 min-w-0 flex-col overflow-hidden" aria-label="Purchases workspace">
     <WorkspaceStickyStack class="shrink-0" :flush="true">

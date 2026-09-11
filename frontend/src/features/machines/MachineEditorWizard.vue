@@ -54,6 +54,10 @@ function next() {
   if (activeStep.value < steps.length) activeStep.value += 1
 }
 
+function previous() {
+  if (activeStep.value > 1) activeStep.value -= 1
+}
+
 function submit() {
   validationAttempted.value = true
   if (!form.value.name.trim() || !form.value.rate.trim()) {
@@ -94,7 +98,7 @@ function clearImage() {
 </script>
 
 <template>
-  <div class="service-wizard flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Machine editor">
+  <div class="service-wizard w-full flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Machine editor">
     <header class="service-wizard-header flex min-w-0 shrink-0 flex-wrap items-end justify-between gap-4 border-b border-base-300 bg-base-200 px-1 pt-4 pb-4">
       <div class="min-w-0"><h1 class="mt-2 text-2xl font-semibold tracking-tight text-primary">{{ title }}</h1><p class="mt-1 text-sm text-base-content/65">Define reusable equipment and rates for service costing.</p><WorkspaceBreadcrumb class="mt-2" :items="[{ label: 'Machines' }, { label: title, current: true }]" @navigate="emit('cancel')" /></div>
       <div class="flex shrink-0 items-center gap-2"><button class="btn btn-error" type="button" :disabled="busy || isSaving" @click="emit('cancel')">Cancel</button><button class="btn btn-success gap-2" type="submit" form="machine-editor-wizard" :disabled="busy || isSaving"><Save :size="16" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save' }}</button></div>
@@ -117,5 +121,6 @@ function clearImage() {
         <aside class="service-wizard-preview-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/35 p-4 xl:overflow-y-auto"><div class="space-y-4"><div class="relative min-h-48 overflow-hidden rounded-box bg-base-100 bg-cover bg-center p-5" :style="imagePreview ? { backgroundImage: `url('${imagePreview}')` } : undefined"><div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/10" aria-hidden="true"></div><div v-if="!imagePreview" class="absolute inset-0 grid place-items-center text-base-content/30"><Factory :size="42" aria-hidden="true" /></div><div class="relative z-10 flex min-h-36 flex-col justify-end text-white"><span v-if="!imagePreview" class="mb-auto grid size-11 place-items-center rounded-box border border-white/15 bg-black/20 text-white/80"><Factory :size="24" aria-hidden="true" /></span><div class="mt-auto flex min-w-0 items-end justify-between gap-3"><div class="min-w-0"><h2 class="truncate text-lg font-semibold">{{ machineTitle }}</h2><p class="mt-1 truncate text-xs text-white/70">{{ machineCode }} · {{ machineCategory }}</p></div><StatusBadge label="Active" tone="green" /></div></div></div><div class="divide-y divide-base-300 rounded-box border border-base-300 bg-base-100/35"><div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">Standard rate</span><strong class="text-primary">{{ form.rate ? formatMoney(Number(String(form.rate).replace(/[^0-9.-]/g, '')), props.currencyUnit) : 'Not set' }}</strong></div><div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">Rate basis</span><strong class="max-w-[10rem] truncate text-end">{{ basisLabel(form.rateBasis) }}</strong></div><div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">Profiles</span><strong>{{ profileCount }}</strong></div></div><div class="flex gap-2 border-t border-base-300 pt-3 text-sm"><Factory class="mt-0.5 shrink-0 text-info" :size="17" aria-hidden="true" /><p class="leading-5 text-base-content/70">{{ activeStep === 1 ? 'Start with the equipment identity and default billing basis.' : activeStep === 2 ? 'Alternative profiles let one machine price different production modes.' : 'Review the setup and save when the rates are ready.' }}</p></div></div></aside>
       </div>
     </div>
+    <footer class="flex min-w-0 items-center justify-between gap-3 border-t border-base-300 px-1 pt-3"><button class="btn btn-ghost btn-sm" type="button" :disabled="activeStep === 1 || busy || isSaving" @click="previous">Back</button><span class="text-xs text-base-content/55">Step {{ activeStep }} of {{ steps.length }}</span><button v-if="activeStep < steps.length" class="btn btn-primary btn-sm" type="button" @click="next">Continue</button><button v-else class="btn btn-success btn-sm gap-2" type="submit" form="machine-editor-wizard" :disabled="busy || isSaving"><Save :size="14" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save machine' }}</button></footer>
   </div>
 </template>

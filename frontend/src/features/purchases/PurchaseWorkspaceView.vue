@@ -62,6 +62,10 @@ function next() {
   if (activeStep.value < steps.length) activeStep.value += 1
 }
 
+function previous() {
+  if (activeStep.value > 1) activeStep.value -= 1
+}
+
 function updatePurchaseMoney(field: 'discountRial' | 'shippingRial' | 'taxRial' | 'additionalCostsRial', value: string) {
   const parsed = parseMoneyInput(value, props.currencyUnit)
   if (parsed !== null) props.workspace.form.value[field] = parsed
@@ -78,7 +82,7 @@ function financialAccountLabel(id: string) {
 </script>
 
 <template>
-  <div v-if="current" class="service-wizard flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Purchase editor">
+  <div v-if="current" class="service-wizard w-full flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Purchase editor">
     <header class="service-wizard-header flex min-w-0 shrink-0 flex-wrap items-end justify-between gap-4 border-b border-base-300 bg-base-200 px-1 pt-4 pb-4">
       <div class="min-w-0">
         <h1 class="mt-2 text-2xl font-semibold tracking-tight text-primary">{{ title }}</h1>
@@ -151,5 +155,6 @@ function financialAccountLabel(id: string) {
         <aside class="service-wizard-preview-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/35 p-4 xl:overflow-y-auto"><div class="space-y-4"><div class="relative min-h-48 overflow-hidden rounded-box bg-base-300 p-5"><div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/65 to-black/10" aria-hidden="true"></div><div class="absolute inset-0 grid place-items-center text-white/10"><ShoppingCart :size="84" :stroke-width="1" aria-hidden="true" /></div><div class="relative z-10 flex min-h-36 flex-col justify-end text-white"><div class="mt-auto flex min-w-0 items-end justify-start gap-3"><div class="min-w-0"><h2 class="truncate text-lg font-semibold">{{ purchaseNumber }}</h2><p class="mt-1 truncate text-xs text-white/70">{{ supplierName }} · {{ itemCount }} items</p></div><StatusBadge :label="current.status" :tone="current.status === 'Posted' ? 'green' : current.status === 'Draft' ? 'amber' : 'slate'" /></div></div></div><div class="divide-y divide-base-300 rounded-box border border-base-300 bg-base-100/35"><div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">Supplier</span><strong class="max-w-[10rem] truncate text-end">{{ supplierName }}</strong></div><div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">Items</span><strong>{{ itemCount }}</strong></div><div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">Total</span><strong class="text-primary tabular-nums">{{ formatMoney(total, props.currencyUnit) }}</strong></div></div><div class="flex gap-2 border-t border-base-300 pt-3 text-sm"><Receipt class="mt-0.5 shrink-0 text-info" :size="17" aria-hidden="true" /><p class="leading-5 text-base-content/70">{{ historyLocked ? 'Inventory-affecting values are protected. Update the invoice reference or notes and save.' : activeStep === 1 ? 'Start with the supplier and payment details.' : activeStep === 2 ? 'Add every material line received in this purchase.' : activeStep === 3 ? 'Adjust the financial totals and add context.' : 'Review the draft before saving or posting it.' }}</p></div></div></aside>
       </div>
     </div>
+    <footer class="flex min-w-0 items-center justify-between gap-3 border-t border-base-300 px-1 pt-3"><button class="btn btn-ghost btn-sm" type="button" :disabled="activeStep === 1 || busy" @click="previous">Back</button><span class="text-xs text-base-content/55">Step {{ activeStep }} of {{ steps.length }}</span><button v-if="activeStep < steps.length" class="btn btn-primary btn-sm" type="button" @click="next">Continue</button><button v-else class="btn btn-success btn-sm gap-2" type="button" :disabled="busy" @click="save"><Save :size="14" aria-hidden="true" />Save purchase</button></footer>
   </div>
 </template>

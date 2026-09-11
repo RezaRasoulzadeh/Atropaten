@@ -183,6 +183,11 @@ input[type='number']::-webkit-outer-spin-button {
   display: none;
 }
 
+.service-wizard {
+  width: 100%;
+  max-width: none;
+}
+
 /* These panels are split by the workspace grid, so viewport breakpoints are
    not reliable. Let each panel choose its table layout from its own width. */
 .material-register,

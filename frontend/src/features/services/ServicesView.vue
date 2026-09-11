@@ -94,22 +94,23 @@ watch(
 </script>
 
 <template>
-  <ServiceEditorWizard
-    v-if="editorMode"
-    :form="form"
-    :editor-mode="editorMode"
-    :busy="busy"
-    :is-saving="isSaving"
-    :validation-attempted="validationAttempted"
-    :active="editorMode === 'edit' ? (selectedService?.active ?? true) : true"
-    :materials="materials"
-    :machines="machines"
-    :services="services"
-    :service-id="selectedService?.id || ''"
-    :currency-unit="props.currencyUnit"
-    @cancel="cancelEditor"
-    @save="saveService"
-  />
+  <div v-if="editorMode" class="h-full min-h-0 w-full min-w-0">
+    <ServiceEditorWizard
+      :form="form"
+      :editor-mode="editorMode"
+      :busy="busy"
+      :is-saving="isSaving"
+      :validation-attempted="validationAttempted"
+      :active="editorMode === 'edit' ? (selectedService?.active ?? true) : true"
+      :materials="materials"
+      :machines="machines"
+      :services="services"
+      :service-id="selectedService?.id || ''"
+      :currency-unit="props.currencyUnit"
+      @cancel="cancelEditor"
+      @save="saveService"
+    />
+  </div>
 
   <div v-else class="flex h-full min-h-0 min-w-0 flex-col overflow-hidden" aria-label="Services workspace">
     <WorkspaceStickyStack class="shrink-0" :flush="true">

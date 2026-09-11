@@ -143,7 +143,7 @@ watch(
 </script>
 
 <template>
-  <div class="service-wizard flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Service editor">
+  <div class="service-wizard w-full flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Service editor">
     <header class="service-wizard-header flex min-w-0 shrink-0 flex-wrap items-end justify-between gap-4 border-b border-base-300 bg-base-200 px-1 pt-4 pb-4">
       <div class="min-w-0">
         <h1 class="mt-2 text-2xl font-semibold tracking-tight text-primary">{{ editorMode === 'create' ? 'Add service' : 'Edit service' }}</h1>
@@ -268,5 +268,6 @@ watch(
         </aside>
       </div>
     </div>
+    <footer class="flex min-w-0 items-center justify-between gap-3 border-t border-base-300 px-1 pt-3"><button class="btn btn-ghost btn-sm" type="button" :disabled="activeStep === 1 || busy || isSaving" @click="previous">Back</button><span class="text-xs text-base-content/55">Step {{ activeStep }} of {{ steps.length }}</span><button v-if="activeStep < steps.length" class="btn btn-primary btn-sm" type="button" @click="next">Continue</button><button v-else class="btn btn-success btn-sm gap-2" type="button" :disabled="busy || isSaving" @click="emit('save')"><Save :size="14" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save service' }}</button></footer>
   </div>
 </template>

@@ -190,7 +190,7 @@ async function remove() {
     </header>
 
     <div class="min-h-0 min-w-0 flex-1 overflow-y-auto">
-      <form class="mx-auto grid min-w-0 max-w-4xl gap-6 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-6" @submit.prevent="save">
+      <form class="grid w-full min-w-0 gap-6 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-6" @submit.prevent="save">
         <section class="space-y-1"><h2 class="text-base font-semibold">Customer identity</h2><p class="text-xs leading-5 text-base-content/60">Add the name your team will use in orders and commercial documents.</p></section>
         <div class="grid min-w-0 gap-4 sm:grid-cols-2">
           <FormField label="Customer name" required class="gap-1 sm:col-span-2"><AppInput v-model="form.name" class="input w-full min-w-0" required placeholder="Mehr Studio" autocomplete="off" /></FormField>
