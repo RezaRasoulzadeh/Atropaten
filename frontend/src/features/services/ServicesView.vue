@@ -4,7 +4,6 @@ import { ChevronLeft, ChevronRight, Layers3, Plus, Search } from 'lucide-vue-nex
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue'
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue'
 import SearchField from '../../components/ui/SearchField.vue'
-import SelectField from '../../components/ui/SelectField.vue'
 import LoadingState from '../../components/ui/LoadingState.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
@@ -43,19 +42,11 @@ const {
   remove,
 } = useServicesWorkspace(props, emit)
 
-const sortOrder = ref('name')
 const page = ref(1)
 const pageSize = 10
 const statusOptions: ServiceFilter[] = ['All', 'Active', 'Archived']
 
-const visibleServices = computed(() => {
-  const items = filteredServices.value
-  return [...items].sort((left, right) => {
-    if (sortOrder.value === 'updated') return String(right.updatedAt).localeCompare(String(left.updatedAt))
-    if (sortOrder.value === 'category') return `${left.category}${left.name}`.localeCompare(`${right.category}${right.name}`)
-    return left.name.localeCompare(right.name)
-  })
-})
+const visibleServices = computed(() => filteredServices.value)
 
 const pageCount = computed(() => Math.max(1, Math.ceil(visibleServices.value.length / pageSize)))
 const pagedServices = computed(() => visibleServices.value.slice((page.value - 1) * pageSize, page.value * pageSize))
@@ -77,11 +68,10 @@ function estimatedPrice(service: typeof services.value[number]) {
 function resetListFilters() {
   searchQuery.value = ''
   serviceFilter.value = 'All' as ServiceFilter
-  sortOrder.value = 'name'
   page.value = 1
 }
 
-watch([searchQuery, serviceFilter, sortOrder], () => { page.value = 1 })
+watch([searchQuery, serviceFilter], () => { page.value = 1 })
 watch(pageCount, (count) => { if (page.value > count) page.value = count })
 
 watch(
@@ -131,8 +121,6 @@ watch(
             <div class="flex min-w-0 flex-wrap items-center gap-2">
               <button v-for="status in statusOptions" :key="status" class="inline-flex h-9 items-center gap-2 rounded-box border px-3 text-sm transition-colors" :class="serviceFilter === status ? 'border-primary bg-primary/10 text-primary' : 'border-base-300 text-base-content/70 hover:border-primary/50 hover:text-base-content'" type="button" @click="serviceFilter = status"><span class="size-2 rounded-full" :class="status === 'Active' ? 'bg-success' : status === 'Archived' ? 'bg-base-content/35' : 'bg-primary'"></span>{{ status }}<span class="rounded-full bg-base-200 px-1.5 py-0.5 text-xs tabular-nums">{{ statusCount(status) }}</span></button>
             </div>
-            <span class="hidden h-6 w-px bg-base-300 sm:block" aria-hidden="true"></span>
-            <div class="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 sm:w-auto"><SelectField v-model="sortOrder" class="min-w-0 flex-1 sm:w-36 sm:flex-none" aria-label="Sort services" :options="[{ label: 'Sort by name', value: 'name' }, { label: 'Sort by category', value: 'category' }, { label: 'Recently updated', value: 'updated' }]" /></div>
           </div>
         </div>
 

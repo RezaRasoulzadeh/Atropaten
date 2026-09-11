@@ -4,7 +4,6 @@ import { ChevronLeft, ChevronRight, Plus, Search, ShoppingCart } from 'lucide-vu
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue'
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue'
 import SearchField from '../../components/ui/SearchField.vue'
-import SelectField from '../../components/ui/SelectField.vue'
 import LoadingState from '../../components/ui/LoadingState.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
@@ -40,16 +39,11 @@ const {
   backToPurchases,
 } = workspace
 
-const sortOrder = ref('date')
 const page = ref(1)
 const pageSize = 10
 const statusOptions: PurchaseFilter[] = ['All', 'Draft', 'Posted', 'Archived']
 
-const visibleRows = computed(() => [...filteredRows.value].sort((left, right) => {
-  if (sortOrder.value === 'total') return right.totalRial - left.totalRial
-  if (sortOrder.value === 'supplier') return `${left.supplierName}${left.purchaseNumber}`.localeCompare(`${right.supplierName}${right.purchaseNumber}`)
-  return String(right.purchaseDate).localeCompare(String(left.purchaseDate))
-}))
+const visibleRows = computed(() => filteredRows.value)
 const pageCount = computed(() => Math.max(1, Math.ceil(visibleRows.value.length / pageSize)))
 const pagedRows = computed(() => visibleRows.value.slice((page.value - 1) * pageSize, page.value * pageSize))
 const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1))
@@ -70,11 +64,10 @@ function goToPage(value: number) {
 function resetListFilters() {
   searchQuery.value = ''
   purchaseFilter.value = 'All'
-  sortOrder.value = 'date'
   page.value = 1
 }
 
-watch([searchQuery, purchaseFilter, sortOrder], () => { page.value = 1 })
+watch([searchQuery, purchaseFilter], () => { page.value = 1 })
 watch(pageCount, (count) => { if (page.value > count) page.value = count })
 watch([selectedId, editing, createMode], () => {
   void nextTick(() => document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' }))
@@ -111,8 +104,6 @@ watch([selectedId, editing, createMode], () => {
             <div class="flex min-w-0 flex-wrap items-center gap-2">
               <button v-for="status in statusOptions" :key="status" class="inline-flex h-9 items-center gap-2 rounded-box border px-3 text-sm transition-colors" :class="purchaseFilter === status ? 'border-primary bg-primary/10 text-primary' : 'border-base-300 text-base-content/70 hover:border-primary/50 hover:text-base-content'" type="button" @click="purchaseFilter = status"><span class="size-2 rounded-full" :class="status === 'Posted' ? 'bg-success' : status === 'Archived' ? 'bg-base-content/35' : status === 'Draft' ? 'bg-warning' : 'bg-primary'"></span>{{ status }}<span class="rounded-full bg-base-200 px-1.5 py-0.5 text-xs tabular-nums">{{ statusCount(status) }}</span></button>
             </div>
-            <span class="hidden h-6 w-px bg-base-300 sm:block" aria-hidden="true"></span>
-            <div class="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 sm:w-auto"><SelectField v-model="sortOrder" class="min-w-0 flex-1 sm:w-36 sm:flex-none" aria-label="Sort purchases" :options="[{ label: 'Sort by date', value: 'date' }, { label: 'Sort by total', value: 'total' }, { label: 'Sort by supplier', value: 'supplier' }]" /></div>
           </div>
         </div>
 

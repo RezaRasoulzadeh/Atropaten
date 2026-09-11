@@ -5,7 +5,6 @@ import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue'
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue'
 import WorkspaceBreadcrumb from '../../components/layout/WorkspaceBreadcrumb.vue'
 import SearchField from '../../components/ui/SearchField.vue'
-import SelectField from '../../components/ui/SelectField.vue'
 import LoadingState from '../../components/ui/LoadingState.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
@@ -26,7 +25,6 @@ const suppliers = ref<SupplierRecord[]>([])
 const selectedId = ref<string | null>(null)
 const searchQuery = ref('')
 const supplierFilter = ref<SupplierFilter>('All')
-const sortOrder = ref('name')
 const page = ref(1)
 const pageSize = 10
 const isLoading = ref(false)
@@ -44,18 +42,14 @@ const filteredSuppliers = computed(() => {
     return matchesFilter && matchesSearch
   })
 })
-const visibleSuppliers = computed(() => [...filteredSuppliers.value].sort((left, right) => {
-  if (sortOrder.value === 'updated') return String(right.updatedAt).localeCompare(String(left.updatedAt))
-  if (sortOrder.value === 'code') return `${left.code}${left.name}`.localeCompare(`${right.code}${right.name}`)
-  return left.name.localeCompare(right.name)
-}))
+const visibleSuppliers = computed(() => filteredSuppliers.value)
 const pageCount = computed(() => Math.max(1, Math.ceil(visibleSuppliers.value.length / pageSize)))
 const pagedSuppliers = computed(() => visibleSuppliers.value.slice((page.value - 1) * pageSize, page.value * pageSize))
 const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1))
 
 onMounted(loadSuppliers)
 
-watch([searchQuery, supplierFilter, sortOrder], () => { page.value = 1 })
+watch([searchQuery, supplierFilter], () => { page.value = 1 })
 watch(pageCount, (count) => { if (page.value > count) page.value = count })
 watch([selectedId, editing], () => {
   void nextTick(() => document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' }))
@@ -111,7 +105,6 @@ function startEdit() {
 function resetListFilters() {
   searchQuery.value = ''
   supplierFilter.value = 'All'
-  sortOrder.value = 'name'
   page.value = 1
 }
 
@@ -213,7 +206,7 @@ async function remove() {
 
     <div class="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(22rem,auto)_auto] gap-4 overflow-y-auto xl:grid-cols-[minmax(0,1.15fr)_minmax(24rem,0.85fr)] xl:grid-rows-1 xl:overflow-hidden">
       <section class="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-box border border-base-300 bg-base-100" aria-label="Supplier register">
-        <div class="shrink-0 border-b border-base-300 p-3 sm:p-4"><div class="flex min-w-0 flex-wrap items-center justify-between gap-3"><div class="flex min-w-0 flex-wrap items-center gap-2"><button v-for="status in statusOptions" :key="status" class="inline-flex h-9 items-center gap-2 rounded-box border px-3 text-sm transition-colors" :class="supplierFilter === status ? 'border-primary bg-primary/10 text-primary' : 'border-base-300 text-base-content/70 hover:border-primary/50 hover:text-base-content'" type="button" @click="supplierFilter = status"><span class="size-2 rounded-full" :class="status === 'Active' ? 'bg-success' : status === 'Archived' ? 'bg-base-content/35' : 'bg-primary'"></span>{{ status }}<span class="rounded-full bg-base-200 px-1.5 py-0.5 text-xs tabular-nums">{{ statusCount(status) }}</span></button></div><span class="hidden h-6 w-px bg-base-300 sm:block" aria-hidden="true"></span><div class="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 sm:w-auto"><SelectField v-model="sortOrder" class="min-w-0 flex-1 sm:w-36 sm:flex-none" aria-label="Sort suppliers" :options="[{ label: 'Sort by name', value: 'name' }, { label: 'Sort by code', value: 'code' }, { label: 'Recently updated', value: 'updated' }]" /></div></div></div>
+        <div class="shrink-0 border-b border-base-300 p-3 sm:p-4"><div class="flex min-w-0 flex-wrap items-center gap-3"><div class="flex min-w-0 flex-wrap items-center gap-2"><button v-for="status in statusOptions" :key="status" class="inline-flex h-9 items-center gap-2 rounded-box border px-3 text-sm transition-colors" :class="supplierFilter === status ? 'border-primary bg-primary/10 text-primary' : 'border-base-300 text-base-content/70 hover:border-primary/50 hover:text-base-content'" type="button" @click="supplierFilter = status"><span class="size-2 rounded-full" :class="status === 'Active' ? 'bg-success' : status === 'Archived' ? 'bg-base-content/35' : 'bg-primary'"></span>{{ status }}<span class="rounded-full bg-base-200 px-1.5 py-0.5 text-xs tabular-nums">{{ statusCount(status) }}</span></button></div></div></div>
         <div class="supplier-register-table-head hidden gap-3 border-b border-base-300 px-4 py-3 text-xs font-medium text-base-content/55 md:grid"><span>Supplier</span><span>Contact</span><span>Location</span><span>Status</span><span></span></div>
         <LoadingState v-if="isLoading" label="Loading suppliers…" />
         <div v-else-if="pagedSuppliers.length" class="min-h-0 flex-1 overflow-y-auto divide-y divide-base-300"><button v-for="supplier in pagedSuppliers" :key="supplier.id" class="supplier-register-row group grid w-full min-w-0 items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-base-200/60 focus-visible:bg-base-200/60 focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary" :class="selectedId === supplier.id ? 'bg-primary/10' : ''" type="button" @click="selectSupplier(supplier.id)"><span class="flex min-w-0 items-center gap-3"><span class="grid size-9 shrink-0 place-items-center rounded-box border border-base-300 bg-base-200 text-primary"><Truck :size="18" aria-hidden="true" /></span><span class="min-w-0"><strong class="block truncate text-sm">{{ supplier.name }}</strong><span class="block truncate text-xs text-base-content/60">{{ supplier.code || 'No code' }}<span v-if="supplier.notes"> · {{ supplier.notes }}</span></span></span></span><span class="hidden min-w-0 truncate text-xs text-base-content/70 md:block">{{ supplier.phone || supplier.email || 'No contact' }}</span><span class="hidden min-w-0 truncate text-xs text-base-content/70 md:block">{{ supplier.address || 'No address' }}</span><StatusBadge class="justify-self-end md:justify-self-start" :label="supplier.active ? 'Active' : 'Archived'" :tone="supplier.active ? 'green' : 'slate'" /><ChevronRight :size="17" class="register-row-arrow justify-self-end text-base-content/45" aria-hidden="true" /><span class="col-span-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/55 md:hidden"><span>{{ supplier.phone || supplier.email || 'No contact' }}</span><span>{{ supplier.address || 'No address' }}</span></span></button></div>

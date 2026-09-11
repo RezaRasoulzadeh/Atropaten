@@ -4,7 +4,6 @@ import { ChevronLeft, ChevronRight, ClipboardList, Layers3, Plus, Search } from 
 import EmptyState from '../../components/ui/EmptyState.vue'
 import LoadingState from '../../components/ui/LoadingState.vue'
 import SearchField from '../../components/ui/SearchField.vue'
-import SelectField from '../../components/ui/SelectField.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue'
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue'
@@ -26,32 +25,11 @@ const emit = defineEmits<{ 'open-order': [id: string]; 'new-order': [] }>()
 
 const query = ref('')
 const status = ref<OrderFilter>('All')
-const payment = ref('All')
-const priority = ref('All')
-const sortOrder = ref('updated')
 const selectedOrderId = ref<string | null>(null)
 const page = ref(1)
 const pageSize = 10
 
 const statusOptions: OrderFilter[] = ['All', 'Draft', 'Confirmed', 'Production', 'Delivery', 'Closed', 'Cancelled']
-const paymentOptions = [
-  { label: 'All payments', value: 'All' },
-  { label: 'Unpaid', value: 'Unpaid' },
-  { label: 'Partially paid', value: 'Partially Paid' },
-  { label: 'Paid', value: 'Paid' },
-]
-const priorityOptions = [
-  { label: 'All priorities', value: 'All' },
-  { label: 'Urgent', value: 'Urgent' },
-  { label: 'High', value: 'High' },
-  { label: 'Normal', value: 'Normal' },
-  { label: 'Low', value: 'Low' },
-]
-const sortOptions = [
-  { label: 'Recently updated', value: 'updated' },
-  { label: 'Sort by order number', value: 'number' },
-  { label: 'Sort by total', value: 'total' },
-]
 
 const orderItems = (order: OrderRecord) => (Array.isArray(order.items) ? order.items : [])
 
@@ -77,20 +55,11 @@ const filteredOrders = computed(() => {
         String(value ?? '').toLowerCase().includes(search),
       )
 
-    return (
-      matchesSearch &&
-      (status.value === 'All' || orderStatus(order) === status.value) &&
-      (payment.value === 'All' || order.paymentStatus === payment.value) &&
-      (priority.value === 'All' || order.priority === priority.value)
-    )
+    return matchesSearch && (status.value === 'All' || orderStatus(order) === status.value)
   })
 })
 
-const visibleOrders = computed(() => [...filteredOrders.value].sort((left, right) => {
-  if (sortOrder.value === 'number') return left.orderNumber.localeCompare(right.orderNumber)
-  if (sortOrder.value === 'total') return right.totalRial - left.totalRial
-  return String(right.updatedAt || right.createdAt).localeCompare(String(left.updatedAt || left.createdAt))
-}))
+const visibleOrders = computed(() => filteredOrders.value)
 
 const pageCount = computed(() => Math.max(1, Math.ceil(visibleOrders.value.length / pageSize)))
 const pagedOrders = computed(() => visibleOrders.value.slice((page.value - 1) * pageSize, page.value * pageSize))
@@ -119,9 +88,6 @@ function money(value: number) {
 function clearFilters() {
   query.value = ''
   status.value = 'All'
-  payment.value = 'All'
-  priority.value = 'All'
-  sortOrder.value = 'updated'
   page.value = 1
 }
 
@@ -129,7 +95,7 @@ function goToPage(value: number) {
   page.value = Math.min(Math.max(value, 1), pageCount.value)
 }
 
-watch([query, status, payment, priority, sortOrder], () => { page.value = 1 })
+watch([query, status], () => { page.value = 1 })
 watch(pageCount, (count) => { if (page.value > count) page.value = count })
 watch(visibleOrders, (orders) => {
   if (!orders.some((order) => order.id === selectedOrderId.value)) selectedOrderId.value = orders[0]?.id ?? null
@@ -178,13 +144,7 @@ function openSelectedOrder() {
               <span class="rounded-full bg-base-200 px-1.5 py-0.5 text-xs tabular-nums">{{ statusCount(filter) }}</span>
             </button>
           </div>
-          <span class="hidden h-6 w-px bg-base-300 sm:block" aria-hidden="true"></span>
-          <div class="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 xl:w-auto">
-            <SelectField v-model="payment" class="min-w-0 flex-1 sm:w-32 sm:flex-none" aria-label="Filter payments" :options="paymentOptions" />
-            <SelectField v-model="priority" class="min-w-0 flex-1 sm:w-32 sm:flex-none" aria-label="Filter priorities" :options="priorityOptions" />
-            <SelectField v-model="sortOrder" class="min-w-0 flex-1 sm:w-36 sm:flex-none" aria-label="Sort orders" :options="sortOptions" />
-            <button v-if="query || status !== 'All' || payment !== 'All' || priority !== 'All' || sortOrder !== 'updated'" class="btn btn-ghost btn-sm" type="button" @click="clearFilters">Clear</button>
-          </div>
+          <button v-if="query || status !== 'All'" class="btn btn-ghost btn-sm" type="button" @click="clearFilters">Clear</button>
         </div>
       </div>
 
@@ -227,7 +187,7 @@ function openSelectedOrder() {
       <EmptyState
         v-else
         :title="props.orders.length ? 'No orders match this view' : 'No orders yet'"
-        :description="props.orders.length ? 'Try another status, payment, priority, or search filter.' : 'Create the first order to start a commercial workflow.'"
+        :description="props.orders.length ? 'Try another status or search filter.' : 'Create the first order to start a commercial workflow.'"
       >
         <template #icon><Search :size="22" aria-hidden="true" /></template>
         <template #action>

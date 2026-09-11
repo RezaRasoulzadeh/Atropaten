@@ -4,7 +4,6 @@ import { ChevronLeft, ChevronRight, Factory, Layers3, Plus, Search } from 'lucid
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue'
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue'
 import SearchField from '../../components/ui/SearchField.vue'
-import SelectField from '../../components/ui/SelectField.vue'
 import LoadingState from '../../components/ui/LoadingState.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
@@ -19,19 +18,11 @@ const emit = defineEmits<{ notify: [message: string] }>()
 const workspace = useMachinesWorkspace(props, emit)
 const { machines, selectedId, selectedMachine, machineFilter, searchQuery, editorMode, isLoading, filteredMachines, startCreate, selectMachine } = workspace
 
-const sortOrder = ref('name')
 const page = ref(1)
 const pageSize = 10
 const statusOptions: MachineFilter[] = ['All', 'Active', 'Archived']
 
-const visibleMachines = computed(() => {
-  const items = filteredMachines.value
-  return [...items].sort((left, right) => {
-    if (sortOrder.value === 'updated') return String(right.updatedAt).localeCompare(String(left.updatedAt))
-    if (sortOrder.value === 'category') return `${left.category}${left.name}`.localeCompare(`${right.category}${right.name}`)
-    return left.name.localeCompare(right.name)
-  })
-})
+const visibleMachines = computed(() => filteredMachines.value)
 const pageCount = computed(() => Math.max(1, Math.ceil(visibleMachines.value.length / pageSize)))
 const pagedMachines = computed(() => visibleMachines.value.slice((page.value - 1) * pageSize, page.value * pageSize))
 const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1))
@@ -53,11 +44,10 @@ function goToPage(value: number) {
 function clearFilters() {
   searchQuery.value = ''
   machineFilter.value = 'All'
-  sortOrder.value = 'name'
   page.value = 1
 }
 
-watch([searchQuery, machineFilter, sortOrder], () => { page.value = 1 })
+watch([searchQuery, machineFilter], () => { page.value = 1 })
 watch(pageCount, (count) => { if (page.value > count) page.value = count })
 watch([selectedId, editorMode], () => { void nextTick(() => document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' })) })
 </script>
@@ -77,7 +67,7 @@ watch([selectedId, editorMode], () => { void nextTick(() => document.querySelect
 
     <div class="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(22rem,auto)_auto] gap-4 overflow-y-auto xl:grid-cols-[minmax(0,1.15fr)_minmax(24rem,0.85fr)] xl:grid-rows-1 xl:overflow-hidden">
       <section class="machine-register flex min-h-0 min-w-0 flex-col overflow-hidden rounded-box border border-base-300 bg-base-100" aria-label="Machine register">
-        <div class="shrink-0 border-b border-base-300 p-3 sm:p-4"><div class="flex min-w-0 flex-wrap items-center justify-between gap-3"><div class="flex min-w-0 flex-wrap items-center gap-2"><button v-for="status in statusOptions" :key="status" class="inline-flex h-9 items-center gap-2 rounded-box border px-3 text-sm transition-colors" :class="machineFilter === status ? 'border-primary bg-primary/10 text-primary' : 'border-base-300 text-base-content/70 hover:border-primary/50 hover:text-base-content'" type="button" @click="machineFilter = status"><span class="size-2 rounded-full" :class="status === 'Active' ? 'bg-success' : status === 'Archived' ? 'bg-base-content/35' : 'bg-primary'"></span>{{ status }}<span class="rounded-full bg-base-200 px-1.5 py-0.5 text-xs tabular-nums">{{ statusCount(status) }}</span></button></div><span class="hidden h-6 w-px bg-base-300 sm:block" aria-hidden="true"></span><div class="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 sm:w-auto"><SelectField v-model="sortOrder" class="min-w-0 flex-1 sm:w-36 sm:flex-none" aria-label="Sort machines" :options="[{ label: 'Sort by name', value: 'name' }, { label: 'Sort by category', value: 'category' }, { label: 'Recently updated', value: 'updated' }]" /></div></div></div>
+        <div class="shrink-0 border-b border-base-300 p-3 sm:p-4"><div class="flex min-w-0 flex-wrap items-center gap-3"><div class="flex min-w-0 flex-wrap items-center gap-2"><button v-for="status in statusOptions" :key="status" class="inline-flex h-9 items-center gap-2 rounded-box border px-3 text-sm transition-colors" :class="machineFilter === status ? 'border-primary bg-primary/10 text-primary' : 'border-base-300 text-base-content/70 hover:border-primary/50 hover:text-base-content'" type="button" @click="machineFilter = status"><span class="size-2 rounded-full" :class="status === 'Active' ? 'bg-success' : status === 'Archived' ? 'bg-base-content/35' : 'bg-primary'"></span>{{ status }}<span class="rounded-full bg-base-200 px-1.5 py-0.5 text-xs tabular-nums">{{ statusCount(status) }}</span></button></div></div></div>
 
         <div class="machine-register-table-head hidden grid-cols-[minmax(0,1.5fr)_minmax(7rem,0.8fr)_8rem_8rem_6rem_1.25rem] gap-3 border-b border-base-300 px-4 py-3 text-xs font-medium text-base-content/55"><span>Name</span><span>Category</span><span>Rate</span><span>Basis</span><span>Status</span><span></span></div>
         <LoadingState v-if="isLoading" label="Loading machines…" />
