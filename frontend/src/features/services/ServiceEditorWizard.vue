@@ -146,8 +146,8 @@ watch(
   <div class="service-wizard w-full flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Service editor">
     <header class="service-wizard-header flex min-w-0 shrink-0 flex-wrap items-end justify-between gap-4 border-b border-base-300 bg-base-200 px-1 pt-4 pb-4">
       <div class="min-w-0">
-        <h1 class="mt-2 text-2xl font-semibold tracking-tight text-primary">{{ editorMode === 'create' ? 'Add service' : 'Edit service' }}</h1>
-        <p class="mt-1 text-sm text-base-content/65">Define a printing service that can be used in orders.</p>
+        <h1 class="mt-2 text-2xl font-bold leading-8 tracking-tight text-primary">{{ editorMode === 'create' ? 'Add service' : 'Edit service' }}</h1>
+        <p class="mt-1 text-xs leading-4 text-base-content/65">Define a printing service that can be used in orders.</p>
         <WorkspaceBreadcrumb class="mt-2" :items="[{ label: 'Services' }, { label: editorMode === 'create' ? 'Add service' : 'Edit service', current: true }]" @navigate="emit('cancel')" />
       </div>
       <div class="flex shrink-0 items-center gap-2">

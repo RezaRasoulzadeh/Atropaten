@@ -85,8 +85,8 @@ function financialAccountLabel(id: string) {
   <div v-if="current" class="service-wizard w-full flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Purchase editor">
     <header class="service-wizard-header flex min-w-0 shrink-0 flex-wrap items-end justify-between gap-4 border-b border-base-300 bg-base-200 px-1 pt-4 pb-4">
       <div class="min-w-0">
-        <h1 class="mt-2 text-2xl font-semibold tracking-tight text-primary">{{ title }}</h1>
-        <p class="mt-1 text-sm text-base-content/65">{{ historyLocked ? 'Safely update purchase notes without changing its inventory history.' : 'Record a supplier purchase and prepare its inventory receipt.' }}</p>
+        <h1 class="mt-2 text-2xl font-bold leading-8 tracking-tight text-primary">{{ title }}</h1>
+        <p class="mt-1 text-xs leading-4 text-base-content/65">{{ historyLocked ? 'Safely update purchase notes without changing its inventory history.' : 'Record a supplier purchase and prepare its inventory receipt.' }}</p>
         <WorkspaceBreadcrumb class="mt-2" :items="[{ label: 'Purchases' }, { label: title, current: true }]" @navigate="cancelEditor" />
       </div>
       <div class="flex shrink-0 items-center gap-2">

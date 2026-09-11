@@ -176,11 +176,11 @@ async function remove() {
 </script>
 
 <template>
-  <div v-if="editing" class="flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Customer editor">
+  <div v-if="editing" class="w-full flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Customer editor">
     <header class="flex min-w-0 shrink-0 flex-wrap items-end justify-between gap-4 border-b border-base-300 bg-base-200 px-1 pt-4 pb-4">
       <div class="min-w-0">
-        <h1 class="mt-2 text-2xl font-semibold tracking-tight text-primary">{{ selectedId ? 'Edit customer' : 'Add customer' }}</h1>
-        <p class="mt-1 text-sm text-base-content/65">Keep customer contact and account information organized.</p>
+        <h1 class="mt-2 text-2xl font-bold leading-8 tracking-tight text-primary">{{ selectedId ? 'Edit customer' : 'Add customer' }}</h1>
+        <p class="mt-1 text-xs leading-4 text-base-content/65">Keep customer contact and account information organized.</p>
         <WorkspaceBreadcrumb class="mt-2" :items="[{ label: 'Customers' }, { label: selectedId ? 'Edit customer' : 'Add customer', current: true }]" @navigate="editing = false" />
       </div>
       <div class="flex shrink-0 items-center gap-2">

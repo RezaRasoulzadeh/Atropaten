@@ -100,7 +100,7 @@ function clearImage() {
 <template>
   <div class="service-wizard w-full flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Machine editor">
     <header class="service-wizard-header flex min-w-0 shrink-0 flex-wrap items-end justify-between gap-4 border-b border-base-300 bg-base-200 px-1 pt-4 pb-4">
-      <div class="min-w-0"><h1 class="mt-2 text-2xl font-semibold tracking-tight text-primary">{{ title }}</h1><p class="mt-1 text-sm text-base-content/65">Define reusable equipment and rates for service costing.</p><WorkspaceBreadcrumb class="mt-2" :items="[{ label: 'Machines' }, { label: title, current: true }]" @navigate="emit('cancel')" /></div>
+      <div class="min-w-0"><h1 class="mt-2 text-2xl font-bold leading-8 tracking-tight text-primary">{{ title }}</h1><p class="mt-1 text-xs leading-4 text-base-content/65">Define reusable equipment and rates for service costing.</p><WorkspaceBreadcrumb class="mt-2" :items="[{ label: 'Machines' }, { label: title, current: true }]" @navigate="emit('cancel')" /></div>
       <div class="flex shrink-0 items-center gap-2"><button class="btn btn-error" type="button" :disabled="busy || isSaving" @click="emit('cancel')">Cancel</button><button class="btn btn-success gap-2" type="submit" form="machine-editor-wizard" :disabled="busy || isSaving"><Save :size="16" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save' }}</button></div>
     </header>
 
