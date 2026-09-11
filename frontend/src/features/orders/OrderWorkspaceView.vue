@@ -290,7 +290,7 @@ function snapshot(item: any, key: string) {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="flex h-full min-h-0 min-w-0 flex-col gap-4">
     <WorkspaceStickyStack :flush="true">
       <WorkspaceHeader
         eyebrow="Sales / order workspace"

@@ -550,7 +550,11 @@ function showToast(message: string) {
             @open-order="openDashboardOrder"
           />
 
-          <div v-else-if="activeView === 'Orders'" key="orders">
+          <div
+            v-else-if="activeView === 'Orders'"
+            key="orders"
+            class="flex h-full min-h-0 min-w-0 flex-col"
+          >
             <Transition mode="out-in">
               <OrderWorkspaceView
                 v-if="selectedOrder"
