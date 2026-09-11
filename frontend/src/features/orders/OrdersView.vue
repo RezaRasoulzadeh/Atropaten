@@ -1,245 +1,246 @@
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { ChevronLeft, ChevronRight, ClipboardList, Plus, Search } from 'lucide-vue-next'
+import EmptyState from '../../components/ui/EmptyState.vue'
 import LoadingState from '../../components/ui/LoadingState.vue'
-import AppPanel from '../../components/layout/AppPanel.vue';
-import { computed, ref } from 'vue';
-import { ClipboardList, Plus } from 'lucide-vue-next';
-import StatusBadge from '../../components/ui/StatusBadge.vue';
-import SearchFilterBar from '../../components/ui/SearchFilterBar.vue';
-import SearchField from '../../components/ui/SearchField.vue';
-import EmptyState from '../../components/ui/EmptyState.vue';
-import SelectField from '../../components/ui/SelectField.vue';
-import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue';
-import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue';
-import type { OrderRecord } from '../../api/orders';
-import { formatMoney, type CurrencyUnit } from '../../utils/currency';
-import { formatDateTime } from '../../utils/date';
-type Tone = 'blue' | 'green' | 'amber' | 'red' | 'slate';
+import SearchField from '../../components/ui/SearchField.vue'
+import SelectField from '../../components/ui/SelectField.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
+import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue'
+import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue'
+import type { OrderRecord } from '../../api/orders'
+import { formatMoney, type CurrencyUnit } from '../../utils/currency'
+import { formatDateTime } from '../../utils/date'
+
+type Tone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
+type OrderFilter = 'All' | 'Draft' | 'Confirmed' | 'Production' | 'Delivery' | 'Closed' | 'Cancelled'
+
 const props = defineProps<{
-  orders: OrderRecord[];
-  currencyUnit: CurrencyUnit;
-  loading?: boolean;
-}>();
-const emit = defineEmits<{ 'open-order': [id: string]; 'new-order': [] }>();
-const query = ref('');
-const status = ref('All');
-const payment = ref('All');
-const priority = ref('All');
-const statusOptions = [
-  { label: 'All', value: 'All' },
-  { label: 'Draft', value: 'Draft' },
-  { label: 'Confirmed', value: 'Confirmed' },
-  { label: 'Production', value: 'Production' },
-  { label: 'Delivery', value: 'Delivery' },
-  { label: 'Closed', value: 'Closed' },
-  { label: 'Cancelled', value: 'Cancelled' },
-];
+  orders: OrderRecord[]
+  currencyUnit: CurrencyUnit
+  loading?: boolean
+}>()
+
+const emit = defineEmits<{ 'open-order': [id: string]; 'new-order': [] }>()
+
+const query = ref('')
+const status = ref<OrderFilter>('All')
+const payment = ref('All')
+const priority = ref('All')
+const sortOrder = ref('updated')
+const page = ref(1)
+const pageSize = 10
+
+const statusOptions: OrderFilter[] = ['All', 'Draft', 'Confirmed', 'Production', 'Delivery', 'Closed', 'Cancelled']
 const paymentOptions = [
-  { label: 'All', value: 'All' },
+  { label: 'All payments', value: 'All' },
   { label: 'Unpaid', value: 'Unpaid' },
-  { label: 'Partially Paid', value: 'Partially Paid' },
+  { label: 'Partially paid', value: 'Partially Paid' },
   { label: 'Paid', value: 'Paid' },
-];
+]
 const priorityOptions = [
-  { label: 'All', value: 'All' },
+  { label: 'All priorities', value: 'All' },
   { label: 'Urgent', value: 'Urgent' },
   { label: 'High', value: 'High' },
   { label: 'Normal', value: 'Normal' },
   { label: 'Low', value: 'Low' },
-];
-const orderItems = (order: OrderRecord) => (Array.isArray(order.items) ? order.items : []);
-const filtered = computed(() =>
-  props.orders.filter((o) => {
-    const q = query.value.trim().toLowerCase();
+]
+const sortOptions = [
+  { label: 'Recently updated', value: 'updated' },
+  { label: 'Sort by order number', value: 'number' },
+  { label: 'Sort by total', value: 'total' },
+]
+
+const orderItems = (order: OrderRecord) => (Array.isArray(order.items) ? order.items : [])
+
+function orderStatus(order: OrderRecord): OrderFilter {
+  if (order.commercialStatus === 'Cancelled') return 'Cancelled'
+  if (order.commercialStatus === 'Closed') return 'Closed'
+  if (order.fulfillmentStatus === 'Delivered') return 'Delivery'
+  if (order.fulfillmentStatus === 'In Production' || order.fulfillmentStatus === 'Ready') return 'Production'
+  return order.commercialStatus as OrderFilter
+}
+
+function statusCount(filter: OrderFilter) {
+  if (filter === 'All') return props.orders.length
+  return props.orders.filter((order) => orderStatus(order) === filter).length
+}
+
+const filteredOrders = computed(() => {
+  const search = query.value.trim().toLowerCase()
+  return props.orders.filter((order) => {
+    const matchesSearch =
+      !search ||
+      [order.orderNumber, order.customerName, order.customerPhone, ...orderItems(order).map((item) => item.serviceName)].some((value) =>
+        String(value ?? '').toLowerCase().includes(search),
+      )
+
     return (
-      (!q ||
-        [o.orderNumber, o.customerName, ...orderItems(o).map((i) => i.serviceName)].some((v) =>
-          String(v ?? '')
-            .toLowerCase()
-            .includes(q),
-        )) &&
-      (status.value === 'All' || orderStatus(o) === status.value) &&
-      (payment.value === 'All' || o.paymentStatus === payment.value) &&
-      (priority.value === 'All' || o.priority === priority.value)
-    );
-  }),
-);
-function orderStatus(order: OrderRecord) {
-  if (order.commercialStatus === 'Cancelled') return 'Cancelled';
-  if (order.commercialStatus === 'Closed') return 'Closed';
-  if (order.fulfillmentStatus === 'Delivered') return 'Delivery';
-  if (order.fulfillmentStatus === 'In Production' || order.fulfillmentStatus === 'Ready') return 'Production';
-  return order.commercialStatus;
+      matchesSearch &&
+      (status.value === 'All' || orderStatus(order) === status.value) &&
+      (payment.value === 'All' || order.paymentStatus === payment.value) &&
+      (priority.value === 'All' || order.priority === priority.value)
+    )
+  })
+})
+
+const visibleOrders = computed(() => [...filteredOrders.value].sort((left, right) => {
+  if (sortOrder.value === 'number') return left.orderNumber.localeCompare(right.orderNumber)
+  if (sortOrder.value === 'total') return right.totalRial - left.totalRial
+  return String(right.updatedAt || right.createdAt).localeCompare(String(left.updatedAt || left.createdAt))
+}))
+
+const pageCount = computed(() => Math.max(1, Math.ceil(visibleOrders.value.length / pageSize)))
+const pagedOrders = computed(() => visibleOrders.value.slice((page.value - 1) * pageSize, page.value * pageSize))
+const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1))
+const pageSummary = computed(() => visibleOrders.value.length
+  ? 'Showing ' + ((page.value - 1) * pageSize + 1) + '–' + Math.min(page.value * pageSize, visibleOrders.value.length) + ' of ' + visibleOrders.value.length + ' orders'
+  : '0 orders')
+
+function tone(value: string): Tone {
+  if (value === 'Confirmed' || value === 'Production') return 'blue'
+  if (value === 'Closed' || value === 'Delivery' || value === 'Delivered' || value === 'Paid' || value === 'Ready') return 'green'
+  if (value === 'Cancelled') return 'red'
+  if (value === 'Partially Paid' || value === 'Urgent') return 'amber'
+  return 'slate'
 }
-function money(v: number) {
-  return formatMoney(v, props.currencyUnit);
+
+function itemSummary(order: OrderRecord) {
+  return orderItems(order).map((item) => item.serviceName).join(' · ') || 'No configured items'
 }
-function tone(v: string): Tone {
-  return v === 'Confirmed' || v === 'Production'
-    ? 'blue'
-    : v === 'Closed' || v === 'Delivery' || v === 'Delivered' || v === 'Paid' || v === 'Ready'
-      ? 'green'
-      : v === 'Cancelled'
-        ? 'red'
-        : v === 'Partially Paid'
-          ? 'amber'
-          : 'slate';
+
+function money(value: number) {
+  return formatMoney(value, props.currencyUnit)
 }
-function itemSummary(o: OrderRecord) {
-  return (
-    orderItems(o)
-      .map((i) => i.serviceName)
-      .join(' · ') || 'No configured items'
-  );
+
+function clearFilters() {
+  query.value = ''
+  status.value = 'All'
+  payment.value = 'All'
+  priority.value = 'All'
+  sortOrder.value = 'updated'
+  page.value = 1
 }
-function clear() {
-  query.value = '';
-  status.value = payment.value = priority.value = 'All';
+
+function goToPage(value: number) {
+  page.value = Math.min(Math.max(value, 1), pageCount.value)
 }
+
+watch([query, status, payment, priority, sortOrder], () => { page.value = 1 })
+watch(pageCount, (count) => { if (page.value > count) page.value = count })
 </script>
+
 <template>
-  <div class="space-y-4">
-    <WorkspaceStickyStack>
+  <div class="flex h-full min-h-0 min-w-0 flex-col overflow-hidden" aria-label="Orders workspace">
+    <WorkspaceStickyStack class="shrink-0" :flush="true">
       <WorkspaceHeader
         :show-breadcrumb="true"
         eyebrow="Sales / operational queue"
         title="Orders"
         description="Track every order from draft through production, delivery, and close."
       >
-        <button class="btn btn-primary gap-2" type="button" @click="emit('new-order')">
-          <Plus :size="16" :stroke-width="1.8" aria-hidden="true" />
-          <span>New order</span>
+        <SearchField v-model="query" class="w-full min-w-0 sm:w-64" placeholder="Search orders…" aria-label="Search orders" />
+        <button class="btn btn-primary w-full gap-2 sm:w-auto" type="button" @click="emit('new-order')">
+          <Plus :size="16" aria-hidden="true" />New order
         </button>
       </WorkspaceHeader>
-
-      <SearchFilterBar>
-        <template #search>
-          <SearchField
-            v-model="query"
-            label="Search orders"
-            placeholder="Order, customer, or service"
-          />
-        </template>
-        <template #filters>
-          <SelectField
-            class="w-36"
-            v-model="status"
-            label="Order status"
-            :options="statusOptions"
-          />
-          <SelectField class="w-32" v-model="payment" label="Payment" :options="paymentOptions" />
-          <SelectField
-            class="w-32"
-            v-model="priority"
-            label="Priority"
-            :options="priorityOptions"
-          />
-        </template>
-        <template #count
-          ><span>{{ filtered.length }} of {{ props.orders.length }} orders</span></template
-        >
-        <template #actions>
-          <button
-            v-if="
-              query ||
-              status !== 'All' ||
-              payment !== 'All' ||
-              priority !== 'All'
-            "
-            class="btn btn-ghost btn-sm"
-            type="button"
-            @click="clear"
-          >
-            Clear
-          </button>
-        </template>
-      </SearchFilterBar>
     </WorkspaceStickyStack>
 
-    <AppPanel
-      title="All orders"
-      subtitle="Open an order to inspect its accepted pricing snapshots."
-      :flush="true"
-    >
-      <template #action>
-        <span class="text-xs text-base-content/60">Draft · Confirmed · Production · Delivery</span>
-      </template>
-
-      <LoadingState v-if="loading" label="Loading records…" />
-      <EmptyState
-        v-else-if="!filtered.length"
-        :title="props.orders.length ? 'No orders match these filters' : 'No persisted orders yet'"
-        :description="props.orders.length ? 'Adjust the search or status filters to find an order.' : 'Create an order to start a commercial workflow.'"
-      >
-        <template #icon><ClipboardList :size="22" aria-hidden="true" /></template>
-        <template #action>
-          <button v-if="props.orders.length" class="btn btn-primary btn-sm" type="button" @click="clear">Clear filters</button>
-          <button v-else class="btn btn-primary btn-sm gap-2" type="button" @click="emit('new-order')"><Plus :size="15" aria-hidden="true" /> Create order</button>
-        </template>
-      </EmptyState>
-      <div v-else>
-        <div class="divide-y divide-base-300">
-          <article
-            v-for="order in filtered"
-            :key="order.id"
-            class="min-w-0 cursor-pointer p-3 transition-colors hover:bg-base-200"
-            tabindex="0"
-            @click="emit('open-order', order.id)"
-            @keydown.enter="emit('open-order', order.id)"
-          >
-            <div class="flex min-w-0 items-center justify-between gap-3">
-              <div class="flex min-w-0 items-center gap-2">
-                <button
-                  class="btn btn-ghost btn-sm -ms-2 h-8 min-h-8 shrink-0 px-2 font-semibold"
-                  type="button"
-                  @click.stop="emit('open-order', order.id)"
-                >
-                  {{ order.orderNumber }}
-                </button>
-                <p class="truncate text-sm font-semibold">
-                  {{ order.customerName || 'Walk-in customer' }}
-                </p>
-              </div>
-              <strong class="shrink-0 text-sm text-primary">{{ money(order.totalRial) }}</strong>
-            </div>
-
-            <div
-              class="mt-2 grid min-w-0 grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2 lg:grid-cols-4"
+    <section class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-box border border-base-300 bg-base-100" aria-label="Order register">
+      <div class="shrink-0 border-b border-base-300 p-3 sm:p-4">
+        <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
+          <div class="flex min-w-0 flex-wrap items-center gap-2">
+            <button
+              v-for="filter in statusOptions"
+              :key="filter"
+              class="inline-flex h-9 items-center gap-2 rounded-box border px-3 text-sm transition-colors"
+              :class="status === filter ? 'border-primary bg-primary/10 text-primary' : 'border-base-300 text-base-content/70 hover:border-primary/50 hover:text-base-content'"
+              type="button"
+              @click="status = filter"
             >
-              <div class="min-w-0">
-                <span class="block text-base-content/50">Items</span>
-                <span class="block break-words text-base-content/80">{{ itemSummary(order) }}</span>
-                <span class="block text-base-content/50"
-                  >{{ orderItems(order).length }} line items</span
-                >
-              </div>
-              <div class="min-w-0">
-                <span class="block text-base-content/50">Contact</span>
-                <span class="block truncate text-base-content/80">{{
-                  order.customerPhone || 'No contact details'
-                }}</span>
-              </div>
-              <div>
-                <span class="block text-base-content/50">Created</span>
-                <span class="block text-base-content/80">{{
-                  formatDateTime(order.createdAt)
-                }}</span>
-              </div>
-              <div>
-                <span class="block text-base-content/50">Promised</span>
-                <span class="block text-base-content/80">{{
-                  order.promisedAt ? formatDateTime(order.promisedAt) : '—'
-                }}</span>
-              </div>
-            </div>
-
-            <div class="mt-2 flex flex-wrap gap-1.5">
-              <StatusBadge :label="orderStatus(order)" :tone="tone(orderStatus(order))" />
-              <StatusBadge :label="order.paymentStatus" :tone="tone(order.paymentStatus)" />
-              <StatusBadge :label="order.priority" :tone="tone(order.priority)" />
-            </div>
-          </article>
+              <span class="size-2 rounded-full" :class="filter === 'Cancelled' ? 'bg-error' : filter === 'All' ? 'bg-primary' : filter === 'Closed' || filter === 'Delivery' ? 'bg-success' : filter === 'Production' || filter === 'Confirmed' ? 'bg-info' : 'bg-base-content/35'"></span>
+              {{ filter }}
+              <span class="rounded-full bg-base-200 px-1.5 py-0.5 text-xs tabular-nums">{{ statusCount(filter) }}</span>
+            </button>
+          </div>
+          <span class="hidden h-6 w-px bg-base-300 sm:block" aria-hidden="true"></span>
+          <div class="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 xl:w-auto">
+            <SelectField v-model="payment" class="min-w-0 flex-1 sm:w-32 sm:flex-none" aria-label="Filter payments" :options="paymentOptions" />
+            <SelectField v-model="priority" class="min-w-0 flex-1 sm:w-32 sm:flex-none" aria-label="Filter priorities" :options="priorityOptions" />
+            <SelectField v-model="sortOrder" class="min-w-0 flex-1 sm:w-36 sm:flex-none" aria-label="Sort orders" :options="sortOptions" />
+            <button v-if="query || status !== 'All' || payment !== 'All' || priority !== 'All' || sortOrder !== 'updated'" class="btn btn-ghost btn-sm" type="button" @click="clearFilters">Clear</button>
+          </div>
         </div>
       </div>
-    </AppPanel>
+
+      <div class="order-register-table-head hidden grid-cols-[minmax(0,1.35fr)_minmax(10rem,1fr)_minmax(0,1.25fr)_8.5rem_7rem_1.25rem] gap-3 border-b border-base-300 px-4 py-3 text-xs font-medium text-base-content/55 md:grid">
+        <span>Order</span><span>Customer</span><span>Items</span><span>Total</span><span>Status</span><span></span>
+      </div>
+
+      <LoadingState v-if="loading" label="Loading orders…" />
+      <div v-else-if="pagedOrders.length" class="min-h-0 flex-1 overflow-y-auto divide-y divide-base-300">
+        <button
+          v-for="order in pagedOrders"
+          :key="order.id"
+          class="order-register-row group grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-base-200/60 focus-visible:bg-base-200/60 focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary md:grid-cols-[minmax(0,1.35fr)_minmax(10rem,1fr)_minmax(0,1.25fr)_8.5rem_7rem_1.25rem]"
+          type="button"
+          @click="emit('open-order', order.id)"
+        >
+          <span class="order-register-name flex min-w-0 items-center gap-3">
+            <span class="grid size-9 shrink-0 place-items-center rounded-box border border-base-300 bg-base-200 text-primary"><ClipboardList :size="18" aria-hidden="true" /></span>
+            <span class="min-w-0">
+              <strong class="block truncate text-sm">{{ order.orderNumber }}</strong>
+              <span class="block truncate text-xs text-base-content/60">{{ order.customerName || 'Walk-in customer' }}</span>
+            </span>
+          </span>
+          <span class="hidden min-w-0 truncate text-xs text-base-content/70 md:block">{{ order.customerPhone || 'No contact details' }}</span>
+          <span class="hidden min-w-0 truncate text-xs text-base-content/70 md:block">
+            {{ itemSummary(order) }} · {{ orderItems(order).length }} line item{{ orderItems(order).length === 1 ? '' : 's' }}
+          </span>
+          <span class="hidden text-sm font-semibold tabular-nums text-primary md:block">{{ money(order.totalRial) }}</span>
+          <StatusBadge class="justify-self-end md:justify-self-start" :label="orderStatus(order)" :tone="tone(orderStatus(order))" />
+          <ChevronRight :size="17" class="register-row-arrow justify-self-end text-base-content/45" aria-hidden="true" />
+          <span class="col-span-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/55 md:hidden">
+            <span>{{ itemSummary(order) }}</span>
+            <span>{{ money(order.totalRial) }}</span>
+            <span>{{ order.paymentStatus }} · {{ order.priority }}</span>
+            <span>{{ formatDateTime(order.createdAt) }}</span>
+          </span>
+        </button>
+      </div>
+      <EmptyState
+        v-else
+        :title="props.orders.length ? 'No orders match this view' : 'No orders yet'"
+        :description="props.orders.length ? 'Try another status, payment, priority, or search filter.' : 'Create the first order to start a commercial workflow.'"
+      >
+        <template #icon><Search :size="22" aria-hidden="true" /></template>
+        <template #action>
+          <button v-if="props.orders.length" class="btn btn-primary btn-sm" type="button" @click="clearFilters">Clear filters</button>
+          <button v-else class="btn btn-primary btn-sm gap-2" type="button" @click="emit('new-order')"><Plus :size="15" aria-hidden="true" />Create order</button>
+        </template>
+      </EmptyState>
+
+      <footer class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-base-300 bg-base-100 px-4 py-3 text-xs text-base-content/60">
+        <span>{{ pageSummary }}</span>
+        <div class="flex items-center gap-1">
+          <button class="btn btn-ghost btn-xs btn-square" type="button" :disabled="page === 1" aria-label="Previous page" @click="goToPage(page - 1)"><ChevronLeft :size="15" aria-hidden="true" /></button>
+          <button v-for="number in pageNumbers" :key="number" class="btn btn-xs min-w-8" :class="page === number ? 'btn-primary' : 'btn-ghost'" type="button" @click="goToPage(number)">{{ number }}</button>
+          <button class="btn btn-ghost btn-xs btn-square" type="button" :disabled="page === pageCount" aria-label="Next page" @click="goToPage(page + 1)"><ChevronRight :size="15" aria-hidden="true" /></button>
+        </div>
+      </footer>
+    </section>
   </div>
 </template>
+
+<style scoped>
+.order-register-table-head,
+.order-register-row {
+  grid-template-columns: minmax(0, 1.35fr) minmax(10rem, 1fr) minmax(0, 1.25fr) 8.5rem 7rem 1.25rem;
+}
+
+@media (max-width: 767px) {
+  .order-register-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+}
+</style>
