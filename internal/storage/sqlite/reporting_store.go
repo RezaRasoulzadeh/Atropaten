@@ -52,6 +52,8 @@ func (s *Store) GetShopSettings(ctx context.Context) (domain.ShopSettings, error
 			v.DocumentNotes = value
 		case "backup_directory":
 			v.BackupDirectory = value
+		case "attachment_directory":
+			v.AttachmentDirectory = value
 		}
 	}
 	return v, rows.Err()
@@ -63,7 +65,7 @@ func (s *Store) SaveShopSettings(ctx context.Context, v domain.ShopSettings) err
 		"shop_name": v.ShopName, "shop_subtitle": v.ShopSubtitle, "phone": v.Phone, "address": v.Address,
 		"email": v.Email, "website": v.Website, "registration_id": v.RegistrationID, "tax_id": v.TaxID,
 		"logo_path": v.LogoPath, "document_footer": v.DocumentFooter, "document_notes": v.DocumentNotes,
-		"backup_directory": v.BackupDirectory,
+		"backup_directory": v.BackupDirectory, "attachment_directory": v.AttachmentDirectory,
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

@@ -48,12 +48,13 @@ type DatabaseValidator func(string) error
 type BackupService struct {
 	paths          DataPaths
 	defaultBackups string
+	defaultFiles   string
 	repository     BackupRepository
 	validate       DatabaseValidator
 }
 
 func NewBackupService(paths DataPaths, repository BackupRepository, validate DatabaseValidator) *BackupService {
-	return &BackupService{paths: paths, defaultBackups: paths.Backups, repository: repository, validate: validate}
+	return &BackupService{paths: paths, defaultBackups: paths.Backups, defaultFiles: paths.Attachments, repository: repository, validate: validate}
 }
 func (s *BackupService) SetRepository(repository BackupRepository) { s.repository = repository }
 func (s *BackupService) Paths() DataPaths                          { return s.paths }
@@ -72,6 +73,27 @@ func (s *BackupService) SetBackupDirectory(directory string) error {
 		return fmt.Errorf("backup path %q is not a directory", abs)
 	}
 	s.paths.Backups = abs
+	return nil
+}
+
+func (s *BackupService) SetAttachmentsDirectory(directory string) error {
+	directory = strings.TrimSpace(directory)
+	if directory == "" {
+		s.paths.Attachments = s.defaultFiles
+		return nil
+	}
+	abs, err := filepath.Abs(directory)
+	if err != nil {
+		return fmt.Errorf("resolve attachments directory: %w", err)
+	}
+	info, err := os.Stat(abs)
+	if err != nil {
+		return fmt.Errorf("attachments directory is not available: %w", err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("attachments path %q is not a directory", abs)
+	}
+	s.paths.Attachments = abs
 	return nil
 }
 

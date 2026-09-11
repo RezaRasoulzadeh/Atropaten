@@ -4,6 +4,8 @@ import (
 	"Atropaten/internal/application"
 	"Atropaten/internal/domain"
 	"fmt"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type ReportSummaryDTO struct {
@@ -109,18 +111,19 @@ type DashboardDTO struct {
 	RecentActivity         []DashboardActivityDTO   `json:"recentActivity"`
 }
 type ShopSettingsDTO struct {
-	ShopName        string `json:"shopName"`
-	ShopSubtitle    string `json:"shopSubtitle"`
-	Phone           string `json:"phone"`
-	Address         string `json:"address"`
-	Email           string `json:"email"`
-	Website         string `json:"website"`
-	RegistrationID  string `json:"registrationId"`
-	TaxID           string `json:"taxId"`
-	LogoPath        string `json:"logoPath"`
-	DocumentFooter  string `json:"documentFooter"`
-	DocumentNotes   string `json:"documentNotes"`
-	BackupDirectory string `json:"backupDirectory"`
+	ShopName            string `json:"shopName"`
+	ShopSubtitle        string `json:"shopSubtitle"`
+	Phone               string `json:"phone"`
+	Address             string `json:"address"`
+	Email               string `json:"email"`
+	Website             string `json:"website"`
+	RegistrationID      string `json:"registrationId"`
+	TaxID               string `json:"taxId"`
+	LogoPath            string `json:"logoPath"`
+	DocumentFooter      string `json:"documentFooter"`
+	DocumentNotes       string `json:"documentNotes"`
+	BackupDirectory     string `json:"backupDirectory"`
+	AttachmentDirectory string `json:"attachmentDirectory"`
 }
 type PrintLineDTO struct {
 	Description   string `json:"description"`
@@ -233,14 +236,28 @@ func (a *App) SaveShopSettings(v ShopSettingsDTO) error {
 	if e = backup.SetBackupDirectory(v.BackupDirectory); e != nil {
 		return e
 	}
+	if e = backup.SetAttachmentsDirectory(v.AttachmentDirectory); e != nil {
+		return e
+	}
 	return s.SaveShopSettings(a.materialContext(), domainShopSettings(v))
 }
 func domainShopSettings(v ShopSettingsDTO) domain.ShopSettings {
-	return domain.ShopSettings{ShopName: v.ShopName, ShopSubtitle: v.ShopSubtitle, Phone: v.Phone, Address: v.Address, Email: v.Email, Website: v.Website, RegistrationID: v.RegistrationID, TaxID: v.TaxID, LogoPath: v.LogoPath, DocumentFooter: v.DocumentFooter, DocumentNotes: v.DocumentNotes, BackupDirectory: v.BackupDirectory}
+	return domain.ShopSettings{ShopName: v.ShopName, ShopSubtitle: v.ShopSubtitle, Phone: v.Phone, Address: v.Address, Email: v.Email, Website: v.Website, RegistrationID: v.RegistrationID, TaxID: v.TaxID, LogoPath: v.LogoPath, DocumentFooter: v.DocumentFooter, DocumentNotes: v.DocumentNotes, BackupDirectory: v.BackupDirectory, AttachmentDirectory: v.AttachmentDirectory}
 }
 
 func shopSettingsDTO(v domain.ShopSettings) ShopSettingsDTO {
-	return ShopSettingsDTO{ShopName: v.ShopName, ShopSubtitle: v.ShopSubtitle, Phone: v.Phone, Address: v.Address, Email: v.Email, Website: v.Website, RegistrationID: v.RegistrationID, TaxID: v.TaxID, LogoPath: v.LogoPath, DocumentFooter: v.DocumentFooter, DocumentNotes: v.DocumentNotes, BackupDirectory: v.BackupDirectory}
+	return ShopSettingsDTO{ShopName: v.ShopName, ShopSubtitle: v.ShopSubtitle, Phone: v.Phone, Address: v.Address, Email: v.Email, Website: v.Website, RegistrationID: v.RegistrationID, TaxID: v.TaxID, LogoPath: v.LogoPath, DocumentFooter: v.DocumentFooter, DocumentNotes: v.DocumentNotes, BackupDirectory: v.BackupDirectory, AttachmentDirectory: v.AttachmentDirectory}
+}
+
+func (a *App) SelectAttachmentDirectory() (string, error) {
+	if a.ctx == nil {
+		return "", fmt.Errorf("application context is not initialized")
+	}
+	path, e := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{Title: "Select Atropaten attachments folder"})
+	if e != nil {
+		return "", fmt.Errorf("choose attachments directory: %w", e)
+	}
+	return path, nil
 }
 
 func reportDTO(v domain.Report) ReportDTO {

@@ -2,7 +2,6 @@
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 const {busy,runAction}=useWorkspaceActions()
 
-import AppPanel from '../../components/layout/AppPanel.vue';
 import { onMounted, ref } from 'vue';
 import { FileText, Plus, RotateCcw } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
@@ -72,8 +71,11 @@ return runAction(async () => {
 }
 </script>
 <template>
-  <AppPanel title="Invoice" subtitle="Commercial snapshot and receivable status"
-    >
+  <section class="min-w-0 space-y-4">
+    <header class="border-b border-base-300 pb-4">
+      <h2 class="text-sm font-semibold">Invoice</h2>
+      <p class="mt-1 text-xs leading-4 text-base-content/60">Commercial snapshot and receivable status</p>
+    </header>
     <div v-if="invoice" class="min-w-0 space-y-3">
       <div class="min-w-0 space-y-3">
         <div><FileText :size="19" /></div>
@@ -121,6 +123,6 @@ return runAction(async () => {
     <EmptyState v-else compact title="No invoice linked" description="Create an invoice when this order is ready to bill.">
       <template #icon><FileText :size="22" aria-hidden="true" /></template>
       <template #action><button class="btn btn-primary btn-sm" type="button" @click="create" :disabled="busy"><Plus :size="15" /> Create invoice</button></template>
-    </EmptyState></AppPanel
-  >
+    </EmptyState>
+  </section>
 </template>

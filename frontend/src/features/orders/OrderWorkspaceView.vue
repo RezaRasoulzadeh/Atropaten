@@ -5,7 +5,6 @@ const {busy,runAction}=useWorkspaceActions()
 import FormField from '../../components/ui/FormField.vue';
 import AppInput from '../../components/ui/AppInput.vue';
 import AppTextarea from '../../components/ui/AppTextarea.vue';
-import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, ref, watch } from 'vue';
 import { CheckCheck, CheckCircle2, Layers3, PackageOpen, Pencil, Play, Plus, Save, Trash2, XCircle } from 'lucide-vue-next';
 import EmptyState from '../../components/ui/EmptyState.vue';
@@ -18,7 +17,7 @@ import StatusBadge from '../../components/ui/StatusBadge.vue';
 import type { OrderItemPayload, OrderPayload, OrderRecord } from '../../api/orders';
 import { ordersApi } from '../../api/orders';
 import type { CurrencyUnit } from '../../utils/currency';
-import { formatMoney, formatMoneyInput, parseMoneyInput } from '../../utils/currency';
+import { formatMoney, formatMoneyInput, formatMoneyInputWhileTyping, parseMoneyInput } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
 import DocumentMetadataPanel from '../documents/DocumentMetadataPanel.vue';
 import OrderItemConfigurator from '../sales/OrderItemConfigurator.vue';
@@ -61,10 +60,10 @@ const isNew = computed(() => props.isNew || props.order.id.startsWith('new-order
 const steps = [
   { number: 1, tab: 'Overview', title: 'Details', description: 'Customer, delivery, notes' },
   { number: 2, tab: 'Items', title: 'Items', description: 'Services and quantities' },
-  { number: 3, tab: 'Production', title: 'Production', description: 'Jobs and progress' },
+  { number: 3, tab: 'Files', title: 'Files', description: 'Artwork and references' },
   { number: 4, tab: 'Payments', title: 'Payments', description: 'Receipts and balance' },
   { number: 5, tab: 'Invoices', title: 'Invoices', description: 'Commercial documents' },
-  { number: 6, tab: 'Files', title: 'Files', description: 'Artwork and proofs' },
+  { number: 6, tab: 'Production', title: 'Production', description: 'Jobs and progress' },
   { number: 7, tab: 'History', title: 'Workflow & history', description: 'Status changes and activity' },
 ];
 const priorityOptions = ['Urgent', 'High', 'Normal', 'Low'].map((value) => ({
@@ -168,13 +167,51 @@ async function nextStep() {
   if (next) tab.value = next.tab;
 }
 
+function updateDiscountInput(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.endsWith('%')) {
+    const percent = trimmed.slice(0, -1).replaceAll(',', '').trim();
+    discountText.value = /^\d*(?:\.\d*)?$/.test(percent) ? `${percent}%` : value;
+    return;
+  }
+  discountText.value = formatMoneyInputWhileTyping(value, props.currencyUnit);
+}
+
+function parseDiscountRial(value = discountText.value): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return 0;
+  const percentage = /^(\d+(?:\.\d+)?)\s*%$/.exec(trimmed.replaceAll(',', ''));
+  if (percentage) {
+    const percent = Number(percentage[1]);
+    if (!Number.isFinite(percent) || percent < 0 || percent > 100) return null;
+    return Math.round((props.order.subtotalRial * percent) / 100);
+  }
+  return parseMoneyInput(trimmed, props.currencyUnit);
+}
+
+function normalizeDiscountInput() {
+  const trimmed = discountText.value.trim();
+  if (!trimmed) {
+    discountText.value = '';
+    return;
+  }
+  const percentage = /^(\d+(?:\.\d+)?)\s*%$/.exec(trimmed.replaceAll(',', ''));
+  if (percentage) {
+    const percent = Number(percentage[1]);
+    if (Number.isFinite(percent) && percent <= 100) discountText.value = `${percent}%`;
+    return;
+  }
+  const amount = parseMoneyInput(trimmed, props.currencyUnit);
+  if (amount !== null) discountText.value = formatMoneyInput(amount, props.currencyUnit);
+}
+
 function payload(): OrderPayload {
   return {
     customerId: customerId.value,
     promisedAt: promisedAt.value,
     priority: priority.value,
     notes: notes.value,
-    discountRial: parseMoneyInput(discountText.value, props.currencyUnit) || 0,
+    discountRial: parseDiscountRial() || 0,
   };
 }
 
@@ -183,6 +220,8 @@ async function saveMetadata() {
 return runAction(async () => {
   saving.value = true;
   try {
+    const discount = parseDiscountRial();
+    if (discount === null || discount > props.order.subtotalRial) throw new Error('Enter a valid discount up to the order subtotal');
     const creating = isNew.value;
     const result = creating
       ? await ordersApi.create(payload())
@@ -203,8 +242,8 @@ async function updateDiscount() {
 return runAction(async () => {
   saving.value = true;
   try {
-    const amount = parseMoneyInput(discountText.value, props.currencyUnit);
-    if (amount === null) throw new Error('Enter a valid discount');
+    const amount = parseDiscountRial();
+    if (amount === null || amount > props.order.subtotalRial) throw new Error('Enter a valid discount up to the order subtotal');
     const result = await ordersApi.discount(props.order.id, amount);
     emit('saved', result);
     emit('notify', 'Discount applied');
@@ -360,9 +399,9 @@ reportError(error);
     </section>
 
     <template v-else-if="tab === 'Items'">
-      <div class="grid min-h-0 min-w-0 gap-3 xl:h-full xl:grid-cols-2">
-        <section class="flex min-h-80 min-w-0 flex-col overflow-hidden rounded-box border border-base-300 bg-base-100 p-3 xl:h-full" aria-label="Service catalog">
-          <div class="sticky top-0 z-10 shrink-0 border-b border-base-300 bg-base-100 pb-3">
+      <div class="grid min-h-0 min-w-0 gap-4 xl:h-full xl:grid-cols-2 xl:divide-x xl:divide-base-300">
+        <section class="flex min-h-80 min-w-0 flex-col overflow-hidden xl:h-full xl:pe-4" aria-label="Service catalog">
+          <div class="sticky top-0 z-10 shrink-0 border-b border-base-300 bg-base-200/20 pb-3">
             <div class="flex items-center justify-between gap-2">
               <div><h2 class="text-sm font-semibold">Services</h2><p class="mt-1 text-xs text-base-content/60">Choose a service to add.</p></div>
               <span class="badge badge-ghost text-xs">{{ filteredCatalogServices.length }}</span>
@@ -378,7 +417,7 @@ reportError(error);
           </div>
         </section>
 
-        <section class="flex min-h-80 min-w-0 flex-col overflow-hidden rounded-box border border-base-300 bg-base-100 p-3 xl:h-full" aria-label="Order items">
+        <section class="flex min-h-80 min-w-0 flex-col overflow-hidden xl:h-full xl:ps-4" aria-label="Order items">
           <div class="flex shrink-0 items-center justify-between gap-3 border-b border-base-300 pb-3"><div><h2 class="text-sm font-semibold">Order items</h2><p class="mt-1 text-xs text-base-content/60">Edit or remove configured services.</p></div><span class="badge badge-ghost text-xs">{{ order.items.length }} item{{ order.items.length === 1 ? '' : 's' }}</span></div>
           <div class="min-h-0 flex-1 space-y-2 overflow-y-auto pt-3">
             <div v-for="item in [...order.items].sort((a, b) => a.position - b.position)" :key="item.id" class="flex min-w-0 items-center gap-2 rounded-box border border-base-300 bg-base-200/20 p-2.5">
@@ -413,46 +452,48 @@ reportError(error);
       :currency-unit="currencyUnit"
     />
     <template v-else-if="tab === 'Payments'">
+      <section class="min-w-0 border-b border-base-300 pb-4">
+        <header class="mb-3">
+          <h2 class="text-sm font-semibold leading-5">Order discount</h2>
+          <p class="mt-1 text-xs leading-4 text-base-content/60">Enter a rial amount or a percentage of the order subtotal.</p>
+        </header>
+        <div class="flex max-w-2xl items-end gap-2">
+          <FormField class="min-w-0 flex-1 gap-1">
+            <span class="text-xs text-base-content/60">Discount</span>
+            <div class="flex min-w-0 items-center gap-2">
+              <AppInput
+                class="flex-1"
+                :model-value="discountText"
+                inputmode="decimal"
+                placeholder="Amount or 10%"
+                @update:model-value="updateDiscountInput"
+                @blur="normalizeDiscountInput"
+              />
+            </div>
+          </FormField>
+          <button
+            class="btn btn-outline shrink-0"
+            type="button"
+            :disabled="isNew || busy || saving"
+            @click="updateDiscount"
+          >
+            Apply
+          </button>
+        </div>
+      </section>
       <OrderPaymentsPanel
         :order="order"
         :currency-unit="currencyUnit"
         @notify="emit('notify', $event)"
         @saved="emit('saved', $event)"
       />
-      <AppPanel title="Order discount" subtitle="Apply a discount to the order total.">
-        <div class="max-w-xl space-y-3">
-          <FormField class="gap-1">
-            <span class="text-xs text-base-content/60">Discount amount</span>
-            <AppInput
-              v-model="discountText"
-              :money="props.currencyUnit"
-              inputmode="decimal"
-              :placeholder="`Amount in ${props.currencyUnit}`"
-              @blur="
-                discountText = formatMoneyInput(
-                  parseMoneyInput(discountText, props.currencyUnit) || 0,
-                  props.currencyUnit,
-                )
-              "
-            />
-          </FormField>
-          <button
-            class="btn btn-outline"
-            type="button"
-            :disabled="isNew || busy || saving"
-            @click="updateDiscount"
-          >
-            Apply discount
-          </button>
-        </div>
-      </AppPanel>
     </template>
     <template v-else-if="tab === 'History'">
-      <AppPanel
-        v-if="!isNew"
-        title="Order workflow"
-        subtitle="Move the order through its commercial and fulfillment stages."
-      >
+      <section v-if="!isNew" class="min-w-0 border-b border-base-300 pb-4">
+        <header class="mb-3">
+          <h2 class="text-sm font-semibold leading-5">Order workflow</h2>
+          <p class="mt-1 text-xs leading-4 text-base-content/60">Move the order through its commercial and fulfillment stages.</p>
+        </header>
         <div class="flex flex-wrap items-center gap-3">
           <div class="flex items-center gap-2 text-sm">
             <span class="text-xs text-base-content/60">Current status</span>
@@ -477,8 +518,12 @@ reportError(error);
           </div>
           <EmptyState v-else compact title="No further workflow actions" description="This order is at its current terminal or completed state."><template #icon><CheckCircle2 :size="21" aria-hidden="true" /></template></EmptyState>
         </div>
-      </AppPanel>
-      <AppPanel title="Order history" subtitle="A chronological record of important order changes.">
+      </section>
+      <section class="min-w-0">
+        <header class="mb-3">
+          <h2 class="text-sm font-semibold leading-5">Order history</h2>
+          <p class="mt-1 text-xs leading-4 text-base-content/60">A chronological record of important order changes.</p>
+        </header>
       <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.6fr)]">
         <div class="relative space-y-3 ps-6 before:absolute before:inset-y-2 before:start-2 before:w-px before:bg-base-300">
           <div class="relative rounded-box border border-base-300 bg-base-200/35 p-3">
@@ -512,7 +557,7 @@ reportError(error);
           </div>
         </div>
       </div>
-    </AppPanel>
+      </section>
     </template>
 
         </section>

@@ -4,7 +4,6 @@ import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceAc
 const {busy,runAction}=useWorkspaceActions()
 
 import AppInput from '../../components/ui/AppInput.vue';
-import AppPanel from '../../components/layout/AppPanel.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { WalletCards } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
@@ -33,6 +32,12 @@ const allPaymentMethods = [
 const selectedFinancialAccount = computed(() =>
   financial.value.find((value) => value.id === account.value),
 );
+const maxPaymentRial = computed(() => Math.max(0, Number(props.order.remainingRial ?? props.order.totalRial ?? 0)));
+const paymentSliderValue = computed(() => {
+  const value = parseMoneyInput(amount.value, props.currencyUnit) || 0;
+  if (!maxPaymentRial.value) return 0;
+  return Math.min(Math.max((value / maxPaymentRial.value) * 100, 0), 100);
+});
 const paymentMethodOptions = computed(() =>
   selectedFinancialAccount.value?.type === 'cash'
     ? allPaymentMethods.filter((value) => value.value === 'cash')
@@ -50,6 +55,14 @@ function formatAmountWhileTyping(value: string) {
   const [whole, fraction] = raw.split('.');
   const groupedWhole = groupInteger(whole || (raw.startsWith('-') ? '-0' : '0'));
   amount.value = fraction === undefined ? groupedWhole : `${groupedWhole}.${fraction.slice(0, 1)}`;
+}
+function updatePaymentSlider(event: Event) {
+  const percentage = Number((event.target as HTMLInputElement).value);
+  const value = maxPaymentRial.value * Math.min(Math.max(percentage, 0), 100) / 100;
+  amount.value = formatMoneyInput(value, props.currencyUnit);
+}
+function setMaximumPaymentAmount() {
+  amount.value = formatMoneyInput(maxPaymentRial.value, props.currencyUnit);
 }
 watch(
   paymentMethodOptions,
@@ -119,10 +132,12 @@ onMounted(load);
 </script>
 <template>
   <div class="min-w-0 space-y-3">
-    <AppPanel
-      title="Payment status"
-      subtitle="Paid and remaining amounts are derived by the backend."
-      ><div class="grid min-w-0 gap-3 sm:grid-cols-3">
+    <section class="min-w-0 border-b border-base-300 pb-4">
+      <header class="mb-3">
+        <h2 class="text-sm font-semibold leading-5">Payment status</h2>
+        <p class="mt-1 text-xs leading-4 text-base-content/60">Paid and remaining amounts are derived by the backend.</p>
+      </header>
+      <div class="grid min-w-0 gap-3 sm:grid-cols-3">
         <div class="rounded-box border border-base-300 bg-base-200/55 p-3">
           <span class="block text-xs text-base-content/55">Order total</span>
           <strong class="mt-1 block text-base tabular-nums">{{ money(order.totalRial) }}</strong>
@@ -149,8 +164,8 @@ onMounted(load);
           v-model="method"
           label="Method"
           :options="paymentMethodOptions"
-        /><FormField class="sm:col-span-2" :label="`Amount (${props.currencyUnit})`"><AppInput
-          class="input w-full min-w-0"
+        /><FormField class="sm:col-span-2" :label="`Amount (${props.currencyUnit})`"><div class="relative min-w-0"><AppInput
+          class="pe-14"
           v-model="amount"
           :money="props.currencyUnit"
           :placeholder="`Amount (${props.currencyUnit})`"
@@ -162,15 +177,18 @@ onMounted(load);
               props.currencyUnit,
             )
           "
-        /></FormField><button class="btn btn-primary w-fit gap-2" type="submit" :disabled="busy">
+        /><button class="absolute inset-y-1 end-1 rounded px-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40" type="button" :disabled="busy || !maxPaymentRial" aria-label="Use maximum payment amount" @click="setMaximumPaymentAmount">Max</button></div><div class="payment-slider mt-2 w-full overflow-visible"><input class="range range-primary range-sm w-full" type="range" min="0" max="100" step="5" :value="paymentSliderValue" :disabled="busy || !maxPaymentRial" aria-label="Payment amount percentage slider" :aria-valuetext="`${Math.round(paymentSliderValue)}% of remaining balance`" @input="updatePaymentSlider" /><div class="mt-1 grid w-full grid-cols-5 px-2.5 text-center text-[10px] leading-3 text-base-content/40" aria-hidden="true"><span>|</span><span>|</span><span>|</span><span>|</span><span>|</span></div><div class="mt-1 grid w-full grid-cols-5 px-2.5 text-center text-xs leading-4 text-base-content/50" aria-hidden="true"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div></div></FormField><button class="btn btn-primary w-fit gap-2" type="submit" :disabled="busy">
           <WalletCards :size="15" aria-hidden="true" />
           {{ busy ? 'Posting…' : 'Post payment' }}
         </button>
-      </form></AppPanel
-    ><AppPanel
-      title="Order payment history"
-      subtitle="Reversals preserve the original payment and journal entry."
-      ><EmptyState
+      </form>
+    </section>
+    <section class="min-w-0">
+      <header class="mb-3">
+        <h2 class="text-sm font-semibold leading-5">Order payment history</h2>
+        <p class="mt-1 text-xs leading-4 text-base-content/60">Reversals preserve the original payment and journal entry.</p>
+      </header>
+      <EmptyState
         v-if="!payments.length"
         compact
         title="No allocated payments"
@@ -197,7 +215,7 @@ onMounted(load);
             Reverse
           </button></span
         >
-      </div></AppPanel
-    >
+      </div>
+    </section>
   </div>
 </template>

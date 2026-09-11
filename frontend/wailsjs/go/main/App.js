@@ -546,6 +546,10 @@ export function SaveShopSettings(arg1) {
   return window['go']['main']['App']['SaveShopSettings'](arg1);
 }
 
+export function SelectAttachmentDirectory() {
+  return window['go']['main']['App']['SelectAttachmentDirectory']();
+}
+
 export function SelectBackupDirectory() {
   return window['go']['main']['App']['SelectBackupDirectory']();
 }

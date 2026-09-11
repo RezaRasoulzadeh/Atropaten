@@ -10,6 +10,7 @@ import {
   SaveShopSettings,
   SelectBackupDirectory,
   SelectBackupFile,
+  SelectAttachmentDirectory,
   VerifyBackup,
 } from '../../wailsjs/go/main/App'
 
@@ -126,6 +127,7 @@ export interface ShopSettingsRecord {
   documentFooter: string
   documentNotes: string
   backupDirectory: string
+  attachmentDirectory: string
 }
 export interface PrintDocumentRecord {
   kind: string
@@ -210,5 +212,8 @@ export const reportsApi = {
   },
   selectBackupDirectory() {
     return SelectBackupDirectory()
+  },
+  selectAttachmentDirectory() {
+    return SelectAttachmentDirectory()
   },
 }

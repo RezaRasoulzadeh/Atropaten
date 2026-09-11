@@ -2367,6 +2367,7 @@ export namespace main {
 	    documentFooter: string;
 	    documentNotes: string;
 	    backupDirectory: string;
+	    attachmentDirectory: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ShopSettingsDTO(source);
@@ -2386,6 +2387,7 @@ export namespace main {
 	        this.documentFooter = source["documentFooter"];
 	        this.documentNotes = source["documentNotes"];
 	        this.backupDirectory = source["backupDirectory"];
+	        this.attachmentDirectory = source["attachmentDirectory"];
 	    }
 	}
 	export class PrintDocumentDTO {

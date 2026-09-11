@@ -43,7 +43,10 @@ func (a *App) syncBackupDirectory(s *platform.BackupService) error {
 	if err != nil {
 		return err
 	}
-	return s.SetBackupDirectory(settings.BackupDirectory)
+	if err = s.SetBackupDirectory(settings.BackupDirectory); err != nil {
+		return err
+	}
+	return s.SetAttachmentsDirectory(settings.AttachmentDirectory)
 }
 
 func (a *App) GetDataPaths() (DataPathsDTO, error) {

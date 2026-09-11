@@ -65,7 +65,7 @@ type Dashboard struct {
 type ShopSettings struct {
 	ShopName, ShopSubtitle, Phone, Address, Email, Website         string
 	RegistrationID, TaxID, LogoPath, DocumentFooter, DocumentNotes string
-	BackupDirectory                                                string
+	BackupDirectory, AttachmentDirectory                           string
 }
 
 type PrintLine struct {

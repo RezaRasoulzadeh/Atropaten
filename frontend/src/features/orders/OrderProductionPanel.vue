@@ -61,7 +61,7 @@ function tone(s: string) {
 </script>
 <template>
   <section class="min-w-0 space-y-4">
-    <header class="rounded-box border border-base-300 bg-base-100 p-4">
+    <header class="border-b border-base-300 pb-4">
       <div class="flex min-w-0 flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
           <h2 class="text-base font-semibold">Production jobs</h2>

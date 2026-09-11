@@ -519,7 +519,8 @@ var migrations = []migration{{
 			('tax_id','','2026-01-01T00:00:00Z'),
 			('logo_path','','2026-01-01T00:00:00Z'),
 			('document_footer','','2026-01-01T00:00:00Z'),
-			('document_notes','','2026-01-01T00:00:00Z');`,
+			('document_notes','','2026-01-01T00:00:00Z'),
+			('attachment_directory','','2026-01-01T00:00:00Z');`,
 	},
 	{
 		version: 14,

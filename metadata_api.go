@@ -157,7 +157,16 @@ func (a *App) ImportAttachment(ownerType, ownerID, fileName, mimeType, contentBa
 		return AttachmentDTO{}, fmt.Errorf("attachment file is empty")
 	}
 
-	directory := filepath.Join(a.paths.Attachments, ownerType, ownerID)
+	directoryRoot := a.paths.Attachments
+	if reporting, reportingErr := a.reportingService(); reportingErr == nil {
+		if settings, settingsErr := reporting.ShopSettings(a.materialContext()); settingsErr == nil && strings.TrimSpace(settings.AttachmentDirectory) != "" {
+			directoryRoot = strings.TrimSpace(settings.AttachmentDirectory)
+		}
+	}
+	directory, e := filepath.Abs(filepath.Join(directoryRoot, ownerType, ownerID))
+	if e != nil {
+		return AttachmentDTO{}, fmt.Errorf("resolve attachment directory: %w", e)
+	}
 	if e = os.MkdirAll(directory, 0o700); e != nil {
 		return AttachmentDTO{}, fmt.Errorf("create attachment directory: %w", e)
 	}
