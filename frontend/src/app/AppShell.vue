@@ -559,7 +559,6 @@ function showToast(message: string) {
             <Transition mode="out-in">
               <OrderWorkspaceView
                 v-if="selectedOrder"
-                :key="selectedOrder.id"
                 :order="selectedOrder"
                 :currency-unit="currencyUnit"
                 :customers="customers"
