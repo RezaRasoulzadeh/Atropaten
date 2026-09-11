@@ -89,7 +89,7 @@ function pricingLabel(type?: string) {
   <section class="service-detail-panel h-auto min-h-0 min-w-0 overflow-visible rounded-box border border-base-300 bg-base-100 xl:h-full xl:overflow-y-auto" aria-label="Service details">
     <div class="border-b border-base-300 p-3 sm:p-5">
       <div class="relative min-h-52 overflow-hidden rounded-box bg-base-300 bg-cover bg-center sm:min-h-60" :style="service.imagePath ? { backgroundImage: `url('${service.imagePath}')` } : undefined">
-        <div class="absolute inset-0 bg-gradient-to-l from-black/95 via-black/65 to-black/10" aria-hidden="true"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/65 to-black/10" aria-hidden="true"></div>
         <div v-if="!service.imagePath" class="absolute inset-0 grid place-items-center text-base-content/35"><Layers3 :size="42" :stroke-width="1.4" aria-hidden="true" /></div>
         <div class="relative z-10 flex min-h-52 items-end justify-start p-4 sm:min-h-60 sm:p-5">
           <div class="w-full min-w-0 text-start text-white">

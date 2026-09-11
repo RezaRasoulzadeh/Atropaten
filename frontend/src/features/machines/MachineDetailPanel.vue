@@ -32,7 +32,7 @@ function dateLabel(value: string) {
   <section v-if="selectedMachine" class="machine-detail-panel h-auto min-h-0 min-w-0 overflow-visible rounded-box border border-base-300 bg-base-100 xl:h-full xl:overflow-y-auto" aria-label="Machine details">
     <header class="border-b border-base-300 p-3 sm:p-5">
       <div class="relative min-h-52 overflow-hidden rounded-box bg-base-300 bg-cover bg-center sm:min-h-60" :style="selectedMachine.imagePath ? { backgroundImage: `url('${selectedMachine.imagePath}')` } : undefined">
-        <div class="absolute inset-0 bg-gradient-to-l from-black/95 via-black/65 to-black/10" aria-hidden="true"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/65 to-black/10" aria-hidden="true"></div>
         <div v-if="!selectedMachine.imagePath" class="absolute inset-0 grid place-items-center text-base-content/30"><Factory :size="42" aria-hidden="true" /></div>
         <div class="relative z-10 flex min-h-52 items-end justify-start p-4 text-white sm:min-h-60 sm:p-5">
           <div class="w-full min-w-0 text-start">
