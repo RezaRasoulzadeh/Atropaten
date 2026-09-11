@@ -187,6 +187,9 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
       if (!financial.value.some((account) => account.id === form.value.financialAccountId && account.active)) {
         form.value.financialAccountId = financial.value.find((account) => account.active)?.id ?? '';
       }
+      if (!selectedId.value && rows.value.length) {
+        select(rows.value[0].id);
+      }
     } catch (error) {
       toast.error(errorMessageFrom(error, 'Purchases could not be loaded.'), 'Purchases');
     } finally {
