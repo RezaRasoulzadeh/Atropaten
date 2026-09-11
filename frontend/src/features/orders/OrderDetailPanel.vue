@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { CalendarDays, ClipboardList, Edit3, FileText, Package, UserRound } from 'lucide-vue-next'
+import { Archive, CalendarDays, ClipboardList, Edit3, FileText, Package, RotateCcw, Trash2, UserRound } from 'lucide-vue-next'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import type { OrderRecord } from '../../api/orders'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
@@ -15,12 +15,13 @@ const props = defineProps<{
   busy?: boolean
 }>()
 
-const emit = defineEmits<{ open: [] }>()
+const emit = defineEmits<{ edit: []; archive: []; unarchive: []; remove: [] }>()
 const activeTab = ref<DetailTab>('overview')
 
 watch(() => props.order.id, () => { activeTab.value = 'overview' })
 
 function orderStatus(order: OrderRecord) {
+  if (order.archived) return 'Archived'
   if (order.commercialStatus === 'Cancelled') return 'Cancelled'
   if (order.commercialStatus === 'Closed') return 'Closed'
   if (order.fulfillmentStatus === 'Delivered') return 'Delivery'
@@ -66,9 +67,12 @@ function itemCount(order: OrderRecord) {
         </div>
       </div>
 
-      <button class="btn btn-primary mt-2 w-full gap-2" type="button" :disabled="busy" @click="emit('open')">
-        <Edit3 :size="15" aria-hidden="true" />Open order
-      </button>
+      <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <button class="btn btn-outline btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('edit')"><Edit3 :size="14" aria-hidden="true" />Edit</button>
+        <button v-if="!order.archived" class="btn btn-outline btn-warning btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('archive')"><Archive :size="14" aria-hidden="true" />Archive</button>
+        <button v-else class="btn btn-outline btn-success btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('unarchive')"><RotateCcw :size="14" aria-hidden="true" />Unarchive</button>
+        <button class="btn btn-outline btn-error btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('remove')"><Trash2 :size="14" aria-hidden="true" />Remove</button>
+      </div>
 
       <div class="mt-4 grid min-w-0 divide-y divide-base-300 border-y border-base-300 sm:mt-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div class="flex items-center gap-3 py-3 sm:px-3 sm:first:pl-0">

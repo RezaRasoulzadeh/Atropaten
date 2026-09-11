@@ -24,6 +24,8 @@ export function ArchiveMachine(arg1:string):Promise<main.MachineDTO>;
 
 export function ArchiveMaterial(arg1:string):Promise<main.MaterialDTO>;
 
+export function ArchiveOrder(arg1:string):Promise<main.OrderDTO>;
+
 export function ArchiveOwner(arg1:string):Promise<void>;
 
 export function ArchivePurchase(arg1:string):Promise<main.PurchaseDTO>;
@@ -277,6 +279,8 @@ export function SelectBackupDirectory():Promise<string>;
 export function SelectBackupFile():Promise<string>;
 
 export function TransitionCheck(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.CheckDTO>;
+
+export function UnarchiveOrder(arg1:string):Promise<main.OrderDTO>;
 
 export function UnarchivePurchase(arg1:string):Promise<main.PurchaseDTO>;
 

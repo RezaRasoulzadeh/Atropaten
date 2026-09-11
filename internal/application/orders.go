@@ -52,6 +52,7 @@ type OrderView struct {
 	CreatedAt, UpdatedAt                                                  string
 	PromisedAt                                                            *string
 	Priority, CommercialStatus, FulfillmentStatus, PaymentStatus          string
+	Archived                                                              bool
 	SubtotalRial, DiscountRial, TotalRial, EstimatedCostRial              int64
 	PaidRial, RemainingRial                                               int64
 	InvoiceID, InvoiceStatus                                              string
@@ -402,6 +403,14 @@ func (s *OrdersService) SetCommercialStatus(ctx context.Context, id string, stat
 	row.CommercialStatus = next
 	return s.saveStatus(ctx, row)
 }
+func (s *OrdersService) SetArchived(ctx context.Context, id string, archived bool) (OrderView, error) {
+	row, err := s.repository.GetOrder(ctx, id)
+	if err != nil {
+		return OrderView{}, err
+	}
+	row.Archived = archived
+	return s.saveStatus(ctx, row)
+}
 func (s *OrdersService) SetFulfillmentStatus(ctx context.Context, id string, status string) (OrderView, error) {
 	row, err := s.repository.GetOrder(ctx, id)
 	if err != nil {
@@ -422,7 +431,7 @@ func (s *OrdersService) saveStatus(ctx context.Context, row domain.Order) (Order
 	return s.enrich(ctx, orderView(row))
 }
 func orderView(o domain.Order) OrderView {
-	v := OrderView{ID: o.ID, OrderNumber: o.OrderNumber, CustomerID: o.CustomerID, CustomerName: o.CustomerNameSnapshot, CustomerPhone: o.CustomerPhoneSnapshot, Notes: o.Notes, CreatedAt: o.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: o.UpdatedAt.UTC().Format(time.RFC3339Nano), Priority: string(o.Priority), CommercialStatus: string(o.CommercialStatus), FulfillmentStatus: string(o.FulfillmentStatus), PaymentStatus: string(o.PaymentStatus), SubtotalRial: o.SubtotalRial, DiscountRial: o.DiscountRial, TotalRial: o.TotalRial, EstimatedCostRial: o.EstimatedCostRial}
+	v := OrderView{ID: o.ID, OrderNumber: o.OrderNumber, CustomerID: o.CustomerID, CustomerName: o.CustomerNameSnapshot, CustomerPhone: o.CustomerPhoneSnapshot, Notes: o.Notes, CreatedAt: o.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: o.UpdatedAt.UTC().Format(time.RFC3339Nano), Priority: string(o.Priority), CommercialStatus: string(o.CommercialStatus), FulfillmentStatus: string(o.FulfillmentStatus), PaymentStatus: string(o.PaymentStatus), Archived: o.Archived, SubtotalRial: o.SubtotalRial, DiscountRial: o.DiscountRial, TotalRial: o.TotalRial, EstimatedCostRial: o.EstimatedCostRial}
 	if o.PromisedAt != nil {
 		x := o.PromisedAt.UTC().Format(time.RFC3339Nano)
 		v.PromisedAt = &x

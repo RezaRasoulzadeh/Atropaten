@@ -11,6 +11,8 @@ import {
   UpdateOrder,
   UpdateOrderCommercialStatus,
   UpdateOrderFulfillmentStatus,
+  ArchiveOrder,
+  UnarchiveOrder,
 } from '../../wailsjs/go/main/App'
 export interface OrderItemRecord {
   id: string
@@ -42,6 +44,7 @@ export interface OrderRecord {
   commercialStatus: string
   fulfillmentStatus: string
   paymentStatus: string
+  archived: boolean
   invoiceId?: string
   invoiceStatus?: string
   invoicedTotalRial?: number
@@ -128,6 +131,12 @@ export const ordersApi = {
   },
   commercialStatus(id: string, status: string): Promise<OrderRecord> {
     return (UpdateOrderCommercialStatus(id, status) as Promise<OrderRecord>).then(normalizeOrder)
+  },
+  archive(id: string): Promise<OrderRecord> {
+    return (ArchiveOrder(id) as Promise<OrderRecord>).then(normalizeOrder)
+  },
+  unarchive(id: string): Promise<OrderRecord> {
+    return (UnarchiveOrder(id) as Promise<OrderRecord>).then(normalizeOrder)
   },
   fulfillmentStatus(id: string, status: string): Promise<OrderRecord> {
     return (UpdateOrderFulfillmentStatus(id, status) as Promise<OrderRecord>).then(normalizeOrder)

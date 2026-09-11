@@ -415,6 +415,7 @@ function openNewOrder() {
     commercialStatus: 'Draft',
     fulfillmentStatus: 'Pending',
     paymentStatus: 'Unpaid',
+    archived: false,
     subtotalRial: 0,
     discountRial: 0,
     totalRial: 0,
@@ -577,7 +578,10 @@ function showToast(message: string) {
                 :orders="orders"
                 :loading="ordersLoading"
                 :currency-unit="currencyUnit"
-                @open-order="openOrder"
+                @edit-order="openOrder"
+                @order-updated="updateOrder"
+                @order-removed="removeOrder"
+                @notify="showToast"
                 @new-order="openNewOrder"
               />
             </Transition>

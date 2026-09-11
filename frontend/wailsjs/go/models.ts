@@ -1613,6 +1613,7 @@ export namespace main {
 	    commercialStatus: string;
 	    fulfillmentStatus: string;
 	    paymentStatus: string;
+	    archived: boolean;
 	    subtotalRial: number;
 	    discountRial: number;
 	    totalRial: number;
@@ -1646,6 +1647,7 @@ export namespace main {
 	        this.commercialStatus = source["commercialStatus"];
 	        this.fulfillmentStatus = source["fulfillmentStatus"];
 	        this.paymentStatus = source["paymentStatus"];
+	        this.archived = source["archived"];
 	        this.subtotalRial = source["subtotalRial"];
 	        this.discountRial = source["discountRial"];
 	        this.totalRial = source["totalRial"];

@@ -24,7 +24,7 @@ function navigateBreadcrumb(index: number) {
         <h1 class="m-0 min-w-0 truncate text-2xl font-bold leading-8 tracking-tight text-primary">{{ title }}</h1>
         <slot name="title-suffix" />
       </div>
-      <p v-if="description" class="mt-0.5 max-w-[62ch] text-xs leading-4 text-base-content/65">
+      <p v-if="description" class="mt-0.5 max-w-[80vw] text-xs leading-4 text-base-content/65">
         {{ description }}
       </p>
       <WorkspaceBreadcrumb

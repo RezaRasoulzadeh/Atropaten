@@ -632,6 +632,10 @@ var migrations = []migration{{
 		version: 22,
 		sql:     `ALTER TABLE machines ADD COLUMN image_path TEXT NOT NULL DEFAULT '';`,
 	},
+	{
+		version: 23,
+		sql:     `ALTER TABLE orders ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0,1));`,
+	},
 }
 
 func (s *Store) seedAccounting(ctx context.Context) error {
@@ -1601,7 +1605,7 @@ func (s *Store) ListOrders(ctx context.Context) ([]domain.Order, error) {
 	return result, nil
 }
 
-const orderSelect = `SELECT id,order_number,customer_id,customer_name_snapshot,customer_phone_snapshot,created_at,promised_at,priority,commercial_status,fulfillment_status,payment_status,notes,subtotal_rial,discount_rial,total_rial,estimated_cost_rial,updated_at FROM orders`
+const orderSelect = `SELECT id,order_number,customer_id,customer_name_snapshot,customer_phone_snapshot,created_at,promised_at,priority,commercial_status,fulfillment_status,payment_status,notes,subtotal_rial,discount_rial,total_rial,estimated_cost_rial,updated_at,archived FROM orders`
 
 func (s *Store) GetOrder(ctx context.Context, id string) (domain.Order, error) {
 	row := s.db.QueryRowContext(ctx, orderSelect+` WHERE id = ?`, id)
@@ -1706,7 +1710,7 @@ func updateOrderRowTx(ctx context.Context, tx *sql.Tx, order *domain.Order) erro
 	} else {
 		order.PaymentStatus = domain.PaymentPaid
 	}
-	result, err := tx.ExecContext(ctx, `UPDATE orders SET customer_id=?,customer_name_snapshot=?,customer_phone_snapshot=?,created_at=?,promised_at=?,priority=?,commercial_status=?,fulfillment_status=?,payment_status=?,notes=?,subtotal_rial=?,discount_rial=?,total_rial=?,estimated_cost_rial=?,updated_at=? WHERE id=?`, nullableString(order.CustomerID), order.CustomerNameSnapshot, order.CustomerPhoneSnapshot, order.CreatedAt.UTC().Format(time.RFC3339Nano), nullableTime(order.PromisedAt), string(order.Priority), string(order.CommercialStatus), string(order.FulfillmentStatus), string(order.PaymentStatus), order.Notes, order.SubtotalRial, order.DiscountRial, order.TotalRial, order.EstimatedCostRial, order.UpdatedAt.UTC().Format(time.RFC3339Nano), order.ID)
+	result, err := tx.ExecContext(ctx, `UPDATE orders SET customer_id=?,customer_name_snapshot=?,customer_phone_snapshot=?,created_at=?,promised_at=?,priority=?,commercial_status=?,fulfillment_status=?,payment_status=?,notes=?,subtotal_rial=?,discount_rial=?,total_rial=?,estimated_cost_rial=?,updated_at=?,archived=? WHERE id=?`, nullableString(order.CustomerID), order.CustomerNameSnapshot, order.CustomerPhoneSnapshot, order.CreatedAt.UTC().Format(time.RFC3339Nano), nullableTime(order.PromisedAt), string(order.Priority), string(order.CommercialStatus), string(order.FulfillmentStatus), string(order.PaymentStatus), order.Notes, order.SubtotalRial, order.DiscountRial, order.TotalRial, order.EstimatedCostRial, order.UpdatedAt.UTC().Format(time.RFC3339Nano), boolToInt(order.Archived), order.ID)
 	if err != nil {
 		return fmt.Errorf("update order: %w", err)
 	}
@@ -1806,7 +1810,8 @@ func scanOrder(row scanner) (domain.Order, error) {
 	var customerID sql.NullString
 	var promised sql.NullString
 	var priority, commercial, fulfillment, payment, created, updated string
-	if err := row.Scan(&o.ID, &o.OrderNumber, &customerID, &o.CustomerNameSnapshot, &o.CustomerPhoneSnapshot, &created, &promised, &priority, &commercial, &fulfillment, &payment, &o.Notes, &o.SubtotalRial, &o.DiscountRial, &o.TotalRial, &o.EstimatedCostRial, &updated); err != nil {
+	var archived int
+	if err := row.Scan(&o.ID, &o.OrderNumber, &customerID, &o.CustomerNameSnapshot, &o.CustomerPhoneSnapshot, &created, &promised, &priority, &commercial, &fulfillment, &payment, &o.Notes, &o.SubtotalRial, &o.DiscountRial, &o.TotalRial, &o.EstimatedCostRial, &updated, &archived); err != nil {
 		return o, err
 	}
 	o.CustomerID = customerID.String
@@ -1814,6 +1819,7 @@ func scanOrder(row scanner) (domain.Order, error) {
 	o.CommercialStatus = domain.CommercialStatus(commercial)
 	o.FulfillmentStatus = domain.FulfillmentStatus(fulfillment)
 	o.PaymentStatus = domain.PaymentStatus(payment)
+	o.Archived = archived == 1
 	var err error
 	o.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
 	if err != nil {

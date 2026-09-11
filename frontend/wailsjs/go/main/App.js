@@ -46,6 +46,10 @@ export function ArchiveMaterial(arg1) {
   return window['go']['main']['App']['ArchiveMaterial'](arg1);
 }
 
+export function ArchiveOrder(arg1) {
+  return window['go']['main']['App']['ArchiveOrder'](arg1);
+}
+
 export function ArchiveOwner(arg1) {
   return window['go']['main']['App']['ArchiveOwner'](arg1);
 }
@@ -552,6 +556,10 @@ export function SelectBackupFile() {
 
 export function TransitionCheck(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['TransitionCheck'](arg1, arg2, arg3, arg4);
+}
+
+export function UnarchiveOrder(arg1) {
+  return window['go']['main']['App']['UnarchiveOrder'](arg1);
 }
 
 export function UnarchivePurchase(arg1) {

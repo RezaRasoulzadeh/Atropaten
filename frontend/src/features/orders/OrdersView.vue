@@ -8,12 +8,14 @@ import StatusBadge from '../../components/ui/StatusBadge.vue'
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue'
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue'
 import OrderDetailPanel from './OrderDetailPanel.vue'
-import type { OrderRecord } from '../../api/orders'
+import { ordersApi, type OrderRecord } from '../../api/orders'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
 import { formatDateTime } from '../../utils/date'
+import { useWorkspaceActions } from '../../composables/useWorkspaceActions'
+import { confirmAction } from '../../ui/feedback'
 
 type Tone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
-type OrderFilter = 'All' | 'Draft' | 'Confirmed' | 'Production' | 'Delivery' | 'Closed' | 'Cancelled'
+type OrderFilter = 'All' | 'Draft' | 'Confirmed' | 'Production' | 'Delivery' | 'Closed' | 'Cancelled' | 'Archived'
 
 const props = defineProps<{
   orders: OrderRecord[]
@@ -21,7 +23,14 @@ const props = defineProps<{
   loading?: boolean
 }>()
 
-const emit = defineEmits<{ 'open-order': [id: string]; 'new-order': [] }>()
+const emit = defineEmits<{
+  'edit-order': [id: string]
+  'new-order': []
+  'order-updated': [order: OrderRecord]
+  'order-removed': [id: string]
+  notify: [message: string]
+}>()
+const { busy, runAction } = useWorkspaceActions()
 
 const query = ref('')
 const status = ref<OrderFilter>('All')
@@ -29,11 +38,12 @@ const selectedOrderId = ref<string | null>(null)
 const page = ref(1)
 const pageSize = 10
 
-const statusOptions: OrderFilter[] = ['All', 'Draft', 'Confirmed', 'Production', 'Delivery', 'Closed', 'Cancelled']
+const statusOptions: OrderFilter[] = ['All', 'Draft', 'Confirmed', 'Production', 'Delivery', 'Closed', 'Cancelled', 'Archived']
 
 const orderItems = (order: OrderRecord) => (Array.isArray(order.items) ? order.items : [])
 
 function orderStatus(order: OrderRecord): OrderFilter {
+  if (order.archived) return 'Archived'
   if (order.commercialStatus === 'Cancelled') return 'Cancelled'
   if (order.commercialStatus === 'Closed') return 'Closed'
   if (order.fulfillmentStatus === 'Delivered') return 'Delivery'
@@ -105,8 +115,44 @@ function selectOrder(id: string) {
   selectedOrderId.value = id
 }
 
-function openSelectedOrder() {
-  if (selectedOrder.value) emit('open-order', selectedOrder.value.id)
+function editSelectedOrder() {
+  if (selectedOrder.value) emit('edit-order', selectedOrder.value.id)
+}
+
+async function archiveSelectedOrder() {
+  return runAction(async () => {
+    const order = selectedOrder.value
+    if (!order || order.archived) return
+    const updated = await ordersApi.archive(order.id)
+    emit('order-updated', updated)
+    emit('notify', 'Order archived.')
+  })
+}
+
+async function unarchiveSelectedOrder() {
+  return runAction(async () => {
+    const order = selectedOrder.value
+    if (!order || !order.archived) return
+    const updated = await ordersApi.unarchive(order.id)
+    emit('order-updated', updated)
+    emit('notify', 'Order unarchived.')
+  })
+}
+
+async function removeSelectedOrder() {
+  return runAction(async () => {
+    const order = selectedOrder.value
+    if (!order || !(await confirmAction({
+      title: 'Delete order',
+      message: 'Delete this order permanently? Orders with financial, production, or document history cannot be deleted.',
+      confirmLabel: 'Delete order',
+      danger: true,
+    }))) return
+    await ordersApi.remove(order.id)
+    selectedOrderId.value = null
+    emit('order-removed', order.id)
+    emit('notify', 'Order deleted.')
+  })
 }
 </script>
 
@@ -115,7 +161,6 @@ function openSelectedOrder() {
     <WorkspaceStickyStack class="shrink-0" :flush="true">
       <WorkspaceHeader
         :show-breadcrumb="true"
-        eyebrow="Sales / operational queue"
         title="Orders"
         description="Track every order from draft through production, delivery, and close."
       >
@@ -206,7 +251,7 @@ function openSelectedOrder() {
       </footer>
       </section>
 
-      <OrderDetailPanel v-if="selectedOrder" :order="selectedOrder" :currency-unit="props.currencyUnit" @open="openSelectedOrder" />
+      <OrderDetailPanel v-if="selectedOrder" :order="selectedOrder" :currency-unit="props.currencyUnit" :busy="busy" @edit="editSelectedOrder" @archive="archiveSelectedOrder" @unarchive="unarchiveSelectedOrder" @remove="removeSelectedOrder" />
       <section v-else class="flex min-h-72 min-w-0 items-center justify-center rounded-box border border-dashed border-base-300 p-8 text-center">
         <EmptyState title="Select an order" description="Choose an order from the register to preview its customer, status, totals, and items.">
           <template #icon><Layers3 :size="22" aria-hidden="true" /></template>

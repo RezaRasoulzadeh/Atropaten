@@ -57,6 +57,7 @@ type Order struct {
 	CommercialStatus                                         CommercialStatus
 	FulfillmentStatus                                        FulfillmentStatus
 	PaymentStatus                                            PaymentStatus
+	Archived                                                 bool
 	SubtotalRial, DiscountRial, TotalRial, EstimatedCostRial int64
 	Items                                                    []OrderItem
 }
