@@ -1,5 +1,5 @@
 export namespace main {
-
+	
 	export class AccountDTO {
 	    id: string;
 	    code: string;
@@ -8,11 +8,11 @@ export namespace main {
 	    active: boolean;
 	    system: boolean;
 	    balanceRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new AccountDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -36,11 +36,11 @@ export namespace main {
 	    notes: string;
 	    sizeBytes?: number;
 	    createdAt: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new AttachmentDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -60,11 +60,11 @@ export namespace main {
 	    fileName: string;
 	    mimeType: string;
 	    contentBase64: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new AttachmentPreviewDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.fileName = source["fileName"];
@@ -79,11 +79,11 @@ export namespace main {
 	    schemaVersion: number;
 	    sizeBytes: number;
 	    managedFileCount: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new BackupInfoDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.path = source["path"];
@@ -114,11 +114,11 @@ export namespace main {
 	    createdAt: string;
 	    updatedAt: string;
 	    amountRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new CheckDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -150,11 +150,11 @@ export namespace main {
 	    note: string;
 	    journalEntryId: string;
 	    occurredAt: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new CheckEventDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -184,11 +184,11 @@ export namespace main {
 	    dueDate: string;
 	    status: string;
 	    amountRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new CheckInputDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -220,11 +220,11 @@ export namespace main {
 	    active: boolean;
 	    createdAt: string;
 	    updatedAt: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new CustomerDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -242,11 +242,11 @@ export namespace main {
 	    customerId: string;
 	    receivableRial: number;
 	    creditRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new CustomerFinancialDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.customerId = source["customerId"];
@@ -260,11 +260,11 @@ export namespace main {
 	    email: string;
 	    address: string;
 	    notes: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new CustomerInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -281,11 +281,11 @@ export namespace main {
 	    detail: string;
 	    direction: string;
 	    amountRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DashboardActivityDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -302,11 +302,11 @@ export namespace main {
 	    date: string;
 	    kind: string;
 	    amountRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DashboardAttentionDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.label = source["label"];
@@ -324,11 +324,11 @@ export namespace main {
 	    service: string;
 	    status: string;
 	    dueDate: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DashboardProductionDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -348,11 +348,11 @@ export namespace main {
 	    reorderLevelUnits: number;
 	    averageCostRial: number;
 	    valueRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DashboardLowStockDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -367,11 +367,11 @@ export namespace main {
 	export class DashboardPipelineDTO {
 	    status: string;
 	    count: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DashboardPipelineDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.status = source["status"];
@@ -382,11 +382,11 @@ export namespace main {
 	    date: string;
 	    revenueRial: number;
 	    grossProfitRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DashboardTrendDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.date = source["date"];
@@ -403,11 +403,11 @@ export namespace main {
 	    dueDate: string;
 	    totalRial: number;
 	    referenceCount: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DashboardOrderDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -441,11 +441,11 @@ export namespace main {
 	    lowStock: DashboardLowStockDTO[];
 	    production: DashboardProductionDTO[];
 	    recentActivity: DashboardActivityDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DashboardDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.ordersNeedingAttention = this.convertValues(source["ordersNeedingAttention"], DashboardOrderDTO);
@@ -469,7 +469,7 @@ export namespace main {
 	        this.production = this.convertValues(source["production"], DashboardProductionDTO);
 	        this.recentActivity = this.convertValues(source["recentActivity"], DashboardActivityDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -488,11 +488,11 @@ export namespace main {
 		    return a;
 		}
 	}
-
-
-
-
-
+	
+	
+	
+	
+	
 	export class DataPathsDTO {
 	    root: string;
 	    database: string;
@@ -500,11 +500,11 @@ export namespace main {
 	    backups: string;
 	    applicationVersion: string;
 	    schemaVersion: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DataPathsDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.root = source["root"];
@@ -532,11 +532,11 @@ export namespace main {
 	    idempotencyKey: string;
 	    createdAt: string;
 	    updatedAt: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ExpenseDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -569,11 +569,11 @@ export namespace main {
 	    financialAccountId: string;
 	    notes: string;
 	    idempotencyKey: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ExpenseInputDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -601,11 +601,11 @@ export namespace main {
 	    active: boolean;
 	    ownerIds: string[];
 	    balanceRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new FinancialAccountDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -630,11 +630,11 @@ export namespace main {
 	    cardNumber: string;
 	    details: string;
 	    ownerIds: string[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new FinancialAccountInputDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -654,11 +654,11 @@ export namespace main {
 	    position: number;
 	    profitSharingBps: number;
 	    amountRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ProfitAllocationDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -687,11 +687,11 @@ export namespace main {
 	    profitLossRial: number;
 	    allocations: ProfitAllocationDTO[];
 	    previewAllocations: ProfitAllocationDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new FiscalPeriodDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -712,7 +712,7 @@ export namespace main {
 	        this.allocations = this.convertValues(source["allocations"], ProfitAllocationDTO);
 	        this.previewAllocations = this.convertValues(source["previewAllocations"], ProfitAllocationDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -738,11 +738,11 @@ export namespace main {
 	    endDate: string;
 	    notes: string;
 	    idempotencyKey: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new FiscalPeriodInputDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -765,11 +765,11 @@ export namespace main {
 	    referenceId: string;
 	    note: string;
 	    createdAt: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new InventoryMovementDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -795,11 +795,11 @@ export namespace main {
 	    status: string;
 	    createdAt: string;
 	    updatedAt: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new InventoryReservationDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -819,11 +819,11 @@ export namespace main {
 	    orderItemId: string;
 	    productionJobId: string;
 	    quantity: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new InventoryReservationInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.materialId = source["materialId"];
@@ -844,11 +844,11 @@ export namespace main {
 	    quantity: string;
 	    unitPriceRial: number;
 	    lineTotalRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new InvoiceItemDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -884,11 +884,11 @@ export namespace main {
 	    createdAt: string;
 	    updatedAt: string;
 	    items: InvoiceItemDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new InvoiceDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -912,7 +912,7 @@ export namespace main {
 	        this.updatedAt = source["updatedAt"];
 	        this.items = this.convertValues(source["items"], InvoiceItemDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -931,7 +931,7 @@ export namespace main {
 		    return a;
 		}
 	}
-
+	
 	export class JournalLineDTO {
 	    id: string;
 	    accountId: string;
@@ -941,11 +941,11 @@ export namespace main {
 	    position: number;
 	    debitRial: number;
 	    creditRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new JournalLineDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -968,11 +968,11 @@ export namespace main {
 	    postedAt: string;
 	    createdAt: string;
 	    lines: JournalLineDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new JournalEntryDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -985,7 +985,7 @@ export namespace main {
 	        this.createdAt = source["createdAt"];
 	        this.lines = this.convertValues(source["lines"], JournalLineDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1004,7 +1004,7 @@ export namespace main {
 		    return a;
 		}
 	}
-
+	
 	export class LoanInstallmentDTO {
 	    id: string;
 	    position: number;
@@ -1018,11 +1018,11 @@ export namespace main {
 	    remainingRial: number;
 	    overdueRial: number;
 	    status: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LoanInstallmentDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1063,11 +1063,11 @@ export namespace main {
 	    remainingInterestRial: number;
 	    overdueRial: number;
 	    installments: LoanInstallmentDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LoanDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1094,7 +1094,7 @@ export namespace main {
 	        this.overdueRial = source["overdueRial"];
 	        this.installments = this.convertValues(source["installments"], LoanInstallmentDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1118,11 +1118,11 @@ export namespace main {
 	    dueDate: string;
 	    principalRial: number;
 	    interestFeeRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LoanInstallmentInputDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1146,11 +1146,11 @@ export namespace main {
 	    interestFeeRial: number;
 	    installmentCount: number;
 	    installments: LoanInstallmentInputDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LoanInputDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1168,7 +1168,7 @@ export namespace main {
 	        this.installmentCount = source["installmentCount"];
 	        this.installments = this.convertValues(source["installments"], LoanInstallmentInputDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1187,8 +1187,8 @@ export namespace main {
 		    return a;
 		}
 	}
-
-
+	
+	
 	export class LoanPaymentAllocationDTO {
 	    id: string;
 	    paymentId: string;
@@ -1196,11 +1196,11 @@ export namespace main {
 	    position: number;
 	    principalRial: number;
 	    interestRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LoanPaymentAllocationDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1215,11 +1215,11 @@ export namespace main {
 	    installmentId: string;
 	    principalRial: number;
 	    interestRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LoanPaymentAllocationInputDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.installmentId = source["installmentId"];
@@ -1241,11 +1241,11 @@ export namespace main {
 	    principalRial: number;
 	    interestRial: number;
 	    allocations: LoanPaymentAllocationDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LoanPaymentDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1262,7 +1262,7 @@ export namespace main {
 	        this.interestRial = source["interestRial"];
 	        this.allocations = this.convertValues(source["allocations"], LoanPaymentAllocationDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1292,11 +1292,11 @@ export namespace main {
 	    principalRial: number;
 	    interestRial: number;
 	    allocations: LoanPaymentAllocationInputDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LoanPaymentInputDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1310,7 +1310,7 @@ export namespace main {
 	        this.interestRial = source["interestRial"];
 	        this.allocations = this.convertValues(source["allocations"], LoanPaymentAllocationInputDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1337,11 +1337,11 @@ export namespace main {
 	    rateRial: number;
 	    setupCostRial: number;
 	    active: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new MachineRateDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1367,11 +1367,11 @@ export namespace main {
 	    createdAt: string;
 	    updatedAt: string;
 	    rates: MachineRateDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new MachineDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1388,7 +1388,7 @@ export namespace main {
 	        this.updatedAt = source["updatedAt"];
 	        this.rates = this.convertValues(source["rates"], MachineRateDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1415,11 +1415,11 @@ export namespace main {
 	    rateRial: number;
 	    setupCostRial: number;
 	    active: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new MachineRateInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1441,11 +1441,11 @@ export namespace main {
 	    setupCostRial: number;
 	    notes: string;
 	    rates: MachineRateInput[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new MachineInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -1458,7 +1458,7 @@ export namespace main {
 	        this.notes = source["notes"];
 	        this.rates = this.convertValues(source["rates"], MachineRateInput);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1477,8 +1477,8 @@ export namespace main {
 		    return a;
 		}
 	}
-
-
+	
+	
 	export class MaterialDTO {
 	    id: string;
 	    name: string;
@@ -1500,11 +1500,11 @@ export namespace main {
 	    lowStock: boolean;
 	    createdAt: string;
 	    updatedAt: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new MaterialDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1541,11 +1541,11 @@ export namespace main {
 	    averageUnitCostRial: number;
 	    preferredSupplier: string;
 	    notes: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new MaterialInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -1576,11 +1576,11 @@ export namespace main {
 	    suggestedPriceRial: number;
 	    sellingPriceRial: number;
 	    notes: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new OrderItemDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1626,11 +1626,11 @@ export namespace main {
 	    completedProductionJobs: number;
 	    inProgressProductionJobs: number;
 	    items: OrderItemDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new OrderDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1660,7 +1660,7 @@ export namespace main {
 	        this.inProgressProductionJobs = source["inProgressProductionJobs"];
 	        this.items = this.convertValues(source["items"], OrderItemDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1685,11 +1685,11 @@ export namespace main {
 	    priority: string;
 	    notes: string;
 	    discountRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new OrderInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.customerId = source["customerId"];
@@ -1699,7 +1699,7 @@ export namespace main {
 	        this.discountRial = source["discountRial"];
 	    }
 	}
-
+	
 	export class OrderItemInput {
 	    serviceId: string;
 	    parameters: Record<string, string>;
@@ -1708,11 +1708,11 @@ export namespace main {
 	    quantity: string;
 	    quantityUnit: string;
 	    notes: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new OrderItemInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.serviceId = source["serviceId"];
@@ -1733,11 +1733,11 @@ export namespace main {
 	    notes: string;
 	    quotedCostRial: number;
 	    actualCostRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new OutsourceInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.supplierId = source["supplierId"];
@@ -1767,11 +1767,11 @@ export namespace main {
 	    allocatedProfitLossRial: number;
 	    createdAt: string;
 	    updatedAt: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new OwnerDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1800,11 +1800,11 @@ export namespace main {
 	    notes: string;
 	    ownershipBps: number;
 	    profitSharingBps: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new OwnerInputDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1820,11 +1820,11 @@ export namespace main {
 	    ownershipBps: number;
 	    profitSharingBps: number;
 	    reason: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new OwnerShareInputDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.ownershipBps = source["ownershipBps"];
@@ -1848,11 +1848,11 @@ export namespace main {
 	    createdAt: string;
 	    updatedAt: string;
 	    amountRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new OwnerTransactionDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1883,11 +1883,11 @@ export namespace main {
 	    occurredAt: string;
 	    idempotencyKey: string;
 	    amountRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new OwnerTransactionInputDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1909,11 +1909,11 @@ export namespace main {
 	    position: number;
 	    amountRial: number;
 	    reversed: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PaymentAllocationDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1928,11 +1928,11 @@ export namespace main {
 	    targetType: string;
 	    targetId: string;
 	    amountRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PaymentAllocationInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.targetType = source["targetType"];
@@ -1956,11 +1956,11 @@ export namespace main {
 	    createdAt: string;
 	    amountRial: number;
 	    allocations: PaymentAllocationDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PaymentDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1979,7 +1979,7 @@ export namespace main {
 	        this.amountRial = source["amountRial"];
 	        this.allocations = this.convertValues(source["allocations"], PaymentAllocationDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2011,11 +2011,11 @@ export namespace main {
 	    idempotencyKey: string;
 	    amountRial: number;
 	    allocations: PaymentAllocationInput[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PaymentInputDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2031,7 +2031,7 @@ export namespace main {
 	        this.amountRial = source["amountRial"];
 	        this.allocations = this.convertValues(source["allocations"], PaymentAllocationInput);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2060,11 +2060,11 @@ export namespace main {
 	    percentage: string;
 	    amountRial: number;
 	    explanation: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PricingComponentDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2086,11 +2086,11 @@ export namespace main {
 	    quantity: string;
 	    materialId: string;
 	    unit: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ResolvedParameterDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.key = source["key"];
@@ -2115,11 +2115,11 @@ export namespace main {
 	    marginPercentage: string;
 	    warnings: string[];
 	    belowCost: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PricingDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.serviceId = source["serviceId"];
@@ -2135,7 +2135,7 @@ export namespace main {
 	        this.warnings = source["warnings"];
 	        this.belowCost = source["belowCost"];
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2159,11 +2159,11 @@ export namespace main {
 	    parameters: Record<string, string>;
 	    manualCosts: Record<string, number>;
 	    sellingPriceOverrideRial?: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PricingRequest(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.serviceId = source["serviceId"];
@@ -2176,11 +2176,11 @@ export namespace main {
 	    position: number;
 	    minimumQuantity: string;
 	    priceRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PricingTierDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.position = source["position"];
@@ -2197,11 +2197,11 @@ export namespace main {
 	    perUnitRateRial: number;
 	    parameterKey: string;
 	    tiers: PricingTierDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PricingRuleDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2213,7 +2213,7 @@ export namespace main {
 	        this.parameterKey = source["parameterKey"];
 	        this.tiers = this.convertValues(source["tiers"], PricingTierDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2236,11 +2236,11 @@ export namespace main {
 	    position: number;
 	    minimumQuantity: string;
 	    priceRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PricingTierInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.position = source["position"];
@@ -2257,11 +2257,11 @@ export namespace main {
 	    perUnitRateRial: number;
 	    parameterKey: string;
 	    tiers: PricingTierInput[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PricingRuleInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2273,7 +2273,7 @@ export namespace main {
 	        this.parameterKey = source["parameterKey"];
 	        this.tiers = this.convertValues(source["tiers"], PricingTierInput);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2292,17 +2292,17 @@ export namespace main {
 		    return a;
 		}
 	}
-
-
+	
+	
 	export class PrintAllocationDTO {
 	    reference: string;
 	    targetType: string;
 	    amountRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PrintAllocationDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.reference = source["reference"];
@@ -2317,11 +2317,11 @@ export namespace main {
 	    debitRial: number;
 	    creditRial: number;
 	    balanceRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new StatementLineDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.date = source["date"];
@@ -2338,11 +2338,11 @@ export namespace main {
 	    quantityUnits: number;
 	    unitPriceRial: number;
 	    lineTotalRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PrintLineDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.description = source["description"];
@@ -2365,11 +2365,11 @@ export namespace main {
 	    documentFooter: string;
 	    documentNotes: string;
 	    backupDirectory: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ShopSettingsDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.shopName = source["shopName"];
@@ -2410,11 +2410,11 @@ export namespace main {
 	    lines: PrintLineDTO[];
 	    statementLines: StatementLineDTO[];
 	    allocations: PrintAllocationDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PrintDocumentDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.kind = source["kind"];
@@ -2441,7 +2441,7 @@ export namespace main {
 	        this.statementLines = this.convertValues(source["statementLines"], StatementLineDTO);
 	        this.allocations = this.convertValues(source["allocations"], PrintAllocationDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2460,7 +2460,7 @@ export namespace main {
 		    return a;
 		}
 	}
-
+	
 	export class ProductionConsumptionDTO {
 	    id: string;
 	    productionJobId: string;
@@ -2473,11 +2473,11 @@ export namespace main {
 	    unitCostRial: number;
 	    materialCostRial: number;
 	    wasteCostRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ProductionConsumptionDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2499,11 +2499,11 @@ export namespace main {
 	    wasteQuantity: string;
 	    idempotencyKey: string;
 	    notes: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ProductionConsumptionInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.materialId = source["materialId"];
@@ -2541,11 +2541,11 @@ export namespace main {
 	    outsourceExpectedReturnAt: string;
 	    outsourceReceivedAt: string;
 	    outsourceNotes: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ProductionJobDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2586,11 +2586,11 @@ export namespace main {
 	    priority: string;
 	    notes: string;
 	    plannedAt?: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ProductionJobInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.orderId = source["orderId"];
@@ -2603,7 +2603,7 @@ export namespace main {
 	        this.plannedAt = source["plannedAt"];
 	    }
 	}
-
+	
 	export class ProofDTO {
 	    id: string;
 	    ownerType: string;
@@ -2617,11 +2617,11 @@ export namespace main {
 	    approvedAt?: string;
 	    rejectedAt?: string;
 	    createdAt?: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ProofDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2653,11 +2653,11 @@ export namespace main {
 	    landedUnitCostRial: number;
 	    lineTotalRial: number;
 	    notes: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PurchaseItemDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2697,11 +2697,11 @@ export namespace main {
 	    createdAt: string;
 	    updatedAt: string;
 	    items: PurchaseItemDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PurchaseDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2725,7 +2725,7 @@ export namespace main {
 	        this.updatedAt = source["updatedAt"];
 	        this.items = this.convertValues(source["items"], PurchaseItemDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2754,11 +2754,11 @@ export namespace main {
 	    shippingRial: number;
 	    taxRial: number;
 	    additionalCostsRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PurchaseInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.supplierId = source["supplierId"];
@@ -2772,17 +2772,17 @@ export namespace main {
 	        this.additionalCostsRial = source["additionalCostsRial"];
 	    }
 	}
-
+	
 	export class PurchaseItemInput {
 	    materialId: string;
 	    purchaseQuantity: string;
 	    unitAcquisitionCostRial: string;
 	    notes: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PurchaseItemInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.materialId = source["materialId"];
@@ -2804,11 +2804,11 @@ export namespace main {
 	    tertiaryAmountRial: number;
 	    quantityUnits: number;
 	    secondaryQuantityUnits: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ReportRowDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2831,11 +2831,11 @@ export namespace main {
 	    amountRial: number;
 	    secondaryAmountRial: number;
 	    count: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ReportSummaryDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.key = source["key"];
@@ -2851,11 +2851,11 @@ export namespace main {
 	    endDate: string;
 	    summaries: ReportSummaryDTO[];
 	    rows: ReportRowDTO[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ReportDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.kind = source["kind"];
@@ -2864,7 +2864,7 @@ export namespace main {
 	        this.summaries = this.convertValues(source["summaries"], ReportSummaryDTO);
 	        this.rows = this.convertValues(source["rows"], ReportRowDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2883,9 +2883,9 @@ export namespace main {
 		    return a;
 		}
 	}
-
-
-
+	
+	
+	
 	export class ServiceCostComponentDTO {
 	    id: string;
 	    name: string;
@@ -2903,11 +2903,11 @@ export namespace main {
 	    enabled: boolean;
 	    position: number;
 	    notes: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ServiceCostComponentDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2944,11 +2944,11 @@ export namespace main {
 	    rateBasis: string;
 	    enabled: boolean;
 	    notes: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ServiceCostComponentInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2981,11 +2981,11 @@ export namespace main {
 	    maxValue?: string;
 	    unit: string;
 	    active: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ServiceParameterDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -3017,11 +3017,11 @@ export namespace main {
 	    parameters: ServiceParameterDTO[];
 	    components: ServiceCostComponentDTO[];
 	    pricingRule?: PricingRuleDTO;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ServiceDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -3039,7 +3039,7 @@ export namespace main {
 	        this.components = this.convertValues(source["components"], ServiceCostComponentDTO);
 	        this.pricingRule = this.convertValues(source["pricingRule"], PricingRuleDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -3069,11 +3069,11 @@ export namespace main {
 	    minValue?: string;
 	    maxValue?: string;
 	    unit: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ServiceParameterInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -3099,11 +3099,11 @@ export namespace main {
 	    parameters: ServiceParameterInput[];
 	    components: ServiceCostComponentInput[];
 	    pricingRule?: PricingRuleInput;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ServiceInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -3117,7 +3117,7 @@ export namespace main {
 	        this.components = this.convertValues(source["components"], ServiceCostComponentInput);
 	        this.pricingRule = this.convertValues(source["pricingRule"], PricingRuleInput);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -3136,10 +3136,10 @@ export namespace main {
 		    return a;
 		}
 	}
-
-
-
-
+	
+	
+	
+	
 	export class SupplierDTO {
 	    id: string;
 	    name: string;
@@ -3151,11 +3151,11 @@ export namespace main {
 	    active: boolean;
 	    createdAt: string;
 	    updatedAt: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new SupplierDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -3177,11 +3177,11 @@ export namespace main {
 	    email: string;
 	    address: string;
 	    notes: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new SupplierInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -3206,11 +3206,11 @@ export namespace main {
 	    idempotencyKey: string;
 	    createdAt: string;
 	    updatedAt: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new TransferDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -3237,11 +3237,11 @@ export namespace main {
 	    reference: string;
 	    notes: string;
 	    idempotencyKey: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new TransferInputDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];

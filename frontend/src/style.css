@@ -131,7 +131,7 @@ input[type='number']::-webkit-outer-spin-button {
   border-color: var(--color-error) !important;
 }
 
-.service-wizard .wizard-step {
+:is(.service-wizard, .order-wizard) .wizard-step {
   display: flex;
   min-width: 0;
   align-items: flex-start;
@@ -142,10 +142,10 @@ input[type='number']::-webkit-outer-spin-button {
   color: var(--color-base-content);
   transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
 }
-.service-wizard .wizard-step:hover {
+:is(.service-wizard, .order-wizard) .wizard-step:hover {
   background: color-mix(in srgb, var(--color-base-300) 55%, transparent);
 }
-.service-wizard .wizard-step-number {
+:is(.service-wizard, .order-wizard) .wizard-step-number {
   display: grid;
   width: 1.7rem;
   height: 1.7rem;
@@ -158,32 +158,35 @@ input[type='number']::-webkit-outer-spin-button {
   font-size: 0.8rem;
   font-weight: 700;
 }
-.service-wizard .wizard-step-active {
+:is(.service-wizard, .order-wizard) .wizard-step-active {
   border-inline-start-color: var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
   color: var(--color-primary);
 }
-.service-wizard .wizard-step-active .wizard-step-number {
+:is(.service-wizard, .order-wizard) .wizard-step-active .wizard-step-number {
   border-color: var(--color-primary);
   background: var(--color-primary);
   color: var(--color-primary-content);
 }
-.service-wizard .wizard-step-complete .wizard-step-number {
+:is(.service-wizard, .order-wizard) .wizard-step-complete .wizard-step-number {
   border-color: var(--color-success);
   background: color-mix(in srgb, var(--color-success) 18%, var(--color-base-200));
   color: var(--color-success);
 }
-.service-wizard .wizard-step-idle {
+:is(.service-wizard, .order-wizard) .wizard-step-idle {
   color: color-mix(in srgb, var(--color-base-content) 78%, transparent);
 }
-.service-wizard-step-nav {
+.service-wizard-step-nav,
+.order-wizard-step-nav {
   scrollbar-width: none;
 }
-.service-wizard-step-nav::-webkit-scrollbar {
+.service-wizard-step-nav::-webkit-scrollbar,
+.order-wizard-step-nav::-webkit-scrollbar {
   display: none;
 }
 
-.service-wizard {
+.service-wizard,
+.order-wizard {
   width: 100%;
   max-width: none;
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, ClipboardList, Plus, Search } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, ClipboardList, Layers3, Plus, Search } from 'lucide-vue-next'
 import EmptyState from '../../components/ui/EmptyState.vue'
 import LoadingState from '../../components/ui/LoadingState.vue'
 import SearchField from '../../components/ui/SearchField.vue'
@@ -8,6 +8,7 @@ import SelectField from '../../components/ui/SelectField.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue'
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue'
+import OrderDetailPanel from './OrderDetailPanel.vue'
 import type { OrderRecord } from '../../api/orders'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
 import { formatDateTime } from '../../utils/date'
@@ -28,6 +29,7 @@ const status = ref<OrderFilter>('All')
 const payment = ref('All')
 const priority = ref('All')
 const sortOrder = ref('updated')
+const selectedOrderId = ref<string | null>(null)
 const page = ref(1)
 const pageSize = 10
 
@@ -92,6 +94,7 @@ const visibleOrders = computed(() => [...filteredOrders.value].sort((left, right
 
 const pageCount = computed(() => Math.max(1, Math.ceil(visibleOrders.value.length / pageSize)))
 const pagedOrders = computed(() => visibleOrders.value.slice((page.value - 1) * pageSize, page.value * pageSize))
+const selectedOrder = computed(() => props.orders.find((order) => order.id === selectedOrderId.value) ?? null)
 const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1))
 const pageSummary = computed(() => visibleOrders.value.length
   ? 'Showing ' + ((page.value - 1) * pageSize + 1) + '–' + Math.min(page.value * pageSize, visibleOrders.value.length) + ' of ' + visibleOrders.value.length + ' orders'
@@ -128,6 +131,17 @@ function goToPage(value: number) {
 
 watch([query, status, payment, priority, sortOrder], () => { page.value = 1 })
 watch(pageCount, (count) => { if (page.value > count) page.value = count })
+watch(visibleOrders, (orders) => {
+  if (!orders.some((order) => order.id === selectedOrderId.value)) selectedOrderId.value = orders[0]?.id ?? null
+}, { immediate: true })
+
+function selectOrder(id: string) {
+  selectedOrderId.value = id
+}
+
+function openSelectedOrder() {
+  if (selectedOrder.value) emit('open-order', selectedOrder.value.id)
+}
 </script>
 
 <template>
@@ -146,7 +160,8 @@ watch(pageCount, (count) => { if (page.value > count) page.value = count })
       </WorkspaceHeader>
     </WorkspaceStickyStack>
 
-    <section class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-box border border-base-300 bg-base-100" aria-label="Order register">
+    <div class="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(22rem,auto)_auto] gap-4 overflow-y-auto xl:grid-cols-[minmax(0,1.15fr)_minmax(24rem,0.85fr)] xl:grid-rows-1 xl:overflow-hidden">
+      <section class="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-box border border-base-300 bg-base-100" aria-label="Order register">
       <div class="shrink-0 border-b border-base-300 p-3 sm:p-4">
         <div class="flex min-w-0 flex-wrap items-center justify-between gap-3">
           <div class="flex min-w-0 flex-wrap items-center gap-2">
@@ -184,7 +199,8 @@ watch(pageCount, (count) => { if (page.value > count) page.value = count })
           :key="order.id"
           class="order-register-row group grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-base-200/60 focus-visible:bg-base-200/60 focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary md:grid-cols-[minmax(0,1.35fr)_minmax(10rem,1fr)_minmax(0,1.25fr)_8.5rem_7rem_1.25rem]"
           type="button"
-          @click="emit('open-order', order.id)"
+          :class="selectedOrderId === order.id ? 'bg-primary/10' : ''"
+          @click="selectOrder(order.id)"
         >
           <span class="order-register-name flex min-w-0 items-center gap-3">
             <span class="grid size-9 shrink-0 place-items-center rounded-box border border-base-300 bg-base-200 text-primary"><ClipboardList :size="18" aria-hidden="true" /></span>
@@ -228,7 +244,15 @@ watch(pageCount, (count) => { if (page.value > count) page.value = count })
           <button class="btn btn-ghost btn-xs btn-square" type="button" :disabled="page === pageCount" aria-label="Next page" @click="goToPage(page + 1)"><ChevronRight :size="15" aria-hidden="true" /></button>
         </div>
       </footer>
-    </section>
+      </section>
+
+      <OrderDetailPanel v-if="selectedOrder" :order="selectedOrder" :currency-unit="props.currencyUnit" @open="openSelectedOrder" />
+      <section v-else class="flex min-h-72 min-w-0 items-center justify-center rounded-box border border-dashed border-base-300 p-8 text-center">
+        <EmptyState title="Select an order" description="Choose an order from the register to preview its customer, status, totals, and items.">
+          <template #icon><Layers3 :size="22" aria-hidden="true" /></template>
+        </EmptyState>
+      </section>
+    </div>
   </div>
 </template>
 

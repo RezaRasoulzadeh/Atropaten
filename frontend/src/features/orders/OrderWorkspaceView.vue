@@ -29,6 +29,7 @@ import OrderItemConfigurator from '../sales/OrderItemConfigurator.vue';
 import OrderInvoicePanel from './OrderInvoicePanel.vue';
 import OrderPaymentsPanel from './OrderPaymentsPanel.vue';
 import OrderProductionPanel from './OrderProductionPanel.vue';
+import OrderEditorWizard from './OrderEditorWizard.vue';
 
 const props = defineProps<{
   order: OrderRecord;
@@ -287,10 +288,29 @@ function snapshot(item: any, key: string) {
     return [];
   }
 }
+
+function wizardSaved(order: OrderRecord) {
+  emit('saved', order);
+  emit('back');
+}
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 min-w-0 flex-col gap-4">
+  <OrderEditorWizard
+    v-if="isNew"
+    :order="order"
+    :customers="customers"
+    :services="services"
+    :materials="materials"
+    :machines="machines"
+    :currency-unit="currencyUnit"
+    :busy="busy"
+    @cancel="emit('back')"
+    @saved="wizardSaved"
+    @notify="emit('notify', $event)"
+  />
+
+  <div v-else class="flex h-full min-h-0 min-w-0 flex-col gap-4">
     <WorkspaceStickyStack :flush="true">
       <WorkspaceHeader
         eyebrow="Sales / order workspace"
