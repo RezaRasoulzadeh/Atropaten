@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -264,24 +265,63 @@ func (s *Store) reportInventory(ctx context.Context, r domain.Report) (domain.Re
 }
 
 func (s *Store) reportSalesByService(ctx context.Context, r domain.Report, from, until string) (domain.Report, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT COALESCE(ii.service_id,''),ii.description_snapshot,SUM(ii.quantity_units),SUM(ii.line_total_rial),COALESCE(SUM(oi.estimated_cost_rial),0),COALESCE(SUM(pc.actual_cost_rial),0),COUNT(DISTINCT i.id) FROM invoice_items ii JOIN invoices i ON i.id=ii.invoice_id AND i.status IN ('Posted','Partially Paid','Paid') LEFT JOIN (SELECT id AS order_item_id,estimated_cost_rial FROM order_items) oi ON oi.order_item_id=ii.order_item_id LEFT JOIN (SELECT pj.order_item_id,SUM(-im.total_cost_rial) actual_cost_rial FROM production_jobs pj JOIN production_consumptions pc ON pc.production_job_id=pj.id JOIN inventory_movements im ON im.reference_id=pc.id AND im.reference_type IN ('production_consumption','production_correction') GROUP BY pj.order_item_id) pc ON pc.order_item_id=ii.order_item_id WHERE i.issue_date>=? AND i.issue_date<? GROUP BY ii.service_id,ii.description_snapshot ORDER BY ii.description_snapshot,ii.service_id`, from, until)
+	rows, err := s.db.QueryContext(ctx, `SELECT i.id,COALESCE(ii.service_id,''),ii.description_snapshot,ii.quantity_units,ii.line_total_rial,i.subtotal_rial,i.total_rial,COALESCE(oi.estimated_cost_rial,0),
+	 COALESCE((SELECT SUM(p.actual_outsourced_cost_rial+COALESCE((SELECT SUM(-m.total_cost_rial) FROM production_consumptions c JOIN inventory_movements m ON m.reference_id=c.id AND m.reference_type IN ('production_consumption','production_correction') WHERE c.production_job_id=p.id),0)) FROM production_jobs p WHERE p.order_item_id=ii.order_item_id),0)
+	 FROM invoice_items ii JOIN invoices i ON i.id=ii.invoice_id AND i.status IN ('Posted','Partially Paid','Paid') LEFT JOIN order_items oi ON oi.id=ii.order_item_id WHERE i.issue_date>=? AND i.issue_date<? ORDER BY i.id,ii.position,ii.id`, from, until)
 	if err != nil {
 		return r, err
 	}
 	defer rows.Close()
+	type allocation struct{ gross, net int64 }
+	allocated := map[string]allocation{}
+	grouped := map[string]*domain.ReportRow{}
 	var revenue, estimatedTotal, actualTotal int64
 	for rows.Next() {
-		var id, name string
-		var qty, sales, estimated, actual, count int64
-		if err := rows.Scan(&id, &name, &qty, &sales, &estimated, &actual, &count); err != nil {
+		var invoice, id, name string
+		var qty, gross, subtotal, total, estimated, actual int64
+		if err = rows.Scan(&invoice, &id, &name, &qty, &gross, &subtotal, &total, &estimated, &actual); err != nil {
 			return r, err
 		}
-		r.Rows = append(r.Rows, domain.ReportRow{ID: id, Name: name, AmountRial: sales, SecondaryAmountRial: estimated, TertiaryAmountRial: actual, QuantityUnits: qty})
-		revenue += sales
+		// Cumulative proportional allocation preserves every Rial of the invoice discount.
+		a := allocated[invoice]
+		a.gross += gross
+		net := int64(0)
+		if subtotal > 0 {
+			scaled, e := scaleProductionQuantity(domain.Quantity(total), domain.Quantity(a.gross), domain.Quantity(subtotal))
+			if e != nil {
+				return r, e
+			}
+			net = int64(scaled) - a.net
+			a.net = int64(scaled)
+		}
+		allocated[invoice] = a
+		key := id + "\x00" + name
+		row := grouped[key]
+		if row == nil {
+			row = &domain.ReportRow{ID: id, Name: name}
+			grouped[key] = row
+		}
+		row.AmountRial += net
+		row.SecondaryAmountRial += estimated
+		row.TertiaryAmountRial += actual
+		row.QuantityUnits += qty
+		revenue += net
 		estimatedTotal += estimated
 		actualTotal += actual
 	}
-	return addSummaries(r, domain.ReportSummary{Key: "revenue", Label: "Invoiced revenue", AmountRial: revenue}, domain.ReportSummary{Key: "estimated_cost", Label: "Estimated cost", AmountRial: estimatedTotal}, domain.ReportSummary{Key: "actual_cost", Label: "Actual cost", AmountRial: actualTotal}, domain.ReportSummary{Key: "gross_profit", Label: "Gross profit", AmountRial: revenue - actualTotal}), rows.Err()
+	if err = rows.Err(); err != nil {
+		return r, err
+	}
+	for _, row := range grouped {
+		r.Rows = append(r.Rows, *row)
+	}
+	sort.Slice(r.Rows, func(i, j int) bool {
+		if r.Rows[i].Name == r.Rows[j].Name {
+			return r.Rows[i].ID < r.Rows[j].ID
+		}
+		return r.Rows[i].Name < r.Rows[j].Name
+	})
+	return addSummaries(r, domain.ReportSummary{Key: "revenue", Label: "Invoiced revenue after discount", AmountRial: revenue}, domain.ReportSummary{Key: "estimated_cost", Label: "Estimated cost", AmountRial: estimatedTotal}, domain.ReportSummary{Key: "actual_cost", Label: "Recorded materials and outsourcing", AmountRial: actualTotal}, domain.ReportSummary{Key: "gross_profit", Label: "Contribution before other expenses", AmountRial: revenue - actualTotal}), nil
 }
 
 func (s *Store) reportCustomerSales(ctx context.Context, r domain.Report, from, until string) (domain.Report, error) {

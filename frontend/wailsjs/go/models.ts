@@ -1600,6 +1600,7 @@ export namespace main {
 	    }
 	}
 	export class OrderDTO {
+	    projectedCostRial: number;
 	    id: string;
 	    orderNumber: string;
 	    customerId: string;
@@ -1637,6 +1638,7 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectedCostRial = source["projectedCostRial"];
 	        this.id = source["id"];
 	        this.orderNumber = source["orderNumber"];
 	        this.customerId = source["customerId"];
@@ -2538,6 +2540,9 @@ export namespace main {
 	    }
 	}
 	export class ProductionJobDTO {
+	    estimatedConversionCostRial: number;
+	    remainingMaterialCostRial: number;
+	    projectedCostRial: number;
 	    outsourceQuantity: string;
 	    outsourceUnitCostRial: number;
 	    outsourceFinancialAccountId: string;
@@ -2575,6 +2580,9 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.estimatedConversionCostRial = source["estimatedConversionCostRial"];
+	        this.remainingMaterialCostRial = source["remainingMaterialCostRial"];
+	        this.projectedCostRial = source["projectedCostRial"];
 	        this.outsourceQuantity = source["outsourceQuantity"];
 	        this.outsourceUnitCostRial = source["outsourceUnitCostRial"];
 	        this.outsourceFinancialAccountId = source["outsourceFinancialAccountId"];

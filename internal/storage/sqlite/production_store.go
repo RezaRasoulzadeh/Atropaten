@@ -60,7 +60,7 @@ func (s *Store) ProductionSummary(ctx context.Context, orderID string) (int, int
 
 func (s *Store) ProductionCostSummary(ctx context.Context, orderID string) (int64, error) {
 	var cost int64
-	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(COALESCE((SELECT SUM(CASE WHEN im.movement_type IN ('production_consumption','waste') THEN -im.total_cost_rial ELSE 0 END) FROM inventory_movements im JOIN production_consumptions pc ON pc.id=im.reference_id WHERE pc.production_job_id=pj.id AND im.reference_type IN ('production_consumption','production_correction')),0)+pj.actual_outsourced_cost_rial),0) FROM production_jobs pj WHERE pj.order_id=? AND pj.status<>'Cancelled'`, orderID).Scan(&cost)
+	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(COALESCE((SELECT SUM(CASE WHEN im.movement_type IN ('production_consumption','waste') THEN -im.total_cost_rial ELSE 0 END) FROM inventory_movements im JOIN production_consumptions pc ON pc.id=im.reference_id WHERE pc.production_job_id=pj.id AND im.reference_type IN ('production_consumption','production_correction')),0)+pj.actual_outsourced_cost_rial),0) FROM production_jobs pj WHERE pj.order_id=?`, orderID).Scan(&cost)
 	return cost, err
 }
 
@@ -253,7 +253,7 @@ func (s *Store) withProductionActuals(ctx context.Context, j domain.ProductionJo
 	if err := s.db.QueryRowContext(ctx, `SELECT outsource_quantity_units,outsource_unit_cost_rial,outsource_financial_account_id FROM production_jobs WHERE id=?`, j.ID).Scan(&j.OutsourceQuantity, &j.OutsourceUnitCostRial, &j.OutsourceFinancialAccountID); err != nil {
 		return j, err
 	}
-	return j, nil
+	return s.withProductionForecast(ctx, j)
 }
 
 func (s *Store) CreateProductionJob(ctx context.Context, j domain.ProductionJob) error {
@@ -451,6 +451,9 @@ func (s *Store) UpdateProductionOutsourcing(ctx context.Context, j domain.Produc
 	if err = s.reconcileOutsourceExpenseTx(ctx, tx, j); err != nil {
 		return err
 	}
+	if err = s.reconcileJobCOGSTx(ctx, tx, j.ID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -496,12 +499,31 @@ func (s *Store) TransitionProductionJob(ctx context.Context, id, status string) 
 	if !domain.ValidProductionTransition(current, status) {
 		return fail(domain.ErrProductionTransition)
 	}
+	if current == status {
+		return tx.Commit()
+	}
+	// Reopening is explicit and cannot silently replace another job for this item.
+	if current == domain.ProductionCancelled && status != domain.ProductionCancelled {
+		var duplicates int
+		if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM production_jobs WHERE order_item_id=(SELECT order_item_id FROM production_jobs WHERE id=?) AND id<>? AND status<>'Cancelled'`, id, id).Scan(&duplicates); e != nil {
+			return fail(e)
+		}
+		if duplicates > 0 {
+			return fail(fmt.Errorf("this order item already has an active production job"))
+		}
+	}
 	now := time.Now().UTC()
 	var started, completed any
 	if status == domain.ProductionInProgress {
 		started = now.Format(time.RFC3339Nano)
 	}
 	if status == domain.ProductionCompleted {
+		if current != domain.ProductionInProgress && current != domain.ProductionPaused {
+			return fail(fmt.Errorf("start production before completing the job"))
+		}
+		if e = s.completeProductionMaterialsTx(ctx, tx, id); e != nil {
+			return fail(e)
+		}
 		completed = now.Format(time.RFC3339Nano)
 		if _, e = tx.ExecContext(ctx, `UPDATE inventory_reservations SET status='released',updated_at=? WHERE production_job_id=? AND status='active'`, now.Format(time.RFC3339Nano), id); e != nil {
 			return fail(e)
@@ -517,7 +539,7 @@ func (s *Store) TransitionProductionJob(ctx context.Context, id, status string) 
 	}
 	if status == domain.ProductionCompleted {
 		var open int
-		if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM production_jobs WHERE order_id=? AND status NOT IN ('Completed','Cancelled')`, orderID).Scan(&open); e != nil {
+		if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM order_items i WHERE i.order_id=? AND NOT EXISTS(SELECT 1 FROM production_jobs p WHERE p.order_item_id=i.id AND p.status='Completed')`, orderID).Scan(&open); e != nil {
 			return fail(e)
 		}
 		if open == 0 {
@@ -525,6 +547,14 @@ func (s *Store) TransitionProductionJob(ctx context.Context, id, status string) 
 				return fail(e)
 			}
 		}
+	}
+	if status == domain.ProductionInProgress || status == domain.ProductionPaused {
+		if _, e = tx.ExecContext(ctx, `UPDATE orders SET fulfillment_status='In Production',updated_at=? WHERE id=? AND fulfillment_status IN ('Pending','Ready','In Production')`, now.Format(time.RFC3339Nano), orderID); e != nil {
+			return fail(e)
+		}
+	}
+	if e = s.reconcileJobCOGSTx(ctx, tx, id); e != nil {
+		return fail(e)
 	}
 	return tx.Commit()
 }
@@ -543,28 +573,28 @@ func (s *Store) DeleteProductionJob(ctx context.Context, id string) error {
 func (s *Store) deleteProductionJobTx(ctx context.Context, tx *sql.Tx, id string) error {
 	var e error
 	fail := func(e error) error { return e }
-	var found int
-	if e = tx.QueryRowContext(ctx, `SELECT 1 FROM production_jobs WHERE id=?`, id).Scan(&found); errors.Is(e, sql.ErrNoRows) {
+	var orderID string
+	if e = tx.QueryRowContext(ctx, `SELECT order_id FROM production_jobs WHERE id=?`, id).Scan(&orderID); errors.Is(e, sql.ErrNoRows) {
 		return fail(domain.ErrProductionJobNotFound)
 	}
 	if e != nil {
 		return fail(e)
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	rows, e := tx.QueryContext(ctx, `SELECT pc.id,pc.material_id,pc.consumed_quantity_units,pc.waste_quantity_units,pc.unit_cost_rial,EXISTS(SELECT 1 FROM inventory_movements im WHERE im.reference_type='production_correction' AND im.reference_id=pc.id) FROM production_consumptions pc WHERE pc.production_job_id=? ORDER BY pc.created_at,pc.id`, id)
+	rows, e := tx.QueryContext(ctx, `SELECT pc.id,pc.material_id,pc.consumed_quantity_units,pc.waste_quantity_units,pc.unit_cost_rial,pc.material_cost_rial,pc.waste_cost_rial,EXISTS(SELECT 1 FROM inventory_movements im WHERE im.reference_type='production_correction' AND im.reference_id=pc.id) FROM production_consumptions pc WHERE pc.production_job_id=? ORDER BY pc.created_at,pc.id`, id)
 	if e != nil {
 		return fail(e)
 	}
 	type consumption struct {
-		id, material          string
-		consumed, waste, cost int64
-		corrected             bool
+		id, material                                   string
+		consumed, waste, cost, materialCost, wasteCost int64
+		corrected                                      bool
 	}
 	consumptions := make([]consumption, 0)
 	for rows.Next() {
 		var item consumption
 		var corrected int
-		if e = rows.Scan(&item.id, &item.material, &item.consumed, &item.waste, &item.cost, &corrected); e != nil {
+		if e = rows.Scan(&item.id, &item.material, &item.consumed, &item.waste, &item.cost, &item.materialCost, &item.wasteCost, &corrected); e != nil {
 			rows.Close()
 			return fail(e)
 		}
@@ -581,19 +611,13 @@ func (s *Store) deleteProductionJobTx(ctx context.Context, tx *sql.Tx, id string
 			continue
 		}
 		if item.consumed > 0 {
-			total, costErr := domain.MulQuantityRial(domain.Quantity(item.consumed), item.cost)
-			if costErr != nil {
-				return fail(fmt.Errorf("production deletion cost: %w", costErr))
-			}
+			total := item.materialCost
 			if _, e = tx.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, "MOV-DELETE-"+item.id+"-C", item.material, now, "production_consumption", item.consumed, item.cost, total, "production_correction", item.id, "Compensating movement for deleted production job "+id, now); e != nil {
 				return fail(e)
 			}
 		}
 		if item.waste > 0 {
-			total, costErr := domain.MulQuantityRial(domain.Quantity(item.waste), item.cost)
-			if costErr != nil {
-				return fail(fmt.Errorf("production deletion cost: %w", costErr))
-			}
+			total := item.wasteCost
 			if _, e = tx.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, "MOV-DELETE-"+item.id+"-W", item.material, now, "waste", item.waste, item.cost, total, "production_correction", item.id, "Compensating movement for deleted production job "+id, now); e != nil {
 				return fail(e)
 			}
@@ -611,7 +635,7 @@ func (s *Store) deleteProductionJobTx(ctx context.Context, tx *sql.Tx, id string
 	if e = s.reverseOutsourceExpenseTx(ctx, tx, id); e != nil {
 		return e
 	}
-	return nil
+	return s.reconcileOrderCOGSTx(ctx, tx, orderID)
 }
 
 func (s *Store) RecordProductionConsumption(ctx context.Context, jobID, materialID, key string, consumed, waste domain.Quantity, note string) (domain.ProductionConsumption, error) {
@@ -626,6 +650,9 @@ func (s *Store) RecordProductionConsumption(ctx context.Context, jobID, material
 	result, e := s.recordProductionConsumptionTx(ctx, tx, jobID, materialID, key, consumed, waste, note)
 	if e != nil {
 		return result, e
+	}
+	if e = s.reconcileJobCOGSTx(ctx, tx, jobID); e != nil {
+		return domain.ProductionConsumption{}, e
 	}
 	if e = tx.Commit(); e != nil {
 		return domain.ProductionConsumption{}, e
@@ -678,14 +705,17 @@ func (s *Store) recordProductionConsumptionTx(ctx context.Context, tx *sql.Tx, j
 		return fail(domain.ErrInsufficientStock)
 	}
 	unitCost := state.AverageUnitCostRial
-	matCost, e := domain.MulQuantityRial(consumed, unitCost)
+	// Allocate from the exact inventory value. Multiplying a rounded unit rate
+	// can overdraw value or leave stranded Rial when the last units are used.
+	totalCost, e := scaleProductionQuantity(domain.Quantity(state.InventoryValueRial), consumed+waste, state.PhysicalStock)
 	if e != nil {
 		return fail(e)
 	}
-	wasteCost, e := domain.MulQuantityRial(waste, unitCost)
+	materialCost, e := scaleProductionQuantity(totalCost, consumed, consumed+waste)
 	if e != nil {
 		return fail(e)
 	}
+	matCost, wasteCost := int64(materialCost), int64(totalCost-materialCost)
 	id := fmt.Sprintf("PC-%d", time.Now().UnixNano())
 	now := time.Now().UTC()
 	if _, e = tx.ExecContext(ctx, `INSERT INTO production_consumptions(id,production_job_id,material_id,idempotency_key,consumed_quantity_units,waste_quantity_units,unit_cost_rial,material_cost_rial,waste_cost_rial,notes,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, id, jobID, materialID, key, consumed, waste, unitCost, matCost, wasteCost, note, now.Format(time.RFC3339Nano)); e != nil {
@@ -749,14 +779,21 @@ func (s *Store) ReverseProductionConsumption(ctx context.Context, id, reason str
 	if e = s.reverseProductionConsumptionTx(ctx, tx, id, reason); e != nil {
 		return e
 	}
+	var jobID string
+	if e = tx.QueryRowContext(ctx, `SELECT production_job_id FROM production_consumptions WHERE id=?`, id).Scan(&jobID); e != nil {
+		return e
+	}
+	if e = s.reconcileJobCOGSTx(ctx, tx, jobID); e != nil {
+		return e
+	}
 	return tx.Commit()
 }
 func (s *Store) reverseProductionConsumptionTx(ctx context.Context, tx *sql.Tx, id, reason string) error {
 	var e error
 	fail := func(e error) error { return e }
 	var job, material string
-	var consumed, waste, cost int64
-	if e = tx.QueryRowContext(ctx, `SELECT production_job_id,material_id,consumed_quantity_units,waste_quantity_units,unit_cost_rial FROM production_consumptions WHERE id=?`, id).Scan(&job, &material, &consumed, &waste, &cost); errors.Is(e, sql.ErrNoRows) {
+	var consumed, waste, cost, materialCost, wasteCost int64
+	if e = tx.QueryRowContext(ctx, `SELECT production_job_id,material_id,consumed_quantity_units,waste_quantity_units,unit_cost_rial,material_cost_rial,waste_cost_rial FROM production_consumptions WHERE id=?`, id).Scan(&job, &material, &consumed, &waste, &cost, &materialCost, &wasteCost); errors.Is(e, sql.ErrNoRows) {
 		return fail(domain.ErrConsumptionNotFound)
 	}
 	if e != nil {
@@ -771,13 +808,13 @@ func (s *Store) reverseProductionConsumptionTx(ctx context.Context, tx *sql.Tx, 
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	if consumed > 0 {
-		total, _ := domain.MulQuantityRial(domain.Quantity(consumed), cost)
+		total := materialCost
 		if _, e = tx.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, "MOV-CORRECT-"+id+"-C", material, now, "production_consumption", consumed, cost, total, "production_correction", id, reason, now); e != nil {
 			return fail(e)
 		}
 	}
 	if waste > 0 {
-		total, _ := domain.MulQuantityRial(domain.Quantity(waste), cost)
+		total := wasteCost
 		if _, e = tx.ExecContext(ctx, `INSERT INTO inventory_movements(id,material_id,occurred_at,movement_type,quantity_delta_units,unit_cost_rial,total_cost_rial,reference_type,reference_id,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, "MOV-CORRECT-"+id+"-W", material, now, "waste", waste, cost, total, "production_correction", id, reason, now); e != nil {
 			return fail(e)
 		}

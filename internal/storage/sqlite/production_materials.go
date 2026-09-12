@@ -151,6 +151,9 @@ func syncProductionMaterialsTx(ctx context.Context, tx *sql.Tx, jobID string) er
 	if qty <= 0 || outsource > qty {
 		return fmt.Errorf("order quantity cannot be below the outsourced quantity")
 	}
+	if _, err := tx.ExecContext(ctx, `UPDATE production_jobs SET cost_breakdown_json=(SELECT cost_breakdown_json FROM order_items WHERE id=?) WHERE id=?`, itemID, jobID); err != nil {
+		return err
+	}
 	if _, err := tx.ExecContext(ctx, `UPDATE production_jobs SET quantity_units=?,quantity_unit=(SELECT quantity_unit FROM order_items WHERE id=?),service_name_snapshot=(SELECT service_name_snapshot FROM order_items WHERE id=?),estimated_cost_rial=(SELECT estimated_cost_rial FROM order_items WHERE id=?) WHERE id=?`, qty, itemID, itemID, itemID, jobID); err != nil {
 		return err
 	}

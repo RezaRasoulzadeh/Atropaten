@@ -19,6 +19,9 @@ import {
 } from '../../wailsjs/go/main/App'
 
 export interface ProductionJobRecord {
+  estimatedConversionCostRial: number
+  remainingMaterialCostRial: number
+  projectedCostRial: number
   outsourceQuantity: string
   outsourceUnitCostRial: number
   outsourceFinancialAccountId: string

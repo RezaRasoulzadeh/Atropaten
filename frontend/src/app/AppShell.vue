@@ -423,6 +423,7 @@ function openNewOrder() {
     remainingRial: 0,
     estimatedCostRial: 0,
     actualCostRial: 0,
+    projectedCostRial: 0,
     marginRial: 0,
     marginPercentage: '',
     productionJobCount: 0,

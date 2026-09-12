@@ -135,7 +135,7 @@ func TestProductionOrderEditsOverridesConsumptionAndPartialOutsourcing(t *testin
 		t.Fatalf("cost=%d err=%v", cost, err)
 	}
 	view, err := application.NewOrdersService(s, s, nil).Get(ctx, o.ID)
-	if err != nil || view.ActualCostRial != 4000 || view.MarginRial != 6000 {
+	if err != nil || view.ActualCostRial != 4000 || view.ProjectedCostRial != 5200 || view.MarginRial != 4800 {
 		t.Fatalf("order=%+v err=%v", view, err)
 	}
 	journals := countRows(t, s, "SELECT COUNT(*) FROM journal_entries")

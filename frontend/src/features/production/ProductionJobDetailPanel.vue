@@ -73,7 +73,7 @@ function money(value: number) {
         <div class="flex items-center gap-2"><FileText :size="17" class="text-primary" aria-hidden="true" /><h3 class="text-sm font-semibold">Cost and schedule</h3></div>
         <dl class="mt-3 divide-y divide-base-300/70 text-sm">
           <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Estimated cost</dt><dd class="tabular-nums">{{ money(selected?.estimatedCostRial || 0) }}</dd></div>
-          <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Actual cost</dt><dd class="tabular-nums">{{ money(selected?.actualTotalCostRial || 0) }}</dd></div>
+          <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Recorded cost</dt><dd class="tabular-nums">{{ money(selected?.actualTotalCostRial || 0) }}</dd></div>
           <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Started</dt><dd class="text-end">{{ date(selected?.startedAt || '') }}</dd></div>
           <div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-base-content/60">Completed</dt><dd class="text-end">{{ date(selected?.completedAt || '') }}</dd></div>
         </dl>
@@ -81,7 +81,7 @@ function money(value: number) {
 
       <div class="rounded-box border border-base-300 bg-base-200/20 p-4">
         <div class="flex items-center gap-2"><Clock3 :size="17" class="text-primary" aria-hidden="true" /><h3 class="text-sm font-semibold">Production tracking</h3></div>
-        <div class="mt-3 grid grid-cols-2 gap-2 text-xs"><div class="rounded-box bg-base-200 p-3"><span class="block text-base-content/55">Reservations</span><strong class="mt-1 block text-sm">Manage in wizard</strong></div><div class="rounded-box bg-base-200 p-3"><span class="block text-base-content/55">Consumption</span><strong class="mt-1 block text-sm">Manage in wizard</strong></div></div>
+        <p class="mt-3 text-sm leading-6 text-base-content/65">Review the Materials plan, start production, then complete the job to record remaining stock usage. Waste and corrections are available in Materials.</p>
       </div>
 
       <div v-if="selected?.notes" class="rounded-box border border-base-300 bg-base-200/20 p-4"><h3 class="text-sm font-semibold">Notes</h3><p class="mt-2 whitespace-pre-wrap text-sm leading-6 text-base-content/70">{{ selected.notes }}</p></div>

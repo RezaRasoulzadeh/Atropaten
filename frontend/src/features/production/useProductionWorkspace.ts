@@ -60,13 +60,9 @@ export function useProductionWorkspace(
   const outsourceAccount = ref('');
   const initializedJobId = ref('');
   let selectionRequest = 0;
-  const consumptionLimit = computed(() => {
-    const id = consumptionMaterial.value;
-    const material = stockMaterials.value.find(m => m.id === id);
-    const reserved = reservations.value.filter(r => r.materialId === id && r.status === 'active').reduce((n,r) => n+Number(r.quantity),0);
-    const existing = consumptions.value.find(c => c.id === editingConsumptionId.value && !c.reversed);
-    return Math.max(0,Number(material?.availableStock || 0)+reserved+Number(existing?.consumedQuantity || 0)+Number(existing?.wasteQuantity || 0)-Number(parseQuantityInput(wasteQuantity.value || '0') || 0));
-  });
+  const reservedConsumptionQuantity = computed(() => reservations.value
+    .filter(r => r.materialId === consumptionMaterial.value && r.status === 'active')
+    .reduce((quantity, reservation) => quantity + Number(reservation.quantity), 0));
   const outsourceTotal = computed(() => Math.round(Number(parseQuantityInput(outsourceQuantity.value || '0')) * (parseMoneyInput(outsourceCost.value,props.currencyUnit) || 0)));
   const canConsume = computed(() => !!selected.value && ['In Progress','Paused'].includes(selected.value.status) && Number(selected.value.outsourceQuantity || 0) < Number(selected.value.quantity));
   const editableJob = computed(() => !!selected.value && !['Completed','Cancelled'].includes(selected.value.status));
@@ -176,15 +172,14 @@ export function useProductionWorkspace(
     outsourceAccount.value=job?.outsourceFinancialAccountId || financialAccounts.value.find(a => a.type==='cash')?.id || financialAccounts.value[0]?.id || '';
   }
   function suggestConsumption() {
-    const amount=reservations.value.filter(r=>r.materialId===consumptionMaterial.value && r.status==='active').reduce((n,r)=>n+Number(r.quantity),0);
-    consumedQuantity.value=String(amount);
+    consumedQuantity.value=String(reservedConsumptionQuantity.value);
     wasteQuantity.value='0';
     consumptionKey.value='';
     editingConsumptionId.value=null;
   }
   function updateConsumptionSlider(event: Event) {
     const percent=Number((event.target as HTMLInputElement).value);
-    consumedQuantity.value=String(Math.round(consumptionLimit.value*percent/100*1000000)/1000000);
+    consumedQuantity.value=String(Math.round(reservedConsumptionQuantity.value*percent/100*1000000)/1000000);
   }
   function editConsumption(record: ConsumptionRecord) {
     if(record.reversed)return;
@@ -201,13 +196,14 @@ export function useProductionWorkspace(
       try {
         await productionApi.setMaterialTarget(selected.value.id,plan.materialId,parseQuantityInput(value));
         await select(selected.value.id);
+        await refreshOrder(selected.value!.orderId);
         emit('notify','Material plan updated.');
       } catch(e){toast.error(message(e,'Material plan could not be updated.'));}
     });
   }
   async function updateReservation(record: ReservationRecord, value: string) {
     return runAction(async()=>{
-      try { await productionApi.updateReservation(record.id,parseQuantityInput(value)); if(selected.value)await select(selected.value.id); }
+      try { await productionApi.updateReservation(record.id,parseQuantityInput(value)); if(selected.value){await select(selected.value.id);await refreshOrder(selected.value!.orderId);} }
       catch(e){toast.error(message(e,'Reservation could not be updated.'));}
     });
   }
@@ -385,6 +381,7 @@ export function useProductionWorkspace(
         reservations.value = await productionApi.reservations('', selected.value.id, '');
         await load();
         emit('notify', 'Inventory reserved without creating a movement.');
+        if(selected.value)await refreshOrder(selected.value.orderId);
       } catch (e) {
         toast.error(message(e, 'Reservation exceeds available stock or is invalid.'));
       }
@@ -394,7 +391,7 @@ export function useProductionWorkspace(
     return runAction(async () => {
       try {
         await productionApi.releaseReservation(r.id);
-        if (selected.value) await select(selected.value.id);
+        if (selected.value) { await select(selected.value.id);await refreshOrder(selected.value!.orderId); }
       } catch (e) {
         toast.error(message(e, 'Reservation could not be released.'));
       }
@@ -513,7 +510,7 @@ export function useProductionWorkspace(
   }
   return {
     materialPlans, consumptions, stockMaterials, financialAccounts, materialsError, editingConsumptionId,
-    outsourceQuantity, outsourceAccount, outsourceTotal, consumptionLimit, canConsume, editableJob,
+    outsourceQuantity, outsourceAccount, outsourceTotal, reservedConsumptionQuantity, canConsume, editableJob,
     suggestConsumption, updateConsumptionSlider, editConsumption, correctConsumption, saveMaterialTarget, updateReservation, resetOutsourceDraft,
     busy,
     runAction,

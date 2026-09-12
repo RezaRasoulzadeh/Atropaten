@@ -654,6 +654,11 @@ var migrations = []migration{{
 		 PRIMARY KEY(production_job_id,material_id)
 		);`,
 	},
+	{
+		version: 25,
+		sql: `ALTER TABLE production_jobs ADD COLUMN cost_breakdown_json TEXT NOT NULL DEFAULT '{}';
+		UPDATE production_jobs SET cost_breakdown_json=COALESCE((SELECT cost_breakdown_json FROM order_items WHERE id=production_jobs.order_item_id),'{}');`,
+	},
 }
 
 func (s *Store) seedAccounting(ctx context.Context) error {

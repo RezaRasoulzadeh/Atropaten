@@ -26,8 +26,8 @@ const props = defineProps<{
 const emit = defineEmits<{ back: [] }>()
 const {
   materialPlans, consumptions, stockMaterials, financialAccounts, materialsError, editingConsumptionId,
-  outsourceQuantity, outsourceAccount, outsourceTotal, consumptionLimit, canConsume, editableJob,
-  suggestConsumption, updateConsumptionSlider, editConsumption, correctConsumption, saveMaterialTarget, updateReservation,
+  outsourceQuantity, outsourceAccount, outsourceTotal, reservedConsumptionQuantity, canConsume, editableJob,
+  suggestConsumption, updateConsumptionSlider, editConsumption, correctConsumption, updateReservation,
   busy,
   selected,
   selectedOrder,
@@ -55,22 +55,19 @@ const {
 } = props.workspace
 
 const activeStep = ref(1)
-const planDrafts = ref<Record<string,string>>({})
 const reservationDrafts = ref<Record<string,string>>({})
-watch(materialPlans, plans => { planDrafts.value=Object.fromEntries(plans.map(p=>[p.materialId,p.planned])) },{immediate:true})
+const usageExpanded = ref(false)
 watch(reservations, rows => { reservationDrafts.value=Object.fromEntries(rows.map(r=>[r.id,r.quantity])) },{immediate:true})
-const consumptionPercentage = computed(()=>consumptionLimit.value>0 ? Math.min(100,Math.max(0,Number(parseQuantityInput(consumedQuantity.value || '0'))/consumptionLimit.value*100)) : 0)
+const consumptionPercentage = computed(()=>reservedConsumptionQuantity.value>0 ? Math.min(100,Math.max(0,Number(parseQuantityInput(consumedQuantity.value || '0'))/reservedConsumptionQuantity.value*100)) : 0)
 const activeReservations = computed(()=>reservations.value.filter(r=>r.status==='active'))
 const selectedMaterial = computed(()=>stockMaterials.value.find(m=>m.id===consumptionMaterial.value))
-const suggestedReserved = computed(()=>activeReservations.value.filter(r=>r.materialId===consumptionMaterial.value).reduce((n,r)=>n+Number(r.quantity),0))
-function useReservation(r: typeof reservations.value[number]) { consumeReservation(r); activeStep.value=3 }
-function openConsumptionEdit(r: typeof consumptions.value[number]) { editConsumption(r); activeStep.value=3 }
+function useReservation(r: typeof reservations.value[number]) { consumeReservation(r); usageExpanded.value=true }
+function openConsumptionEdit(r: typeof consumptions.value[number]) { editConsumption(r); usageExpanded.value=true }
 
 const steps = [
   { number: 1, title: 'Overview', description: 'Status, order, cost, and schedule' },
-  { number: 2, title: 'Reservations', description: 'Reserve required materials' },
-  { number: 3, title: 'Consumption', description: 'Post material usage and waste' },
-  { number: 4, title: 'Outsourcing', description: 'Track external production' },
+  { number: 2, title: 'Materials', description: 'Plan stock, adjust usage, and record waste' },
+  { number: 3, title: 'Outsourcing', description: 'Track external production' },
 ]
 const currentStep = computed(() => steps.find((step) => step.number === activeStep.value) ?? steps[0])
 const machineName = computed(() => props.machines.find((machine) => machine.id === selected.value?.assignedMachineId)?.name || 'Unassigned')
@@ -78,7 +75,7 @@ const customerName = computed(() => selectedOrder.value?.customerName || 'Walk-i
 const statusActions = computed(() => {
   if (!selected.value) return []
   const statuses = ['Pending', 'Ready', 'In Progress', 'Paused', 'Completed', 'Cancelled', 'Failed'] as const
-  return statuses.filter((status) => status !== selected.value?.status).map((status) => ({
+  return statuses.filter((status) => status !== selected.value?.status && (status !== 'Completed' || canConsume.value || (['In Progress','Paused'].includes(selected.value!.status)))).map((status) => ({
     status,
     label: status === 'In Progress'
       ? selected.value?.status === 'Paused' || selected.value?.status === 'Failed' ? 'Resume production' : 'Start production'
@@ -125,10 +122,11 @@ function previous() {
 
       <div class="grid min-h-0 min-w-0 flex-1 gap-4 overflow-visible xl:grid-cols-[minmax(0,1fr)_20rem] xl:overflow-hidden">
         <section class="service-wizard-form-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-6 xl:overflow-y-auto">
-          <section v-if="activeStep === 1" class="min-w-0 space-y-4"><div class="flex items-center gap-3 border-b border-base-300 pb-4"><span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/10 text-primary"><ClipboardList :size="21" aria-hidden="true" /></span><div><h2 class="text-lg font-semibold">Production overview</h2><p class="text-sm text-base-content/60">Manage the job created from this confirmed order item.</p></div></div><div class="rounded-box border border-base-300 bg-base-100/45 p-4"><div class="flex flex-wrap items-center gap-3"><span class="text-xs text-base-content/60">Current status</span><StatusBadge :label="selected.status" :tone="statusTone(selected.status)" /></div><div v-if="statusActions.length" class="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Available status actions"><span class="text-xs text-base-content/60">Move to</span><button v-for="action in statusActions" :key="action.status" type="button" class="btn btn-sm gap-2" :class="action.kind === 'primary' ? 'btn-primary' : action.kind === 'danger' ? 'btn-outline btn-error' : 'btn-outline'" :disabled="busy" @click="changeStatus(action.status)"><Play v-if="action.status === 'In Progress'" :size="14" aria-hidden="true" /><Pause v-else-if="action.status === 'Paused'" :size="14" aria-hidden="true" /><CheckCircle2 v-else-if="action.status === 'Completed'" :size="14" aria-hidden="true" /><XCircle v-else-if="action.status === 'Cancelled' || action.status === 'Failed'" :size="14" aria-hidden="true" /><CheckCircle2 v-else :size="14" aria-hidden="true" />{{ action.label }}</button></div><EmptyState v-else compact title="No further status transitions" description="This job is at its current terminal or completed state."><template #icon><CheckCircle2 :size="21" aria-hidden="true" /></template></EmptyState></div><div class="grid min-w-0 gap-4 sm:grid-cols-2"><div class="rounded-box border border-base-300 bg-base-100/45 p-4"><h3 class="text-sm font-semibold">Cost</h3><dl class="mt-3 divide-y divide-base-300/70 text-sm"><div class="flex justify-between gap-3 py-2"><dt class="text-xs text-base-content/60">Estimated</dt><dd class="tabular-nums">{{ money(selected.estimatedCostRial) }}</dd></div><div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-xs text-base-content/60">Actual</dt><dd class="tabular-nums">{{ money(selected.actualTotalCostRial) }}</dd></div></dl></div><div class="rounded-box border border-base-300 bg-base-100/45 p-4"><h3 class="text-sm font-semibold">Schedule</h3><dl class="mt-3 divide-y divide-base-300/70 text-sm"><div class="flex justify-between gap-3 py-2"><dt class="text-xs text-base-content/60">Started</dt><dd>{{ date(selected.startedAt) }}</dd></div><div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-xs text-base-content/60">Completed</dt><dd>{{ date(selected.completedAt) }}</dd></div></dl></div></div><div class="rounded-box border border-base-300 bg-base-100/45 p-4"><h3 class="text-sm font-semibold">Order link</h3><p class="mt-2 text-sm leading-6 text-base-content/70">This production job is linked to <strong>{{ selected.serviceName }}</strong> on {{ jobOrder(selected) }}. Service, quantity, and customer context are managed from the order.</p></div></section>
+          <section v-if="activeStep === 1" class="min-w-0 space-y-4"><div class="flex items-center gap-3 border-b border-base-300 pb-4"><span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/10 text-primary"><ClipboardList :size="21" aria-hidden="true" /></span><div><h2 class="text-lg font-semibold">Production overview</h2><p class="text-sm text-base-content/60">Manage the job created from this confirmed order item.</p></div></div><div class="rounded-box border border-base-300 bg-base-100/45 p-4"><div class="flex flex-wrap items-center gap-3"><span class="text-xs text-base-content/60">Current status</span><StatusBadge :label="selected.status" :tone="statusTone(selected.status)" /></div><div v-if="statusActions.length" class="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Available status actions"><span class="text-xs text-base-content/60">Move to</span><button v-for="action in statusActions" :key="action.status" type="button" class="btn btn-sm gap-2" :class="action.kind === 'primary' ? 'btn-primary' : action.kind === 'danger' ? 'btn-outline btn-error' : 'btn-outline'" :disabled="busy" @click="changeStatus(action.status)"><Play v-if="action.status === 'In Progress'" :size="14" aria-hidden="true" /><Pause v-else-if="action.status === 'Paused'" :size="14" aria-hidden="true" /><CheckCircle2 v-else-if="action.status === 'Completed'" :size="14" aria-hidden="true" /><XCircle v-else-if="action.status === 'Cancelled' || action.status === 'Failed'" :size="14" aria-hidden="true" /><CheckCircle2 v-else :size="14" aria-hidden="true" />{{ action.label }}</button></div><EmptyState v-else compact title="No further status transitions" description="This job is at its current terminal or completed state."><template #icon><CheckCircle2 :size="21" aria-hidden="true" /></template></EmptyState></div><div class="grid min-w-0 grid-cols-1 gap-4"><div class="rounded-box border border-base-300 bg-base-100/45 p-4"><h3 class="text-sm font-semibold">Cost</h3><dl class="mt-3 divide-y divide-base-300/70 text-sm"><div class="flex justify-between gap-3 py-2"><dt class="text-xs text-base-content/60">Estimated</dt><dd class="shrink-0 whitespace-nowrap tabular-nums">{{ money(selected.estimatedCostRial) }}</dd></div><div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-xs text-base-content/60">Recorded materials & outsourcing</dt><dd class="shrink-0 whitespace-nowrap tabular-nums">{{ money(selected.actualTotalCostRial) }}</dd></div><div class="flex justify-between gap-3 py-2"><dt class="text-xs text-base-content/60">Remaining materials</dt><dd class="shrink-0 whitespace-nowrap tabular-nums">{{ money(selected.remainingMaterialCostRial) }}</dd></div><div class="flex justify-between gap-3 py-2"><dt class="text-xs text-base-content/60">Machine, labor & overhead estimate</dt><dd class="shrink-0 whitespace-nowrap tabular-nums">{{ money(selected.estimatedConversionCostRial) }}</dd></div><div class="flex justify-between gap-3 py-2 font-semibold"><dt class="text-xs">Expected total cost</dt><dd class="shrink-0 whitespace-nowrap tabular-nums">{{ money(selected.projectedCostRial) }}</dd></div></dl><p class="mt-3 text-xs leading-5 text-base-content/55">Complete the job to record the remaining planned materials. Machine, labor and overhead remain estimates; business profit uses posted expenses.</p></div><div class="rounded-box border border-base-300 bg-base-100/45 p-4"><h3 class="text-sm font-semibold">Schedule</h3><dl class="mt-3 divide-y divide-base-300/70 text-sm"><div class="flex justify-between gap-3 py-2"><dt class="text-xs text-base-content/60">Started</dt><dd>{{ date(selected.startedAt) }}</dd></div><div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-xs text-base-content/60">Completed</dt><dd>{{ date(selected.completedAt) }}</dd></div></dl></div></div><div class="rounded-box border border-base-300 bg-base-100/45 p-4"><h3 class="text-sm font-semibold">Order link</h3><p class="mt-2 text-sm leading-6 text-base-content/70">This production job is linked to <strong>{{ selected.serviceName }}</strong> on {{ jobOrder(selected) }}. Service, quantity, and customer context are managed from the order.</p></div></section>
 
           <section v-else-if="activeStep === 2" class="min-w-0 space-y-4">
             <header><h2 class="text-lg font-semibold">Order materials</h2><p class="mt-1 text-sm text-base-content/60">Linked to {{ selected.serviceName }} · {{ selected.quantity }} {{ selected.quantityUnit }}. Order edits update this plan; your adjustments are retained.</p></header>
+            <p class="rounded-box border border-info/25 bg-info/5 p-3 text-sm leading-6">Review the total material allowance here. Available stock is reserved automatically. Completing the job records the remaining planned materials at inventory cost. You can record usage or waste early below; it will not be counted twice. Include waste in the total allowance.</p>
             <p v-if="materialsError" class="rounded-box border border-error/30 p-3 text-sm text-error" role="alert">{{ materialsError }}</p>
             <LoadingState v-if="reservationsLoading" label="Updating material quantities…" />
             <template v-else>
@@ -140,10 +138,9 @@ function previous() {
                   <div><dt class="text-base-content/55">Used</dt><dd class="mt-1 text-sm tabular-nums">{{ plan.used }}</dd></div>
                   <div><dt class="text-base-content/55">Free stock</dt><dd class="mt-1 text-sm tabular-nums">{{ plan.available }}</dd></div>
                 </dl>
-                <div class="flex items-end gap-2"><FormField class="min-w-0 flex-1" label="Planned material for in-house work"><AppInput v-model="planDrafts[plan.materialId]" inputmode="decimal" :disabled="busy || !editableJob" /></FormField><button class="btn btn-outline btn-sm mb-1" type="button" :disabled="busy || !editableJob" @click="saveMaterialTarget(plan,planDrafts[plan.materialId] || '0')">Update plan</button></div>
                 <p v-if="Number(plan.shortage)>0" class="text-xs text-warning" role="status">{{ plan.shortage }} {{ plan.unit }} still needed. Only available stock is reserved.</p>
               </div>
-              <p v-if="!materialPlans.length && !materialsError" class="border-t border-base-300 pt-4 text-sm text-base-content/60">This service has no linked material requirement. You can reserve extra material below or consume available stock in the next step.</p>
+              <p v-if="!materialPlans.length && !materialsError" class="border-t border-base-300 pt-4 text-sm text-base-content/60">This service has no linked material requirement. Add material below if needed; reserved quantities will be recorded on completion.</p>
               <div class="border-t border-base-300 pt-4">
                 <h3 class="text-sm font-semibold">Stock reserved for this job</h3>
                 <p class="mt-1 text-xs text-base-content/55">Blocked from other jobs until used or released.</p>
@@ -159,25 +156,26 @@ function previous() {
                 <button class="btn btn-outline btn-sm mt-3" :disabled="busy || !editableJob" @click="reserve">Add reservation</button>
               </details>
             </template>
-          </section>
-
-          <section v-else-if="activeStep === 3" class="min-w-0 space-y-4">
-            <header><h2 class="text-lg font-semibold">{{ editingConsumptionId ? 'Correct material usage' : 'Use materials' }}</h2><p class="mt-1 text-sm text-base-content/60">Use this job’s reservations first, then free stock. Stock reserved for other jobs stays protected.</p></header>
+            <details :open="usageExpanded" class="min-w-0 space-y-4 border-t border-base-300 pt-4" @toggle="usageExpanded=($event.target as HTMLDetailsElement).open">
+            <summary class="cursor-pointer text-sm font-semibold">{{ editingConsumptionId ? 'Correct material usage' : 'Record early usage or waste (optional)' }}</summary>
+            <p class="text-sm text-base-content/60">Use this job’s reservations first, then free stock. Enter only the additional quantity used in this entry.</p>
             <p v-if="!canConsume" class="text-sm text-warning">Start or resume in-house production from Overview before posting material usage.</p>
             <SelectField v-model="consumptionMaterial" label="Material" :options="[{label:'Select material',value:''},...stockMaterials.map(m=>({label:m.name,value:m.id}))]" @update:model-value="suggestConsumption" />
-            <div v-if="selectedMaterial" class="flex flex-wrap gap-x-5 gap-y-1 text-xs text-base-content/60"><span>Reserved: {{ suggestedReserved }} {{ selectedMaterial.consumptionUnit }}</span><span>Free stock: {{ selectedMaterial.availableStock }} {{ selectedMaterial.consumptionUnit }}</span></div>
+            <div v-if="selectedMaterial" class="flex flex-wrap gap-x-5 gap-y-1 text-xs text-base-content/60"><span>Reserved: {{ reservedConsumptionQuantity }} {{ selectedMaterial.consumptionUnit }}</span><span>Free stock: {{ selectedMaterial.availableStock }} {{ selectedMaterial.consumptionUnit }}</span></div>
             <FormGrid>
               <FormField label="Used quantity">
-                <div class="relative"><AppInput v-model="consumedQuantity" class="pe-14" inputmode="decimal" /><button type="button" class="absolute inset-y-1 end-1 rounded px-2 text-xs font-medium text-primary hover:bg-primary/10" :disabled="busy || !canConsume" @click="consumedQuantity=String(consumptionLimit)">Max</button></div>
+                <div class="relative"><AppInput v-model="consumedQuantity" class="pe-14" inputmode="decimal" /><button type="button" class="absolute inset-y-1 end-1 rounded px-2 text-xs font-medium text-primary hover:bg-primary/10" :disabled="busy || !canConsume" @click="consumedQuantity=String(reservedConsumptionQuantity)">Max</button></div>
               </FormField>
               <FormField label="Waste"><AppInput v-model="wasteQuantity" inputmode="decimal" /></FormField>
             </FormGrid>
             <div class="payment-slider my-3 w-full overflow-visible">
-              <input class="range range-primary range-sm w-full" type="range" min="0" max="100" step="5" :value="consumptionPercentage" :disabled="busy || !canConsume || !consumptionLimit" aria-label="Material usage percentage" :aria-valuetext="Math.round(consumptionPercentage)+'% of stock available to this job'" @input="updateConsumptionSlider" />
+              <input class="range range-primary range-sm w-full" type="range" min="0" max="100" step="5" :value="consumptionPercentage" :disabled="busy || !canConsume || !reservedConsumptionQuantity" aria-label="Reserved material usage percentage" :aria-valuetext="Math.round(consumptionPercentage)+'% of reserved material'" @input="updateConsumptionSlider" />
               <div class="relative mx-2.5 mt-1 h-3 text-[10px] leading-3 text-base-content/40" aria-hidden="true"><span v-for="mark in [0,25,50,75,100]" :key="mark" class="absolute -translate-x-1/2" :style="{left:mark+'%'}">|</span></div>
               <div class="relative mx-2.5 mt-1 h-4 text-xs leading-4 text-base-content/50" aria-hidden="true"><span v-for="mark in [0,25,50,75,100]" :key="mark" class="absolute -translate-x-1/2" :style="{left:mark+'%'}">{{ mark }}</span></div>
             </div>
+            <p class="text-xs text-base-content/55">The slider and Max use the reserved quantity. Type a larger quantity to use additional free stock.</p>
             <div class="flex flex-wrap gap-2"><button class="btn btn-primary btn-sm" :disabled="busy || !canConsume || !consumptionMaterial" @click="consume">{{ editingConsumptionId ? 'Save correction' : 'Record usage' }}</button><button class="btn btn-ghost btn-sm" :disabled="busy" @click="suggestConsumption">{{ editingConsumptionId ? 'Cancel correction' : 'Use reserved quantity' }}</button></div>
+            </details>
             <div class="border-t border-base-300 pt-4">
               <h3 class="text-sm font-semibold">Material usage history</h3>
               <p v-if="!consumptions.length" class="mt-3 text-sm text-base-content/55">No material has been used yet.</p>
@@ -195,7 +193,7 @@ function previous() {
             <FormGrid><SelectField v-model="outsourceSupplier" label="Supplier" :options="[{label:'Select supplier',value:''},...props.suppliers.map(s=>({label:s.name,value:s.id}))]" /><SelectField v-model="outsourceAccount" label="Expense payment account" :options="[{label:'Select account',value:''},...financialAccounts.map(a=>({label:a.name,value:a.id}))]" /></FormGrid>
             <FormField label="Scope / notes"><AppInput v-model="outsourceDescription" placeholder="External production details" /></FormField>
             <p class="text-sm leading-6 text-base-content/65">The outsourced share releases reserved stock and returns its share of used material. The expense replaces that material cost in the order margin. Further changes update the same expense.</p>
-            <p class="text-xs text-base-content/55">Reducing outsourcing makes stock available for reservation again; material usage must be posted when that work is done in-house.</p>
+            <p class="text-xs text-base-content/55">Reducing outsourcing restores the in-house material plan. Completing the job records the remaining materials automatically.</p>
             <button class="btn btn-primary btn-sm" :disabled="busy || !editableJob" @click="saveOutsource">Apply outsourcing</button>
             <p v-if="Number(selected.outsourceQuantity)>0" class="text-xs text-success">Saved: {{ selected.outsourceQuantity }} {{ selected.quantityUnit }} × {{ money(selected.outsourceUnitCostRial) }} = {{ money(selected.actualOutsourcedCostRial) }}</p>
           </section>

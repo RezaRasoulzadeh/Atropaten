@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -26,6 +27,9 @@ type OrderProductionLookup interface {
 }
 type OrderProductionCostLookup interface {
 	ProductionCostSummary(context.Context, string) (int64, error)
+}
+type OrderProductionForecastLookup interface {
+	ProductionProjectedCostSummary(context.Context, string) (int64, error)
 }
 type OrderPaymentLookup interface {
 	OrderPaymentSummary(context.Context, string) (int64, int64, domain.PaymentStatus, error)
@@ -51,6 +55,7 @@ type OrderItemInput struct {
 	Notes                    string
 }
 type OrderView struct {
+	ProjectedCostRial                                                     int64
 	ID, OrderNumber, CustomerID, CustomerName, CustomerPhone, Notes       string
 	CreatedAt, UpdatedAt                                                  string
 	PromisedAt                                                            *string
@@ -104,8 +109,14 @@ func (s *OrdersService) List(ctx context.Context) ([]OrderView, error) {
 			if err != nil {
 				return nil, err
 			}
-			setOrderMargin(&view)
 		}
+		if lookup, ok := s.repository.(OrderProductionForecastLookup); ok {
+			view.ProjectedCostRial, err = lookup.ProductionProjectedCostSummary(ctx, row.ID)
+			if err != nil {
+				return nil, err
+			}
+		}
+		setOrderMargin(&view)
 		if lookup, ok := s.repository.(OrderPaymentLookup); ok {
 			var status domain.PaymentStatus
 			view.PaidRial, view.RemainingRial, status, err = lookup.OrderPaymentSummary(ctx, row.ID)
@@ -201,8 +212,14 @@ func (s *OrdersService) enrich(ctx context.Context, view OrderView) (OrderView, 
 		if err != nil {
 			return OrderView{}, err
 		}
-		setOrderMargin(&view)
 	}
+	if lookup, ok := s.repository.(OrderProductionForecastLookup); ok {
+		view.ProjectedCostRial, err = lookup.ProductionProjectedCostSummary(ctx, view.ID)
+		if err != nil {
+			return OrderView{}, err
+		}
+	}
+	setOrderMargin(&view)
 	if lookup, ok := s.repository.(OrderPaymentLookup); ok {
 		var status domain.PaymentStatus
 		view.PaidRial, view.RemainingRial, status, err = lookup.OrderPaymentSummary(ctx, view.ID)
@@ -476,7 +493,7 @@ func (s *OrdersService) saveStatus(ctx context.Context, row domain.Order) (Order
 	return s.enrich(ctx, orderView(row))
 }
 func orderView(o domain.Order) OrderView {
-	v := OrderView{ID: o.ID, OrderNumber: o.OrderNumber, CustomerID: o.CustomerID, CustomerName: o.CustomerNameSnapshot, CustomerPhone: o.CustomerPhoneSnapshot, Notes: o.Notes, CreatedAt: o.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: o.UpdatedAt.UTC().Format(time.RFC3339Nano), Priority: string(o.Priority), CommercialStatus: string(o.CommercialStatus), FulfillmentStatus: string(o.FulfillmentStatus), PaymentStatus: string(o.PaymentStatus), Archived: o.Archived, SubtotalRial: o.SubtotalRial, DiscountRial: o.DiscountRial, TotalRial: o.TotalRial, EstimatedCostRial: o.EstimatedCostRial}
+	v := OrderView{ProjectedCostRial: o.EstimatedCostRial, ID: o.ID, OrderNumber: o.OrderNumber, CustomerID: o.CustomerID, CustomerName: o.CustomerNameSnapshot, CustomerPhone: o.CustomerPhoneSnapshot, Notes: o.Notes, CreatedAt: o.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: o.UpdatedAt.UTC().Format(time.RFC3339Nano), Priority: string(o.Priority), CommercialStatus: string(o.CommercialStatus), FulfillmentStatus: string(o.FulfillmentStatus), PaymentStatus: string(o.PaymentStatus), Archived: o.Archived, SubtotalRial: o.SubtotalRial, DiscountRial: o.DiscountRial, TotalRial: o.TotalRial, EstimatedCostRial: o.EstimatedCostRial}
 	if o.PromisedAt != nil {
 		x := o.PromisedAt.UTC().Format(time.RFC3339Nano)
 		v.PromisedAt = &x
@@ -488,8 +505,11 @@ func orderView(o domain.Order) OrderView {
 }
 
 func setOrderMargin(view *OrderView) {
-	view.MarginRial = view.TotalRial - view.ActualCostRial
+	view.MarginRial = view.TotalRial - view.ProjectedCostRial
+	view.MarginPercentage = "0.00"
 	if view.TotalRial > 0 {
-		view.MarginPercentage = fmt.Sprintf("%.2f", float64(view.MarginRial)*100/float64(view.TotalRial))
+		ratio := new(big.Rat).SetFrac(big.NewInt(view.MarginRial), big.NewInt(view.TotalRial))
+		ratio.Mul(ratio, big.NewRat(100, 1))
+		view.MarginPercentage = ratio.FloatString(2)
 	}
 }

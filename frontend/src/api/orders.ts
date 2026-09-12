@@ -55,6 +55,7 @@ export interface OrderRecord {
   remainingRial: number
   estimatedCostRial: number
   actualCostRial: number
+  projectedCostRial: number
   marginRial: number
   marginPercentage: string
   productionJobCount: number

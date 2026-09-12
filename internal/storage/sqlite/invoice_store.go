@@ -262,7 +262,7 @@ func (s *Store) PostInvoice(ctx context.Context, id string) error {
 
 // COGS recognition boundary: invoice posting recognizes the exact net cost of
 // production consumption and waste movements already linked to this order.
-// It never consults current catalog prices and never backfills later movements.
+// Later movements are recognized by separate production cost adjustments.
 func (s *Store) orderCOGSValueTx(ctx context.Context, tx *sql.Tx, orderID string) (int64, error) {
 	if orderID == "" {
 		return 0, nil
@@ -329,6 +329,7 @@ func (s *Store) VoidInvoice(ctx context.Context, id string) error {
 			return fail(err)
 		}
 	}
+	if err=s.reverseInvoiceCOGSAdjustmentsTx(ctx,tx,id);err!=nil { return fail(err) }
 	if _, err = tx.ExecContext(ctx, `UPDATE invoices SET status='Voided',updated_at=? WHERE id=?`, time.Now().UTC().Format(time.RFC3339Nano), id); err != nil {
 		return fail(err)
 	}

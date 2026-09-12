@@ -39,6 +39,7 @@ type InventoryReservation struct {
 }
 
 type ProductionJob struct {
+	EstimatedConversionCostRial, RemainingMaterialCostRial, ProjectedCostRial                                                  int64
 	OutsourceQuantity                                                                                                          Quantity
 	OutsourceUnitCostRial                                                                                                      int64
 	OutsourceFinancialAccountID                                                                                                string

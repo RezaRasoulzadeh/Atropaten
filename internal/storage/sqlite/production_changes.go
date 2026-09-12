@@ -99,6 +99,9 @@ func (s *Store) UpdateProductionConsumption(ctx context.Context, id, key string,
 			return err
 		}
 	}
+	if err = s.reconcileJobCOGSTx(ctx, tx, jobID); err != nil {
+		return err
+	}
 	if err = syncProductionMaterialsTx(ctx, tx, jobID); err != nil {
 		return err
 	}
