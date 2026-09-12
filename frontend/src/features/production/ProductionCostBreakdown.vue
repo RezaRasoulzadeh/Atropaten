@@ -45,7 +45,7 @@ function money(value: number) {
         <dd class="whitespace-nowrap tabular-nums">{{ money(job.remainingMaterialCostRial) }}</dd>
       </div>
       <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2">
-        <dt class="text-xs text-base-content/60">Machine, labor &amp; overhead estimate</dt>
+        <dt class="text-xs text-base-content/60">Machine, labor &amp; other estimates</dt>
         <dd class="whitespace-nowrap tabular-nums">{{ money(job.estimatedConversionCostRial) }}</dd>
       </div>
       <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2 font-semibold">
@@ -53,9 +53,14 @@ function money(value: number) {
         <dd class="whitespace-nowrap tabular-nums">{{ money(job.projectedCostRial) }}</dd>
       </div>
     </dl>
+    <p v-if="job.projectedCostRial !== job.estimatedCostRial" class="mt-3 text-xs text-base-content/70">
+      {{ money(Math.abs(job.projectedCostRial - job.estimatedCostRial)) }}
+      {{ job.projectedCostRial < job.estimatedCostRial ? 'below' : 'above' }} the original order estimate.
+    </p>
     <p class="mt-3 text-xs leading-5 text-base-content/55">
       Total includes the five components above; the original estimate is for comparison only.
-      Material costs are net of returns and corrections. Machine, labor and overhead remain estimates; business profit uses posted expenses.
+      Quoted materials use the highest purchase price; consumed materials use the stock's weighted average cost, net of returns and corrections.
+      Remaining materials use current stock cost. Other production costs keep their saved estimates.
     </p>
   </section>
 </template>

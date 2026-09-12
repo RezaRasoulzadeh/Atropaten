@@ -193,6 +193,10 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 	if err != nil {
 		return PricingResult{}, err
 	}
+	suggested, err = MulQuantitySellingPriceRial(QuantityScale, suggested)
+	if err != nil {
+		return PricingResult{}, err
+	}
 	result.SuggestedSellingPriceRial = suggested
 	result.Warnings = append(result.Warnings, warnings...)
 	result.EffectiveSellingPriceRial = suggested
@@ -200,7 +204,10 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 		if *input.SellingPriceOverrideRial < 0 {
 			return PricingResult{}, fmt.Errorf("selling price override cannot be negative")
 		}
-		result.EffectiveSellingPriceRial = *input.SellingPriceOverrideRial
+		result.EffectiveSellingPriceRial, err = MulQuantitySellingPriceRial(QuantityScale, *input.SellingPriceOverrideRial)
+		if err != nil {
+			return PricingResult{}, err
+		}
 	}
 	result.ProfitRial, err = subtractMoney(result.EffectiveSellingPriceRial, total)
 	if err != nil {
@@ -274,6 +281,25 @@ func scaledMoney(quantity Quantity, rate int64) (int64, error) {
 
 func scaledMoneyCeil(quantity Quantity, rate int64) (int64, error) {
 	return ceilBig(new(big.Int).Mul(big.NewInt(int64(quantity)), big.NewInt(rate)), big.NewInt(QuantityScale))
+}
+
+// Customer charges round upward in 100-toman (1,000-Rial) increments.
+// Round the exact quantity product once; stock and cost arithmetic stay exact.
+func MulQuantitySellingPriceRial(quantity Quantity, rate int64) (int64, error) {
+	if quantity < 0 || rate < 0 {
+		return 0, fmt.Errorf("selling price and quantity cannot be negative")
+	}
+	const increment = int64(1000)
+	n := new(big.Int).Mul(big.NewInt(int64(quantity)), big.NewInt(rate))
+	units, err := ceilBig(n, big.NewInt(QuantityScale*increment))
+	if err != nil {
+		return 0, err
+	}
+	result := new(big.Int).Mul(big.NewInt(units), big.NewInt(increment))
+	if !result.IsInt64() {
+		return 0, fmt.Errorf("selling price is too large")
+	}
+	return result.Int64(), nil
 }
 
 func percentageAmount(base int64, percentage Quantity) (int64, error) {

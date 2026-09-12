@@ -1,9 +1,34 @@
 package domain
 
 import (
+	"math"
 	"testing"
 	"time"
 )
+
+func TestSellingPriceCeilsToHundredTomans(t *testing.T) {
+	for _, tt := range []struct {
+		rate     int64
+		quantity Quantity
+		want     int64
+		wantErr  bool
+	}{
+		{0, QuantityScale, 0, false},
+		{1, QuantityScale, 1000, false},
+		{1000, QuantityScale, 1000, false},
+		{1001, QuantityScale, 2000, false},
+		{1671942, QuantityScale, 1672000, false},
+		{1000, 1000001, 2000, false}, // Do not round a fractional Rial down first.
+		{3000, 500000, 2000, false},
+		{math.MaxInt64, QuantityScale, 0, true},
+		{-1, QuantityScale, 0, true},
+	} {
+		got, err := MulQuantitySellingPriceRial(tt.quantity, tt.rate)
+		if (err != nil) != tt.wantErr || got != tt.want {
+			t.Fatalf("rate=%d quantity=%d: got %d/%v want %d/error=%v", tt.rate, tt.quantity, got, err, tt.want, tt.wantErr)
+		}
+	}
+}
 
 func TestEvaluatePricingUsesDeterministicFixedScaleArithmetic(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -25,7 +50,7 @@ func TestEvaluatePricingUsesDeterministicFixedScaleArithmetic(t *testing.T) {
 		t.Fatalf("evaluate: %v", err)
 	}
 	// 100 + 12.5 + 11.25 = 123.75, then 20% markup = 148.5 Rial.
-	if result.EstimatedCostRial != 124 || result.SuggestedSellingPriceRial != 149 {
+	if result.EstimatedCostRial != 124 || result.SuggestedSellingPriceRial != 1000 {
 		t.Fatalf("unexpected rounded totals: %+v", result)
 	}
 	if result.Components[1].Explanation != "12.5 of accumulated cost before this component" {
@@ -59,8 +84,9 @@ func TestEvaluatePricingSupportsGenericRules(t *testing.T) {
 			if err != nil {
 				t.Fatalf("evaluate: %v", err)
 			}
-			if result.SuggestedSellingPriceRial != test.expected {
-				t.Fatalf("suggested price = %d, want %d", result.SuggestedSellingPriceRial, test.expected)
+			expected := ((test.expected + 999) / 1000) * 1000
+			if result.SuggestedSellingPriceRial != expected {
+				t.Fatalf("suggested price = %d, want %d", result.SuggestedSellingPriceRial, expected)
 			}
 		})
 	}
@@ -80,23 +106,23 @@ func TestEvaluatePricingRoundsAutomaticSellingPriceUp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("evaluate: %v", err)
 	}
-	if result.SuggestedSellingPriceRial != 113 {
-		t.Fatalf("selling price = %d, want 113", result.SuggestedSellingPriceRial)
+	if result.SuggestedSellingPriceRial != 1000 {
+		t.Fatalf("selling price = %d, want 1000", result.SuggestedSellingPriceRial)
 	}
 }
 
 func TestEvaluatePricingReportsBelowCostOverride(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	service, err := NewService("SVC-override", ServiceDraft{Name: "Override", Components: []ServiceCostComponentDraft{{ID: "C", Name: "Cost", Type: CostFixed, RateRial: 100, UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true}}, PricingRule: &ServicePricingRuleDraft{Type: PricingFixed, FixedPriceRial: 100}}, now)
+	service, err := NewService("SVC-override", ServiceDraft{Name: "Override", Components: []ServiceCostComponentDraft{{ID: "C", Name: "Cost", Type: CostFixed, RateRial: 10000, UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true}}, PricingRule: &ServicePricingRuleDraft{Type: PricingFixed, FixedPriceRial: 10000}}, now)
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	override := int64(50)
+	override := int64(5000)
 	result, err := EvaluatePricing(PricingInput{Service: service, SellingPriceOverrideRial: &override})
 	if err != nil {
 		t.Fatalf("evaluate: %v", err)
 	}
-	if !result.BelowCost || result.ProfitRial != -50 || result.MarginPercentage != Quantity(-100*QuantityScale) {
+	if !result.BelowCost || result.ProfitRial != -5000 || result.MarginPercentage != Quantity(-100*QuantityScale) {
 		t.Fatalf("below-cost result incorrect: %+v", result)
 	}
 }

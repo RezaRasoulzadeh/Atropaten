@@ -81,6 +81,12 @@ func (s *Store) migrate(ctx context.Context) error {
 			tx.Rollback()
 			return fmt.Errorf("apply migration %d: %w", migration.version, err)
 		}
+		if migration.run != nil {
+			if err := migration.run(ctx, tx); err != nil {
+				tx.Rollback()
+				return fmt.Errorf("apply migration %d: %w", migration.version, err)
+			}
+		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)`, migration.version, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("record migration %d: %w", migration.version, err)
@@ -96,6 +102,7 @@ func (s *Store) migrate(ctx context.Context) error {
 type migration struct {
 	version int
 	sql     string
+	run     func(context.Context, *sql.Tx) error
 }
 
 var migrations = []migration{{
@@ -679,6 +686,23 @@ var migrations = []migration{{
 		 AND (NEW.id,NEW.invoice_id,NEW.position,NEW.description_snapshot,NEW.service_id,NEW.quantity_units,NEW.quantity_unit,NEW.unit_price_rial,NEW.line_total_rial,NEW.notes)
 		 IS (OLD.id,OLD.invoice_id,OLD.position,OLD.description_snapshot,OLD.service_id,OLD.quantity_units,OLD.quantity_unit,OLD.unit_price_rial,OLD.line_total_rial,OLD.notes))
 		BEGIN SELECT RAISE(ABORT,'posted invoice lines are immutable'); END;`,
+	},
+	{
+		version: 27,
+		run: func(ctx context.Context, tx *sql.Tx) error {
+			// Early v26 databases lack invoice_id; later v26 installations
+			// already have it. Upgrade both shapes without losing audit rows.
+			var exists bool
+			if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM pragma_table_info('deleted_order_records') WHERE name='invoice_id')`).Scan(&exists); err != nil {
+				return err
+			}
+			if !exists {
+				if _, err := tx.ExecContext(ctx, `ALTER TABLE deleted_order_records ADD COLUMN invoice_id TEXT`); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
 	},
 }
 

@@ -70,7 +70,7 @@ func (s *Store) withProductionForecast(ctx context.Context, j domain.ProductionJ
 		}
 	}
 	var snapshot string
-	if err = tx.QueryRowContext(ctx, `SELECT cost_breakdown_json FROM production_jobs WHERE id=?`, j.ID).Scan(&snapshot); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT cost_breakdown_json,quantity_units,quantity_unit,service_name_snapshot,estimated_cost_rial FROM production_jobs WHERE id=?`, j.ID).Scan(&snapshot, &j.Quantity, &j.QuantityUnit, &j.ServiceNameSnapshot, &j.EstimatedCostRial); err != nil {
 		return j, err
 	}
 	fallback, err := scaleProductionQuantity(domain.Quantity(j.EstimatedCostRial), j.Quantity-j.OutsourceQuantity, j.Quantity)

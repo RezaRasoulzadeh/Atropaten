@@ -81,12 +81,22 @@ func (s *Store) syncOrderItemsTx(ctx context.Context, tx *sql.Tx, order domain.O
 		return err
 	}
 	for _, i := range order.Items {
+		p, exists := old[i.ID]
+		productionChanged := exists && (p.quantity != i.Quantity || p.unit != i.QuantityUnit || p.cost != i.CostBreakdownJSON || p.parameters != i.ResolvedParametersJSON || p.service != i.ServiceID)
+		if productionChanged {
+			var completed bool
+			if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM production_jobs WHERE order_item_id=? AND status='Completed')`, i.ID).Scan(&completed); err != nil {
+				return err
+			}
+			if completed {
+				return fmt.Errorf("reopen the completed production job before changing this item's quantity or production setup")
+			}
+		}
 		_, err = tx.ExecContext(ctx, `INSERT INTO order_items(id,order_id,display_order,service_id,service_name_snapshot,service_code_snapshot,quantity_units,quantity_unit,resolved_parameters_json,cost_breakdown_json,pricing_snapshot_json,estimated_cost_rial,suggested_price_rial,selling_price_rial,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET display_order=excluded.display_order,service_id=excluded.service_id,service_name_snapshot=excluded.service_name_snapshot,service_code_snapshot=excluded.service_code_snapshot,quantity_units=excluded.quantity_units,quantity_unit=excluded.quantity_unit,resolved_parameters_json=excluded.resolved_parameters_json,cost_breakdown_json=excluded.cost_breakdown_json,pricing_snapshot_json=excluded.pricing_snapshot_json,estimated_cost_rial=excluded.estimated_cost_rial,suggested_price_rial=excluded.suggested_price_rial,selling_price_rial=excluded.selling_price_rial,notes=excluded.notes WHERE order_items.order_id=excluded.order_id`, i.ID, order.ID, i.Position, i.ServiceID, i.ServiceNameSnapshot, i.ServiceCodeSnapshot, i.Quantity, i.QuantityUnit, i.ResolvedParametersJSON, i.CostBreakdownJSON, i.PricingSnapshotJSON, i.EstimatedCostRial, i.SuggestedPriceRial, i.SellingPriceRial, i.Notes)
 		if err != nil {
 			return err
 		}
-		p, exists := old[i.ID]
-		if !exists || (p.quantity == i.Quantity && p.unit == i.QuantityUnit && p.cost == i.CostBreakdownJSON && p.parameters == i.ResolvedParametersJSON && p.service == i.ServiceID) {
+		if !productionChanged {
 			continue
 		}
 		jobs, err := tx.QueryContext(ctx, `SELECT id FROM production_jobs WHERE order_item_id=? AND status NOT IN ('Completed','Cancelled')`, i.ID)

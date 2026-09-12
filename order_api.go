@@ -248,6 +248,10 @@ func orderInput(i OrderInput) (application.OrderInput, error) {
 	if i.PromisedAt != nil && *i.PromisedAt != "" {
 		v, e := time.Parse(time.RFC3339, *i.PromisedAt)
 		if e != nil {
+			// The Jalali date picker emits a Gregorian date without a time.
+			v, e = time.Parse(time.DateOnly, *i.PromisedAt)
+		}
+		if e != nil {
 			return application.OrderInput{}, fmt.Errorf("promisedAt: invalid timestamp: %w", e)
 		}
 		p = &v

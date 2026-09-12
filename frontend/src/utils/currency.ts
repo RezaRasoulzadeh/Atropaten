@@ -4,6 +4,13 @@
  */
 export type CurrencyUnit = 'Toman' | 'Rial'
 
+/** Customer charges ceil to 100 tomans; inventory costs are never rounded here. */
+export function sellingPriceTotal(rateRial: number, quantity: number): number {
+  const scaledQuantity = BigInt(Math.round(quantity * 1_000_000))
+  const divisor = 1_000_000_000n
+  return Number(((BigInt(rateRial) * scaledQuantity + divisor - 1n) / divisor) * 1000n)
+}
+
 const currencyLabels: Record<CurrencyUnit, string> = {
   Toman: 'IRT',
   Rial: 'IRR',

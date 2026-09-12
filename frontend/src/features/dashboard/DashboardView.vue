@@ -126,7 +126,7 @@ const initialLoading = computed(() => loading.value && !data.value);
       <section class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           :value="money(data?.revenueRial || 0)"
-          detail="Sales in selected period"
+          detail="Confirmed and closed orders, after discounts"
           title="Sales"
           :trend="loading ? 'Loading' : 'Period'"
           :icon="TrendingUp"
@@ -161,6 +161,10 @@ const initialLoading = computed(() => loading.value && !data.value);
           :loading="initialLoading"
         />
       </section>
+      <p class="text-xs text-base-content/60">
+        Confirmed and closed orders count as sales on their order date. Draft and cancelled orders are excluded.
+        Gross profit uses current expected production costs. Invoices and payments do not count an order again.
+      </p>
       <div
         v-if="initialLoading"
         class="grid gap-4 xl:grid-cols-2"

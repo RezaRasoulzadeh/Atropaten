@@ -273,11 +273,11 @@ func (s *OrdersService) saveConfiguredItem(ctx context.Context, id string, pos i
 	if err != nil {
 		return OrderView{}, fmt.Errorf("estimated cost for quantity: %w", err)
 	}
-	suggestedPriceRial, err := domain.MulQuantityRial(qty, price.SuggestedSellingPriceRial)
+	suggestedPriceRial, err := domain.MulQuantitySellingPriceRial(qty, price.SuggestedSellingPriceRial)
 	if err != nil {
 		return OrderView{}, fmt.Errorf("suggested price for quantity: %w", err)
 	}
-	sellingPriceRial, err := domain.MulQuantityRial(qty, price.EffectiveSellingPriceRial)
+	sellingPriceRial, err := domain.MulQuantitySellingPriceRial(qty, price.EffectiveSellingPriceRial)
 	if err != nil {
 		return OrderView{}, fmt.Errorf("selling price for quantity: %w", err)
 	}

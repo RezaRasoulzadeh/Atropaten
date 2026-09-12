@@ -12,6 +12,7 @@ import {
   formatMoney,
   formatMoneyInput,
   parseMoneyInput,
+  sellingPriceTotal,
   type CurrencyUnit,
 } from '../../utils/currency';
 import { useToast } from '../../ui/feedback';
@@ -89,10 +90,10 @@ const totalEstimatedCost = computed(() =>
   pricing.value ? Math.round(pricing.value.estimatedCostRial * quantityNumber.value) : 0,
 );
 const totalSuggestedPrice = computed(() =>
-  pricing.value ? Math.round(pricing.value.suggestedSellingPriceRial * quantityNumber.value) : 0,
+  pricing.value ? sellingPriceTotal(pricing.value.suggestedSellingPriceRial, quantityNumber.value) : 0,
 );
 const totalEffectivePrice = computed(() =>
-  pricing.value ? Math.round(pricing.value.effectiveSellingPriceRial * quantityNumber.value) : 0,
+  pricing.value ? sellingPriceTotal(pricing.value.effectiveSellingPriceRial, quantityNumber.value) : 0,
 );
 const totalProfit = computed(() => totalEffectivePrice.value - totalEstimatedCost.value);
 
@@ -420,6 +421,7 @@ function save() {
             <div class="rounded-box border border-primary/30 bg-primary/5 p-3"><span class="block text-xs text-base-content/60">Effective price · order total</span><strong class="mt-1 block text-lg text-primary">{{ formatMoney(totalEffectivePrice, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/60">{{ quantity || '1' }} {{ unit }} · {{ formatMoney(pricing.effectiveSellingPriceRial, currencyUnit) }} / {{ unit }}</span></div>
             <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">Profit / margin</span><strong class="mt-1 block text-sm" :class="totalProfit < 0 ? 'text-error' : 'text-success'">{{ formatMoney(totalProfit, currencyUnit) }} · {{ pricing.marginPercentage }}%</strong></div>
           </div>
+          <p class="text-xs text-base-content/60">Selling prices round up to the next 100 tomans (1,000 rials).</p>
           <div v-if="pricing.belowCost" class="rounded-box border border-warning/30 bg-warning/5 p-3 text-xs leading-5 text-warning">The selling price is below the estimated cost. Review the override or service pricing before adding.</div>
           <div v-if="pricing.components.length" class="divide-y divide-base-300 rounded-box border border-base-300">
             <div v-for="component in pricing.components" :key="component.id" class="flex items-center justify-between gap-3 px-3 py-2 text-xs"><span class="min-w-0 truncate">{{ component.name }}</span><strong class="shrink-0">{{ component.enabled ? formatMoney(component.amountRial, currencyUnit) : 'Disabled' }}</strong></div>
