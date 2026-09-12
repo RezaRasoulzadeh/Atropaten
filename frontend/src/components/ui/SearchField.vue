@@ -47,6 +47,7 @@ defineExpose({ focus });
         :class="shortcut ? 'pe-16' : ''"
         :value="modelValue"
         type="search"
+        @keydown.enter.prevent
         :placeholder="placeholder"
         :aria-label="ariaLabel || label || undefined"
         autocomplete="off"

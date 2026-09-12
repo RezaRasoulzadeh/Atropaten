@@ -111,6 +111,7 @@ function validateCurrentStep() {
 }
 
 function next() {
+  if (busy.value || saving.value) return
   if (!validateCurrentStep()) return
   if (activeStep.value < steps.value.length) activeStep.value += 1
 }
@@ -131,6 +132,7 @@ function jumpToStep(target: number) {
 }
 
 function submit() {
+  if (busy.value || saving.value) return
   validationAttempted.value = true
   if (activeStep.value < steps.value.length) {
     next()

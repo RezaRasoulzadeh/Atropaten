@@ -340,7 +340,7 @@ reportError(error);
 </script>
 
 <template>
-  <div class="order-wizard w-full flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Order editor">
+  <div data-enter-scope :aria-busy="busy || saving" class="order-wizard w-full flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Order editor">
     <header class="order-wizard-header flex min-w-0 shrink-0 flex-wrap items-end justify-between gap-4 border-b border-base-300 bg-base-200 px-1 pt-4 pb-4">
       <div class="min-w-0">
         <h1 class="mt-2 text-2xl font-bold leading-8 tracking-tight text-primary">{{ isNew ? 'Add order' : 'Edit order' }}</h1>
@@ -455,7 +455,7 @@ reportError(error);
       @saved="emit('saved', $event)"
     />
     <template v-else-if="tab === 'Payments'">
-      <section class="min-w-0 border-b border-base-300 pb-4">
+      <section data-enter-scope class="min-w-0 border-b border-base-300 pb-4">
         <header class="mb-3">
           <h2 class="text-sm font-semibold leading-5">Order discount</h2>
           <p class="mt-1 text-xs leading-4 text-base-content/60">Enter a rial amount or a percentage of the order subtotal.</p>
@@ -478,7 +478,7 @@ reportError(error);
             class="btn btn-outline shrink-0"
             type="button"
             :disabled="isNew || busy || saving"
-            @click="updateDiscount"
+            data-enter-submit @click="updateDiscount"
           >
             Apply
           </button>
@@ -619,8 +619,8 @@ reportError(error);
     <footer class="flex min-w-0 items-center justify-between gap-3 border-t border-base-300 px-1 pt-3">
       <button class="btn btn-ghost btn-sm" type="button" :disabled="activeStepNumber === 1 || busy || saving" @click="previousStep">Back</button>
       <span class="text-xs text-base-content/55">Step {{ activeStepNumber }} of {{ steps.length }}</span>
-      <button v-if="activeStepNumber < steps.length" class="btn btn-primary btn-sm" type="button" :disabled="busy || saving" @click="nextStep">Continue</button>
-      <button v-else class="btn btn-success btn-sm gap-2" type="button" :disabled="busy || saving" @click="saveMetadata(true)"><Save :size="14" aria-hidden="true" />{{ saving ? 'Saving…' : 'Save order' }}</button>
+      <button v-if="activeStepNumber < steps.length" class="btn btn-primary btn-sm" type="button" :disabled="busy || saving" data-enter-submit @click="nextStep">Continue</button>
+      <button v-else data-enter-submit class="btn btn-success btn-sm gap-2" type="button" :disabled="busy || saving" @click="saveMetadata(true)"><Save :size="14" aria-hidden="true" />{{ saving ? 'Saving…' : 'Save order' }}</button>
     </footer>
 
     <div v-if="editorOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Configure order service item" @click.self="closeItemEditor">

@@ -699,11 +699,11 @@ function applyTemplate(template: TemplateOption) {
       </div>
     </div>
 
-    <div v-if="replacementOpen && pendingTemplate" class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="replace-template-title">
+    <div v-if="replacementOpen && pendingTemplate" data-enter-scope class="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="replace-template-title">
       <div class="w-full max-w-lg rounded-box border border-base-300 bg-base-200 p-5 shadow-2xl">
         <div class="flex items-start gap-3"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-warning/15 text-warning"><AlertTriangle :size="19" aria-hidden="true" /></span><div><h3 id="replace-template-title" class="text-base font-semibold">Replace current parameters?</h3><p class="mt-1 text-sm leading-5 text-base-content/65">Choosing <strong class="text-base-content">{{ pendingTemplate.title }}</strong> will remove the current setup and replace its temporary draft. Save it first if you may want to return to it.</p></div></div>
         <FormField class="mt-4 gap-1"><span>Reusable template name <em class="text-base-content/45">optional</em></span><AppInput v-model="templateName" class="input w-full min-w-0" placeholder="My print setup" /></FormField>
-        <div class="mt-5 flex flex-wrap justify-end gap-2"><button class="btn btn-ghost btn-sm" type="button" @click="replacementOpen = false; pendingTemplate = null">Cancel</button><button class="btn btn-outline btn-sm" type="button" @click="replaceWithPending('replace')">Replace without saving</button><button class="btn btn-outline btn-sm gap-1.5" type="button" @click="replaceWithPending('draft')"><Save :size="14" aria-hidden="true" />Save draft & replace</button><button class="btn btn-primary btn-sm gap-1.5" type="button" @click="replaceWithPending('custom')"><FileJson :size="14" aria-hidden="true" />Save reusable & replace</button></div>
+        <div class="mt-5 flex flex-wrap justify-end gap-2"><button class="btn btn-ghost btn-sm" type="button" @click="replacementOpen = false; pendingTemplate = null">Cancel</button><button class="btn btn-outline btn-sm" type="button" @click="replaceWithPending('replace')">Replace without saving</button><button class="btn btn-outline btn-sm gap-1.5" type="button" @click="replaceWithPending('draft')"><Save :size="14" aria-hidden="true" />Save draft & replace</button><button class="btn btn-primary btn-sm gap-1.5" type="button" data-enter-submit @click="replaceWithPending('custom')"><FileJson :size="14" aria-hidden="true" />Save reusable & replace</button></div>
       </div>
     </div>
   </section>

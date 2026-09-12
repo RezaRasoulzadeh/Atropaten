@@ -114,7 +114,14 @@ function removeItem(index: number) {
   draftItems.value.splice(index, 1)
 }
 
+function submit() {
+  if (props.busy || saving.value) return
+  if (activeStep.value < steps.length) next()
+  else void save()
+}
+
 function next() {
+  if (props.busy || saving.value) return
   validationAttempted.value = true
   if (activeStep.value === 1) {
     const form = document.querySelector<HTMLFormElement>('#order-editor-wizard')
@@ -183,7 +190,7 @@ async function save() {
 
       <div class="grid min-h-0 min-w-0 flex-1 gap-4 overflow-visible xl:grid-cols-[minmax(0,1fr)_20rem] xl:overflow-hidden">
         <section class="order-wizard-form-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-6 xl:overflow-y-auto">
-          <form id="order-editor-wizard" class="min-w-0" @submit.prevent="next">
+          <form id="order-editor-wizard" class="min-w-0" :aria-busy="busy || saving" @submit.prevent="submit">
             <section v-if="activeStep === 1" class="min-w-0 space-y-6">
               <FormSection title="Customer and delivery" description="Choose who this order is for and set the operational context.">
                 <FormField class="gap-1 sm:col-span-2"><span>Customer</span><SelectField v-model="customerId" :options="customerOptions" aria-label="Customer" /></FormField>

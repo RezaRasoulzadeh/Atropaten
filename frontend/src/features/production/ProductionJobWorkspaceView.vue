@@ -145,19 +145,19 @@ function previous() {
               <div class="border-t border-base-300 pt-4">
                 <h3 class="text-sm font-semibold">Stock reserved for this job</h3>
                 <p class="mt-1 text-xs text-base-content/55">Blocked from other jobs until used or released.</p>
-                <div v-for="reservation in activeReservations" :key="reservation.id" class="flex flex-wrap items-end gap-2 border-b border-base-300/60 py-3">
+                <div data-enter-scope v-for="reservation in activeReservations" :key="reservation.id" class="flex flex-wrap items-end gap-2 border-b border-base-300/60 py-3">
                   <FormField class="min-w-40 flex-1" :label="stockMaterials.find(m=>m.id===reservation.materialId)?.name || reservation.materialId"><AppInput v-model="reservationDrafts[reservation.id]" inputmode="decimal" :disabled="busy || !editableJob" /></FormField>
-                  <div class="mb-1 flex gap-1"><button class="btn btn-outline btn-sm" :disabled="busy || !editableJob" @click="updateReservation(reservation,reservationDrafts[reservation.id] || '0')">Update</button><button class="btn btn-primary btn-sm" :disabled="busy || !editableJob" @click="useReservation(reservation)">Use material</button><button class="btn btn-ghost btn-sm" :disabled="busy || !editableJob" @click="release(reservation)">Release</button></div>
+                  <div class="mb-1 flex gap-1"><button class="btn btn-outline btn-sm" :disabled="busy || !editableJob" data-enter-submit @click="updateReservation(reservation,reservationDrafts[reservation.id] || '0')">Update</button><button class="btn btn-primary btn-sm" :disabled="busy || !editableJob" @click="useReservation(reservation)">Use material</button><button class="btn btn-ghost btn-sm" :disabled="busy || !editableJob" @click="release(reservation)">Release</button></div>
                 </div>
                 <p v-if="!activeReservations.length" class="mt-3 text-xs text-base-content/55">No stock is currently reserved.</p>
               </div>
-              <details class="border-t border-base-300 pt-3">
+              <details data-enter-scope class="border-t border-base-300 pt-3">
                 <summary class="cursor-pointer text-sm font-medium">Reserve additional material</summary>
                 <FormGrid class="mt-3"><SelectField v-model="reservationMaterial" label="Material" :options="[{label:'Select material',value:''},...stockMaterials.map(m=>({label:m.name+' · free '+m.availableStock,value:m.id}))]" /><FormField label="Quantity"><AppInput v-model="reservationQuantity" inputmode="decimal" placeholder="Quantity" /></FormField></FormGrid>
-                <button class="btn btn-outline btn-sm mt-3" :disabled="busy || !editableJob" @click="reserve">Add reservation</button>
+                <button class="btn btn-outline btn-sm mt-3" :disabled="busy || !editableJob" data-enter-submit @click="reserve">Add reservation</button>
               </details>
             </template>
-            <details :open="usageExpanded" class="min-w-0 space-y-4 border-t border-base-300 pt-4" @toggle="usageExpanded=($event.target as HTMLDetailsElement).open">
+            <details data-enter-scope :open="usageExpanded" class="min-w-0 space-y-4 border-t border-base-300 pt-4" @toggle="usageExpanded=($event.target as HTMLDetailsElement).open">
             <summary class="cursor-pointer text-sm font-semibold">{{ editingConsumptionId ? 'Correct material usage' : 'Record early usage or waste (optional)' }}</summary>
             <p class="text-sm text-base-content/60">Use this job’s reservations first, then free stock. Enter only the additional quantity used in this entry.</p>
             <p v-if="!canConsume" class="text-sm text-warning">Start or resume in-house production from Overview before posting material usage.</p>
@@ -175,7 +175,7 @@ function previous() {
               <div class="relative mx-2.5 mt-1 h-4 text-xs leading-4 text-base-content/50" aria-hidden="true"><span v-for="mark in [0,25,50,75,100]" :key="mark" class="absolute -translate-x-1/2" :style="{left:mark+'%'}">{{ mark }}</span></div>
             </div>
             <p class="text-xs text-base-content/55">The slider and Max use the reserved quantity. Type a larger quantity to use additional free stock.</p>
-            <div class="flex flex-wrap gap-2"><button class="btn btn-primary btn-sm" :disabled="busy || !canConsume || !consumptionMaterial" @click="consume">{{ editingConsumptionId ? 'Save correction' : 'Record usage' }}</button><button class="btn btn-ghost btn-sm" :disabled="busy" @click="suggestConsumption">{{ editingConsumptionId ? 'Cancel correction' : 'Use reserved quantity' }}</button></div>
+            <div class="flex flex-wrap gap-2"><button class="btn btn-primary btn-sm" :disabled="busy || !canConsume || !consumptionMaterial" data-enter-submit @click="consume">{{ editingConsumptionId ? 'Save correction' : 'Record usage' }}</button><button class="btn btn-ghost btn-sm" :disabled="busy" @click="suggestConsumption">{{ editingConsumptionId ? 'Cancel correction' : 'Use reserved quantity' }}</button></div>
             </details>
             <div class="border-t border-base-300 pt-4">
               <h3 class="text-sm font-semibold">Material usage history</h3>
@@ -187,7 +187,7 @@ function previous() {
             </div>
           </section>
 
-          <section v-else class="min-w-0 space-y-4">
+          <section v-else data-enter-scope class="min-w-0 space-y-4">
             <header><h2 class="text-lg font-semibold">Outsource production</h2><p class="mt-1 text-sm text-base-content/60">Choose how many of the {{ selected.quantity }} {{ selected.quantityUnit }} to outsource. Unit cost starts from the order estimate.</p></header>
             <FormGrid><FormField label="Outsourced quantity"><AppInput v-model="outsourceQuantity" inputmode="decimal" :disabled="busy || !editableJob" /></FormField><FormField :label="'Cost per '+selected.quantityUnit"><AppInput v-model="outsourceCost" :money="props.currencyUnit" inputmode="decimal" :disabled="busy || !editableJob" /></FormField></FormGrid>
             <div class="flex flex-wrap justify-between gap-3 border-y border-base-300 py-4"><div><span class="block text-xs text-base-content/55">In-house quantity</span><strong class="mt-1 block text-base tabular-nums">{{ Math.max(0,Number(selected.quantity)-Number(parseQuantityInput(outsourceQuantity || '0'))) }} {{ selected.quantityUnit }}</strong></div><div class="text-end"><span class="block text-xs text-base-content/55">Outsourcing expense</span><strong class="mt-1 block text-lg tabular-nums text-primary">{{ money(outsourceTotal) }}</strong></div></div>
@@ -195,7 +195,7 @@ function previous() {
             <FormField label="Scope / notes"><AppInput v-model="outsourceDescription" placeholder="External production details" /></FormField>
             <p class="text-sm leading-6 text-base-content/65">The outsourced share releases reserved stock and returns its share of used material. The expense replaces that material cost in the order margin. Further changes update the same expense.</p>
             <p class="text-xs text-base-content/55">Reducing outsourcing restores the in-house material plan. Completing the job records the remaining materials automatically.</p>
-            <button class="btn btn-primary btn-sm" :disabled="busy || !editableJob" @click="saveOutsource">Apply outsourcing</button>
+            <button class="btn btn-primary btn-sm" :disabled="busy || !editableJob" data-enter-submit @click="saveOutsource">Apply outsourcing</button>
             <p v-if="Number(selected.outsourceQuantity)>0" class="text-xs text-success">Saved: {{ selected.outsourceQuantity }} {{ selected.quantityUnit }} × {{ money(selected.outsourceUnitCostRial) }} = {{ money(selected.actualOutsourcedCostRial) }}</p>
           </section>
         </section>

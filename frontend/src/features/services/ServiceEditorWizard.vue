@@ -58,7 +58,14 @@ const steps = [
   { number: 5, title: 'Test', description: 'Try it with real values' },
 ]
 
+function submit() {
+  if (props.busy || props.isSaving) return
+  if (activeStep.value < steps.length) next()
+  else emit('save')
+}
+
 function next() {
+  if (props.busy || props.isSaving) return
   if (activeStep.value === 1) {
     const formElement = document.querySelector<HTMLFormElement>('#service-editor')
     if (formElement && !formElement.reportValidity()) return
@@ -169,7 +176,7 @@ watch(
 
       <div class="grid min-h-0 min-w-0 flex-1 gap-4 overflow-visible xl:grid-cols-[minmax(0,1fr)_20rem] xl:overflow-hidden">
         <section class="service-wizard-form-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-6 xl:overflow-y-auto">
-        <form id="service-editor" class="service-editor min-w-0" @submit.prevent="next">
+        <form id="service-editor" class="service-editor min-w-0" :aria-busy="busy || isSaving" @submit.prevent="submit">
           <section v-if="activeStep === 1" class="min-w-0 space-y-6">
             <div class="grid min-w-0 gap-4 sm:grid-cols-2">
               <FormField class="gap-1 sm:col-span-2"><span>Service name <em class="text-error">*</em></span><AppInput v-model="form.name" class="input w-full min-w-0" :class="{ 'input-error': validationAttempted && !form.name.trim() }" type="text" required placeholder="Business card printing" autocomplete="off" /><small class="text-xs leading-5 text-base-content/60">A clear name shown to your team and customers.</small></FormField>

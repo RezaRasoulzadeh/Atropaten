@@ -171,8 +171,10 @@ reportError(e);
 <FormField label="Backup directory" help="Leave empty to use the application-managed backups folder."><div class="flex min-w-0 gap-2"><AppInput v-model="form.backupDirectory" placeholder="Application-managed backup folder" /><button class="btn btn-outline shrink-0" type="button" :disabled="busy || backupBusy" @click="chooseBackupDirectory">Browse</button></div></FormField>
 <div class="flex flex-wrap gap-2"><button class="btn btn-primary" type="button" :disabled="backupBusy || busy" @click="createBackup">Create backup</button><button class="btn btn-outline" type="button" :disabled="backupBusy || busy" @click="chooseBackup">Choose backup</button></div>
 </div>
+<div data-enter-scope class="space-y-3">
 <FormField label="Selected backup"><AppInput v-model="backupPath" placeholder="Path to a .zip backup" /></FormField>
-<div class="flex flex-wrap gap-2"><button class="btn btn-outline" type="button" :disabled="backupBusy || busy || !backupPath" @click="verifyBackup">Verify selected</button><button class="btn btn-ghost text-error" type="button" :disabled="backupBusy || busy || !backupPath" @click="restoreBackup">Restore selected</button></div>
+<div class="flex flex-wrap gap-2"><button data-enter-submit class="btn btn-outline" type="button" :disabled="backupBusy || busy || !backupPath" @click="verifyBackup">Verify selected</button><button class="btn btn-ghost text-error" type="button" :disabled="backupBusy || busy || !backupPath" @click="restoreBackup">Restore selected</button></div>
+</div>
 <p v-if="lastBackup" class="text-xs leading-5 text-base-content/60 wrap-anywhere">{{lastBackup.path}} · schema v{{lastBackup.schemaVersion}} · {{lastBackup.managedFileCount}} managed files</p>
 </AppPanel>
 </form></div></template>

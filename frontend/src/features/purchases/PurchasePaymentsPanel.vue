@@ -115,7 +115,7 @@ function allocated(payment: PaymentRecord) {
 </script>
 
 <template>
-  <section class="space-y-3 rounded-box border border-base-300 p-4" aria-label="Purchase payments">
+  <section data-enter-scope class="space-y-3 rounded-box border border-base-300 p-4" aria-label="Purchase payments">
     <h3 class="text-sm font-semibold">Payment</h3>
     <dl class="grid grid-cols-2 gap-3 text-xs">
       <div><dt class="text-base-content/60">Paid (cash / cleared checks)</dt><dd class="mt-1 font-semibold text-success">{{ money(purchase.paidRial) }}</dd></div>
@@ -143,7 +143,7 @@ function allocated(payment: PaymentRecord) {
           <FormField><span>Due date</span><JalaliDatePicker v-model="dueDate" :disabled="busy" /></FormField>
         </template>
       </div>
-      <button type="button" class="btn btn-primary btn-sm" :disabled="busy || loading || !loaded || !account" @click="record">{{ method === 'check' ? 'Create check draft' : 'Record payment' }}</button>
+      <button type="button" class="btn btn-primary btn-sm" :disabled="busy || loading || !loaded || !account" data-enter-submit @click="record">{{ method === 'check' ? 'Create check draft' : 'Record payment' }}</button>
       <p class="text-xs leading-5 text-base-content/60">Selecting an account does not pay the purchase. Cash/bank payments reduce the supplier payable when recorded. Delivered checks move it to checks payable; clearing records cash paid.</p>
     </template>
     <p v-if="loading" class="text-xs text-base-content/60">Loading payment history…</p>

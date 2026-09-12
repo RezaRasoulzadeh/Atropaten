@@ -265,7 +265,7 @@ function save() {
 </script>
 
 <template>
-  <div class="flex max-h-[min(88vh,52rem)] min-h-0 flex-col bg-base-100">
+  <div data-enter-scope class="flex max-h-[min(88vh,52rem)] min-h-0 flex-col bg-base-100">
     <header class="flex shrink-0 items-start justify-between gap-3 border-b border-base-300 bg-base-100 p-4">
       <div class="min-w-0">
         <p class="text-xs font-semibold uppercase tracking-wide text-primary">
@@ -437,7 +437,7 @@ function save() {
       <button class="btn btn-ghost btn-sm" type="button" :disabled="busy" @click="emit('cancel')">Cancel</button>
       <div class="flex min-w-0 items-center gap-3">
         <span class="hidden truncate text-xs text-base-content/55 sm:block" aria-live="polite">{{ calculating ? 'Updating price…' : pricing ? `Total for ${quantity || '1'} ${unit}` : service ? 'Enter item details' : 'Service unavailable' }}</span>
-        <button class="btn btn-primary btn-sm gap-2" type="button" @click="save" :disabled="busy || !canAdd">
+        <button class="btn btn-primary btn-sm gap-2" type="button" data-enter-submit @click="save" :disabled="busy || !canAdd">
           <Plus :size="15" aria-hidden="true" />
           <span>{{ initial ? 'Replace item' : `Add item to ${documentLabel}` }}</span>
         </button>

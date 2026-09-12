@@ -87,14 +87,14 @@ function pricingUnitCost() {
           <div class="rounded-box border border-base-300 p-3"><span class="block text-xs text-base-content/55">Inventory average</span><strong class="mt-1 block text-sm tabular-nums">{{ formatMoney(selectedMaterial.averageUnitCostRial, currencyUnit) }}</strong><span class="text-xs text-base-content/55">per {{ selectedMaterial.consumptionUnit }}</span></div>
         </div>
 
-        <div class="rounded-box border border-base-300 p-4">
+        <div data-enter-scope class="rounded-box border border-base-300 p-4">
           <div class="flex items-start justify-between gap-3"><div><h3 class="text-sm font-semibold">Adjust stock</h3><p class="mt-1 text-xs leading-5 text-base-content/60">Record a correction or movement without changing purchase history.</p></div><RefreshCw :size="18" class="shrink-0 text-primary" aria-hidden="true" /></div>
           <div class="mt-4 grid min-w-0 gap-3 sm:grid-cols-2">
             <FormField class="gap-1"><span class="text-xs">Quantity delta</span><input v-model="adjustmentQuantity" class="input input-sm w-full min-w-0" placeholder="−1 or 2.5" inputmode="decimal" /><small class="text-xs leading-5 text-base-content/55">Positive adds stock; negative records a correction.</small></FormField>
             <FormField class="gap-1"><span class="text-xs">Unit cost ({{ currencyUnit }})</span><input :value="adjustmentCost" class="input input-sm w-full min-w-0" inputmode="numeric" @input="updateAdjustmentCost(($event.target as HTMLInputElement).value)" /></FormField>
             <FormField class="gap-1 sm:col-span-2"><span class="text-xs">Reason / note</span><input v-model="adjustmentNote" class="input input-sm w-full min-w-0" placeholder="Count correction" /></FormField>
           </div>
-          <div class="mt-3 flex justify-end border-t border-base-300 pt-3"><button class="btn btn-primary btn-sm gap-2" type="button" :disabled="busy" @click="adjustStock"><RefreshCw :size="14" aria-hidden="true" />Record movement</button></div>
+          <div class="mt-3 flex justify-end border-t border-base-300 pt-3"><button class="btn btn-primary btn-sm gap-2" type="button" :disabled="busy" data-enter-submit @click="adjustStock"><RefreshCw :size="14" aria-hidden="true" />Record movement</button></div>
         </div>
       </div>
 

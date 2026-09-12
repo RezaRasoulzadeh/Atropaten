@@ -73,6 +73,7 @@ function validateCurrentStep() {
 }
 
 function next() {
+  if (busy.value || isSaving.value) return
   if (!validateCurrentStep()) return
   if (activeStep.value < steps.length) activeStep.value += 1
 }
@@ -81,7 +82,15 @@ function previous() {
   if (activeStep.value > 1) activeStep.value -= 1
 }
 
+function onFormSubmit(event: SubmitEvent) {
+  if (busy.value || isSaving.value) return
+  // Explicit Save buttons save; Enter advances until the final step.
+  if (!event.submitter && activeStep.value < steps.length) next()
+  else submit()
+}
+
 function submit() {
+  if (busy.value || isSaving.value) return
   validationAttempted.value = true
   if (!form.value.name.trim()) {
     activeStep.value = 1
@@ -127,7 +136,7 @@ function submit() {
 
       <div class="grid min-h-0 min-w-0 flex-1 gap-4 overflow-visible xl:grid-cols-[minmax(0,1fr)_20rem] xl:overflow-hidden">
         <section class="service-wizard-form-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-6 xl:overflow-y-auto">
-          <form id="material-editor-wizard" class="service-editor min-w-0" @submit.prevent="submit">
+          <form id="material-editor-wizard" class="service-editor min-w-0" :aria-busy="busy || isSaving" @submit.prevent="onFormSubmit">
             <section v-if="activeStep === 1" class="min-w-0 space-y-6">
               <div class="flex items-center gap-3 border-b border-base-300 pb-4">
                 <span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/10 text-primary"><Package :size="21" aria-hidden="true" /></span>

@@ -62,7 +62,14 @@ function stepClass(number: number) {
   return 'wizard-step-idle'
 }
 
+function submit() {
+  if (busy.value) return
+  if (activeStep.value < steps.length) next()
+  else void save()
+}
+
 function next() {
+  if (busy.value) return
   if (activeStep.value < steps.length) activeStep.value += 1
 }
 
@@ -111,7 +118,7 @@ function financialAccountLabel(id: string) {
 
       <div class="grid min-h-0 min-w-0 flex-1 gap-4 overflow-visible xl:grid-cols-[minmax(0,1fr)_20rem] xl:overflow-hidden">
         <section class="service-wizard-form-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-6 xl:overflow-y-auto">
-          <form id="purchase-editor" class="service-editor min-w-0" @submit.prevent="next">
+          <form id="purchase-editor" class="service-editor min-w-0"  :aria-busy="busy" @submit.prevent="submit">
             <section v-if="activeStep === 1" class="min-w-0 space-y-6">
               <div class="flex items-center gap-3 border-b border-base-300 pb-4"><span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/10 text-primary"><Receipt :size="21" aria-hidden="true" /></span><div><h2 class="text-lg font-semibold">Purchase details</h2><p class="text-sm text-base-content/60">{{ historyLocked ? 'Invoice reference and notes remain editable after posting.' : 'Set the supplier, date, and invoice reference. Payments are managed in the Payment step.' }}</p></div></div>
               <div class="grid min-w-0 gap-4 sm:grid-cols-2">
@@ -132,7 +139,7 @@ function financialAccountLabel(id: string) {
                 </div>
                 <EmptyState v-if="!sortedItems.length" compact title="No items added" description="Add the first material below to build this purchase."><template #icon><ShoppingCart :size="21" aria-hidden="true" /></template></EmptyState>
               </div>
-              <div v-if="!historyLocked" class="rounded-box border border-dashed border-base-300 bg-base-100/25 p-4"><div class="flex items-start gap-3"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/10 text-primary"><Plus :size="18" aria-hidden="true" /></span><div><h3 class="text-sm font-semibold">Add material</h3><p class="mt-1 text-xs leading-5 text-base-content/60">The purchase quantity is converted using the selected material’s unit setup.</p></div></div><div class="mt-4 grid min-w-0 gap-3 sm:grid-cols-2"><FormField class="gap-1"><span>Material</span><SelectField v-model="item.materialId" :options="[{ label: 'Select material', value: '' }, ...props.materials.map((material) => ({ label: material.name, value: material.id }))]" aria-label="Purchase material" /></FormField><FormField class="gap-1"><span>Purchase quantity</span><AppInput v-model="item.purchaseQuantity" class="input w-full min-w-0" inputmode="decimal" placeholder="1" /></FormField><FormField class="gap-1"><span>Unit cost ({{ props.currencyUnit }})</span><AppInput v-model="item.unitAcquisitionCostRial" :money="props.currencyUnit" class="input w-full min-w-0" inputmode="numeric" placeholder="0" /></FormField><FormField class="gap-1"><span>Line note</span><AppInput v-model="item.notes" class="input w-full min-w-0" placeholder="Optional note" /></FormField></div><div class="mt-3 flex flex-wrap justify-end gap-2 border-t border-base-300 pt-3"><button v-if="editingItemId" class="btn btn-ghost btn-sm" type="button" :disabled="busy" @click="cancelItemEdit">Cancel edit</button><button class="btn btn-outline btn-sm gap-2" type="button" :disabled="busy" @click="addItem"><Plus :size="14" aria-hidden="true" />{{ editingItemId ? 'Update item' : 'Add item' }}</button></div></div>
+              <div v-if="!historyLocked" data-enter-scope class="rounded-box border border-dashed border-base-300 bg-base-100/25 p-4"><div class="flex items-start gap-3"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/10 text-primary"><Plus :size="18" aria-hidden="true" /></span><div><h3 class="text-sm font-semibold">Add material</h3><p class="mt-1 text-xs leading-5 text-base-content/60">The purchase quantity is converted using the selected material’s unit setup.</p></div></div><div class="mt-4 grid min-w-0 gap-3 sm:grid-cols-2"><FormField class="gap-1"><span>Material</span><SelectField v-model="item.materialId" :options="[{ label: 'Select material', value: '' }, ...props.materials.map((material) => ({ label: material.name, value: material.id }))]" aria-label="Purchase material" /></FormField><FormField class="gap-1"><span>Purchase quantity</span><AppInput v-model="item.purchaseQuantity" class="input w-full min-w-0" inputmode="decimal" placeholder="1" /></FormField><FormField class="gap-1"><span>Unit cost ({{ props.currencyUnit }})</span><AppInput v-model="item.unitAcquisitionCostRial" :money="props.currencyUnit" class="input w-full min-w-0" inputmode="numeric" placeholder="0" /></FormField><FormField class="gap-1"><span>Line note</span><AppInput v-model="item.notes" class="input w-full min-w-0" placeholder="Optional note" /></FormField></div><div class="mt-3 flex flex-wrap justify-end gap-2 border-t border-base-300 pt-3"><button v-if="editingItemId" class="btn btn-ghost btn-sm" type="button" :disabled="busy" @click="cancelItemEdit">Cancel edit</button><button class="btn btn-outline btn-sm gap-2" type="button" :disabled="busy" data-enter-submit @click="addItem"><Plus :size="14" aria-hidden="true" />{{ editingItemId ? 'Update item' : 'Add item' }}</button></div></div>
               <div v-else class="rounded-box border border-info/30 bg-info/10 p-4 text-sm text-base-content/75">This purchase already has inventory history. Its material lines, quantities, date, account, and totals are locked. You can safely update the invoice reference or notes.</div>
             </section>
 

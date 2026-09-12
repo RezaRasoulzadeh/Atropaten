@@ -274,14 +274,14 @@ async function reversePayment(payment: LoanPaymentRecord) {
             </dl>
           </AppPanel>
 
-          <AppPanel title="Record payment" subtitle="Allocate a payment to one installment.">
+          <AppPanel data-enter-scope title="Record payment" subtitle="Allocate a payment to one installment.">
             <FormGrid>
               <SelectField v-model="pay.installmentId" label="Installment" :options="[{ label: 'Select installment', value: '' }, ...loan.installments.filter((item) => item.remainingRial > 0).map((item) => ({ label: `#${item.position + 1} · ${formatMoney(item.remainingRial, props.currencyUnit)}`, value: item.id }))]" />
               <SelectField v-model="pay.financialAccountId" label="Cash / bank account" :options="[{ label: 'Select account', value: '' }, ...accounts.map((account) => ({ label: account.name, value: account.id }))]" />
               <FormField label="Principal (Rial)"><AppInput v-model="pay.principalRial" class="input w-full min-w-0" money="Rial" inputmode="numeric" /></FormField>
               <FormField label="Interest (Rial)"><AppInput v-model="pay.interestRial" class="input w-full min-w-0" money="Rial" inputmode="numeric" /></FormField>
             </FormGrid>
-            <button class="btn btn-primary btn-sm mt-4 w-full" type="button" :disabled="busy" @click="recordPayment">Record payment</button>
+            <button class="btn btn-primary btn-sm mt-4 w-full" type="button" :disabled="busy" data-enter-submit @click="recordPayment">Record payment</button>
           </AppPanel>
 
           <AppPanel title="Payment history" subtitle="Posted allocations and reversals.">

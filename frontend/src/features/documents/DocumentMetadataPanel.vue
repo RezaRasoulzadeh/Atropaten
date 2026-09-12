@@ -203,7 +203,7 @@ onBeforeUnmount(clearSelectedFiles);
       </header>
 
       <div class="min-w-0 pt-4">
-        <div class="min-w-0 space-y-3">
+        <div data-enter-scope class="min-w-0 space-y-3">
           <div>
             <h3 class="text-sm font-semibold">Add attachment</h3>
             <p class="mt-1 text-xs text-base-content/60">Drop a file here or browse your computer. New files use the folder configured in Settings.</p>
@@ -289,7 +289,7 @@ onBeforeUnmount(clearSelectedFiles);
               placeholder="Optional context for the team"
             /></FormField>
           </div>
-          <button class="btn btn-primary btn-sm w-fit gap-2" type="button" @click="addFile" :disabled="busy || !selectedFiles.length">
+          <button class="btn btn-primary btn-sm w-fit gap-2" type="button" data-enter-submit @click="addFile" :disabled="busy || !selectedFiles.length">
             <Plus :size="14" aria-hidden="true" />
             {{ busy ? 'Storing…' : 'Store attachment' }}
           </button>

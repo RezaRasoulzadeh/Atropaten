@@ -225,7 +225,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
         </div>
       </AppPanel>
 
-      <AppPanel title="Adjust stock" subtitle="Each adjustment creates an immutable inventory movement; catalog cost history remains authoritative.">
+      <AppPanel data-enter-scope title="Adjust stock" subtitle="Each adjustment creates an immutable inventory movement; catalog cost history remains authoritative.">
         <div class="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <FormField class="gap-1">
             <span class="text-xs">Quantity delta</span>
@@ -248,7 +248,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
           </FormField>
         </div>
         <div class="flex justify-end border-t border-base-300 pt-3">
-          <button class="btn btn-primary gap-2" type="button" :disabled="busy" @click="adjustStock">
+          <button class="btn btn-primary gap-2" type="button" :disabled="busy" data-enter-submit @click="adjustStock">
             <RefreshCw :size="15" aria-hidden="true" />Record movement
           </button>
         </div>
