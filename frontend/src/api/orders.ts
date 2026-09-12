@@ -51,7 +51,12 @@ export interface OrderRecord {
   subtotalRial: number
   discountRial: number
   totalRial: number
+  paidRial: number
+  remainingRial: number
   estimatedCostRial: number
+  actualCostRial: number
+  marginRial: number
+  marginPercentage: string
   productionJobCount: number
   completedProductionJobs: number
   inProgressProductionJobs: number

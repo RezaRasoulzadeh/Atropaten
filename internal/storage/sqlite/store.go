@@ -637,6 +637,23 @@ var migrations = []migration{{
 		version: 23,
 		sql:     `ALTER TABLE orders ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0,1));`,
 	},
+	{
+		version: 24,
+		sql: `ALTER TABLE production_jobs ADD COLUMN outsource_quantity_units INTEGER NOT NULL DEFAULT 0;
+		ALTER TABLE production_jobs ADD COLUMN outsource_unit_cost_rial INTEGER NOT NULL DEFAULT 0;
+		ALTER TABLE production_jobs ADD COLUMN outsource_financial_account_id TEXT NOT NULL DEFAULT '';
+		UPDATE production_jobs SET outsource_quantity_units=quantity_units,
+		outsource_unit_cost_rial=CAST(ROUND(actual_outsourced_cost_rial*1000000.0/quantity_units) AS INTEGER)
+		WHERE actual_outsourced_cost_rial>0;
+		CREATE TABLE production_material_plans (
+		 production_job_id TEXT NOT NULL REFERENCES production_jobs(id) ON DELETE CASCADE,
+		 material_id TEXT NOT NULL REFERENCES materials(id),
+		 required_units INTEGER NOT NULL DEFAULT 0,
+		 adjustment_units INTEGER NOT NULL DEFAULT 0,
+		 reservation_id TEXT NOT NULL UNIQUE,
+		 PRIMARY KEY(production_job_id,material_id)
+		);`,
+	},
 }
 
 func (s *Store) seedAccounting(ctx context.Context) error {
@@ -1664,10 +1681,7 @@ func (s *Store) SaveOrder(ctx context.Context, order domain.Order) error {
 	if err := updateOrderRowTx(ctx, tx, &order); err != nil {
 		return rollback(fmt.Errorf("release order reservations: %w", err))
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM order_items WHERE order_id=?`, order.ID); err != nil {
-		return rollback(fmt.Errorf("replace order items: %w", err))
-	}
-	if err := insertOrderItems(ctx, tx, order); err != nil {
+	if err := s.syncOrderItemsTx(ctx, tx, order); err != nil {
 		return rollback(err)
 	}
 	if err := tx.Commit(); err != nil {

@@ -1618,6 +1618,9 @@ export namespace main {
 	    discountRial: number;
 	    totalRial: number;
 	    estimatedCostRial: number;
+	    actualCostRial: number;
+	    marginRial: number;
+	    marginPercentage: string;
 	    paidRial: number;
 	    remainingRial: number;
 	    invoiceId: string;
@@ -1652,6 +1655,9 @@ export namespace main {
 	        this.discountRial = source["discountRial"];
 	        this.totalRial = source["totalRial"];
 	        this.estimatedCostRial = source["estimatedCostRial"];
+	        this.actualCostRial = source["actualCostRial"];
+	        this.marginRial = source["marginRial"];
+	        this.marginPercentage = source["marginPercentage"];
 	        this.paidRial = source["paidRial"];
 	        this.remainingRial = source["remainingRial"];
 	        this.invoiceId = source["invoiceId"];
@@ -1727,6 +1733,9 @@ export namespace main {
 	    }
 	}
 	export class OutsourceInput {
+	    quantity: string;
+	    unitCostRial: number;
+	    financialAccountId: string;
 	    supplierId: string;
 	    description: string;
 	    sentAt: string;
@@ -1742,6 +1751,9 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.quantity = source["quantity"];
+	        this.unitCostRial = source["unitCostRial"];
+	        this.financialAccountId = source["financialAccountId"];
 	        this.supplierId = source["supplierId"];
 	        this.description = source["description"];
 	        this.sentAt = source["sentAt"];
@@ -2056,6 +2068,9 @@ export namespace main {
 	    id: string;
 	    name: string;
 	    type: string;
+	    referenceId: string;
+	    materialId: string;
+	    parameterKey: string;
 	    enabled: boolean;
 	    usageQuantity: string;
 	    rateRial: number;
@@ -2072,6 +2087,9 @@ export namespace main {
 	        this.id = source["id"];
 	        this.name = source["name"];
 	        this.type = source["type"];
+	        this.referenceId = source["referenceId"];
+	        this.materialId = source["materialId"];
+	        this.parameterKey = source["parameterKey"];
 	        this.enabled = source["enabled"];
 	        this.usageQuantity = source["usageQuantity"];
 	        this.rateRial = source["rateRial"];
@@ -2466,6 +2484,7 @@ export namespace main {
 	}
 	
 	export class ProductionConsumptionDTO {
+	    reversed: boolean;
 	    id: string;
 	    productionJobId: string;
 	    materialId: string;
@@ -2484,6 +2503,7 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.reversed = source["reversed"];
 	        this.id = source["id"];
 	        this.productionJobId = source["productionJobId"];
 	        this.materialId = source["materialId"];
@@ -2518,6 +2538,9 @@ export namespace main {
 	    }
 	}
 	export class ProductionJobDTO {
+	    outsourceQuantity: string;
+	    outsourceUnitCostRial: number;
+	    outsourceFinancialAccountId: string;
 	    id: string;
 	    jobNumber: string;
 	    orderId: string;
@@ -2552,6 +2575,9 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.outsourceQuantity = source["outsourceQuantity"];
+	        this.outsourceUnitCostRial = source["outsourceUnitCostRial"];
+	        this.outsourceFinancialAccountId = source["outsourceFinancialAccountId"];
 	        this.id = source["id"];
 	        this.jobNumber = source["jobNumber"];
 	        this.orderId = source["orderId"];
@@ -3256,6 +3282,41 @@ export namespace main {
 	        this.reference = source["reference"];
 	        this.notes = source["notes"];
 	        this.idempotencyKey = source["idempotencyKey"];
+	    }
+	}
+
+}
+
+export namespace sqlite {
+	
+	export class ProductionMaterial {
+	    materialId: string;
+	    name: string;
+	    unit: string;
+	    reservationId: string;
+	    required: string;
+	    planned: string;
+	    reserved: string;
+	    used: string;
+	    available: string;
+	    shortage: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProductionMaterial(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.materialId = source["materialId"];
+	        this.name = source["name"];
+	        this.unit = source["unit"];
+	        this.reservationId = source["reservationId"];
+	        this.required = source["required"];
+	        this.planned = source["planned"];
+	        this.reserved = source["reserved"];
+	        this.used = source["used"];
+	        this.available = source["available"];
+	        this.shortage = source["shortage"];
 	    }
 	}
 

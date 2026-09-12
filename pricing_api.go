@@ -27,6 +27,9 @@ type PricingComponentDTO struct {
 	ID            string `json:"id"`
 	Name          string `json:"name"`
 	Type          string `json:"type"`
+	ReferenceID   string `json:"referenceId"`
+	MaterialID    string `json:"materialId"`
+	ParameterKey  string `json:"parameterKey"`
 	Enabled       bool   `json:"enabled"`
 	UsageQuantity string `json:"usageQuantity"`
 	RateRial      int64  `json:"rateRial"`
@@ -78,7 +81,7 @@ func pricingDTO(view application.PricingView) PricingDTO {
 		dto.Parameters = append(dto.Parameters, ResolvedParameterDTO{Key: parameter.Key, Label: parameter.Label, Type: parameter.Type, Value: parameter.Value, Quantity: parameter.Quantity, MaterialID: parameter.MaterialID, Unit: parameter.Unit})
 	}
 	for _, component := range view.Components {
-		dto.Components = append(dto.Components, PricingComponentDTO{ID: component.ID, Name: component.Name, Type: component.Type, Enabled: component.Enabled, UsageQuantity: component.UsageQuantity, RateRial: component.RateRial, Percentage: component.Percentage, AmountRial: component.AmountRial, Explanation: component.Explanation})
+		dto.Components = append(dto.Components, PricingComponentDTO{ID: component.ID, Name: component.Name, Type: component.Type, ReferenceID: component.ReferenceID, MaterialID: component.MaterialID, ParameterKey: component.ParameterKey, Enabled: component.Enabled, UsageQuantity: component.UsageQuantity, RateRial: component.RateRial, Percentage: component.Percentage, AmountRial: component.AmountRial, Explanation: component.Explanation})
 	}
 	return dto
 }

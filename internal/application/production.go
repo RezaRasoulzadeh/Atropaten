@@ -23,6 +23,7 @@ type ProductionRepository interface {
 	RecordProductionConsumption(context.Context, string, string, string, domain.Quantity, domain.Quantity, string) (domain.ProductionConsumption, error)
 	ReverseProductionConsumption(context.Context, string, string) error
 	ListProductionConsumptions(context.Context, string) ([]domain.ProductionConsumption, error)
+	UpdateProductionOutsourcing(context.Context, domain.ProductionJob) error
 }
 
 type ProductionJobInput struct {
@@ -32,17 +33,22 @@ type ProductionJobInput struct {
 type ReservationInput struct{ MaterialID, OrderID, OrderItemID, ProductionJobID, Quantity string }
 type ConsumptionInput struct{ MaterialID, ConsumedQuantity, WasteQuantity, IdempotencyKey, Notes string }
 type OutsourceInput struct {
+	Quantity, FinancialAccountID                                         string
+	UnitCostRial                                                         int64
 	SupplierID, Description, SentAt, ExpectedReturnAt, ReceivedAt, Notes string
 	QuotedCostRial, ActualCostRial                                       int64
 }
 
 type ProductionJobView struct {
+	OutsourceQuantity, OutsourceFinancialAccountID                                                                                                                     string
+	OutsourceUnitCostRial                                                                                                                                              int64
 	ID, JobNumber, OrderID, OrderItemID, ServiceName, Quantity, QuantityUnit, AssignedMachineID, Status, Priority, Notes, PlannedAt, StartedAt, CompletedAt, CreatedAt string
 	EstimatedCostRial, ActualMaterialCostRial, ActualWasteCostRial, ActualOutsourcedCostRial, ActualTotalCostRial, OutsourceQuotedCostRial                             int64
 	OutsourceSupplierID, OutsourceDescription, OutsourceSentAt, OutsourceExpectedReturnAt, OutsourceReceivedAt, OutsourceNotes                                         string
 }
 type ReservationView struct{ ID, MaterialID, OrderID, OrderItemID, ProductionJobID, Quantity, Status, CreatedAt, UpdatedAt string }
 type ConsumptionView struct {
+	Reversed                                                                                           bool
 	ID, ProductionJobID, MaterialID, IdempotencyKey, ConsumedQuantity, WasteQuantity, Notes, CreatedAt string
 	UnitCostRial, MaterialCostRial, WasteCostRial                                                      int64
 }
@@ -235,22 +241,32 @@ func (s *ProductionService) Outsource(ctx context.Context, id string, in Outsour
 	j.OutsourceNotes = in.Notes
 	j.OutsourceQuotedCostRial = in.QuotedCostRial
 	j.ActualOutsourcedCostRial = in.ActualCostRial
+	if in.Quantity != "" {
+		j.OutsourceQuantity, e = domain.ParseQuantity(in.Quantity)
+		if e != nil {
+			return ProductionJobView{}, e
+		}
+		j.OutsourceUnitCostRial = in.UnitCostRial
+		j.OutsourceFinancialAccountID = in.FinancialAccountID
+	} else {
+		return ProductionJobView{}, fmt.Errorf("outsourcing quantity and unit cost are required")
+	}
 	if j.ActualOutsourcedCostRial < 0 || j.OutsourceQuotedCostRial < 0 {
 		return ProductionJobView{}, fmt.Errorf("outsourced cost cannot be negative")
 	}
-	if e = s.repository.UpdateProductionJob(ctx, j); e != nil {
+	if e = s.repository.UpdateProductionOutsourcing(ctx, j); e != nil {
 		return ProductionJobView{}, e
 	}
 	return s.Get(ctx, id)
 }
 func productionJobView(v domain.ProductionJob) ProductionJobView {
-	return ProductionJobView{ID: v.ID, JobNumber: v.JobNumber, OrderID: v.OrderID, OrderItemID: v.OrderItemID, ServiceName: v.ServiceNameSnapshot, Quantity: v.Quantity.String(), QuantityUnit: v.QuantityUnit, AssignedMachineID: v.AssignedMachineID, Status: v.Status, Priority: v.Priority, Notes: v.Notes, PlannedAt: optionalTime(v.PlannedAt), StartedAt: optionalTime(v.StartedAt), CompletedAt: optionalTime(v.CompletedAt), CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano), EstimatedCostRial: v.EstimatedCostRial, ActualMaterialCostRial: v.ActualMaterialCostRial, ActualWasteCostRial: v.ActualWasteCostRial, ActualOutsourcedCostRial: v.ActualOutsourcedCostRial, ActualTotalCostRial: v.ActualMaterialCostRial + v.ActualWasteCostRial + v.ActualOutsourcedCostRial, OutsourceQuotedCostRial: v.OutsourceQuotedCostRial, OutsourceSupplierID: v.OutsourceSupplierID, OutsourceDescription: v.OutsourceDescription, OutsourceSentAt: v.OutsourceSentAt, OutsourceExpectedReturnAt: v.OutsourceExpectedReturnAt, OutsourceReceivedAt: v.OutsourceReceivedAt, OutsourceNotes: v.OutsourceNotes}
+	return ProductionJobView{OutsourceQuantity: v.OutsourceQuantity.String(), OutsourceUnitCostRial: v.OutsourceUnitCostRial, OutsourceFinancialAccountID: v.OutsourceFinancialAccountID, ID: v.ID, JobNumber: v.JobNumber, OrderID: v.OrderID, OrderItemID: v.OrderItemID, ServiceName: v.ServiceNameSnapshot, Quantity: v.Quantity.String(), QuantityUnit: v.QuantityUnit, AssignedMachineID: v.AssignedMachineID, Status: v.Status, Priority: v.Priority, Notes: v.Notes, PlannedAt: optionalTime(v.PlannedAt), StartedAt: optionalTime(v.StartedAt), CompletedAt: optionalTime(v.CompletedAt), CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano), EstimatedCostRial: v.EstimatedCostRial, ActualMaterialCostRial: v.ActualMaterialCostRial, ActualWasteCostRial: v.ActualWasteCostRial, ActualOutsourcedCostRial: v.ActualOutsourcedCostRial, ActualTotalCostRial: v.ActualMaterialCostRial + v.ActualWasteCostRial + v.ActualOutsourcedCostRial, OutsourceQuotedCostRial: v.OutsourceQuotedCostRial, OutsourceSupplierID: v.OutsourceSupplierID, OutsourceDescription: v.OutsourceDescription, OutsourceSentAt: v.OutsourceSentAt, OutsourceExpectedReturnAt: v.OutsourceExpectedReturnAt, OutsourceReceivedAt: v.OutsourceReceivedAt, OutsourceNotes: v.OutsourceNotes}
 }
 func reservationView(v domain.InventoryReservation) ReservationView {
 	return ReservationView{ID: v.ID, MaterialID: v.MaterialID, OrderID: v.OrderID, OrderItemID: v.OrderItemID, ProductionJobID: v.ProductionJobID, Quantity: v.Quantity.String(), Status: v.Status, CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: v.UpdatedAt.UTC().Format(time.RFC3339Nano)}
 }
 func consumptionView(v domain.ProductionConsumption) ConsumptionView {
-	return ConsumptionView{ID: v.ID, ProductionJobID: v.ProductionJobID, MaterialID: v.MaterialID, IdempotencyKey: v.IdempotencyKey, ConsumedQuantity: v.ConsumedQuantity.String(), WasteQuantity: v.WasteQuantity.String(), UnitCostRial: v.UnitCostRial, MaterialCostRial: v.MaterialCostRial, WasteCostRial: v.WasteCostRial, Notes: v.Notes, CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano)}
+	return ConsumptionView{Reversed: v.Reversed, ID: v.ID, ProductionJobID: v.ProductionJobID, MaterialID: v.MaterialID, IdempotencyKey: v.IdempotencyKey, ConsumedQuantity: v.ConsumedQuantity.String(), WasteQuantity: v.WasteQuantity.String(), UnitCostRial: v.UnitCostRial, MaterialCostRial: v.MaterialCostRial, WasteCostRial: v.WasteCostRial, Notes: v.Notes, CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano)}
 }
 func optionalTime(v *time.Time) string {
 	if v == nil {

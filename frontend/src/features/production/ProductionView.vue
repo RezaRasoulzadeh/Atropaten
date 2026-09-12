@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, Factory, Plus, Search } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Factory, Search } from 'lucide-vue-next'
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue'
 import WorkspaceStickyStack from '../../components/layout/WorkspaceStickyStack.vue'
 import SearchField from '../../components/ui/SearchField.vue'
@@ -9,10 +9,9 @@ import EmptyState from '../../components/ui/EmptyState.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import type { OrderRecord } from '../../api/orders'
 import type { CurrencyUnit } from '../../utils/currency'
-import { confirmAction } from '../../ui/feedback'
 import { useProductionWorkspace } from './useProductionWorkspace'
-import ProductionJobEditorWizard from './ProductionJobEditorWizard.vue'
 import ProductionJobWorkspaceView from './ProductionJobWorkspaceView.vue'
+import ProductionJobDetailPanel from './ProductionJobDetailPanel.vue'
 
 const props = defineProps<{
   currencyUnit: CurrencyUnit
@@ -21,19 +20,20 @@ const props = defineProps<{
   machines: any[]
   suppliers: any[]
 }>()
-const emit = defineEmits<{ notify: [message: string] }>()
+const emit = defineEmits<{
+  notify: [message: string]
+  'order-updated': [order: OrderRecord]
+}>()
 const workspace = useProductionWorkspace(props, emit)
 const {
+  busy,
   jobs,
   selectedId,
   selected,
   statusFilter,
   searchQuery,
   loading,
-  createMode,
-  editing,
   visibleJobs,
-  beginCreate,
   select,
   jobOrder,
   jobContext,
@@ -42,6 +42,7 @@ const {
 
 const page = ref(1)
 const pageSize = 10
+const fullWorkspace = ref(false)
 const statusOptions = ['All', 'Pending', 'Ready', 'In Progress', 'Paused', 'Completed', 'Cancelled', 'Failed'] as const
 
 const sortedJobs = computed(() => visibleJobs.value)
@@ -51,8 +52,11 @@ const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, i
 
 watch([searchQuery, statusFilter], () => { page.value = 1 })
 watch(pageCount, (count) => { if (page.value > count) page.value = count })
-watch([selectedId, createMode, editing], () => {
+watch(selectedId, () => {
   void nextTick(() => document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' }))
+})
+watch(selected, (job) => {
+  if (!job) fullWorkspace.value = false
 })
 
 function statusCount(status: string) {
@@ -70,34 +74,25 @@ function resetListFilters() {
   page.value = 1
 }
 
-async function cancelEditor() {
-  if (workspace.busy.value) return
-  const wasEditing = editing.value
-  if (createMode.value && (workspace.form.value.orderId || workspace.form.value.orderItemId || workspace.form.value.quantity || workspace.form.value.notes)) {
-    const discard = await confirmAction({ title: 'Discard new production job?', message: 'The new job has not been saved.', confirmLabel: 'Discard draft', danger: true })
-    if (!discard) return
-  }
-  if (editing.value) {
-    const discard = await confirmAction({ title: 'Discard job changes?', message: 'Your unsaved production job changes will be lost.', confirmLabel: 'Discard changes', danger: true })
-    if (!discard) return
-    workspace.cancelEdit()
-  }
-  createMode.value = false
-  if (!wasEditing) selectedId.value = null
+function selectJob(id: string) {
+  fullWorkspace.value = false
+  void select(id)
 }
+
+function openWorkspace() {
+  fullWorkspace.value = true
+}
+
 </script>
 
 <template>
-  <div v-if="!selected && !createMode && !editing" class="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+  <div v-if="!fullWorkspace" class="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
     aria-label="Production workspace">
     <WorkspaceStickyStack class="shrink-0" :flush="true">
       <WorkspaceHeader :show-breadcrumb="true" title="Production"
-        description="Schedule jobs, monitor progress, and keep material usage tied to confirmed orders.">
+        description="Manage production created from service items on confirmed orders.">
         <SearchField v-model="searchQuery" class="w-full min-w-0 sm:w-72" placeholder="Search production jobs…"
           aria-label="Search production jobs" />
-        <button class="btn btn-primary w-full gap-2 sm:w-auto" type="button" @click="beginCreate">
-          <Plus :size="16" aria-hidden="true" />Add production job
-        </button>
       </WorkspaceHeader>
     </WorkspaceStickyStack>
 
@@ -123,7 +118,7 @@ async function cancelEditor() {
         <div v-else-if="pagedJobs.length" class="min-h-0 flex-1 overflow-y-auto divide-y divide-base-300"><button
             v-for="job in pagedJobs" :key="job.id"
             class="production-register-row group grid w-full min-w-0 items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-base-200/60 focus-visible:bg-base-200/60 focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary"
-            :class="selectedId === job.id ? 'bg-primary/10' : ''" type="button" @click="select(job.id)"><span
+            :class="selectedId === job.id ? 'bg-primary/10' : ''" type="button" @click="selectJob(job.id)"><span
               class="flex min-w-0 items-center gap-3"><span
                 class="grid size-9 shrink-0 place-items-center rounded-box border border-base-300 bg-base-200 text-primary">
                 <Factory :size="18" aria-hidden="true" />
@@ -146,10 +141,7 @@ async function cancelEditor() {
           <template #icon>
             <Search :size="22" aria-hidden="true" />
           </template><template #action><button v-if="jobs.length" class="btn btn-outline btn-sm" type="button"
-              @click="resetListFilters">Clear filters</button><button v-else class="btn btn-primary btn-sm gap-2"
-              type="button" @click="beginCreate">
-              <Plus :size="15" aria-hidden="true" />Create job
-            </button></template>
+              @click="resetListFilters">Clear filters</button></template>
         </EmptyState>
         <footer
           class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-base-300 bg-base-100 px-4 py-3 text-xs text-base-content/60">
@@ -167,22 +159,32 @@ async function cancelEditor() {
             </button></div>
         </footer>
       </section>
-      <section
+      <section v-if="selected"
+        class="min-h-0 min-w-0 overflow-y-auto rounded-box border border-base-300 bg-base-100"
+        aria-label="Production job preview">
+        <ProductionJobDetailPanel
+          :workspace="workspace"
+          :currency-unit="props.currencyUnit"
+          :machines="props.machines"
+          :busy="busy"
+          @open="openWorkspace"
+          @remove="workspace.remove"
+        />
+      </section>
+      <section v-else
         class="flex min-h-72 min-w-0 items-center justify-center rounded-box border border-dashed border-base-300 p-8 text-center">
         <EmptyState title="Open a production job"
-          description="Select a job from the queue to manage workflow, reservations, consumption, and outsourcing.">
-          <template #icon>
-            <Factory :size="22" aria-hidden="true" />
-          </template></EmptyState>
+          description="Select a job from the queue to preview its overview and production details.">
+          <template #icon><Factory :size="22" aria-hidden="true" /></template>
+        </EmptyState>
       </section>
     </div>
   </div>
 
-  <div v-else-if="createMode || editing" class="h-full min-h-0 w-full min-w-0">
-    <ProductionJobEditorWizard :workspace="workspace" :currency-unit="props.currencyUnit" :orders="props.orders"
-      :machines="props.machines" @cancel="cancelEditor" />
+  <div v-else-if="fullWorkspace" class="h-full min-h-0 w-full min-w-0">
+    <ProductionJobWorkspaceView v-bind="props" :key="selectedId ?? ''" :workspace="workspace" @back="fullWorkspace = false" />
   </div>
-  <ProductionJobWorkspaceView v-else v-bind="props" :workspace="workspace" @back="selectedId = null" />
+
 </template>
 
 <style scoped>

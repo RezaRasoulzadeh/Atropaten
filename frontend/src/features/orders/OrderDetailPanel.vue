@@ -97,6 +97,44 @@ function itemCount(order: OrderRecord) {
 
     <div class="min-w-0 p-3 sm:p-4">
       <div v-if="activeTab === 'overview'" class="space-y-3">
+        <div class="rounded-box border border-base-300 bg-base-200/20 p-3">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="text-sm font-semibold">Financial summary</h3>
+            <span class="text-xs text-base-content/50">Order balance</span>
+          </div>
+          <dl class="mt-3 grid grid-cols-2 divide-x divide-y divide-base-300/70 overflow-hidden rounded-box border border-base-300/70 bg-base-100/35 sm:grid-cols-4 sm:divide-y-0">
+            <div class="min-w-0 p-2.5 first:ps-3">
+              <dt class="truncate text-[11px] text-base-content/55">Total</dt>
+              <dd class="mt-1 truncate text-sm font-semibold tabular-nums text-primary">{{ money(order.totalRial) }}</dd>
+            </div>
+            <div class="min-w-0 p-2.5">
+              <dt class="truncate text-[11px] text-base-content/55">Discount</dt>
+              <dd class="mt-1 truncate text-sm tabular-nums">{{ money(order.discountRial || 0) }}</dd>
+            </div>
+            <div class="min-w-0 p-2.5">
+              <dt class="truncate text-[11px] text-base-content/55">Paid</dt>
+              <dd class="mt-1 truncate text-sm tabular-nums text-success">{{ money(order.paidRial || 0) }}</dd>
+            </div>
+            <div class="min-w-0 p-2.5 last:pe-3">
+              <dt class="truncate text-[11px] text-base-content/55">Remaining</dt>
+              <dd class="mt-1 truncate text-sm font-semibold tabular-nums text-warning">{{ money(order.remainingRial ?? order.totalRial) }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="rounded-box border border-base-300 bg-base-200/20 p-3">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="text-sm font-semibold">Production cost & margin</h3>
+            <span class="text-xs text-base-content/50">Live actuals</span>
+          </div>
+          <dl class="mt-3 grid grid-cols-3 divide-x divide-base-300/70 overflow-hidden rounded-box border border-base-300/70 bg-base-100/35">
+            <div class="min-w-0 p-2.5 first:ps-3"><dt class="truncate text-[11px] text-base-content/55">Estimated</dt><dd class="mt-1 truncate text-sm tabular-nums">{{ money(order.estimatedCostRial || 0) }}</dd></div>
+            <div class="min-w-0 p-2.5"><dt class="truncate text-[11px] text-base-content/55">Actual</dt><dd class="mt-1 truncate text-sm tabular-nums">{{ money(order.actualCostRial || 0) }}</dd></div>
+            <div class="min-w-0 p-2.5 last:pe-3"><dt class="truncate text-[11px] text-base-content/55">Margin</dt><dd class="mt-1 truncate text-sm font-semibold tabular-nums" :class="(order.marginRial || 0) >= 0 ? 'text-success' : 'text-error'">{{ money(order.marginRial || 0) }}</dd></div>
+          </dl>
+          <p v-if="order.marginPercentage" class="mt-2 text-xs text-base-content/55">{{ order.marginPercentage }}% margin on the current order total.</p>
+        </div>
+
         <div class="rounded-box border border-base-300 bg-base-200/20 p-4">
           <div class="flex items-start gap-3">
             <span class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><UserRound :size="18" aria-hidden="true" /></span>

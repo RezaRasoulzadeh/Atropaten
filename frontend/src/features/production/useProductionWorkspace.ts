@@ -5,8 +5,12 @@ import {
   productionApi,
   type ProductionJobRecord,
   type ReservationRecord,
+  type ConsumptionRecord,
+  type ProductionMaterialRecord,
 } from '../../api/production';
-import type { OrderRecord } from '../../api/orders';
+import { materialsApi, type MaterialRecord } from '../../api/materials';
+import { accountingApi, type FinancialAccountRecord } from '../../api/accounting';
+import { ordersApi, type OrderRecord } from '../../api/orders';
 import type { CurrencyUnit } from '../../utils/currency';
 import { formatMoneyInput, parseMoneyInput } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
@@ -20,7 +24,10 @@ export function useProductionWorkspace(
     machines: any[];
     suppliers: any[];
   },
-  emit: (event: 'notify', message: string) => void,
+  emit: {
+    (event: 'notify', value: string): void
+    (event: 'order-updated', value: OrderRecord): void
+  },
 ) {
   const { busy, runAction } = useWorkspaceActions();
   const toast = useToast();
@@ -43,6 +50,27 @@ export function useProductionWorkspace(
     plannedAt: null as string | null,
   });
   const reservations = ref<ReservationRecord[]>([]);
+  const materialPlans = ref<ProductionMaterialRecord[]>([]);
+  const consumptions = ref<ConsumptionRecord[]>([]);
+  const stockMaterials = ref<MaterialRecord[]>([]);
+  const financialAccounts = ref<FinancialAccountRecord[]>([]);
+  const materialsError = ref('');
+  const editingConsumptionId = ref<string | null>(null);
+  const outsourceQuantity = ref('');
+  const outsourceAccount = ref('');
+  const initializedJobId = ref('');
+  let selectionRequest = 0;
+  const consumptionLimit = computed(() => {
+    const id = consumptionMaterial.value;
+    const material = stockMaterials.value.find(m => m.id === id);
+    const reserved = reservations.value.filter(r => r.materialId === id && r.status === 'active').reduce((n,r) => n+Number(r.quantity),0);
+    const existing = consumptions.value.find(c => c.id === editingConsumptionId.value && !c.reversed);
+    return Math.max(0,Number(material?.availableStock || 0)+reserved+Number(existing?.consumedQuantity || 0)+Number(existing?.wasteQuantity || 0)-Number(parseQuantityInput(wasteQuantity.value || '0') || 0));
+  });
+  const outsourceTotal = computed(() => Math.round(Number(parseQuantityInput(outsourceQuantity.value || '0')) * (parseMoneyInput(outsourceCost.value,props.currencyUnit) || 0)));
+  const canConsume = computed(() => !!selected.value && ['In Progress','Paused'].includes(selected.value.status) && Number(selected.value.outsourceQuantity || 0) < Number(selected.value.quantity));
+  const editableJob = computed(() => !!selected.value && !['Completed','Cancelled'].includes(selected.value.status));
+
   const reservationsLoading = ref(false);
   const reservationMaterial = ref('');
   const reservationQuantity = ref('');
@@ -96,47 +124,100 @@ export function useProductionWorkspace(
     loading.value = true;
     try {
       jobs.value = await productionApi.list('All');
-      if (selectedId.value && !jobs.value.some((j) => j.id === selectedId.value))
-        selectedId.value = null;
-    } catch (e) {
-      toast.error(message(e, 'Production queue could not be loaded.'));
-    } finally {
-      loading.value = false;
-    }
+      const id = jobs.value.some(j => j.id === selectedId.value) ? selectedId.value : jobs.value[0]?.id;
+      if (id) await select(id);
+      else { selectedId.value = null; reservations.value=[]; materialPlans.value=[]; consumptions.value=[]; }
+    } catch (e) { toast.error(message(e,'Production queue could not be loaded.')); }
+    finally { loading.value = false; }
   }
   async function select(id: string) {
-    const differentJob = selectedId.value !== id;
+    const request = ++selectionRequest;
     selectedId.value = id;
-    createMode.value = false;
-    editing.value = false;
-    reservations.value = [];
+    createMode.value = editing.value = false;
     reservationsLoading.value = true;
-    if (differentJob) {
-      reservationMaterial.value = reservationQuantity.value = '';
-      consumptionMaterial.value = consumedQuantity.value = wasteQuantity.value = '';
-      consumptionKey.value = consumptionNotes.value = '';
-      const job = selected.value;
-      outsourceSupplier.value = job?.outsourceSupplierId || '';
-      outsourceDescription.value = job?.outsourceDescription || '';
-      outsourceCost.value = formatMoneyInput(
-        job?.actualOutsourcedCostRial || 0,
-        props.currencyUnit,
-      );
-      outsourceQuotedCost.value = formatMoneyInput(
-        job?.outsourceQuotedCostRial || 0,
-        props.currencyUnit,
-      );
-    }
+    materialsError.value = '';
     try {
-      const result = await productionApi.reservations('', id, '');
-      if (selectedId.value === id) reservations.value = result;
-    } catch (e) {
-      if (selectedId.value === id) {
-        toast.error(message(e, 'Reservations could not be loaded.'));
+      // Reconcile first, then load the reservations and balances it produced.
+      let plans: ProductionMaterialRecord[] = [];
+      try { plans = await productionApi.materials(id); }
+      catch(e) { if(request === selectionRequest) materialsError.value = message(e,'Order materials could not be synchronized.'); }
+      const [job, reserved, used, stock, accounts] = await Promise.all([
+        productionApi.get(id), productionApi.reservations('',id,''), productionApi.consumptions(id),
+        materialsApi.list(), accountingApi.financialAccounts(),
+      ]);
+      if (request !== selectionRequest) return;
+      replace(job);
+      materialPlans.value = plans;
+      reservations.value = reserved;
+      consumptions.value = used;
+      stockMaterials.value = stock;
+      financialAccounts.value = accounts.filter(a => a.active);
+      if (initializedJobId.value !== id) {
+        initializedJobId.value = id;
+        reservationMaterial.value = reservationQuantity.value = '';
+        editingConsumptionId.value = null;
+        consumptionKey.value = consumptionNotes.value = '';
+        consumptionMaterial.value = reserved.find(r => r.status === 'active')?.materialId || plans[0]?.materialId || '';
+        suggestConsumption();
+        resetOutsourceDraft();
       }
-    } finally {
-      if (selectedId.value === id) reservationsLoading.value = false;
-    }
+    } catch(e) {
+      if(request === selectionRequest) { materialsError.value=message(e,'Production details could not be loaded.'); toast.error(materialsError.value); }
+    } finally { if(request === selectionRequest) reservationsLoading.value=false; }
+  }
+  function resetOutsourceDraft() {
+    const job=selected.value;
+    outsourceSupplier.value=job?.outsourceSupplierId || '';
+    outsourceDescription.value=job?.outsourceDescription || '';
+    outsourceQuantity.value=Number(job?.outsourceQuantity || 0)>0 ? job!.outsourceQuantity : job?.quantity || '';
+    const unitCost=Number(job?.outsourceQuantity || 0)>0 ? job!.outsourceUnitCostRial : Math.round((job?.estimatedCostRial || 0)/Number(job?.quantity || 1));
+    outsourceCost.value=formatMoneyInput(unitCost,props.currencyUnit);
+    outsourceQuotedCost.value=formatMoneyInput(job?.estimatedCostRial || 0,props.currencyUnit);
+    outsourceAccount.value=job?.outsourceFinancialAccountId || financialAccounts.value.find(a => a.type==='cash')?.id || financialAccounts.value[0]?.id || '';
+  }
+  function suggestConsumption() {
+    const amount=reservations.value.filter(r=>r.materialId===consumptionMaterial.value && r.status==='active').reduce((n,r)=>n+Number(r.quantity),0);
+    consumedQuantity.value=String(amount);
+    wasteQuantity.value='0';
+    consumptionKey.value='';
+    editingConsumptionId.value=null;
+  }
+  function updateConsumptionSlider(event: Event) {
+    const percent=Number((event.target as HTMLInputElement).value);
+    consumedQuantity.value=String(Math.round(consumptionLimit.value*percent/100*1000000)/1000000);
+  }
+  function editConsumption(record: ConsumptionRecord) {
+    if(record.reversed)return;
+    consumptionMaterial.value=record.materialId;
+    consumedQuantity.value=record.consumedQuantity;
+    wasteQuantity.value=record.wasteQuantity;
+    consumptionNotes.value=record.notes;
+    editingConsumptionId.value=record.id;
+    consumptionKey.value=crypto.randomUUID();
+  }
+  async function saveMaterialTarget(plan: ProductionMaterialRecord, value: string) {
+    return runAction(async()=> {
+      if(!selected.value)return;
+      try {
+        await productionApi.setMaterialTarget(selected.value.id,plan.materialId,parseQuantityInput(value));
+        await select(selected.value.id);
+        emit('notify','Material plan updated.');
+      } catch(e){toast.error(message(e,'Material plan could not be updated.'));}
+    });
+  }
+  async function updateReservation(record: ReservationRecord, value: string) {
+    return runAction(async()=>{
+      try { await productionApi.updateReservation(record.id,parseQuantityInput(value)); if(selected.value)await select(selected.value.id); }
+      catch(e){toast.error(message(e,'Reservation could not be updated.'));}
+    });
+  }
+  async function correctConsumption(record: ConsumptionRecord) {
+    return runAction(async()=>{
+      try {
+        await productionApi.updateConsumption(record.id,{materialId:record.materialId,consumedQuantity:'0',wasteQuantity:'0',idempotencyKey:crypto.randomUUID(),notes:'Material returned by operator'});
+        if(selected.value){await select(selected.value.id);await refreshOrder(selected.value.orderId);}
+      }catch(e){toast.error(message(e,'Consumption could not be returned.'));}
+    });
   }
   function beginCreate() {
     reservationsLoading.value = false;
@@ -253,6 +334,7 @@ export function useProductionWorkspace(
         const j = await productionApi.status(selected.value.id, status);
         replace(j);
         await select(j.id);
+        await refreshOrder(j.orderId);
         emit('notify', `Job moved to ${status}.`);
       } catch (e) {
         toast.error(message(e, 'Production status could not be changed.'));
@@ -277,6 +359,8 @@ export function useProductionWorkspace(
         jobs.value = jobs.value.filter((j) => j.id !== job.id);
         selectedId.value = null;
         reservations.value = [];
+        await refreshOrder(job.orderId);
+        await load();
         emit('notify', 'Production job deleted.');
       } catch (e) {
         toast.error(message(e, 'Production job could not be deleted.'));
@@ -310,12 +394,19 @@ export function useProductionWorkspace(
     return runAction(async () => {
       try {
         await productionApi.releaseReservation(r.id);
-        if (selected.value)
-          reservations.value = await productionApi.reservations('', selected.value.id, '');
+        if (selected.value) await select(selected.value.id);
       } catch (e) {
         toast.error(message(e, 'Reservation could not be released.'));
       }
     });
+  }
+  async function consumeReservation(r: ReservationRecord) {
+    if (r.status !== 'active') return;
+    consumptionMaterial.value = r.materialId;
+    consumedQuantity.value = r.quantity;
+    wasteQuantity.value = '0';
+    editingConsumptionId.value = null;
+    consumptionKey.value = '';
   }
   async function consume() {
     return runAction(async () => {
@@ -324,20 +415,24 @@ export function useProductionWorkspace(
         return;
       }
       try {
-        await productionApi.consume(selected.value.id, {
+        const payload = {
           materialId: consumptionMaterial.value,
           consumedQuantity: parseQuantityInput(consumedQuantity.value || '0'),
           wasteQuantity: parseQuantityInput(wasteQuantity.value || '0'),
-          idempotencyKey: consumptionKey.value || `ui-${Date.now()}`,
+          idempotencyKey: consumptionKey.value ||= crypto.randomUUID(),
           notes: consumptionNotes.value,
-        });
+        };
+        if (editingConsumptionId.value) await productionApi.updateConsumption(editingConsumptionId.value,payload);
+        else await productionApi.consume(selected.value.id,payload);
+        editingConsumptionId.value=null;
         consumedQuantity.value = '';
         wasteQuantity.value = '';
         consumptionKey.value = '';
         consumptionNotes.value = '';
         await load();
         if (selected.value) await select(selected.value.id);
-        emit('notify', 'Consumption posted as immutable inventory movement(s).');
+        await refreshOrder(selected.value?.orderId || '');
+        emit('notify', 'Material usage saved; stock and reservations updated.');
       } catch (e) {
         toast.error(message(e, 'Consumption could not be posted.'));
       }
@@ -354,6 +449,9 @@ export function useProductionWorkspace(
       }
       try {
         const j = await productionApi.outsource(selected.value.id, {
+          quantity: parseQuantityInput(outsourceQuantity.value || '0'),
+          unitCostRial: cost,
+          financialAccountId: outsourceAccount.value,
           supplierId: outsourceSupplier.value,
           description: outsourceDescription.value,
           sentAt: selected.value.outsourceSentAt,
@@ -364,7 +462,10 @@ export function useProductionWorkspace(
           actualCostRial: cost,
         });
         replace(j);
-        emit('notify', 'Outsourced production metadata saved.');
+        await refreshOrder(j.orderId);
+        await select(j.id);
+        resetOutsourceDraft();
+        emit('notify', 'Outsourcing saved; stock, expense, and order cost updated.');
       } catch (e) {
         toast.error(message(e, 'Outsourcing metadata could not be saved.'));
       }
@@ -373,6 +474,14 @@ export function useProductionWorkspace(
   function replace(j: ProductionJobRecord) {
     const i = jobs.value.findIndex((x) => x.id === j.id);
     if (i >= 0) jobs.value.splice(i, 1, j);
+  }
+  async function refreshOrder(orderId: string) {
+    if (!orderId) return;
+    try {
+      emit('order-updated', await ordersApi.get(orderId));
+    } catch (e) {
+      toast.warning(message(e, 'Order cost summary could not be refreshed.'));
+    }
   }
   function jobOrder(j: ProductionJobRecord) {
     return props.orders.find((o) => o.id === j.orderId)?.orderNumber ?? j.orderId;
@@ -403,6 +512,9 @@ export function useProductionWorkspace(
     }
   }
   return {
+    materialPlans, consumptions, stockMaterials, financialAccounts, materialsError, editingConsumptionId,
+    outsourceQuantity, outsourceAccount, outsourceTotal, consumptionLimit, canConsume, editableJob,
+    suggestConsumption, updateConsumptionSlider, editConsumption, correctConsumption, saveMaterialTarget, updateReservation, resetOutsourceDraft,
     busy,
     runAction,
     jobs,
@@ -444,9 +556,11 @@ export function useProductionWorkspace(
     remove,
     reserve,
     release,
+    consumeReservation,
     consume,
     saveOutsource,
     replace,
+    refreshOrder,
     jobOrder,
     jobContext,
     statusTone,

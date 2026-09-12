@@ -24,6 +24,9 @@ type OrderCustomerLookup interface {
 type OrderProductionLookup interface {
 	ProductionSummary(context.Context, string) (int, int, int, error)
 }
+type OrderProductionCostLookup interface {
+	ProductionCostSummary(context.Context, string) (int64, error)
+}
 type OrderPaymentLookup interface {
 	OrderPaymentSummary(context.Context, string) (int64, int64, domain.PaymentStatus, error)
 }
@@ -55,6 +58,8 @@ type OrderView struct {
 	Archived                                                              bool
 	SubtotalRial, DiscountRial, TotalRial, EstimatedCostRial              int64
 	PaidRial, RemainingRial                                               int64
+	ActualCostRial, MarginRial                                            int64
+	MarginPercentage                                                      string
 	InvoiceID, InvoiceStatus                                              string
 	InvoicedTotalRial                                                     int64
 	ProductionJobCount, CompletedProductionJobs, InProgressProductionJobs int
@@ -93,6 +98,13 @@ func (s *OrdersService) List(ctx context.Context) ([]OrderView, error) {
 			if err != nil {
 				return nil, err
 			}
+		}
+		if lookup, ok := s.repository.(OrderProductionCostLookup); ok {
+			view.ActualCostRial, err = lookup.ProductionCostSummary(ctx, row.ID)
+			if err != nil {
+				return nil, err
+			}
+			setOrderMargin(&view)
 		}
 		if lookup, ok := s.repository.(OrderPaymentLookup); ok {
 			var status domain.PaymentStatus
@@ -183,6 +195,13 @@ func (s *OrdersService) enrich(ctx context.Context, view OrderView) (OrderView, 
 		if err != nil {
 			return OrderView{}, err
 		}
+	}
+	if lookup, ok := s.repository.(OrderProductionCostLookup); ok {
+		view.ActualCostRial, err = lookup.ProductionCostSummary(ctx, view.ID)
+		if err != nil {
+			return OrderView{}, err
+		}
+		setOrderMargin(&view)
 	}
 	if lookup, ok := s.repository.(OrderPaymentLookup); ok {
 		var status domain.PaymentStatus
@@ -466,4 +485,11 @@ func orderView(o domain.Order) OrderView {
 		v.Items = append(v.Items, OrderItemView{ID: i.ID, Position: i.Position, ServiceID: i.ServiceID, ServiceName: i.ServiceNameSnapshot, ServiceCode: i.ServiceCodeSnapshot, Quantity: i.Quantity.String(), QuantityUnit: i.QuantityUnit, ResolvedParametersJSON: i.ResolvedParametersJSON, CostBreakdownJSON: i.CostBreakdownJSON, PricingSnapshotJSON: i.PricingSnapshotJSON, EstimatedCostRial: i.EstimatedCostRial, SuggestedPriceRial: i.SuggestedPriceRial, SellingPriceRial: i.SellingPriceRial, Notes: i.Notes})
 	}
 	return v
+}
+
+func setOrderMargin(view *OrderView) {
+	view.MarginRial = view.TotalRial - view.ActualCostRial
+	if view.TotalRial > 0 {
+		view.MarginPercentage = fmt.Sprintf("%.2f", float64(view.MarginRial)*100/float64(view.TotalRial))
+	}
 }

@@ -10,6 +10,7 @@ const props = defineProps<{
   invoice: InvoiceRecord
   shop: ShopSettingsRecord | null
   currencyUnit: CurrencyUnit
+  documentType?: 'pre' | 'final'
 }>()
 
 function money(value: number) {
@@ -36,7 +37,7 @@ function shopValue(value: string | undefined, fallback = '—') {
         </div>
       </div>
       <div class="invoice-print-heading">
-        <p class="invoice-print-kicker">Invoice</p>
+        <p class="invoice-print-kicker">{{ props.documentType === 'pre' ? 'Pre-invoice' : 'Final invoice' }}</p>
         <strong>{{ invoice.invoiceNumber }}</strong>
         <span>{{ formatDateTime(invoice.issueDate) }}</span>
       </div>

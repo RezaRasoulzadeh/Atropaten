@@ -12,7 +12,7 @@ const iconFor = (kind: ToastKind) => icons[kind];
 </script>
 <template>
   <div
-    class="toast toast-end toast-bottom right-3 bottom-3 z-50 w-[min(24rem,calc(100vw-1.5rem))]"
+    class="toast toast-end fixed end-3 top-[4.75rem] bottom-auto z-50 w-[min(24rem,calc(100vw-1.5rem))]"
     aria-live="polite"
     aria-atomic="false"
   >

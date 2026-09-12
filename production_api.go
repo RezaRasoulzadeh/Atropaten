@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"Atropaten/internal/application"
+	"Atropaten/internal/domain"
+	"Atropaten/internal/storage/sqlite"
 )
 
 type ProductionJobInput struct {
@@ -19,33 +21,36 @@ type ProductionJobInput struct {
 }
 
 type ProductionJobDTO struct {
-	ID                        string `json:"id"`
-	JobNumber                 string `json:"jobNumber"`
-	OrderID                   string `json:"orderId"`
-	OrderItemID               string `json:"orderItemId"`
-	ServiceName               string `json:"serviceName"`
-	Quantity                  string `json:"quantity"`
-	QuantityUnit              string `json:"quantityUnit"`
-	AssignedMachineID         string `json:"assignedMachineId"`
-	Status                    string `json:"status"`
-	Priority                  string `json:"priority"`
-	Notes                     string `json:"notes"`
-	PlannedAt                 string `json:"plannedAt"`
-	StartedAt                 string `json:"startedAt"`
-	CompletedAt               string `json:"completedAt"`
-	CreatedAt                 string `json:"createdAt"`
-	EstimatedCostRial         int64  `json:"estimatedCostRial"`
-	ActualMaterialCostRial    int64  `json:"actualMaterialCostRial"`
-	ActualWasteCostRial       int64  `json:"actualWasteCostRial"`
-	ActualOutsourcedCostRial  int64  `json:"actualOutsourcedCostRial"`
-	ActualTotalCostRial       int64  `json:"actualTotalCostRial"`
-	OutsourceQuotedCostRial   int64  `json:"outsourceQuotedCostRial"`
-	OutsourceSupplierID       string `json:"outsourceSupplierId"`
-	OutsourceDescription      string `json:"outsourceDescription"`
-	OutsourceSentAt           string `json:"outsourceSentAt"`
-	OutsourceExpectedReturnAt string `json:"outsourceExpectedReturnAt"`
-	OutsourceReceivedAt       string `json:"outsourceReceivedAt"`
-	OutsourceNotes            string `json:"outsourceNotes"`
+	OutsourceQuantity           string `json:"outsourceQuantity"`
+	OutsourceUnitCostRial       int64  `json:"outsourceUnitCostRial"`
+	OutsourceFinancialAccountID string `json:"outsourceFinancialAccountId"`
+	ID                          string `json:"id"`
+	JobNumber                   string `json:"jobNumber"`
+	OrderID                     string `json:"orderId"`
+	OrderItemID                 string `json:"orderItemId"`
+	ServiceName                 string `json:"serviceName"`
+	Quantity                    string `json:"quantity"`
+	QuantityUnit                string `json:"quantityUnit"`
+	AssignedMachineID           string `json:"assignedMachineId"`
+	Status                      string `json:"status"`
+	Priority                    string `json:"priority"`
+	Notes                       string `json:"notes"`
+	PlannedAt                   string `json:"plannedAt"`
+	StartedAt                   string `json:"startedAt"`
+	CompletedAt                 string `json:"completedAt"`
+	CreatedAt                   string `json:"createdAt"`
+	EstimatedCostRial           int64  `json:"estimatedCostRial"`
+	ActualMaterialCostRial      int64  `json:"actualMaterialCostRial"`
+	ActualWasteCostRial         int64  `json:"actualWasteCostRial"`
+	ActualOutsourcedCostRial    int64  `json:"actualOutsourcedCostRial"`
+	ActualTotalCostRial         int64  `json:"actualTotalCostRial"`
+	OutsourceQuotedCostRial     int64  `json:"outsourceQuotedCostRial"`
+	OutsourceSupplierID         string `json:"outsourceSupplierId"`
+	OutsourceDescription        string `json:"outsourceDescription"`
+	OutsourceSentAt             string `json:"outsourceSentAt"`
+	OutsourceExpectedReturnAt   string `json:"outsourceExpectedReturnAt"`
+	OutsourceReceivedAt         string `json:"outsourceReceivedAt"`
+	OutsourceNotes              string `json:"outsourceNotes"`
 }
 
 type InventoryReservationInput struct {
@@ -74,6 +79,7 @@ type ProductionConsumptionInput struct {
 	Notes            string `json:"notes"`
 }
 type ProductionConsumptionDTO struct {
+	Reversed         bool   `json:"reversed"`
 	ID               string `json:"id"`
 	ProductionJobID  string `json:"productionJobId"`
 	MaterialID       string `json:"materialId"`
@@ -87,14 +93,17 @@ type ProductionConsumptionDTO struct {
 	WasteCostRial    int64  `json:"wasteCostRial"`
 }
 type OutsourceInput struct {
-	SupplierID       string `json:"supplierId"`
-	Description      string `json:"description"`
-	SentAt           string `json:"sentAt"`
-	ExpectedReturnAt string `json:"expectedReturnAt"`
-	ReceivedAt       string `json:"receivedAt"`
-	Notes            string `json:"notes"`
-	QuotedCostRial   int64  `json:"quotedCostRial"`
-	ActualCostRial   int64  `json:"actualCostRial"`
+	Quantity           string `json:"quantity"`
+	UnitCostRial       int64  `json:"unitCostRial"`
+	FinancialAccountID string `json:"financialAccountId"`
+	SupplierID         string `json:"supplierId"`
+	Description        string `json:"description"`
+	SentAt             string `json:"sentAt"`
+	ExpectedReturnAt   string `json:"expectedReturnAt"`
+	ReceivedAt         string `json:"receivedAt"`
+	Notes              string `json:"notes"`
+	QuotedCostRial     int64  `json:"quotedCostRial"`
+	ActualCostRial     int64  `json:"actualCostRial"`
 }
 
 func (a *App) productionService() (*application.ProductionService, error) {
@@ -105,6 +114,39 @@ func (a *App) productionService() (*application.ProductionService, error) {
 		return nil, fmt.Errorf("production service is not initialized")
 	}
 	return a.production, nil
+}
+
+type ProductionMaterialDTO = sqlite.ProductionMaterial
+
+func (a *App) GetProductionMaterials(jobID string) ([]ProductionMaterialDTO, error) {
+	if _, err := a.productionService(); err != nil {
+		return nil, err
+	}
+	return a.database.ProductionMaterials(a.materialContext(), jobID)
+}
+func (a *App) SetProductionMaterialTarget(jobID, materialID, quantity string) error {
+	if _, err := a.productionService(); err != nil {
+		return err
+	}
+	q, err := domain.ParseQuantity(quantity)
+	if err != nil {
+		return err
+	}
+	return a.database.SetProductionMaterialTarget(a.materialContext(), jobID, materialID, q)
+}
+func (a *App) UpdateProductionConsumption(id string, i ProductionConsumptionInput) error {
+	if _, err := a.productionService(); err != nil {
+		return err
+	}
+	consumed, err := domain.ParseQuantity(i.ConsumedQuantity)
+	if err != nil {
+		return err
+	}
+	waste, err := domain.ParseQuantity(i.WasteQuantity)
+	if err != nil {
+		return err
+	}
+	return a.database.UpdateProductionConsumption(a.materialContext(), id, i.IdempotencyKey, consumed, waste, i.Notes)
 }
 
 func (a *App) ListProductionJobs(status string) ([]ProductionJobDTO, error) {
@@ -250,16 +292,16 @@ func (a *App) UpdateProductionOutsourcing(id string, i OutsourceInput) (Producti
 	if e != nil {
 		return ProductionJobDTO{}, e
 	}
-	v, e := s.Outsource(a.materialContext(), id, application.OutsourceInput{SupplierID: i.SupplierID, Description: i.Description, SentAt: i.SentAt, ExpectedReturnAt: i.ExpectedReturnAt, ReceivedAt: i.ReceivedAt, Notes: i.Notes, QuotedCostRial: i.QuotedCostRial, ActualCostRial: i.ActualCostRial})
+	v, e := s.Outsource(a.materialContext(), id, application.OutsourceInput{Quantity: i.Quantity, UnitCostRial: i.UnitCostRial, FinancialAccountID: i.FinancialAccountID, SupplierID: i.SupplierID, Description: i.Description, SentAt: i.SentAt, ExpectedReturnAt: i.ExpectedReturnAt, ReceivedAt: i.ReceivedAt, Notes: i.Notes, QuotedCostRial: i.QuotedCostRial, ActualCostRial: i.ActualCostRial})
 	return productionJobDTO(v), e
 }
 
 func productionJobDTO(v application.ProductionJobView) ProductionJobDTO {
-	return ProductionJobDTO{ID: v.ID, JobNumber: v.JobNumber, OrderID: v.OrderID, OrderItemID: v.OrderItemID, ServiceName: v.ServiceName, Quantity: v.Quantity, QuantityUnit: v.QuantityUnit, AssignedMachineID: v.AssignedMachineID, Status: v.Status, Priority: v.Priority, Notes: v.Notes, PlannedAt: v.PlannedAt, StartedAt: v.StartedAt, CompletedAt: v.CompletedAt, CreatedAt: v.CreatedAt, EstimatedCostRial: v.EstimatedCostRial, ActualMaterialCostRial: v.ActualMaterialCostRial, ActualWasteCostRial: v.ActualWasteCostRial, ActualTotalCostRial: v.ActualTotalCostRial, OutsourceQuotedCostRial: v.OutsourceQuotedCostRial, OutsourceSupplierID: v.OutsourceSupplierID, OutsourceDescription: v.OutsourceDescription, OutsourceSentAt: v.OutsourceSentAt, OutsourceExpectedReturnAt: v.OutsourceExpectedReturnAt, OutsourceReceivedAt: v.OutsourceReceivedAt, OutsourceNotes: v.OutsourceNotes}
+	return ProductionJobDTO{OutsourceQuantity: v.OutsourceQuantity, OutsourceUnitCostRial: v.OutsourceUnitCostRial, OutsourceFinancialAccountID: v.OutsourceFinancialAccountID, ActualOutsourcedCostRial: v.ActualOutsourcedCostRial, ID: v.ID, JobNumber: v.JobNumber, OrderID: v.OrderID, OrderItemID: v.OrderItemID, ServiceName: v.ServiceName, Quantity: v.Quantity, QuantityUnit: v.QuantityUnit, AssignedMachineID: v.AssignedMachineID, Status: v.Status, Priority: v.Priority, Notes: v.Notes, PlannedAt: v.PlannedAt, StartedAt: v.StartedAt, CompletedAt: v.CompletedAt, CreatedAt: v.CreatedAt, EstimatedCostRial: v.EstimatedCostRial, ActualMaterialCostRial: v.ActualMaterialCostRial, ActualWasteCostRial: v.ActualWasteCostRial, ActualTotalCostRial: v.ActualTotalCostRial, OutsourceQuotedCostRial: v.OutsourceQuotedCostRial, OutsourceSupplierID: v.OutsourceSupplierID, OutsourceDescription: v.OutsourceDescription, OutsourceSentAt: v.OutsourceSentAt, OutsourceExpectedReturnAt: v.OutsourceExpectedReturnAt, OutsourceReceivedAt: v.OutsourceReceivedAt, OutsourceNotes: v.OutsourceNotes}
 }
 func reservationDTO(v application.ReservationView) InventoryReservationDTO {
 	return InventoryReservationDTO{ID: v.ID, MaterialID: v.MaterialID, OrderID: v.OrderID, OrderItemID: v.OrderItemID, ProductionJobID: v.ProductionJobID, Quantity: v.Quantity, Status: v.Status, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt}
 }
 func consumptionDTO(v application.ConsumptionView) ProductionConsumptionDTO {
-	return ProductionConsumptionDTO{ID: v.ID, ProductionJobID: v.ProductionJobID, MaterialID: v.MaterialID, IdempotencyKey: v.IdempotencyKey, ConsumedQuantity: v.ConsumedQuantity, WasteQuantity: v.WasteQuantity, Notes: v.Notes, CreatedAt: v.CreatedAt, UnitCostRial: v.UnitCostRial, MaterialCostRial: v.MaterialCostRial, WasteCostRial: v.WasteCostRial}
+	return ProductionConsumptionDTO{Reversed: v.Reversed, ID: v.ID, ProductionJobID: v.ProductionJobID, MaterialID: v.MaterialID, IdempotencyKey: v.IdempotencyKey, ConsumedQuantity: v.ConsumedQuantity, WasteQuantity: v.WasteQuantity, Notes: v.Notes, CreatedAt: v.CreatedAt, UnitCostRial: v.UnitCostRial, MaterialCostRial: v.MaterialCostRial, WasteCostRial: v.WasteCostRial}
 }

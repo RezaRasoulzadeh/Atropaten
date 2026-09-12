@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { ArrowLeft, CalendarDays, FileText, Plus, Printer, RotateCcw, Trash2 } from 'lucide-vue-next'
 import AppPanel from '../../components/layout/AppPanel.vue'
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue'
@@ -30,6 +30,7 @@ const { busy, runAction } = useWorkspaceActions()
 const invoice = ref<InvoiceRecord | null>(null)
 const shopSettings = ref<ShopSettingsRecord | null>(null)
 const loading = ref(false)
+const printMode = computed(() => invoice.value?.status === 'Draft' ? 'pre' : 'final')
 
 function tone(value: string) {
   return value === 'Paid' || value === 'Posted'
@@ -57,8 +58,9 @@ async function load() {
   }
 }
 
-function printInvoice() {
+async function printInvoice() {
   if (!invoice.value || loading.value) return
+  await nextTick()
   window.print()
 }
 
@@ -139,7 +141,7 @@ async function remove() {
         <div class="flex flex-wrap items-center justify-end gap-2">
           <button class="btn btn-primary btn-sm gap-1.5" type="button" :disabled="loading" @click="printInvoice">
             <Printer :size="15" aria-hidden="true" />
-            <span>Print / save PDF</span>
+            <span>{{ invoice?.status === 'Draft' ? 'Print pre-invoice' : 'Print final invoice' }}</span>
           </button>
           <button class="btn btn-ghost btn-sm gap-1.5" type="button" @click="emit('back')">
             <ArrowLeft :size="16" aria-hidden="true" />
@@ -283,7 +285,7 @@ async function remove() {
 
     <Teleport to="body">
       <div v-if="invoice" class="print-output">
-        <InvoicePrintDocument :invoice="invoice" :shop="shopSettings" :currency-unit="props.currencyUnit" />
+        <InvoicePrintDocument :invoice="invoice" :shop="shopSettings" :currency-unit="props.currencyUnit" :document-type="printMode" />
       </div>
     </Teleport>
   </div>

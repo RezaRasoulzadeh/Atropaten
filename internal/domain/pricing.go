@@ -32,6 +32,9 @@ type PricingComponentResult struct {
 	ID            string
 	Name          string
 	Type          CostComponentType
+	ReferenceID   string
+	MaterialID    string
+	ParameterKey  string
 	Enabled       bool
 	UsageQuantity Quantity
 	RateRial      int64
@@ -84,7 +87,7 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 	}
 	var total int64
 	for _, component := range input.Service.Components {
-		item := PricingComponentResult{ID: component.ID, Name: component.Name, Type: component.Type, Enabled: component.Enabled, UsageQuantity: component.UsageQuantity, RateRial: component.RateRial, Percentage: component.Percentage}
+		item := PricingComponentResult{ID: component.ID, Name: component.Name, Type: component.Type, ReferenceID: component.ReferenceID, ParameterKey: component.ParameterKey, Enabled: component.Enabled, UsageQuantity: component.UsageQuantity, RateRial: component.RateRial, Percentage: component.Percentage}
 		if !component.Enabled {
 			item.Explanation = "Disabled component"
 			result.Components = append(result.Components, item)
@@ -122,6 +125,7 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 					return PricingResult{}, fmt.Errorf("component %q: material %q not found", component.Name, materialID)
 				}
 				materialUnitCost := material.HighestPurchaseUnitCostRial
+				item.MaterialID = materialID
 				costBasis := "highest posted purchase unit cost"
 				if materialUnitCost <= 0 {
 					materialUnitCost = material.AverageUnitCostRial

@@ -215,7 +215,7 @@ function payload(): OrderPayload {
   };
 }
 
-async function saveMetadata() {
+async function saveMetadata(closeAfterSave = false) {
   if (saving.value || busy.value) return;
 return runAction(async () => {
   saving.value = true;
@@ -228,6 +228,7 @@ return runAction(async () => {
       : await ordersApi.update(props.order.id, payload());
     emit('saved', result);
     emit('notify', creating ? 'Order created.' : 'Order details saved.');
+    if (closeAfterSave) emit('back');
     return result;
   } catch (error) {
 reportError(error);
@@ -348,7 +349,7 @@ reportError(error);
       </div>
       <div class="flex shrink-0 items-center gap-2">
         <button class="btn btn-error" type="button" :disabled="busy || saving" @click="emit('back')">Cancel</button>
-        <button class="btn btn-success gap-2" type="button" :disabled="busy || saving" @click="saveMetadata()"><Save :size="16" aria-hidden="true" />{{ saving ? 'Saving…' : 'Save order' }}</button>
+        <button class="btn btn-success gap-2" type="button" :disabled="busy || saving" @click="saveMetadata(true)"><Save :size="16" aria-hidden="true" />{{ saving ? 'Saving…' : 'Save order' }}</button>
       </div>
     </header>
 
@@ -450,6 +451,8 @@ reportError(error);
       v-else-if="tab === 'Production'"
       :order="order"
       :currency-unit="currencyUnit"
+      @notify="emit('notify', $event)"
+      @saved="emit('saved', $event)"
     />
     <template v-else-if="tab === 'Payments'">
       <section class="min-w-0 border-b border-base-300 pb-4">
@@ -589,6 +592,8 @@ reportError(error);
                 <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Subtotal</dt><dd>{{ money(order.subtotalRial) }}</dd></div>
                 <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Discount</dt><dd>{{ money(order.discountRial) }}</dd></div>
                 <div class="flex items-center justify-between gap-3 py-2.5 text-sm font-semibold"><dt>Total</dt><dd class="text-primary">{{ money(order.totalRial) }}</dd></div>
+                <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Paid</dt><dd class="text-success">{{ money(order.paidRial || 0) }}</dd></div>
+                <div class="flex items-center justify-between gap-3 py-2.5 text-sm font-semibold"><dt>Remaining</dt><dd class="text-warning">{{ money(order.remainingRial ?? order.totalRial) }}</dd></div>
               </dl>
             </section>
 
@@ -615,7 +620,7 @@ reportError(error);
       <button class="btn btn-ghost btn-sm" type="button" :disabled="activeStepNumber === 1 || busy || saving" @click="previousStep">Back</button>
       <span class="text-xs text-base-content/55">Step {{ activeStepNumber }} of {{ steps.length }}</span>
       <button v-if="activeStepNumber < steps.length" class="btn btn-primary btn-sm" type="button" :disabled="busy || saving" @click="nextStep">Continue</button>
-      <button v-else class="btn btn-success btn-sm gap-2" type="button" :disabled="busy || saving" @click="saveMetadata()"><Save :size="14" aria-hidden="true" />{{ saving ? 'Saving…' : 'Save order' }}</button>
+      <button v-else class="btn btn-success btn-sm gap-2" type="button" :disabled="busy || saving" @click="saveMetadata(true)"><Save :size="14" aria-hidden="true" />{{ saving ? 'Saving…' : 'Save order' }}</button>
     </footer>
 
     <div v-if="editorOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Configure order service item" @click.self="closeItemEditor">

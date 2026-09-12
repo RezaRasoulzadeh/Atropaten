@@ -31,6 +31,9 @@ type PricingComponentView struct {
 	ID            string `json:"id"`
 	Name          string `json:"name"`
 	Type          string `json:"type"`
+	ReferenceID   string `json:"referenceId"`
+	MaterialID    string `json:"materialId"`
+	ParameterKey  string `json:"parameterKey"`
 	Enabled       bool   `json:"enabled"`
 	UsageQuantity string `json:"usageQuantity"`
 	RateRial      int64  `json:"rateRial"`
@@ -357,7 +360,7 @@ func pricingView(service domain.Service, result domain.PricingResult) PricingVie
 		}
 	}
 	for _, component := range result.Components {
-		view.Components = append(view.Components, PricingComponentView{ID: component.ID, Name: component.Name, Type: string(component.Type), Enabled: component.Enabled, UsageQuantity: component.UsageQuantity.String(), RateRial: component.RateRial, Percentage: component.Percentage.String(), AmountRial: component.AmountRial, Explanation: component.Explanation})
+		view.Components = append(view.Components, PricingComponentView{ID: component.ID, Name: component.Name, Type: string(component.Type), ReferenceID: component.ReferenceID, MaterialID: component.MaterialID, ParameterKey: component.ParameterKey, Enabled: component.Enabled, UsageQuantity: component.UsageQuantity.String(), RateRial: component.RateRial, Percentage: component.Percentage.String(), AmountRial: component.AmountRial, Explanation: component.Explanation})
 	}
 	return view
 }

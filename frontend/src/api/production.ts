@@ -1,4 +1,7 @@
 import {
+  GetProductionMaterials,
+  SetProductionMaterialTarget,
+  UpdateProductionConsumption,
   CreateInventoryReservation,
   CreateProductionJob,
   DeleteProductionJob,
@@ -16,6 +19,9 @@ import {
 } from '../../wailsjs/go/main/App'
 
 export interface ProductionJobRecord {
+  outsourceQuantity: string
+  outsourceUnitCostRial: number
+  outsourceFinancialAccountId: string
   id: string
   jobNumber: string
   orderId: string
@@ -56,6 +62,7 @@ export interface ReservationRecord {
   updatedAt: string
 }
 export interface ConsumptionRecord {
+  reversed: boolean
   id: string
   productionJobId: string
   materialId: string
@@ -93,6 +100,9 @@ export interface ConsumptionPayload {
   notes: string
 }
 export interface OutsourcePayload {
+  quantity: string
+  unitCostRial: number
+  financialAccountId: string
   supplierId: string
   description: string
   sentAt: string
@@ -103,6 +113,15 @@ export interface OutsourcePayload {
   actualCostRial: number
 }
 export const productionApi = {
+  materials(jobId: string): Promise<ProductionMaterialRecord[]> {
+    return GetProductionMaterials(jobId)
+  },
+  setMaterialTarget(jobId: string, materialId: string, quantity: string) {
+    return SetProductionMaterialTarget(jobId, materialId, quantity)
+  },
+  updateConsumption(id: string, value: ConsumptionPayload) {
+    return UpdateProductionConsumption(id, value as any)
+  },
   list(status = 'All') {
     return ListProductionJobs(status) as unknown as Promise<ProductionJobRecord[]>
   },
@@ -147,4 +166,17 @@ export const productionApi = {
   outsource(id: string, v: OutsourcePayload) {
     return UpdateProductionOutsourcing(id, v as any) as unknown as Promise<ProductionJobRecord>
   },
+}
+
+export interface ProductionMaterialRecord {
+  materialId: string
+  name: string
+  unit: string
+  reservationId: string
+  required: string
+  planned: string
+  reserved: string
+  used: string
+  available: string
+  shortage: string
 }

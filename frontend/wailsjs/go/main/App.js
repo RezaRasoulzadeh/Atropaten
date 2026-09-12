@@ -286,6 +286,10 @@ export function GetProductionJob(arg1) {
   return window['go']['main']['App']['GetProductionJob'](arg1);
 }
 
+export function GetProductionMaterials(arg1) {
+  return window['go']['main']['App']['GetProductionMaterials'](arg1);
+}
+
 export function GetPurchase(arg1) {
   return window['go']['main']['App']['GetPurchase'](arg1);
 }
@@ -558,6 +562,10 @@ export function SelectBackupFile() {
   return window['go']['main']['App']['SelectBackupFile']();
 }
 
+export function SetProductionMaterialTarget(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetProductionMaterialTarget'](arg1, arg2, arg3);
+}
+
 export function TransitionCheck(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['TransitionCheck'](arg1, arg2, arg3, arg4);
 }
@@ -608,6 +616,10 @@ export function UpdateOrderFulfillmentStatus(arg1, arg2) {
 
 export function UpdateOwnerShares(arg1, arg2) {
   return window['go']['main']['App']['UpdateOwnerShares'](arg1, arg2);
+}
+
+export function UpdateProductionConsumption(arg1, arg2) {
+  return window['go']['main']['App']['UpdateProductionConsumption'](arg1, arg2);
 }
 
 export function UpdateProductionJob(arg1, arg2) {

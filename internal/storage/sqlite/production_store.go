@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+
 	"errors"
 	"fmt"
 	"math/big"
@@ -57,6 +58,12 @@ func (s *Store) ProductionSummary(ctx context.Context, orderID string) (int, int
 	return total, completed, inProgress, err
 }
 
+func (s *Store) ProductionCostSummary(ctx context.Context, orderID string) (int64, error) {
+	var cost int64
+	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(COALESCE((SELECT SUM(CASE WHEN im.movement_type IN ('production_consumption','waste') THEN -im.total_cost_rial ELSE 0 END) FROM inventory_movements im JOIN production_consumptions pc ON pc.id=im.reference_id WHERE pc.production_job_id=pj.id AND im.reference_type IN ('production_consumption','production_correction')),0)+pj.actual_outsourced_cost_rial),0) FROM production_jobs pj WHERE pj.order_id=? AND pj.status<>'Cancelled'`, orderID).Scan(&cost)
+	return cost, err
+}
+
 func (s *Store) ListReservations(ctx context.Context, materialID, jobID, orderID string) ([]domain.InventoryReservation, error) {
 	query := `SELECT id,material_id,COALESCE(order_id,''),COALESCE(order_item_id,''),COALESCE(production_job_id,''),quantity_units,status,created_at,updated_at FROM inventory_reservations WHERE 1=1`
 	args := []any{}
@@ -98,6 +105,21 @@ func (s *Store) CreateReservation(ctx context.Context, r domain.InventoryReserva
 		return e
 	}
 	fail := func(x error) error { _ = tx.Rollback(); return x }
+	if r.ProductionJobID != "" {
+		var orderID, itemID, status string
+		var qty, outsource domain.Quantity
+		if e = tx.QueryRowContext(ctx, `SELECT order_id,order_item_id,status,quantity_units,outsource_quantity_units FROM production_jobs WHERE id=?`, r.ProductionJobID).Scan(&orderID, &itemID, &status, &qty, &outsource); e != nil {
+			return fail(e)
+		}
+		if status == "Completed" || status == "Cancelled" || qty <= outsource {
+			return fail(domain.ErrProductionNotEditable)
+		}
+		if (r.OrderID != "" && r.OrderID != orderID) || (r.OrderItemID != "" && r.OrderItemID != itemID) {
+			return fail(fmt.Errorf("reservation must belong to the production order item"))
+		}
+		r.OrderID = orderID
+		r.OrderItemID = itemID
+	}
 	state, e := inventoryStateTx(ctx, tx, r.MaterialID)
 	if e != nil {
 		return fail(e)
@@ -145,6 +167,9 @@ func (s *Store) UpdateReservation(ctx context.Context, id string, quantity domai
 	if quantity > state.AvailableStock+old {
 		return fail(domain.ErrReservationExceeded)
 	}
+	if e = adjustManagedReservationTx(ctx, tx, id, quantity); e != nil {
+		return fail(e)
+	}
 	_, e = tx.ExecContext(ctx, `UPDATE inventory_reservations SET quantity_units=?,updated_at=? WHERE id=?`, quantity, time.Now().UTC().Format(time.RFC3339Nano), id)
 	if e != nil {
 		return fail(e)
@@ -153,10 +178,18 @@ func (s *Store) UpdateReservation(ctx context.Context, id string, quantity domai
 }
 
 func (s *Store) ReleaseReservation(ctx context.Context, id, status string) error {
+	tx, e := s.db.BeginTx(ctx, nil)
+	if e != nil {
+		return e
+	}
+	defer tx.Rollback()
+	if e = adjustManagedReservationTx(ctx, tx, id, 0); e != nil {
+		return e
+	}
 	if status != "released" && status != "cancelled" {
 		status = domain.ReservationReleased
 	}
-	res, e := s.db.ExecContext(ctx, `UPDATE inventory_reservations SET status=?,updated_at=? WHERE id=? AND status='active'`, status, time.Now().UTC().Format(time.RFC3339Nano), id)
+	res, e := tx.ExecContext(ctx, `UPDATE inventory_reservations SET status=?,updated_at=? WHERE id=? AND status='active'`, status, time.Now().UTC().Format(time.RFC3339Nano), id)
 	if e != nil {
 		return e
 	}
@@ -164,7 +197,7 @@ func (s *Store) ReleaseReservation(ctx context.Context, id, status string) error
 	if n == 0 {
 		return domain.ErrReservationNotFound
 	}
-	return nil
+	return tx.Commit()
 }
 
 func (s *Store) ListProductionJobs(ctx context.Context, status string) ([]domain.ProductionJob, error) {
@@ -214,8 +247,11 @@ func (s *Store) GetProductionJob(ctx context.Context, id string) (domain.Product
 	return s.withProductionActuals(ctx, v)
 }
 func (s *Store) withProductionActuals(ctx context.Context, j domain.ProductionJob) (domain.ProductionJob, error) {
-	if e := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN m.movement_type='production_consumption' THEN -m.total_cost_rial ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.movement_type='waste' THEN -m.total_cost_rial ELSE 0 END),0) FROM inventory_movements m JOIN production_consumptions c ON c.id=m.reference_id WHERE c.production_job_id=? AND m.reference_type='production_consumption'`, j.ID).Scan(&j.ActualMaterialCostRial, &j.ActualWasteCostRial); e != nil {
+	if e := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN m.movement_type='production_consumption' THEN -m.total_cost_rial ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.movement_type='waste' THEN -m.total_cost_rial ELSE 0 END),0) FROM inventory_movements m JOIN production_consumptions c ON c.id=m.reference_id WHERE c.production_job_id=? AND m.reference_type IN ('production_consumption','production_correction')`, j.ID).Scan(&j.ActualMaterialCostRial, &j.ActualWasteCostRial); e != nil {
 		return j, e
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT outsource_quantity_units,outsource_unit_cost_rial,outsource_financial_account_id FROM production_jobs WHERE id=?`, j.ID).Scan(&j.OutsourceQuantity, &j.OutsourceUnitCostRial, &j.OutsourceFinancialAccountID); err != nil {
+		return j, err
 	}
 	return j, nil
 }
@@ -244,11 +280,14 @@ func (s *Store) CreateProductionJob(ctx context.Context, j domain.ProductionJob)
 		return fail(fmt.Errorf("order item: %w", e))
 	}
 	j.ServiceNameSnapshot = service
-	if j.Quantity <= 0 {
-		j.Quantity = domain.Quantity(qty)
+	j.Quantity = domain.Quantity(qty)
+	j.QuantityUnit = unit
+	var duplicate int
+	if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM production_jobs WHERE order_item_id=? AND status<>'Cancelled'`, j.OrderItemID).Scan(&duplicate); e != nil {
+		return fail(e)
 	}
-	if j.QuantityUnit == "" {
-		j.QuantityUnit = unit
+	if duplicate > 0 {
+		return fail(fmt.Errorf("this order item already has a production job"))
 	}
 	if j.EstimatedCostRial == 0 {
 		j.EstimatedCostRial = estimated
@@ -269,6 +308,9 @@ func (s *Store) CreateProductionJob(ctx context.Context, j domain.ProductionJob)
 	j.UpdatedAt = now
 	if _, e = tx.ExecContext(ctx, `INSERT INTO production_jobs(id,job_number,order_id,order_item_id,service_name_snapshot,quantity_units,quantity_unit,assigned_machine_id,status,priority,planned_at,started_at,completed_at,notes,estimated_cost_rial,actual_material_cost_rial,actual_waste_cost_rial,actual_outsourced_cost_rial,outsource_supplier_id,outsource_description,outsource_quoted_cost_rial,outsource_sent_at,outsource_expected_return_at,outsource_received_at,outsource_notes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, j.ID, j.JobNumber, j.OrderID, j.OrderItemID, j.ServiceNameSnapshot, j.Quantity, j.QuantityUnit, nullableString(j.AssignedMachineID), j.Status, j.Priority, nullableTime(j.PlannedAt), nullableTime(j.StartedAt), nullableTime(j.CompletedAt), j.Notes, j.EstimatedCostRial, 0, 0, 0, nullableString(j.OutsourceSupplierID), j.OutsourceDescription, j.OutsourceQuotedCostRial, nullableString(j.OutsourceSentAt), nullableString(j.OutsourceExpectedReturnAt), nullableString(j.OutsourceReceivedAt), j.OutsourceNotes, now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)); e != nil {
 		return fail(e)
+	}
+	if e = reserveOrderMaterialsTx(ctx, tx, j); e != nil {
+		return fail(fmt.Errorf("reserve order materials: %w", e))
 	}
 	if fulfillment == string(domain.FulfillmentPending) {
 		if _, e = tx.ExecContext(ctx, `UPDATE orders SET fulfillment_status=?,updated_at=? WHERE id=?`, domain.FulfillmentInProduction, now.Format(time.RFC3339Nano), j.OrderID); e != nil {
@@ -291,6 +333,151 @@ func (s *Store) UpdateProductionJob(ctx context.Context, j domain.ProductionJob)
 		return domain.ErrProductionNotEditable
 	}
 	return nil
+}
+
+func (s *Store) UpdateProductionOutsourcing(ctx context.Context, j domain.ProductionJob) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var qty, oldOutsource domain.Quantity
+	var status string
+	if err = tx.QueryRowContext(ctx, `SELECT quantity_units,outsource_quantity_units,status FROM production_jobs WHERE id=?`, j.ID).Scan(&qty, &oldOutsource, &status); err != nil {
+		return err
+	}
+	if status == "Cancelled" || status == "Completed" {
+		return domain.ErrProductionNotEditable
+	}
+	if j.OutsourceQuantity < 0 || j.OutsourceQuantity > qty || j.OutsourceUnitCostRial < 0 {
+		return fmt.Errorf("outsourced quantity must be between zero and the job quantity")
+	}
+	total, err := domain.MulQuantityRial(j.OutsourceQuantity, j.OutsourceUnitCostRial)
+	if err != nil {
+		return err
+	}
+	if j.OutsourceQuantity > 0 && total <= 0 {
+		return fmt.Errorf("enter an outsource unit cost greater than zero")
+	}
+	j.ActualOutsourcedCostRial = total
+	if j.OutsourceQuantity > oldOutsource {
+		// Preserve original movements; compensate and re-post only the retained share.
+		rows, err := tx.QueryContext(ctx, `SELECT c.id,c.material_id,c.consumed_quantity_units,c.waste_quantity_units,c.notes FROM production_consumptions c WHERE c.production_job_id=? AND NOT EXISTS(SELECT 1 FROM inventory_movements m WHERE m.reference_id=c.id AND m.reference_type='production_correction') ORDER BY c.created_at,c.id`, j.ID)
+		if err != nil {
+			return err
+		}
+		type usage struct {
+			id, material, note string
+			consumed, waste    domain.Quantity
+		}
+		items := []usage{}
+		for rows.Next() {
+			var u usage
+			if err = rows.Scan(&u.id, &u.material, &u.consumed, &u.waste, &u.note); err != nil {
+				rows.Close()
+				return err
+			}
+			items = append(items, u)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return err
+		}
+		for _, u := range items {
+			cons, err := scaleProductionQuantity(u.consumed, qty-j.OutsourceQuantity, qty-oldOutsource)
+			if err != nil {
+				return err
+			}
+			waste, err := scaleProductionQuantity(u.waste, qty-j.OutsourceQuantity, qty-oldOutsource)
+			if err != nil {
+				return err
+			}
+			if err = s.reverseProductionConsumptionTx(ctx, tx, u.id, "Material returned for outsourced share"); err != nil {
+				return err
+			}
+			if cons+waste > 0 {
+				if _, err = s.recordProductionConsumptionTx(ctx, tx, j.ID, u.material, fmt.Sprintf("outsource:%s:%d", u.id, j.OutsourceQuantity), cons, waste, u.note); err != nil {
+					return err
+				}
+			}
+		}
+		// Manual allocations are scaled too; order-derived allocations are reconciled below.
+		rows, err = tx.QueryContext(ctx, `SELECT id,quantity_units FROM inventory_reservations WHERE production_job_id=? AND status='active' AND id NOT IN (SELECT reservation_id FROM production_material_plans WHERE production_job_id=?)`, j.ID, j.ID)
+		if err != nil {
+			return err
+		}
+		type allocation struct {
+			id  string
+			qty domain.Quantity
+		}
+		allocations := []allocation{}
+		for rows.Next() {
+			var a allocation
+			if err = rows.Scan(&a.id, &a.qty); err != nil {
+				rows.Close()
+				return err
+			}
+			allocations = append(allocations, a)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return err
+		}
+		for _, a := range allocations {
+			q, err := scaleProductionQuantity(a.qty, qty-j.OutsourceQuantity, qty-oldOutsource)
+			if err != nil {
+				return err
+			}
+			if q == 0 {
+				_, err = tx.ExecContext(ctx, `UPDATE inventory_reservations SET status='released' WHERE id=?`, a.id)
+			} else {
+				_, err = tx.ExecContext(ctx, `UPDATE inventory_reservations SET quantity_units=? WHERE id=?`, q, a.id)
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	_, err = tx.ExecContext(ctx, `UPDATE production_jobs SET outsource_quantity_units=?,outsource_unit_cost_rial=?,outsource_financial_account_id=?,actual_outsourced_cost_rial=?,outsource_supplier_id=?,outsource_description=?,outsource_quoted_cost_rial=?,outsource_sent_at=?,outsource_expected_return_at=?,outsource_received_at=?,outsource_notes=?,updated_at=? WHERE id=?`, j.OutsourceQuantity, j.OutsourceUnitCostRial, j.OutsourceFinancialAccountID, total, nullableString(j.OutsourceSupplierID), j.OutsourceDescription, j.OutsourceQuotedCostRial, nullableString(j.OutsourceSentAt), nullableString(j.OutsourceExpectedReturnAt), nullableString(j.OutsourceReceivedAt), j.OutsourceNotes, now, j.ID)
+	if err != nil {
+		return err
+	}
+	if err = syncProductionMaterialsTx(ctx, tx, j.ID); err != nil {
+		return err
+	}
+	if err = s.reconcileOutsourceExpenseTx(ctx, tx, j); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *Store) ensureOrderMaterials(ctx context.Context, jobID string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = syncProductionMaterialsTx(ctx, tx, jobID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func reserveOrderMaterialsTx(ctx context.Context, tx *sql.Tx, j domain.ProductionJob) error {
+	return syncProductionMaterialsTx(ctx, tx, j.ID)
+}
+
+func multiplyProductionQuantity(left, right domain.Quantity) (domain.Quantity, error) {
+	value := new(big.Int).Mul(big.NewInt(int64(left)), big.NewInt(int64(right)))
+	value.Add(value, big.NewInt(domain.QuantityScale/2))
+	value.Quo(value, big.NewInt(domain.QuantityScale))
+	if !value.IsInt64() {
+		return 0, fmt.Errorf("quantity is too large")
+	}
+	return domain.Quantity(value.Int64()), nil
 }
 
 func (s *Store) TransitionProductionJob(ctx context.Context, id, status string) error {
@@ -343,11 +530,19 @@ func (s *Store) TransitionProductionJob(ctx context.Context, id, status string) 
 }
 
 func (s *Store) DeleteProductionJob(ctx context.Context, id string) error {
-	tx, e := s.db.BeginTx(ctx, nil)
-	if e != nil {
-		return e
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
 	}
-	fail := func(x error) error { _ = tx.Rollback(); return x }
+	defer tx.Rollback()
+	if err = s.deleteProductionJobTx(ctx, tx, id); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+func (s *Store) deleteProductionJobTx(ctx context.Context, tx *sql.Tx, id string) error {
+	var e error
+	fail := func(e error) error { return e }
 	var found int
 	if e = tx.QueryRowContext(ctx, `SELECT 1 FROM production_jobs WHERE id=?`, id).Scan(&found); errors.Is(e, sql.ErrNoRows) {
 		return fail(domain.ErrProductionJobNotFound)
@@ -413,7 +608,10 @@ func (s *Store) DeleteProductionJob(ctx context.Context, id string) error {
 	if _, e = tx.ExecContext(ctx, `DELETE FROM production_jobs WHERE id=?`, id); e != nil {
 		return fail(e)
 	}
-	return tx.Commit()
+	if e = s.reverseOutsourceExpenseTx(ctx, tx, id); e != nil {
+		return e
+	}
+	return nil
 }
 
 func (s *Store) RecordProductionConsumption(ctx context.Context, jobID, materialID, key string, consumed, waste domain.Quantity, note string) (domain.ProductionConsumption, error) {
@@ -424,16 +622,24 @@ func (s *Store) RecordProductionConsumption(ctx context.Context, jobID, material
 	if e != nil {
 		return domain.ProductionConsumption{}, e
 	}
-	fail := func(x error) (domain.ProductionConsumption, error) {
-		_ = tx.Rollback()
-		return domain.ProductionConsumption{}, x
+	defer tx.Rollback()
+	result, e := s.recordProductionConsumptionTx(ctx, tx, jobID, materialID, key, consumed, waste, note)
+	if e != nil {
+		return result, e
 	}
+	if e = tx.Commit(); e != nil {
+		return domain.ProductionConsumption{}, e
+	}
+	return result, nil
+}
+func (s *Store) recordProductionConsumptionTx(ctx context.Context, tx *sql.Tx, jobID, materialID, key string, consumed, waste domain.Quantity, note string) (domain.ProductionConsumption, error) {
+	var e error
+	fail := func(e error) (domain.ProductionConsumption, error) { return domain.ProductionConsumption{}, e }
 	var existing domain.ProductionConsumption
 	var existingCreated string
 	e = tx.QueryRowContext(ctx, `SELECT id,production_job_id,material_id,idempotency_key,consumed_quantity_units,waste_quantity_units,unit_cost_rial,material_cost_rial,waste_cost_rial,notes,created_at FROM production_consumptions WHERE production_job_id=? AND idempotency_key=?`, jobID, key).Scan(&existing.ID, &existing.ProductionJobID, &existing.MaterialID, &existing.IdempotencyKey, &existing.ConsumedQuantity, &existing.WasteQuantity, &existing.UnitCostRial, &existing.MaterialCostRial, &existing.WasteCostRial, &existing.Notes, &existingCreated)
 	if e == nil {
 		existing.CreatedAt, _ = time.Parse(time.RFC3339Nano, existingCreated)
-		_ = tx.Rollback()
 		return existing, nil
 	}
 	if !errors.Is(e, sql.ErrNoRows) {
@@ -449,18 +655,26 @@ func (s *Store) RecordProductionConsumption(ctx context.Context, jobID, material
 	if status != domain.ProductionInProgress && status != domain.ProductionPaused {
 		return fail(fmt.Errorf("job must be in progress to record usage"))
 	}
-	var reserved int64
-	if e = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(quantity_units),0) FROM inventory_reservations WHERE production_job_id=? AND material_id=? AND status='active'`, jobID, materialID).Scan(&reserved); e != nil {
+	var qty, outsource domain.Quantity
+	if e = tx.QueryRowContext(ctx, `SELECT quantity_units,outsource_quantity_units FROM production_jobs WHERE id=?`, jobID).Scan(&qty, &outsource); e != nil {
 		return fail(e)
 	}
-	if int64(consumed+waste) > reserved {
-		return fail(domain.ErrReservationExceeded)
+	if qty <= outsource {
+		return fail(fmt.Errorf("this job is fully outsourced; reduce outsourcing before using material"))
+	}
+	var reservedForJob int64
+	if e = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(quantity_units),0) FROM inventory_reservations WHERE production_job_id=? AND material_id=? AND status='active'`, jobID, materialID).Scan(&reservedForJob); e != nil {
+		return fail(e)
 	}
 	state, e := inventoryStateTx(ctx, tx, materialID)
 	if e != nil {
 		return fail(e)
 	}
-	if consumed+waste > state.PhysicalStock {
+	// Reservations keep stock unavailable to other workflows, but they do
+	// not make consumption mandatory. This job may use its own reservation
+	// first and then consume any stock that is still unreserved.
+	availableToJob := reservedForJob + int64(state.AvailableStock)
+	if int64(consumed+waste) > availableToJob {
 		return fail(domain.ErrInsufficientStock)
 	}
 	unitCost := state.AverageUnitCostRial
@@ -523,9 +737,6 @@ func (s *Store) RecordProductionConsumption(ctx context.Context, jobID, material
 			return fail(e)
 		}
 	}
-	if e = tx.Commit(); e != nil {
-		return domain.ProductionConsumption{}, e
-	}
 	return domain.ProductionConsumption{ID: id, ProductionJobID: jobID, MaterialID: materialID, IdempotencyKey: key, ConsumedQuantity: consumed, WasteQuantity: waste, UnitCostRial: unitCost, MaterialCostRial: matCost, WasteCostRial: wasteCost, Notes: note, CreatedAt: now}, nil
 }
 
@@ -534,7 +745,15 @@ func (s *Store) ReverseProductionConsumption(ctx context.Context, id, reason str
 	if e != nil {
 		return e
 	}
-	fail := func(x error) error { _ = tx.Rollback(); return x }
+	defer tx.Rollback()
+	if e = s.reverseProductionConsumptionTx(ctx, tx, id, reason); e != nil {
+		return e
+	}
+	return tx.Commit()
+}
+func (s *Store) reverseProductionConsumptionTx(ctx context.Context, tx *sql.Tx, id, reason string) error {
+	var e error
+	fail := func(e error) error { return e }
 	var job, material string
 	var consumed, waste, cost int64
 	if e = tx.QueryRowContext(ctx, `SELECT production_job_id,material_id,consumed_quantity_units,waste_quantity_units,unit_cost_rial FROM production_consumptions WHERE id=?`, id).Scan(&job, &material, &consumed, &waste, &cost); errors.Is(e, sql.ErrNoRows) {
@@ -564,11 +783,11 @@ func (s *Store) ReverseProductionConsumption(ctx context.Context, id, reason str
 		}
 	}
 	_ = job
-	return tx.Commit()
+	return nil
 }
 
 func (s *Store) ListProductionConsumptions(ctx context.Context, jobID string) ([]domain.ProductionConsumption, error) {
-	rows, e := s.db.QueryContext(ctx, `SELECT id,production_job_id,material_id,idempotency_key,consumed_quantity_units,waste_quantity_units,unit_cost_rial,material_cost_rial,waste_cost_rial,notes,created_at FROM production_consumptions WHERE production_job_id=? ORDER BY created_at,id`, jobID)
+	rows, e := s.db.QueryContext(ctx, `SELECT id,production_job_id,material_id,idempotency_key,consumed_quantity_units,waste_quantity_units,unit_cost_rial,material_cost_rial,waste_cost_rial,notes,created_at,EXISTS(SELECT 1 FROM inventory_movements m WHERE m.reference_id=production_consumptions.id AND m.reference_type='production_correction') FROM production_consumptions WHERE production_job_id=? ORDER BY created_at,id`, jobID)
 	if e != nil {
 		return nil, e
 	}
@@ -577,7 +796,7 @@ func (s *Store) ListProductionConsumptions(ctx context.Context, jobID string) ([
 	for rows.Next() {
 		var v domain.ProductionConsumption
 		var at string
-		if e = rows.Scan(&v.ID, &v.ProductionJobID, &v.MaterialID, &v.IdempotencyKey, &v.ConsumedQuantity, &v.WasteQuantity, &v.UnitCostRial, &v.MaterialCostRial, &v.WasteCostRial, &v.Notes, &at); e != nil {
+		if e = rows.Scan(&v.ID, &v.ProductionJobID, &v.MaterialID, &v.IdempotencyKey, &v.ConsumedQuantity, &v.WasteQuantity, &v.UnitCostRial, &v.MaterialCostRial, &v.WasteCostRial, &v.Notes, &at, &v.Reversed); e != nil {
 			return nil, e
 		}
 		v.CreatedAt, e = time.Parse(time.RFC3339Nano, at)

@@ -419,7 +419,12 @@ function openNewOrder() {
     subtotalRial: 0,
     discountRial: 0,
     totalRial: 0,
+    paidRial: 0,
+    remainingRial: 0,
     estimatedCostRial: 0,
+    actualCostRial: 0,
+    marginRial: 0,
+    marginPercentage: '',
     productionJobCount: 0,
     completedProductionJobs: 0,
     inProgressProductionJobs: 0,
@@ -637,6 +642,7 @@ function showToast(message: string) {
             :machines="catalogMachines"
             :suppliers="suppliers"
             @notify="showToast"
+            @order-updated="updateOrder"
           />
 
           <AccountingView

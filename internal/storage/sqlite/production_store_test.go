@@ -151,17 +151,19 @@ func TestReservationsAndProductionLedgerAreAtomicAndIdempotent(t *testing.T) {
 	if err = store.UpdateProductionJob(ctx, editable); err != nil {
 		t.Fatal(err)
 	}
-	consumption, err := store.RecordProductionConsumption(ctx, job.ID, material.ID, "attempt-1", 2*domain.QuantityScale, domain.QuantityScale, "trim")
+	// Consumption may use this job's reservation first and then unreserved stock.
+	// The job has 3 units reserved and 7 units available, so 4 units is valid.
+	consumption, err := store.RecordProductionConsumption(ctx, job.ID, material.ID, "attempt-1", 2*domain.QuantityScale, 2*domain.QuantityScale, "trim")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if consumption.MaterialCostRial != 200 || consumption.WasteCostRial != 100 {
+	if consumption.MaterialCostRial != 200 || consumption.WasteCostRial != 200 {
 		t.Fatalf("unexpected fixed-scale costs: %+v", consumption)
 	}
 	if got := countRows(t, store, `SELECT COUNT(*) FROM inventory_movements`); got != 3 {
 		t.Fatalf("consumption movement count=%d, want 3", got)
 	}
-	if _, err = store.RecordProductionConsumption(ctx, job.ID, material.ID, "attempt-1", 2*domain.QuantityScale, domain.QuantityScale, "retry"); err != nil {
+	if _, err = store.RecordProductionConsumption(ctx, job.ID, material.ID, "attempt-1", 2*domain.QuantityScale, 2*domain.QuantityScale, "retry"); err != nil {
 		t.Fatal(err)
 	}
 	if got := countRows(t, store, `SELECT COUNT(*) FROM inventory_movements`); got != 3 {
@@ -171,7 +173,7 @@ func TestReservationsAndProductionLedgerAreAtomicAndIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state.PhysicalStock != 7*domain.QuantityScale || state.ReservedStock != 0 || state.AvailableStock != 7*domain.QuantityScale {
+	if state.PhysicalStock != 6*domain.QuantityScale || state.ReservedStock != 0 || state.AvailableStock != 6*domain.QuantityScale {
 		t.Fatalf("unexpected consumed state: %+v", state)
 	}
 
@@ -182,7 +184,7 @@ func TestReservationsAndProductionLedgerAreAtomicAndIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if updated.Status != domain.ProductionCompleted || updated.ActualMaterialCostRial != 200 || updated.ActualWasteCostRial != 100 || updated.ActualOutsourcedCostRial != 50 {
+	if updated.Status != domain.ProductionCompleted || updated.ActualMaterialCostRial != 200 || updated.ActualWasteCostRial != 200 || updated.ActualOutsourcedCostRial != 50 {
 		t.Fatalf("unexpected completed job: %+v", updated)
 	}
 	state, err = store.InventoryState(ctx, material.ID)

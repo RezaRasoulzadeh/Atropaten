@@ -39,6 +39,9 @@ type InventoryReservation struct {
 }
 
 type ProductionJob struct {
+	OutsourceQuantity                                                                                                          Quantity
+	OutsourceUnitCostRial                                                                                                      int64
+	OutsourceFinancialAccountID                                                                                                string
 	ID, JobNumber, OrderID, OrderItemID                                                                                        string
 	ServiceNameSnapshot                                                                                                        string
 	Quantity                                                                                                                   Quantity
@@ -50,6 +53,7 @@ type ProductionJob struct {
 }
 
 type ProductionConsumption struct {
+	Reversed                                        bool
 	ID, ProductionJobID, MaterialID, IdempotencyKey string
 	ConsumedQuantity, WasteQuantity                 Quantity
 	UnitCostRial, MaterialCostRial, WasteCostRial   int64
