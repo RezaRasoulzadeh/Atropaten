@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { ArrowUpRight, CheckCircle2, Clock3, Factory, FileText, Package, Trash2, UserRound } from 'lucide-vue-next'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import type { CurrencyUnit } from '../../utils/currency'
-import { formatMoney } from '../../utils/currency'
+import ProductionCostBreakdown from './ProductionCostBreakdown.vue'
 import type { useProductionWorkspace } from './useProductionWorkspace'
 
 const props = defineProps<{
@@ -25,9 +25,6 @@ const machineName = computed(
 )
 const customerName = computed(() => selectedOrder.value?.customerName || 'Walk-in customer')
 
-function money(value: number) {
-  return formatMoney(value || 0, props.currencyUnit)
-}
 </script>
 
 <template>
@@ -69,11 +66,11 @@ function money(value: number) {
         </dl>
       </div>
 
+      <ProductionCostBreakdown v-if="selected" :job="selected" :currency-unit="currencyUnit" />
+
       <div class="rounded-box border border-base-300 bg-base-200/20 p-4">
-        <div class="flex items-center gap-2"><FileText :size="17" class="text-primary" aria-hidden="true" /><h3 class="text-sm font-semibold">Cost and schedule</h3></div>
+        <div class="flex items-center gap-2"><FileText :size="17" class="text-primary" aria-hidden="true" /><h3 class="text-sm font-semibold">Schedule</h3></div>
         <dl class="mt-3 divide-y divide-base-300/70 text-sm">
-          <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Estimated cost</dt><dd class="tabular-nums">{{ money(selected?.estimatedCostRial || 0) }}</dd></div>
-          <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Recorded cost</dt><dd class="tabular-nums">{{ money(selected?.actualTotalCostRial || 0) }}</dd></div>
           <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Started</dt><dd class="text-end">{{ date(selected?.startedAt || '') }}</dd></div>
           <div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-base-content/60">Completed</dt><dd class="text-end">{{ date(selected?.completedAt || '') }}</dd></div>
         </dl>

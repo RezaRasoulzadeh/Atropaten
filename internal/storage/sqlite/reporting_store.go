@@ -130,10 +130,10 @@ func (s *Store) reportProfitLoss(ctx context.Context, r domain.Report, from, unt
 		if typ == "revenue" {
 			revenue += signed
 		}
-		if id == "ACC-COGS" {
+		if id == "ACC-COGS" || (typ == "expense" && strings.HasPrefix(id, "ACC-EXP-OUTSOURCE")) {
 			cogs += -signed
 		}
-		if typ == "expense" && id != "ACC-COGS" {
+		if typ == "expense" && id != "ACC-COGS" && !strings.HasPrefix(id, "ACC-EXP-OUTSOURCE") {
 			expenses += -signed
 		}
 		r.Rows = append(r.Rows, domain.ReportRow{ID: id, Name: name, Category: typ, AmountRial: amount, SecondaryAmountRial: debit})
@@ -141,6 +141,15 @@ func (s *Store) reportProfitLoss(ctx context.Context, r domain.Report, from, unt
 	if err := rows.Err(); err != nil {
 		return r, err
 	}
+	// Outsourcing is a direct production cost. Older postings used the generic
+	// operating-expense account; move those amounts into COGS for reporting while
+	// leaving the immutable journal untouched.
+	var outsourcedDirect int64
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(jl.debit_rial-jl.credit_rial),0) FROM journal_lines jl JOIN journal_entries je ON je.id=jl.journal_entry_id WHERE jl.account_id='ACC-EXP-OTHER' AND je.source_type='expense' AND je.source_id LIKE 'EXP-OUTSOURCE-%' AND je.posted_at>=? AND je.posted_at<?`, from, until).Scan(&outsourcedDirect); err != nil {
+		return r, err
+	}
+	cogs += outsourcedDirect
+	expenses -= outsourcedDirect
 	return addSummaries(r,
 		domain.ReportSummary{Key: "revenue", Label: "Revenue", AmountRial: revenue},
 		domain.ReportSummary{Key: "cogs", Label: "COGS", AmountRial: cogs},
@@ -409,11 +418,21 @@ func (s *Store) Dashboard(ctx context.Context, start, end time.Time) (domain.Das
 	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(credit_rial-debit_rial),0) FROM journal_lines jl JOIN journal_entries je ON je.id=jl.journal_entry_id WHERE jl.account_id='ACC-REVENUE' AND je.posted_at>=? AND je.posted_at<?`, from, until).Scan(&revenue); err != nil {
 		return d, err
 	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(debit_rial-credit_rial),0) FROM journal_lines jl JOIN journal_entries je ON je.id=jl.journal_entry_id WHERE jl.account_id='ACC-COGS' AND je.posted_at>=? AND je.posted_at<?`, from, until).Scan(&cogs); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(jl.debit_rial-jl.credit_rial),0) FROM journal_lines jl JOIN journal_entries je ON je.id=jl.journal_entry_id WHERE (jl.account_id='ACC-COGS' OR (je.source_type='expense' AND je.source_id LIKE 'EXP-OUTSOURCE-%' AND jl.account_id='ACC-EXP-OTHER')) AND je.posted_at>=? AND je.posted_at<?`, from, until).Scan(&cogs); err != nil {
 		return d, err
 	}
 	d.RevenueRial = revenue
-	d.GrossProfitRial = revenue - cogs
+	// Dashboard gross profit follows the order margin basis: posted sales after
+	// invoice discounts minus each linked order's expected production cost.
+	expectedCost, hasOrderSales, err := s.dashboardExpectedCost(ctx, from, until)
+	if err != nil {
+		return d, err
+	}
+	if hasOrderSales {
+		d.GrossProfitRial = revenue - expectedCost
+	} else {
+		d.GrossProfitRial = revenue - cogs
+	}
 	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM invoices WHERE status IN ('Posted','Partially Paid')`).Scan(&d.OpenInvoiceCount)
 	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM orders WHERE promised_at>=? AND promised_at<? AND commercial_status<>'Cancelled'`, from, until).Scan(&d.DueOrderCount)
 	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM orders WHERE promised_at<? AND promised_at IS NOT NULL AND fulfillment_status<>'Delivered' AND commercial_status<>'Cancelled'`, from).Scan(&d.OverdueOrderCount)
@@ -510,6 +529,42 @@ func (s *Store) Dashboard(ctx context.Context, start, end time.Time) (domain.Das
 	return d, nil
 }
 
+func (s *Store) dashboardExpectedCost(ctx context.Context, from, until string) (int64, bool, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT COALESCE(order_id,'') FROM invoices WHERE status IN ('Posted','Partially Paid','Paid') AND issue_date>=? AND issue_date<?`, from, until)
+	if err != nil {
+		return 0, false, err
+	}
+	orderIDs := []string{}
+	seen := map[string]bool{}
+	has := false
+	for rows.Next() {
+		var orderID string
+		if err := rows.Scan(&orderID); err != nil {
+			return 0, false, err
+		}
+		has = true
+		if orderID == "" || seen[orderID] {
+			continue
+		}
+		seen[orderID] = true
+		orderIDs = append(orderIDs, orderID)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return 0, false, err
+	}
+	var total int64
+	for _, orderID := range orderIDs {
+		cost, err := s.ProductionProjectedCostSummary(ctx, orderID)
+		if err != nil {
+			return 0, false, err
+		}
+		total += cost
+	}
+	return total, has, nil
+}
+
 // Read-only projections: money remains integer Rial and order eligibility is owned here.
 func (s *Store) dashboardChartsAndOrders(ctx context.Context, start, end time.Time, d *domain.Dashboard) error {
 	rows, err := s.db.QueryContext(ctx, `SELECT o.id,o.order_number,o.customer_name_snapshot,o.commercial_status,o.fulfillment_status,COALESCE(o.promised_at,''),o.total_rial,
@@ -551,7 +606,7 @@ func (s *Store) dashboardChartsAndOrders(ctx context.Context, start, end time.Ti
 		return err
 	}
 	from, until := reportWindow(start, end)
-	rows, err = s.db.QueryContext(ctx, `SELECT substr(je.posted_at,1,10),SUM(CASE WHEN jl.account_id='ACC-REVENUE' THEN jl.credit_rial-jl.debit_rial ELSE 0 END),SUM(jl.credit_rial-jl.debit_rial) FROM journal_lines jl JOIN journal_entries je ON je.id=jl.journal_entry_id WHERE jl.account_id IN ('ACC-REVENUE','ACC-COGS') AND je.posted_at>=? AND je.posted_at<? GROUP BY 1 ORDER BY 1`, from, until)
+	rows, err = s.db.QueryContext(ctx, `SELECT substr(je.posted_at,1,10),SUM(CASE WHEN jl.account_id='ACC-REVENUE' THEN jl.credit_rial-jl.debit_rial ELSE 0 END),SUM(CASE WHEN jl.account_id='ACC-REVENUE' OR jl.account_id='ACC-COGS' THEN jl.credit_rial-jl.debit_rial WHEN je.source_type='expense' AND je.source_id LIKE 'EXP-OUTSOURCE-%' AND jl.account_id='ACC-EXP-OTHER' THEN jl.credit_rial-jl.debit_rial ELSE 0 END) FROM journal_lines jl JOIN journal_entries je ON je.id=jl.journal_entry_id WHERE (jl.account_id='ACC-REVENUE' OR jl.account_id='ACC-COGS' OR (je.source_type='expense' AND je.source_id LIKE 'EXP-OUTSOURCE-%' AND jl.account_id='ACC-EXP-OTHER')) AND je.posted_at>=? AND je.posted_at<? GROUP BY 1 ORDER BY 1`, from, until)
 	if err != nil {
 		return err
 	}
@@ -568,6 +623,51 @@ func (s *Store) dashboardChartsAndOrders(ctx context.Context, start, end time.Ti
 	rows.Close()
 	if err != nil {
 		return err
+	}
+	// Replace the accounting COGS series with order expected costs when posted
+	// invoices exist, keeping the journal fallback for ledger-only activity.
+	if expected, has, err := s.dashboardExpectedCost(ctx, from, until); err != nil {
+		return err
+	} else if has {
+		costByDate := map[string]int64{}
+		invoiceRows, err := s.db.QueryContext(ctx, `SELECT substr(issue_date,1,10),COALESCE(order_id,'') FROM invoices WHERE status IN ('Posted','Partially Paid','Paid') AND issue_date>=? AND issue_date<?`, from, until)
+		if err != nil {
+			return err
+		}
+		invoiceDates := []struct{ date, orderID string }{}
+		for invoiceRows.Next() {
+			var date, orderID string
+			if err := invoiceRows.Scan(&date, &orderID); err != nil {
+				invoiceRows.Close()
+				return err
+			}
+			invoiceDates = append(invoiceDates, struct{ date, orderID string }{date, orderID})
+		}
+		if err := invoiceRows.Err(); err != nil {
+			invoiceRows.Close()
+			return err
+		}
+		invoiceRows.Close()
+		seen := map[string]bool{}
+		for _, invoice := range invoiceDates {
+			if invoice.orderID == "" || seen[invoice.orderID] {
+				continue
+			}
+			seen[invoice.orderID] = true
+			cost, err := s.ProductionProjectedCostSummary(ctx, invoice.orderID)
+			if err != nil {
+				return err
+			}
+			costByDate[invoice.date] += cost
+		}
+		_ = expected
+		for date, cost := range costByDate {
+			daily[date] = domain.DashboardTrend{Date: date, GrossProfitRial: -cost}
+		}
+		for date, point := range daily {
+			point.GrossProfitRial += point.RevenueRial
+			daily[date] = point
+		}
 	}
 	for date := start; !date.After(end); date = date.AddDate(0, 0, 1) {
 		key := date.Format("2006-01-02")

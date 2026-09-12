@@ -29,6 +29,7 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
   const purchaseFilter = ref<PurchaseFilter>('All');
   const isLoading = ref(false);
   const editing = ref(false);
+  const paymentMode = ref(false);
   const createMode = ref<'create' | null>(null);
   const editingItemId = ref<string | null>(null);
   const draftItems = ref<PurchaseItemRecord[]>([]);
@@ -63,7 +64,7 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
   function emptyForm(): PurchasePayload {
     return {
       supplierId: props.suppliers[0]?.id ?? '',
-      financialAccountId: 'FIN-CASH',
+      financialAccountId: '',
       purchaseDate: currentCanonicalDate(),
       supplierInvoiceNumber: '',
       notes: '',
@@ -185,7 +186,7 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
         accountingApi.financialAccounts(),
       ]);
       if (!financial.value.some((account) => account.id === form.value.financialAccountId && account.active)) {
-        form.value.financialAccountId = financial.value.find((account) => account.active)?.id ?? '';
+        form.value.financialAccountId = '';
       }
       if (!selectedId.value && rows.value.length) {
         select(rows.value[0].id);
@@ -198,6 +199,7 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
   }
 
   function select(id: string) {
+    paymentMode.value = false;
     const value = rows.value.find((purchase) => purchase.id === id);
     if (!value) return;
     selectedId.value = value.id;
@@ -209,12 +211,18 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
   }
 
   function startEdit() {
+    paymentMode.value = false;
     const value = current.value;
     if (!value || createMode.value) return;
     form.value = copyForm(value);
     draftItems.value = [];
     resetItem();
     editing.value = true;
+  }
+
+  function openPayment() {
+    startEdit();
+    paymentMode.value = true;
   }
 
   function startItemEdit(line: PurchaseItemRecord) {
@@ -233,6 +241,7 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
   }
 
   function startCreate() {
+    paymentMode.value = false;
     selectedId.value = null;
     createMode.value = 'create';
     draftItems.value = [];
@@ -259,11 +268,11 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
     resetItem();
   }
 
-  async function save() {
+  async function save(keepEditorOpen = false) {
     return runAction(async () => {
       if (!current.value) return;
       const historySafeEdit = !createMode.value && current.value.status !== 'Draft';
-      if (!historySafeEdit && !financial.value.some((account) => account.id === form.value.financialAccountId && account.active)) {
+      if (!historySafeEdit && form.value.financialAccountId && !financial.value.some((account) => account.id === form.value.financialAccountId && account.active)) {
         toast.error('Select an active cash or bank account for this purchase.', 'Purchases');
         return;
       }
@@ -288,7 +297,7 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
           form.value = copyForm(created);
           createMode.value = null;
           draftItems.value = [];
-          editing.value = false;
+          editing.value = keepEditorOpen === true;
           emit('notify', 'Purchase created.');
         } catch (error) {
           if (created) {
@@ -304,7 +313,7 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
       }
       try {
         replace(await purchasesApi.update(current.value.id, form.value));
-        editing.value = false;
+        editing.value = keepEditorOpen === true;
         emit('notify', 'Purchase saved.');
       } catch (error) {
         toast.error(errorMessageFrom(error, 'Purchase could not be saved.'), 'Purchases');
@@ -390,21 +399,21 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
     });
   }
 
-  async function post() {
+  async function post(keepEditorOpen = false) {
     return runAction(async () => {
       if (
         !current.value ||
         !(await confirmAction({
           title: 'Post purchase',
-          message: 'Post this purchase and create inventory movements?',
+          message: 'Post this purchase to inventory and record the supplier payable? No payment will be made yet. You can record cash, bank, or check payment from the purchase overview afterwards.',
           confirmLabel: 'Post purchase',
         }))
       )
         return;
       try {
         replace(await purchasesApi.post(current.value.id));
-        editing.value = false;
-        emit('notify', 'Purchase posted.');
+        editing.value = keepEditorOpen === true;
+        emit('notify', 'Purchase posted. Record payment in the overview now or pay later.');
       } catch (error) {
         toast.error(errorMessageFrom(error, 'Purchase could not be posted.'), 'Purchases');
       }
@@ -494,6 +503,8 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
     purchaseFilter,
     isLoading,
     editing,
+    paymentMode,
+    openPayment,
     editingItemId,
     createMode,
     form,
@@ -513,5 +524,6 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
     archivePurchase,
     unarchivePurchase,
     removePurchase,
+    replace,
   };
 }

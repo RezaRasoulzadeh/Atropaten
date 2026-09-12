@@ -10,7 +10,7 @@ import (
 
 var (
 	ErrOrderNotFound        = errors.New("order not found")
-	ErrOrderDeleteProtected = errors.New("order has financial, production, or document history and cannot be deleted")
+	ErrOrderDeleteProtected = errors.New("reverse active payments on this order and its invoice before deleting the order")
 )
 
 type CommercialStatus string

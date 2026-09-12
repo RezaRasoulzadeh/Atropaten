@@ -144,7 +144,7 @@ async function removeSelectedOrder() {
     const order = selectedOrder.value
     if (!order || !(await confirmAction({
       title: 'Delete order',
-      message: 'Delete this order permanently? Orders with financial, production, or document history cannot be deleted.',
+      message: 'Delete this order and its production jobs, draft invoices, and document links? Reserved and consumed stock will be returned, outsourcing expenses reversed, and posted invoices voided. Accounting history and files on disk are kept. Active payments must be reversed first.',
       confirmLabel: 'Delete order',
       danger: true,
     }))) return

@@ -127,9 +127,8 @@ function itemCount(order: OrderRecord) {
             <h3 class="text-sm font-semibold">Production cost & margin</h3>
             <span class="text-xs text-base-content/50">Expected job margin</span>
           </div>
-          <dl class="mt-3 grid grid-cols-3 divide-x divide-base-300/70 overflow-hidden rounded-box border border-base-300/70 bg-base-100/35">
+          <dl class="mt-3 grid grid-cols-2 divide-x divide-base-300/70 overflow-hidden rounded-box border border-base-300/70 bg-base-100/35">
             <div class="min-w-0 p-2.5 first:ps-3"><dt class="truncate text-[11px] text-base-content/55">Expected cost</dt><dd class="mt-1 truncate text-sm tabular-nums">{{ money(order.projectedCostRial || 0) }}</dd></div>
-            <div class="min-w-0 p-2.5"><dt class="truncate text-[11px] text-base-content/55">Recorded cost</dt><dd class="mt-1 truncate text-sm tabular-nums">{{ money(order.actualCostRial || 0) }}</dd></div>
             <div class="min-w-0 p-2.5 last:pe-3"><dt class="truncate text-[11px] text-base-content/55">Margin</dt><dd class="mt-1 truncate text-sm font-semibold tabular-nums" :class="(order.marginRial || 0) >= 0 ? 'text-success' : 'text-error'">{{ money(order.marginRial || 0) }}</dd></div>
           </dl>
           <p v-if="order.marginPercentage" class="mt-2 text-xs leading-5 text-base-content/55">{{ order.marginPercentage }}% of sales after discount. Expected cost includes recorded materials and outsourcing, remaining materials, and estimated machine, labor and overhead costs. Business profit uses posted invoices and expenses.</p>

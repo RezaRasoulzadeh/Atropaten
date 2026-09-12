@@ -5,6 +5,7 @@ const {busy,runAction}=useWorkspaceActions()
 import { computed, onMounted, ref, watch } from 'vue';
 import { CheckCheck, Factory, PackageOpen, Plus } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
+import ProductionCostBreakdown from '../production/ProductionCostBreakdown.vue';
 import {
   productionApi,
   type ConsumptionRecord,
@@ -214,10 +215,14 @@ function tone(s: string) {
             </div>
           </div>
           <div class="shrink-0 text-end">
-            <span class="block text-[11px] text-base-content/50">Actual cost</span>
-            <strong class="block text-sm tabular-nums">{{ formatMoney(job.actualTotalCostRial, props.currencyUnit) }}</strong>
+            <span class="block text-[11px] text-base-content/50">Expected total cost</span>
+            <strong class="block text-sm tabular-nums">{{ formatMoney(job.projectedCostRial, props.currencyUnit) }}</strong>
           </div>
         </div>
+        <details class="mt-3 border-t border-base-300 pt-2">
+          <summary class="cursor-pointer text-xs text-base-content/65">Cost breakdown · includes machine, labor &amp; overhead estimates</summary>
+          <ProductionCostBreakdown class="mt-2" embedded :job="job" :currency-unit="props.currencyUnit" />
+        </details>
         <div class="mt-3 grid min-w-0 grid-cols-2 gap-3 border-t border-base-300 pt-3 text-xs sm:grid-cols-3">
           <div class="min-w-0"><span class="block text-base-content/50">Created</span><strong class="mt-0.5 block truncate font-medium text-base-content/80">{{ job.createdAt ? formatDateTime(job.createdAt) : '—' }}</strong></div>
           <div class="min-w-0"><span class="block text-base-content/50">Reservations</span><strong class="mt-0.5 block truncate font-medium text-base-content/80">{{ reservedCount(job.id) }} active</strong></div>

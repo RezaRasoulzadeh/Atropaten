@@ -684,7 +684,7 @@ func (s *Store) CreatePayment(ctx context.Context, p domain.Payment) (domain.Pay
 			tx.Rollback()
 			return domain.Payment{}, err
 		}
-		if activeCheck > 0 {
+		if activeCheck > 0 && a.TargetType != "purchase" {
 			tx.Rollback()
 			return domain.Payment{}, domain.ErrCheckObligationPaid
 		}
@@ -716,19 +716,20 @@ func (s *Store) CreatePayment(ctx context.Context, p domain.Payment) (domain.Pay
 				}
 			}
 			var already int64
-			if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='order' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, a.TargetID).Scan(&already); err != nil {
+			if err = tx.QueryRowContext(ctx, orderPaidTotalSQL, a.TargetID, a.TargetID).Scan(&already); err != nil {
 				tx.Rollback()
 				return domain.Payment{}, err
 			}
-			if already+allocatedByTarget[a.TargetID] > targetTotal-a.AmountRial {
+			key := "order:" + a.TargetID
+			if already+allocatedByTarget[key] > targetTotal-a.AmountRial {
 				tx.Rollback()
 				return domain.Payment{}, domain.ErrAllocationExceeded
 			}
-			allocatedByTarget[a.TargetID] += a.AmountRial
+			allocatedByTarget[key] += a.AmountRial
 		} else if a.TargetType == "invoice" {
-			var customer string
+			var customer, orderID string
 			var targetTotal int64
-			if err = tx.QueryRowContext(ctx, `SELECT COALESCE(customer_id,''),total_rial FROM invoices WHERE id=? AND status IN ('Posted','Partially Paid','Paid')`, a.TargetID).Scan(&customer, &targetTotal); err != nil {
+			if err = tx.QueryRowContext(ctx, `SELECT COALESCE(customer_id,''),total_rial,COALESCE(order_id,'') FROM invoices WHERE id=? AND status IN ('Posted','Partially Paid','Paid')`, a.TargetID).Scan(&customer, &targetTotal, &orderID); err != nil {
 				tx.Rollback()
 				return domain.Payment{}, domain.ErrAllocationTarget
 			}
@@ -749,19 +750,23 @@ func (s *Store) CreatePayment(ctx context.Context, p domain.Payment) (domain.Pay
 				}
 			}
 			var already int64
-			if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='invoice' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, a.TargetID).Scan(&already); err != nil {
+			if err = tx.QueryRowContext(ctx, invoicePaidTotalSQL, a.TargetID, a.TargetID).Scan(&already); err != nil {
 				tx.Rollback()
 				return domain.Payment{}, err
 			}
-			if already+allocatedByTarget[a.TargetID] > targetTotal-a.AmountRial {
+			key := "invoice:" + a.TargetID
+			if orderID != "" {
+				key = "order:" + orderID
+			}
+			if already+allocatedByTarget[key] > targetTotal-a.AmountRial {
 				tx.Rollback()
 				return domain.Payment{}, domain.ErrAllocationExceeded
 			}
-			allocatedByTarget[a.TargetID] += a.AmountRial
+			allocatedByTarget[key] += a.AmountRial
 		} else {
 			var supplier string
 			var targetTotal int64
-			if err = tx.QueryRowContext(ctx, `SELECT supplier_id,total_rial FROM purchases WHERE id=?`, a.TargetID).Scan(&supplier, &targetTotal); err != nil {
+			if err = tx.QueryRowContext(ctx, `SELECT supplier_id,total_rial FROM purchases WHERE id=? AND status='Posted'`, a.TargetID).Scan(&supplier, &targetTotal); err != nil {
 				tx.Rollback()
 				return domain.Payment{}, domain.ErrAllocationTarget
 			}
@@ -769,8 +774,11 @@ func (s *Store) CreatePayment(ctx context.Context, p domain.Payment) (domain.Pay
 				tx.Rollback()
 				return domain.Payment{}, domain.ErrPaymentInvalidParty
 			}
+			if p.Direction == domain.PaymentOutgoing && p.SupplierID == "" {
+				p.SupplierID = supplier
+			}
 			var already int64
-			if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='purchase' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, a.TargetID).Scan(&already); err != nil {
+			if err = tx.QueryRowContext(ctx, purchaseCommittedTotalSQL, a.TargetID, a.TargetID, "").Scan(&already); err != nil {
 				tx.Rollback()
 				return domain.Payment{}, err
 			}
@@ -911,7 +919,7 @@ func (s *Store) OrderPaymentSummary(ctx context.Context, id string) (int64, int6
 		}
 		return 0, 0, domain.PaymentUnpaid, err
 	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='order' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, id).Scan(&paid); err != nil {
+	if err := s.db.QueryRowContext(ctx, orderPaidTotalSQL, id, id).Scan(&paid); err != nil {
 		return 0, 0, domain.PaymentUnpaid, err
 	}
 	remaining := total - paid
@@ -927,6 +935,16 @@ func (s *Store) OrderPaymentSummary(ctx context.Context, id string) (int64, int6
 	}
 	return paid, remaining, status, nil
 }
+
+// Sum allocation amounts, not whole payments: one payment can cover multiple
+// orders. Each allocation is counted once, whether paid directly or via invoice.
+const orderPaidTotalSQL = `SELECT COALESCE(SUM(a.amount_rial),0)
+	FROM payment_allocations a JOIN payments p ON p.id=a.payment_id
+	WHERE a.reversed=0 AND p.status='posted' AND (
+	(a.target_type='order' AND a.target_id=?) OR
+	(a.target_type='invoice' AND a.target_id IN (
+	 SELECT id FROM invoices WHERE order_id=? AND status IN ('Posted','Partially Paid','Paid')
+	)))`
 func (s *Store) PurchasePaymentSummary(ctx context.Context, id string) (int64, int64, error) {
 	var total, paid int64
 	if err := s.db.QueryRowContext(ctx, `SELECT total_rial FROM purchases WHERE id=?`, id).Scan(&total); err != nil {
@@ -935,12 +953,24 @@ func (s *Store) PurchasePaymentSummary(ctx context.Context, id string) (int64, i
 	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='purchase' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, id).Scan(&paid); err != nil {
 		return 0, 0, err
 	}
+	var cleared int64
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(amount_rial),0) FROM checks WHERE direction='outgoing' AND source_type='purchase' AND source_id=? AND status='Cleared'`, id).Scan(&cleared); err != nil {
+		return 0, 0, err
+	}
+	paid += cleared
 	remaining := total - paid
 	if remaining < 0 {
 		remaining = 0
 	}
 	return paid, remaining, nil
 }
+
+// Pending checks reserve their share of the supplier obligation but are not
+// cash paid until cleared. The optional excluded check avoids counting itself
+// again when validating a lifecycle transition.
+const purchaseCommittedTotalSQL = `SELECT
+	(SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='purchase' AND a.target_id=? AND a.reversed=0 AND p.status='posted') +
+	(SELECT COALESCE(SUM(amount_rial),0) FROM checks WHERE source_type='purchase' AND source_id=? AND direction='outgoing' AND status IN ('Issued','Delivered','Cleared') AND id<>?)`
 
 // CustomerFinancialSummary derives receivables and unapplied customer credit
 // from posted journal lines; no customer balance is stored or mutated.

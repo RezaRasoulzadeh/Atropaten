@@ -157,7 +157,27 @@ func (s *Store) ChangeCheckStatus(ctx context.Context, id, to, note, key string)
 	if !domain.ValidCheckTransition(c.Direction, c.Status, to) {
 		return fail(domain.ErrCheckTransition)
 	}
-	if checkNeedsAccounting(c.Direction, c.Status, to) && c.SourceType != "" && c.SourceID != "" {
+	if c.SourceType == "purchase" && c.SourceID != "" && (to == domain.CheckIssued || to == domain.CheckDelivered || to == domain.CheckCleared) {
+		var total, committed int64
+		var supplier string
+		if e := tx.QueryRowContext(ctx, `SELECT total_rial,supplier_id FROM purchases WHERE id=? AND status='Posted'`, c.SourceID).Scan(&total, &supplier); e != nil {
+			return fail(domain.ErrAllocationTarget)
+		}
+		if c.Direction != domain.CheckOutgoing || supplier != c.SupplierID {
+			return fail(domain.ErrPaymentInvalidParty)
+		}
+		var active int
+		var accountType string
+		if e := tx.QueryRowContext(ctx, `SELECT active,type FROM financial_accounts WHERE id=?`, c.FinancialAccountID).Scan(&active, &accountType); e != nil || active != 1 || accountType != "bank" {
+			return fail(fmt.Errorf("select an active bank account for the purchase check"))
+		}
+		if e := tx.QueryRowContext(ctx, purchaseCommittedTotalSQL, c.SourceID, c.SourceID, c.ID).Scan(&committed); e != nil {
+			return fail(e)
+		}
+		if committed > total-c.AmountRial {
+			return fail(domain.ErrAllocationExceeded)
+		}
+	} else if checkNeedsAccounting(c.Direction, c.Status, to) && c.SourceType != "" && c.SourceID != "" {
 		var paid int
 		if e := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type=? AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, c.SourceType, c.SourceID).Scan(&paid); e != nil {
 			return fail(e)

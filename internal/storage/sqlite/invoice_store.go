@@ -70,43 +70,47 @@ func (s *Store) GetInvoiceForOrder(ctx context.Context, orderID string) (domain.
 	return v, s.withInvoicePayment(ctx, &v)
 }
 func (s *Store) OrderInvoiceSummary(ctx context.Context, orderID string) (string, string, int64, int64, int64, error) {
-	var id, status string
-	var total int64
-	if err := s.db.QueryRowContext(ctx, `SELECT id,status,total_rial FROM invoices WHERE order_id=?`, orderID).Scan(&id, &status, &total); errors.Is(err, sql.ErrNoRows) {
+	v, err := scanInvoice(s.db.QueryRowContext(ctx, invoiceSelect+` WHERE order_id=?`, orderID))
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", "", 0, 0, 0, domain.ErrInvoiceNotFound
-	} else if err != nil {
+	}
+	if err != nil {
 		return "", "", 0, 0, 0, err
 	}
-	var paid int64
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='invoice' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, id).Scan(&paid); err != nil {
+	if err = s.withInvoicePayment(ctx, &v); err != nil {
 		return "", "", 0, 0, 0, err
 	}
-	remaining := total - paid
-	if remaining < 0 {
-		remaining = 0
-	}
-	if status != "Voided" {
-		if paid >= total {
-			status = domain.InvoicePaid
-		} else if paid > 0 {
-			status = domain.InvoicePartiallyPaid
-		}
-	}
-	return id, status, total, paid, remaining, nil
+	return v.ID, v.Status, v.TotalRial, v.PaidRial, v.RemainingRial, nil
 }
+
+// Order deposits and direct invoice payments settle the same linked document.
+// Allocation amounts are summed once; no payments or journals are reassigned.
+const invoicePaidTotalSQL = `SELECT COALESCE(SUM(a.amount_rial),0)
+	FROM payment_allocations a JOIN payments p ON p.id=a.payment_id
+	WHERE a.reversed=0 AND p.status='posted' AND (
+	(a.target_type='invoice' AND a.target_id=?) OR
+	(a.target_type='order' AND a.target_id IN (
+	 SELECT order_id FROM invoices WHERE id=? AND status<>'Voided' AND order_id IS NOT NULL
+	)))`
+
 func (s *Store) withInvoicePayment(ctx context.Context, v *domain.Invoice) error {
-	if v.Status == domain.InvoiceDraft || v.Status == domain.InvoiceVoided {
+	if v.Status == domain.InvoiceVoided {
 		v.PaidRial = 0
 		v.RemainingRial = v.TotalRial
 		return nil
 	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='invoice' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, v.ID).Scan(&v.PaidRial); err != nil {
+	if err := s.db.QueryRowContext(ctx, invoicePaidTotalSQL, v.ID, v.ID).Scan(&v.PaidRial); err != nil {
 		return err
 	}
 	v.RemainingRial = v.TotalRial - v.PaidRial
 	if v.RemainingRial < 0 {
 		v.RemainingRial = 0
 	}
+	// A pre-invoice stays Draft even when an order deposit covers its total.
+	if v.Status == domain.InvoiceDraft {
+		return nil
+	}
+	v.Status = domain.InvoicePosted
 	if v.PaidRial >= v.TotalRial {
 		v.Status = domain.InvoicePaid
 	} else if v.PaidRial > 0 {
@@ -298,7 +302,16 @@ func (s *Store) VoidInvoice(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	fail := func(e error) error { tx.Rollback(); return e }
+	defer tx.Rollback()
+	if err = s.voidInvoiceTx(ctx, tx, id); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *Store) voidInvoiceTx(ctx context.Context, tx *sql.Tx, id string) error {
+	var err error
+	fail := func(e error) error { return e }
 	var status, je, cogs string
 	if err = tx.QueryRowContext(ctx, `SELECT status,COALESCE(accounting_journal_entry_id,''),COALESCE(cogs_journal_entry_id,'') FROM invoices WHERE id=?`, id).Scan(&status, &je, &cogs); errors.Is(err, sql.ErrNoRows) {
 		return fail(domain.ErrInvoiceNotFound)
@@ -307,7 +320,7 @@ func (s *Store) VoidInvoice(ctx context.Context, id string) error {
 		return fail(err)
 	}
 	if status == domain.InvoiceVoided {
-		return tx.Commit()
+		return nil
 	}
 	if status != domain.InvoicePosted {
 		return fail(domain.ErrInvoiceCannotVoid)
@@ -329,11 +342,13 @@ func (s *Store) VoidInvoice(ctx context.Context, id string) error {
 			return fail(err)
 		}
 	}
-	if err=s.reverseInvoiceCOGSAdjustmentsTx(ctx,tx,id);err!=nil { return fail(err) }
+	if err = s.reverseInvoiceCOGSAdjustmentsTx(ctx, tx, id); err != nil {
+		return fail(err)
+	}
 	if _, err = tx.ExecContext(ctx, `UPDATE invoices SET status='Voided',updated_at=? WHERE id=?`, time.Now().UTC().Format(time.RFC3339Nano), id); err != nil {
 		return fail(err)
 	}
-	return tx.Commit()
+	return nil
 }
 
 func scanInvoice(row scanner) (domain.Invoice, error) {

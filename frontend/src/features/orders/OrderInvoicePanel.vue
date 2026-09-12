@@ -2,7 +2,7 @@
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 const {busy,runAction}=useWorkspaceActions()
 
-import { nextTick, onMounted, ref } from 'vue';
+import { nextTick, ref, watch } from 'vue';
 import { FileText, Plus, Printer, RotateCcw } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import { invoicesApi, type InvoiceRecord } from '../../api/invoices';
@@ -20,12 +20,14 @@ const shopSettings = ref<ShopSettingsRecord | null>(null);
 const printMode = ref<'pre' | 'final'>('final');
 async function load() {
   try {
-    if (props.order.invoiceId) invoice.value = await invoicesApi.get(props.order.invoiceId);
+    const id = props.order.invoiceId;
+    const loaded = id ? await invoicesApi.get(id) : null;
+    if (id === props.order.invoiceId) invoice.value = loaded;
   } catch (e) {
     reportError(e);
   }
 }
-onMounted(load);
+watch(() => [props.order.id, props.order.invoiceId, props.order.paidRial, props.order.remainingRial, props.order.invoiceStatus], load, { immediate: true });
 async function create() {
 return runAction(async () => {
   try {

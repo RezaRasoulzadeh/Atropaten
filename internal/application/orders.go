@@ -97,52 +97,9 @@ func (s *OrdersService) List(ctx context.Context) ([]OrderView, error) {
 	}
 	out := make([]OrderView, 0, len(rows))
 	for _, row := range rows {
-		view := orderView(row)
-		if lookup, ok := s.repository.(OrderProductionLookup); ok {
-			view.ProductionJobCount, view.CompletedProductionJobs, view.InProgressProductionJobs, err = lookup.ProductionSummary(ctx, row.ID)
-			if err != nil {
-				return nil, err
-			}
-		}
-		if lookup, ok := s.repository.(OrderProductionCostLookup); ok {
-			view.ActualCostRial, err = lookup.ProductionCostSummary(ctx, row.ID)
-			if err != nil {
-				return nil, err
-			}
-		}
-		if lookup, ok := s.repository.(OrderProductionForecastLookup); ok {
-			view.ProjectedCostRial, err = lookup.ProductionProjectedCostSummary(ctx, row.ID)
-			if err != nil {
-				return nil, err
-			}
-		}
-		setOrderMargin(&view)
-		if lookup, ok := s.repository.(OrderPaymentLookup); ok {
-			var status domain.PaymentStatus
-			view.PaidRial, view.RemainingRial, status, err = lookup.OrderPaymentSummary(ctx, row.ID)
-			view.PaymentStatus = string(status)
-			if err != nil {
-				return nil, err
-			}
-		}
-		if lookup, ok := s.repository.(OrderInvoiceLookup); ok {
-			id, status, total, paid, remaining, e := lookup.OrderInvoiceSummary(ctx, row.ID)
-			if e != nil && e != domain.ErrInvoiceNotFound {
-				return nil, e
-			}
-			if e == nil {
-				view.InvoiceID, view.InvoiceStatus, view.InvoicedTotalRial, view.PaidRial, view.RemainingRial = id, status, total, paid, remaining
-				if status == string(domain.InvoiceDraft) {
-					if paymentLookup, ok := s.repository.(OrderPaymentLookup); ok {
-						var paymentStatus domain.PaymentStatus
-						view.PaidRial, view.RemainingRial, paymentStatus, e = paymentLookup.OrderPaymentSummary(ctx, row.ID)
-						if e != nil {
-							return nil, e
-						}
-						view.PaymentStatus = string(paymentStatus)
-					}
-				}
-			}
+		view, err := s.enrich(ctx, orderView(row))
+		if err != nil {
+			return nil, err
 		}
 		out = append(out, view)
 	}
@@ -234,15 +191,16 @@ func (s *OrdersService) enrich(ctx context.Context, view OrderView) (OrderView, 
 			return OrderView{}, e
 		}
 		if e == nil {
-			view.InvoiceID, view.InvoiceStatus, view.InvoicedTotalRial, view.PaidRial, view.RemainingRial = id, status, total, paid, remaining
-			if status == string(domain.InvoiceDraft) {
-				if paymentLookup, ok := s.repository.(OrderPaymentLookup); ok {
-					var paymentStatus domain.PaymentStatus
-					view.PaidRial, view.RemainingRial, paymentStatus, e = paymentLookup.OrderPaymentSummary(ctx, view.ID)
-					if e != nil {
-						return OrderView{}, e
-					}
-					view.PaymentStatus = string(paymentStatus)
+			view.InvoiceID, view.InvoiceStatus, view.InvoicedTotalRial = id, status, total
+			// Invoice metadata must not overwrite the combined order payment
+			// summary with invoice-only allocations (and lose order deposits).
+			if _, hasPayments := s.repository.(OrderPaymentLookup); !hasPayments && status != domain.InvoiceDraft && status != domain.InvoiceVoided {
+				view.PaidRial, view.RemainingRial = paid, remaining
+				view.PaymentStatus = string(domain.PaymentUnpaid)
+				if remaining == 0 {
+					view.PaymentStatus = string(domain.PaymentPaid)
+				} else if paid > 0 {
+					view.PaymentStatus = string(domain.PaymentPartiallyPaid)
 				}
 			}
 		}

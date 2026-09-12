@@ -8,6 +8,7 @@ import JalaliDatePicker from '../../components/ui/JalaliDatePicker.vue'
 import SelectField from '../../components/ui/SelectField.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
+import PurchasePaymentsPanel from './PurchasePaymentsPanel.vue'
 import WorkspaceBreadcrumb from '../../components/layout/WorkspaceBreadcrumb.vue'
 import { formatMoney, formatMoneyInput, parseMoneyInput, type CurrencyUnit } from '../../utils/currency'
 import { formatDateTime } from '../../utils/date'
@@ -18,6 +19,7 @@ const props = defineProps<{
   currencyUnit: CurrencyUnit
   suppliers: any[]
   materials: any[]
+  initialStep?: number
 }>()
 const {
   busy,
@@ -34,14 +36,16 @@ const {
   cancelItemEdit,
   removeItem,
   reorder,
+  post,
 } = props.workspace
 
-const activeStep = ref(1)
+const activeStep = ref(props.initialStep || 1)
 const steps = [
-  { number: 1, title: 'Purchase details', description: 'Supplier, date, account' },
+  { number: 1, title: 'Purchase details', description: 'Supplier, date, invoice reference' },
   { number: 2, title: 'Items', description: 'Materials and quantities' },
   { number: 3, title: 'Costs & notes', description: 'Adjustments and context' },
   { number: 4, title: 'Review', description: 'Confirm before saving' },
+  { number: 5, title: 'Payment', description: 'Pay later, cash, bank, or check' },
 ]
 
 const sortedItems = computed(() => [...(current.value?.items || [])].sort((left, right) => left.position - right.position))
@@ -91,7 +95,7 @@ function financialAccountLabel(id: string) {
       </div>
       <div class="flex shrink-0 items-center gap-2">
         <button class="btn btn-error" type="button" :disabled="busy" @click="cancelEditor">Cancel</button>
-        <button class="btn btn-success gap-2" type="button" :disabled="busy" @click="save"><Save :size="16" aria-hidden="true" />Save purchase</button>
+        <button class="btn btn-success gap-2" type="button" :disabled="busy" @click="save()"><Save :size="16" aria-hidden="true" />Save purchase</button>
       </div>
     </header>
 
@@ -109,11 +113,10 @@ function financialAccountLabel(id: string) {
         <section class="service-wizard-form-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-6 xl:overflow-y-auto">
           <form id="purchase-editor" class="service-editor min-w-0" @submit.prevent="next">
             <section v-if="activeStep === 1" class="min-w-0 space-y-6">
-              <div class="flex items-center gap-3 border-b border-base-300 pb-4"><span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/10 text-primary"><Receipt :size="21" aria-hidden="true" /></span><div><h2 class="text-lg font-semibold">Purchase details</h2><p class="text-sm text-base-content/60">{{ historyLocked ? 'Invoice reference and notes remain editable after posting.' : 'Set the supplier, date, payment account, and invoice reference.' }}</p></div></div>
+              <div class="flex items-center gap-3 border-b border-base-300 pb-4"><span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/10 text-primary"><Receipt :size="21" aria-hidden="true" /></span><div><h2 class="text-lg font-semibold">Purchase details</h2><p class="text-sm text-base-content/60">{{ historyLocked ? 'Invoice reference and notes remain editable after posting.' : 'Set the supplier, date, and invoice reference. Payments are managed in the Payment step.' }}</p></div></div>
               <div class="grid min-w-0 gap-4 sm:grid-cols-2">
                 <FormField class="gap-1"><span>Supplier <em class="text-error">*</em></span><SelectField v-model="form.supplierId" :disabled="historyLocked" :options="[{ label: 'Select supplier', value: '' }, ...props.suppliers.map((supplier) => ({ label: supplier.name, value: supplier.id }))]" aria-label="Purchase supplier" /><small class="text-xs leading-5 text-base-content/60">The supplier connected to this purchase.</small></FormField>
                 <FormField class="gap-1"><span>Purchase date <em class="text-error">*</em></span><JalaliDatePicker v-model="form.purchaseDate" :disabled="historyLocked" placeholder="Select Jalali date" /><small class="text-xs leading-5 text-base-content/60">The date used for purchase and inventory history.</small></FormField>
-                <FormField class="gap-1 sm:col-span-2"><span>Paid from account <em class="text-error">*</em></span><SelectField v-model="form.financialAccountId" :disabled="historyLocked" :options="[{ label: 'Select cash or bank account', value: '' }, ...financial.filter((account) => account.active).map((account) => ({ label: financialAccountLabel(account.id), value: account.id }))]" aria-label="Purchase payment account" /><small class="text-xs leading-5 text-base-content/60">The active cash or bank account used for this purchase.</small></FormField>
                 <FormField class="gap-1 sm:col-span-2"><span>Supplier invoice number</span><AppInput v-model="form.supplierInvoiceNumber" class="input w-full min-w-0" placeholder="Optional invoice reference" autocomplete="off" /><small class="text-xs leading-5 text-base-content/60">Keep the supplier’s reference for reconciliation.</small></FormField>
               </div>
             </section>
@@ -144,17 +147,25 @@ function financialAccountLabel(id: string) {
               </div>
             </section>
 
-            <section v-else class="min-w-0 space-y-6">
+            <section v-else-if="activeStep === 4" class="min-w-0 space-y-6">
               <div class="flex items-center gap-3 border-b border-base-300 pb-4"><span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/10 text-primary"><FileText :size="21" aria-hidden="true" /></span><div><h2 class="text-lg font-semibold">Review purchase</h2><p class="text-sm text-base-content/60">Confirm the purchase before saving it.</p></div></div>
               <div class="rounded-box border border-base-300 bg-base-100/35 p-4"><dl class="divide-y divide-base-300/70 text-sm"><div class="flex justify-between gap-3 py-3"><dt class="text-base-content/60">Supplier</dt><dd class="max-w-[65%] truncate text-end">{{ supplierName }}</dd></div><div class="flex justify-between gap-3 py-3"><dt class="text-base-content/60">Purchase date</dt><dd class="text-end">{{ form.purchaseDate }}</dd></div><div class="flex justify-between gap-3 py-3"><dt class="text-base-content/60">Items</dt><dd class="text-end">{{ itemCount }} line item{{ itemCount === 1 ? '' : 's' }}</dd></div><div class="flex justify-between gap-3 py-3"><dt class="text-base-content/60">Account</dt><dd class="max-w-[65%] truncate text-end">{{ financialAccountLabel(form.financialAccountId) }}</dd></div><div class="flex justify-between gap-3 py-3 last:pb-0"><dt class="text-base-content/60">Total</dt><dd class="font-semibold tabular-nums text-primary">{{ formatMoney(total, props.currencyUnit) }}</dd></div></dl></div><div class="rounded-box border border-info/30 bg-info/10 p-4 text-sm text-base-content/75">{{ historyLocked ? 'This is a history-safe edit. The purchase number and inventory-affecting values remain unchanged.' : 'The purchase remains a draft until you post it. Posting creates the related inventory movements.' }}</div>
             </section>
 
+            <section v-else class="min-w-0 space-y-4" aria-label="Purchase payment step">
+              <div class="border-b border-base-300 pb-3"><h2 class="text-lg font-semibold">Purchase payment</h2><p class="mt-1 text-sm text-base-content/60">Record payment now or leave this purchase unpaid and return later.</p></div>
+              <div v-if="createMode" class="space-y-3"><p class="text-sm text-base-content/65">Save this purchase before recording payments.</p><button type="button" class="btn btn-primary btn-sm" :disabled="busy" @click="save(true)">Save draft to continue</button></div>
+              <template v-else>
+                <div v-if="current.status === 'Draft'" class="space-y-2"><p class="text-sm text-base-content/65">Post the saved purchase to receive stock and create the supplier payable. Then record payment below.</p><button type="button" class="btn btn-primary btn-sm" :disabled="busy" @click="post(true)">Post saved purchase</button></div>
+                <PurchasePaymentsPanel :purchase="current" :financial="financial" :currency-unit="props.currencyUnit" @saved="workspace.replace" />
+              </template>
+            </section>
           </form>
         </section>
 
         <aside class="service-wizard-preview-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/35 p-4 xl:overflow-y-auto"><div class="space-y-4"><div class="relative min-h-48 overflow-hidden rounded-box bg-base-300 p-5"><div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/65 to-black/10" aria-hidden="true"></div><div class="absolute inset-0 grid place-items-center text-white/10"><ShoppingCart :size="84" :stroke-width="1" aria-hidden="true" /></div><div class="relative z-10 flex min-h-36 flex-col justify-end text-white"><div class="mt-auto flex min-w-0 items-end justify-start gap-3"><div class="min-w-0"><h2 class="truncate text-lg font-semibold">{{ purchaseNumber }}</h2><p class="mt-1 truncate text-xs text-white/70">{{ supplierName }} · {{ itemCount }} items</p></div><StatusBadge :label="current.status" :tone="current.status === 'Posted' ? 'green' : current.status === 'Draft' ? 'amber' : 'slate'" /></div></div></div><div class="divide-y divide-base-300 rounded-box border border-base-300 bg-base-100/35"><div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">Supplier</span><strong class="max-w-[10rem] truncate text-end">{{ supplierName }}</strong></div><div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">Items</span><strong>{{ itemCount }}</strong></div><div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">Total</span><strong class="text-primary tabular-nums">{{ formatMoney(total, props.currencyUnit) }}</strong></div></div><div class="flex gap-2 border-t border-base-300 pt-3 text-sm"><Receipt class="mt-0.5 shrink-0 text-info" :size="17" aria-hidden="true" /><p class="leading-5 text-base-content/70">{{ historyLocked ? 'Inventory-affecting values are protected. Update the invoice reference or notes and save.' : activeStep === 1 ? 'Start with the supplier and payment details.' : activeStep === 2 ? 'Add every material line received in this purchase.' : activeStep === 3 ? 'Adjust the financial totals and add context.' : 'Review the draft before saving or posting it.' }}</p></div></div></aside>
       </div>
     </div>
-    <footer class="flex min-w-0 items-center justify-between gap-3 border-t border-base-300 px-1 pt-3"><button class="btn btn-ghost btn-sm" type="button" :disabled="activeStep === 1 || busy" @click="previous">Back</button><span class="text-xs text-base-content/55">Step {{ activeStep }} of {{ steps.length }}</span><button v-if="activeStep < steps.length" class="btn btn-primary btn-sm" type="button" @click="next">Continue</button><button v-else class="btn btn-success btn-sm gap-2" type="button" :disabled="busy" @click="save"><Save :size="14" aria-hidden="true" />Save purchase</button></footer>
+    <footer class="flex min-w-0 items-center justify-between gap-3 border-t border-base-300 px-1 pt-3"><button class="btn btn-ghost btn-sm" type="button" :disabled="activeStep === 1 || busy" @click="previous">Back</button><span class="text-xs text-base-content/55">Step {{ activeStep }} of {{ steps.length }}</span><button v-if="activeStep < steps.length" class="btn btn-primary btn-sm" type="button" @click="next">Continue</button><button v-else class="btn btn-success btn-sm gap-2" type="button" :disabled="busy" @click="save()"><Save :size="14" aria-hidden="true" />Save purchase</button></footer>
   </div>
 </template>

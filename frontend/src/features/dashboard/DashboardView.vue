@@ -135,7 +135,7 @@ const initialLoading = computed(() => loading.value && !data.value);
         />
         <KpiCard
           :value="money(data?.grossProfitRial || 0)"
-          detail="Sales less cost of goods"
+          detail="Sales less expected order cost"
           title="Gross profit"
           trend="Period"
           :icon="BarChart3"

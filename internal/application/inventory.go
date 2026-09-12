@@ -251,12 +251,9 @@ func (s *PurchasesService) applyPurchaseInput(ctx context.Context, p *domain.Pur
 		return fmt.Errorf("supplier is required")
 	}
 	financialAccountID := strings.TrimSpace(in.FinancialAccountID)
-	if financialAccountID == "" {
-		return fmt.Errorf("treasury account is required")
-	}
 	if lookup, ok := s.repository.(interface {
 		GetFinancialAccount(context.Context, string) (domain.FinancialAccount, error)
-	}); ok {
+	}); ok && financialAccountID != "" {
 		account, err := lookup.GetFinancialAccount(ctx, financialAccountID)
 		if err != nil {
 			return err

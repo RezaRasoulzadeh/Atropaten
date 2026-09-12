@@ -439,9 +439,11 @@ function closeOrderWorkspace() {
   selectedOrderId.value = null;
   unsavedOrder.value = null;
 }
-function removeOrder(orderId: string) {
+async function removeOrder(orderId: string) {
   orders.value = orders.value.filter((order) => order.id !== orderId);
+  productionJobs.value = productionJobs.value.filter((job) => job.orderId !== orderId);
   closeOrderWorkspace();
+  await Promise.all([loadOrderCatalog(), loadGlobalSearchData()]);
 }
 function updateOrder(order: OrderRecord) {
 	if (unsavedOrder.value && unsavedOrder.value.id !== order.id) {

@@ -659,6 +659,27 @@ var migrations = []migration{{
 		sql: `ALTER TABLE production_jobs ADD COLUMN cost_breakdown_json TEXT NOT NULL DEFAULT '{}';
 		UPDATE production_jobs SET cost_breakdown_json=COALESCE((SELECT cost_breakdown_json FROM order_items WHERE id=production_jobs.order_item_id),'{}');`,
 	},
+	{
+		version: 26,
+		sql: `CREATE TABLE deleted_order_records (id TEXT PRIMARY KEY, order_number TEXT NOT NULL, invoice_id TEXT, deleted_at TEXT NOT NULL);
+		DROP TRIGGER invoices_immutable_update;
+		CREATE TRIGGER invoices_immutable_update BEFORE UPDATE ON invoices
+		WHEN NOT (OLD.status='Draft' OR (OLD.status='Posted' AND NEW.status='Voided') OR (
+		 OLD.status='Voided' AND OLD.order_id IS NOT NULL AND NEW.order_id IS NULL
+		 AND EXISTS(SELECT 1 FROM deleted_order_records WHERE id=OLD.order_id)
+		 AND (NEW.id,NEW.invoice_number,NEW.customer_id,NEW.customer_name_snapshot,NEW.customer_phone_snapshot,NEW.issue_date,NEW.due_date,NEW.status,NEW.notes,NEW.subtotal_rial,NEW.discount_rial,NEW.total_rial,NEW.accounting_journal_entry_id,NEW.cogs_journal_entry_id,NEW.created_at,NEW.updated_at)
+		 IS (OLD.id,OLD.invoice_number,OLD.customer_id,OLD.customer_name_snapshot,OLD.customer_phone_snapshot,OLD.issue_date,OLD.due_date,OLD.status,OLD.notes,OLD.subtotal_rial,OLD.discount_rial,OLD.total_rial,OLD.accounting_journal_entry_id,OLD.cogs_journal_entry_id,OLD.created_at,OLD.updated_at)))
+		BEGIN SELECT RAISE(ABORT,'posted invoices are immutable; use void'); END;
+		DROP TRIGGER invoice_items_immutable_update;
+		CREATE TRIGGER invoice_items_immutable_update BEFORE UPDATE ON invoice_items
+		WHEN EXISTS(SELECT 1 FROM invoices WHERE id=OLD.invoice_id AND status<>'Draft') AND NOT (
+		 NEW.order_item_id IS NULL AND OLD.order_item_id IS NOT NULL
+		 AND EXISTS(SELECT 1 FROM invoices WHERE id=OLD.invoice_id AND status='Voided')
+		 AND EXISTS(SELECT 1 FROM order_items i JOIN deleted_order_records d ON d.id=i.order_id WHERE i.id=OLD.order_item_id)
+		 AND (NEW.id,NEW.invoice_id,NEW.position,NEW.description_snapshot,NEW.service_id,NEW.quantity_units,NEW.quantity_unit,NEW.unit_price_rial,NEW.line_total_rial,NEW.notes)
+		 IS (OLD.id,OLD.invoice_id,OLD.position,OLD.description_snapshot,OLD.service_id,OLD.quantity_units,OLD.quantity_unit,OLD.unit_price_rial,OLD.line_total_rial,OLD.notes))
+		BEGIN SELECT RAISE(ABORT,'posted invoice lines are immutable'); END;`,
+	},
 }
 
 func (s *Store) seedAccounting(ctx context.Context) error {
@@ -1720,7 +1741,7 @@ func updateOrderRowTx(ctx context.Context, tx *sql.Tx, order *domain.Order) erro
 	} else if err != nil {
 		return err
 	}
-	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.amount_rial),0) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.target_type='order' AND a.target_id=? AND a.reversed=0 AND p.status='posted'`, order.ID).Scan(&paid); err != nil {
+	if err := tx.QueryRowContext(ctx, orderPaidTotalSQL, order.ID, order.ID).Scan(&paid); err != nil {
 		return err
 	}
 	if paid <= 0 {
@@ -1749,31 +1770,9 @@ func (s *Store) DeleteOrder(ctx context.Context, orderID string) error {
 	if err != nil {
 		return err
 	}
-	fail := func(e error) error { _ = tx.Rollback(); return e }
-	var count int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM orders WHERE id=?`, orderID).Scan(&count); err != nil {
-		return fail(err)
-	}
-	if count == 0 {
-		return fail(domain.ErrOrderNotFound)
-	}
-	for _, query := range []string{
-		`SELECT COUNT(*) FROM production_jobs WHERE order_id=?`,
-		`SELECT COUNT(*) FROM inventory_reservations WHERE order_id=?`,
-		`SELECT COUNT(*) FROM invoices WHERE order_id=?`,
-		`SELECT COUNT(*) FROM payment_allocations WHERE target_type='order' AND target_id=?`,
-		`SELECT COUNT(*) FROM attachments WHERE owner_type='order' AND owner_id=?`,
-		`SELECT COUNT(*) FROM proofs WHERE owner_type='order' AND owner_id=?`,
-	} {
-		if err := tx.QueryRowContext(ctx, query, orderID).Scan(&count); err != nil {
-			return fail(err)
-		}
-		if count > 0 {
-			return fail(domain.ErrOrderDeleteProtected)
-		}
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM orders WHERE id=?`, orderID); err != nil {
-		return fail(fmt.Errorf("delete order: %w", err))
+	defer tx.Rollback()
+	if err = s.deleteOrderTx(ctx, tx, orderID); err != nil {
+		return err
 	}
 	return tx.Commit()
 }

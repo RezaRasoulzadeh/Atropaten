@@ -19,7 +19,7 @@ func (s *Store) reconcileOutsourceExpenseTx(ctx context.Context, tx *sql.Tx, j d
 		return fmt.Errorf("choose an active payment account for the outsourcing expense")
 	}
 	var category string
-	if err := tx.QueryRowContext(ctx, `SELECT id FROM accounts WHERE id='ACC-EXP-OTHER' AND type='expense' AND active=1`).Scan(&category); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM accounts WHERE id='ACC-COGS' AND type='expense' AND active=1`).Scan(&category); err != nil {
 		return domain.ErrAccountNotFound
 	}
 	var amount int64

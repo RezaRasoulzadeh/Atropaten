@@ -78,6 +78,7 @@ watch([selectedId, editing, createMode], () => {
   <div v-if="editing || createMode" class="h-full min-h-0 w-full min-w-0">
     <PurchaseWorkspaceView
       :workspace="workspace"
+      :initial-step="workspace.paymentMode.value ? 5 : 1"
       :currency-unit="props.currencyUnit"
       :suppliers="props.suppliers"
       :materials="props.materials"
