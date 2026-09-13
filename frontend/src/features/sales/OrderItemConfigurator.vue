@@ -12,6 +12,7 @@ import {
   formatMoney,
   formatMoneyInput,
   parseMoneyInput,
+  roundMoneyUp,
   sellingPriceTotal,
   type CurrencyUnit,
 } from '../../utils/currency';
@@ -87,13 +88,17 @@ const manualComponents = computed(
     [],
 );
 const totalEstimatedCost = computed(() =>
-  pricing.value ? Math.round(pricing.value.estimatedCostRial * quantityNumber.value) : 0,
+  pricing.value
+    ? pricing.value.roundingStepRial !== 1000
+      ? roundMoneyUp(Math.round(pricing.value.estimatedCostRial * quantityNumber.value), pricing.value.roundingStepRial)
+      : Math.round(pricing.value.estimatedCostRial * quantityNumber.value)
+    : 0,
 );
 const totalSuggestedPrice = computed(() =>
-  pricing.value ? sellingPriceTotal(pricing.value.suggestedSellingPriceRial, quantityNumber.value) : 0,
+  pricing.value ? sellingPriceTotal(pricing.value.suggestedSellingPriceRial, quantityNumber.value, pricing.value.roundingStepRial) : 0,
 );
 const totalEffectivePrice = computed(() =>
-  pricing.value ? sellingPriceTotal(pricing.value.effectiveSellingPriceRial, quantityNumber.value) : 0,
+  pricing.value ? sellingPriceTotal(pricing.value.effectiveSellingPriceRial, quantityNumber.value, pricing.value.roundingStepRial) : 0,
 );
 const totalProfit = computed(() => totalEffectivePrice.value - totalEstimatedCost.value);
 

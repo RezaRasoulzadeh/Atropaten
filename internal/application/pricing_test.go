@@ -43,6 +43,46 @@ func TestPricingServiceResolvesDynamicParametersAndRejectsInvalidValues(t *testi
 	}
 }
 
+func TestPricingServiceUsesPersistedMonetaryRoundingStep(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := domain.NewService("SVC-rounding-policy", domain.ServiceDraft{
+		Name:        "Policy service",
+		Components:  []domain.ServiceCostComponentDraft{{ID: "C", Name: "Cost", Type: domain.CostFixed, RateRial: 12001, UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true}},
+		PricingRule: &domain.ServicePricingRuleDraft{Type: domain.PricingFixedMargin, FixedMarginRial: 1},
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository := &roundingServiceRepository{serviceRepositoryStub: serviceRepositoryStub{service: service}, step: 100}
+	result, err := NewPricingService(repository, materialLookupStub{}, machineLookupStub{}).Calculate(context.Background(), PricingRequest{ServiceID: service.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.EstimatedCostRial != 12100 || result.SuggestedSellingPriceRial != 12100 || result.RoundingStepRial != 100 {
+		t.Fatalf("rounded pricing=%+v", result)
+	}
+	repository.step = 1
+	result, err = NewPricingService(repository, materialLookupStub{}, machineLookupStub{}).Calculate(context.Background(), PricingRequest{ServiceID: service.ID})
+	if err != nil || result.EstimatedCostRial != 12001 || result.SuggestedSellingPriceRial != 12002 {
+		t.Fatalf("step change pricing=%+v err=%v", result, err)
+	}
+	override := int64(12001)
+	repository.step = 100
+	result, err = NewPricingService(repository, materialLookupStub{}, machineLookupStub{}).Calculate(context.Background(), PricingRequest{ServiceID: service.ID, SellingPriceOverrideRial: &override})
+	if err != nil || result.EffectiveSellingPriceRial != override {
+		t.Fatalf("explicit override was rounded: %+v err=%v", result, err)
+	}
+}
+
+type roundingServiceRepository struct {
+	serviceRepositoryStub
+	step int64
+}
+
+func (r *roundingServiceRepository) GetShopSettings(context.Context) (domain.ShopSettings, error) {
+	return domain.ShopSettings{MonetaryRoundingStepRial: r.step}, nil
+}
+
 func TestPricingServiceCalculatesMaterialSelectedByParameter(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	service, err := domain.NewService("SVC-paper-selection", domain.ServiceDraft{

@@ -26,6 +26,7 @@ type PricingInput struct {
 	ServiceCosts             map[string]int64
 	ManualCosts              map[string]int64
 	SellingPriceOverrideRial *int64
+	MonetaryRoundingStepRial int64
 }
 
 type PricingComponentResult struct {
@@ -58,8 +59,8 @@ type PricingResult struct {
 }
 
 // EvaluatePricing evaluates the persisted definition in display order. All
-// fractional work uses integers and big.Int; monetary cost results use half-up
-// rounding at each explicitly defined operation. Automatically calculated
+// fractional work uses integers and big.Int. Component arithmetic remains
+// exact until the configured calculation boundary; automatically calculated
 // customer prices are rounded up so the final charge never loses a fraction.
 func EvaluatePricing(input PricingInput) (PricingResult, error) {
 	if err := input.Service.Validate(); err != nil {
@@ -188,12 +189,27 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 		}
 		result.Components = append(result.Components, item)
 	}
+	calculatedCost := total
+	// The legacy 1,000-Rial policy only applied to customer charges. A shop
+	// selecting another configured step opts into the same round-up boundary
+	// for newly calculated service costs; existing snapshots remain untouched.
+	if input.MonetaryRoundingStepRial > 0 && input.MonetaryRoundingStepRial != DefaultMonetaryRoundingStepRial {
+		roundedCost, roundErr := RoundMoneyUp(total, input.MonetaryRoundingStepRial)
+		if roundErr != nil {
+			return PricingResult{}, roundErr
+		}
+		total = roundedCost
+	}
 	result.EstimatedCostRial = total
-	suggested, warnings, err := suggestedPrice(input.Service.PricingRule, input.Parameters, total)
+	suggested, warnings, err := suggestedPrice(input.Service.PricingRule, input.Parameters, calculatedCost)
 	if err != nil {
 		return PricingResult{}, err
 	}
-	suggested, err = MulQuantitySellingPriceRial(QuantityScale, suggested)
+	step := input.MonetaryRoundingStepRial
+	if step <= 0 {
+		step = DefaultMonetaryRoundingStepRial
+	}
+	suggested, err = MulQuantitySellingPriceRialWithStep(QuantityScale, suggested, step)
 	if err != nil {
 		return PricingResult{}, err
 	}
@@ -204,10 +220,10 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 		if *input.SellingPriceOverrideRial < 0 {
 			return PricingResult{}, fmt.Errorf("selling price override cannot be negative")
 		}
-		result.EffectiveSellingPriceRial, err = MulQuantitySellingPriceRial(QuantityScale, *input.SellingPriceOverrideRial)
-		if err != nil {
-			return PricingResult{}, err
-		}
+		// An explicitly entered selling-price override is authoritative at the
+		// service boundary. Quantity-based order totals still round once when
+		// their exact product is calculated.
+		result.EffectiveSellingPriceRial = *input.SellingPriceOverrideRial
 	}
 	result.ProfitRial, err = subtractMoney(result.EffectiveSellingPriceRial, total)
 	if err != nil {
@@ -286,20 +302,19 @@ func scaledMoneyCeil(quantity Quantity, rate int64) (int64, error) {
 // Customer charges round upward in 100-toman (1,000-Rial) increments.
 // Round the exact quantity product once; stock and cost arithmetic stay exact.
 func MulQuantitySellingPriceRial(quantity Quantity, rate int64) (int64, error) {
+	return MulQuantitySellingPriceRialWithStep(quantity, rate, DefaultMonetaryRoundingStepRial)
+}
+
+func MulQuantitySellingPriceRialWithStep(quantity Quantity, rate, stepRial int64) (int64, error) {
 	if quantity < 0 || rate < 0 {
 		return 0, fmt.Errorf("selling price and quantity cannot be negative")
 	}
-	const increment = int64(1000)
 	n := new(big.Int).Mul(big.NewInt(int64(quantity)), big.NewInt(rate))
-	units, err := ceilBig(n, big.NewInt(QuantityScale*increment))
+	units, err := ceilBig(n, big.NewInt(QuantityScale))
 	if err != nil {
 		return 0, err
 	}
-	result := new(big.Int).Mul(big.NewInt(units), big.NewInt(increment))
-	if !result.IsInt64() {
-		return 0, fmt.Errorf("selling price is too large")
-	}
-	return result.Int64(), nil
+	return RoundMoneyUp(units, stepRial)
 }
 
 func percentageAmount(base int64, percentage Quantity) (int64, error) {

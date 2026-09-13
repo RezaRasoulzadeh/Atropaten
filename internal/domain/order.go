@@ -9,8 +9,9 @@ import (
 )
 
 var (
-	ErrOrderNotFound        = errors.New("order not found")
-	ErrOrderDeleteProtected = errors.New("reverse active payments on this order and its invoice before deleting the order")
+	ErrOrderNotFound = errors.New("order not found")
+	// Deprecated: order deletion now reconciles linked payments atomically.
+	ErrOrderDeleteProtected = errors.New("order deletion reconciliation failed")
 )
 
 type CommercialStatus string

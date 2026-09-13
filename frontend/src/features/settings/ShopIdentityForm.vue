@@ -25,5 +25,8 @@ const form = defineModel<ShopSettingsRecord>({ required: true })
 <FormField label="Default footer"><AppTextarea v-model="form.documentFooter" rows="3" /></FormField>
 <FormField label="Default notes"><AppTextarea v-model="form.documentNotes" rows="3" /></FormField>
 </FormSection>
+<FormSection title="Money calculation">
+<FormField label="Round calculated amounts up to" help="Stored in Rial. For example, 100 Toman equals 1,000 Rial. Enter 1 for no effective rounding."><div class="grid gap-2 sm:grid-cols-2"><AppInput v-model.number="form.monetaryRoundingStepRial" type="number" min="1" step="1" /><div class="rounded border border-base-300 px-3 py-2 text-sm text-base-content/70">{{ form.monetaryRoundingStepRial ? `${(form.monetaryRoundingStepRial / 10).toLocaleString()} Toman` : 'Enter a positive Rial step' }}</div></div></FormField>
+</FormSection>
 </div>
 </template>

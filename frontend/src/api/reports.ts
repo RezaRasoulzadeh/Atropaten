@@ -128,6 +128,7 @@ export interface ShopSettingsRecord {
   documentNotes: string
   backupDirectory: string
   attachmentDirectory: string
+  monetaryRoundingStepRial: number
 }
 export interface PrintDocumentRecord {
   kind: string

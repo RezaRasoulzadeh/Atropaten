@@ -69,7 +69,11 @@ func (s *ProductionService) List(ctx context.Context, status string) ([]Producti
 	}
 	out := make([]ProductionJobView, 0, len(rows))
 	for _, v := range rows {
-		out = append(out, productionJobView(v))
+		view, viewErr := s.calculatedProductionJobView(ctx, v)
+		if viewErr != nil {
+			return nil, viewErr
+		}
+		out = append(out, view)
 	}
 	return out, nil
 }
@@ -78,7 +82,7 @@ func (s *ProductionService) Get(ctx context.Context, id string) (ProductionJobVi
 	if e != nil {
 		return ProductionJobView{}, e
 	}
-	return productionJobView(v), nil
+	return s.calculatedProductionJobView(ctx, v)
 }
 func (s *ProductionService) Create(ctx context.Context, in ProductionJobInput) (ProductionJobView, error) {
 	id, e := randomID("JOB-")
@@ -262,6 +266,37 @@ func (s *ProductionService) Outsource(ctx context.Context, id string, in Outsour
 }
 func productionJobView(v domain.ProductionJob) ProductionJobView {
 	return ProductionJobView{EstimatedConversionCostRial: v.EstimatedConversionCostRial, RemainingMaterialCostRial: v.RemainingMaterialCostRial, ProjectedCostRial: v.ProjectedCostRial, OutsourceQuantity: v.OutsourceQuantity.String(), OutsourceUnitCostRial: v.OutsourceUnitCostRial, OutsourceFinancialAccountID: v.OutsourceFinancialAccountID, ID: v.ID, JobNumber: v.JobNumber, OrderID: v.OrderID, OrderItemID: v.OrderItemID, ServiceName: v.ServiceNameSnapshot, Quantity: v.Quantity.String(), QuantityUnit: v.QuantityUnit, AssignedMachineID: v.AssignedMachineID, Status: v.Status, Priority: v.Priority, Notes: v.Notes, PlannedAt: optionalTime(v.PlannedAt), StartedAt: optionalTime(v.StartedAt), CompletedAt: optionalTime(v.CompletedAt), CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano), EstimatedCostRial: v.EstimatedCostRial, ActualMaterialCostRial: v.ActualMaterialCostRial, ActualWasteCostRial: v.ActualWasteCostRial, ActualOutsourcedCostRial: v.ActualOutsourcedCostRial, ActualTotalCostRial: v.ActualMaterialCostRial + v.ActualWasteCostRial + v.ActualOutsourcedCostRial, OutsourceQuotedCostRial: v.OutsourceQuotedCostRial, OutsourceSupplierID: v.OutsourceSupplierID, OutsourceDescription: v.OutsourceDescription, OutsourceSentAt: v.OutsourceSentAt, OutsourceExpectedReturnAt: v.OutsourceExpectedReturnAt, OutsourceReceivedAt: v.OutsourceReceivedAt, OutsourceNotes: v.OutsourceNotes}
+}
+
+func (s *ProductionService) calculatedProductionJobView(ctx context.Context, v domain.ProductionJob) (ProductionJobView, error) {
+	view := productionJobView(v)
+	lookup, ok := s.repository.(interface {
+		GetShopSettings(context.Context) (domain.ShopSettings, error)
+	})
+	if !ok {
+		return view, nil
+	}
+	settings, err := lookup.GetShopSettings(ctx)
+	if err != nil {
+		return ProductionJobView{}, err
+	}
+	step := settings.MonetaryRoundingStepRial
+	if step <= 0 {
+		step = domain.DefaultMonetaryRoundingStepRial
+	}
+	view.EstimatedConversionCostRial, err = domain.RoundMoneyUp(view.EstimatedConversionCostRial, step)
+	if err != nil {
+		return ProductionJobView{}, err
+	}
+	view.RemainingMaterialCostRial, err = domain.RoundMoneyUp(view.RemainingMaterialCostRial, step)
+	if err != nil {
+		return ProductionJobView{}, err
+	}
+	view.ProjectedCostRial, err = domain.RoundMoneyUp(view.ProjectedCostRial, step)
+	if err != nil {
+		return ProductionJobView{}, err
+	}
+	return view, nil
 }
 func reservationView(v domain.InventoryReservation) ReservationView {
 	return ReservationView{ID: v.ID, MaterialID: v.MaterialID, OrderID: v.OrderID, OrderItemID: v.OrderItemID, ProductionJobID: v.ProductionJobID, Quantity: v.Quantity.String(), Status: v.Status, CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: v.UpdatedAt.UTC().Format(time.RFC3339Nano)}

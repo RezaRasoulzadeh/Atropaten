@@ -140,16 +140,30 @@ func scaleProductionQuantity(q, numerator, denominator domain.Quantity) (domain.
 }
 
 func syncProductionMaterialsTx(ctx context.Context, tx *sql.Tx, jobID string) error {
+	return reconcileProductionMaterialsTx(ctx, tx, jobID, false, false)
+}
+
+// Reopening must restore the entire remaining allocation, even when commercial
+// work on the order has ended. Ordinary plan edits may still expose shortages.
+func reopenProductionMaterialsTx(ctx context.Context, tx *sql.Tx, jobID string) error {
+	return reconcileProductionMaterialsTx(ctx, tx, jobID, true, false)
+}
+
+func reconcileProductionMaterialsTx(ctx context.Context, tx *sql.Tx, jobID string, reopening, orderEdit bool) error {
 	var itemID, status, commercial string
+	var removed bool
 	var qty, outsource domain.Quantity
-	if err := tx.QueryRowContext(ctx, `SELECT p.order_item_id,p.status,i.quantity_units,p.outsource_quantity_units,o.commercial_status FROM production_jobs p JOIN order_items i ON i.id=p.order_item_id JOIN orders o ON o.id=p.order_id WHERE p.id=?`, jobID).Scan(&itemID, &status, &qty, &outsource, &commercial); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT p.order_item_id,p.status,i.quantity_units,p.outsource_quantity_units,o.commercial_status,i.removed_at IS NOT NULL FROM production_jobs p JOIN order_items i ON i.id=p.order_item_id JOIN orders o ON o.id=p.order_id WHERE p.id=?`, jobID).Scan(&itemID, &status, &qty, &outsource, &commercial, &removed); err != nil {
 		return err
 	}
-	if status == "Cancelled" || status == "Completed" || commercial == "Cancelled" || commercial == "Closed" || commercial == "Draft" {
+	if removed || status == "Cancelled" || (status == "Completed" && !orderEdit) {
 		return nil
 	}
-	if qty <= 0 || outsource > qty {
-		return fmt.Errorf("order quantity cannot be below the outsourced quantity")
+	if !reopening && !orderEdit && (commercial == "Cancelled" || commercial == "Closed" || commercial == "Draft") {
+		return nil
+	}
+	if qty <= 0 {
+		return fmt.Errorf("production quantity must be positive")
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE production_jobs SET cost_breakdown_json=(SELECT cost_breakdown_json FROM order_items WHERE id=?) WHERE id=?`, itemID, jobID); err != nil {
 		return err
@@ -205,7 +219,7 @@ func syncProductionMaterialsTx(ctx context.Context, tx *sql.Tx, jobID string) er
 		if target < 0 || required[id] == 0 {
 			target = 0
 		}
-		target, err = scaleProductionQuantity(target, qty-outsource, qty)
+		target, err = scaleProductionQuantity(target, max(qty-outsource, 0), qty)
 		if err != nil {
 			return err
 		}
@@ -223,11 +237,17 @@ func syncProductionMaterialsTx(ctx context.Context, tx *sql.Tx, jobID string) er
 		if wanted < 0 {
 			wanted = 0
 		}
+		if orderEdit && (commercial == "Draft" || commercial == "Cancelled") {
+			wanted = 0
+		}
 		state, err := inventoryStateTx(ctx, tx, id)
 		if err != nil {
 			return err
 		}
 		if wanted > state.AvailableStock {
+			if reopening {
+				return fmt.Errorf("cannot reopen job: material %s: %w", id, domain.ErrReservationExceeded)
+			}
 			wanted = state.AvailableStock
 		}
 		if wanted > 0 {
@@ -272,7 +292,7 @@ func (s *Store) ProductionMaterials(ctx context.Context, jobID string) ([]Produc
 		if target < 0 || p.required == 0 {
 			target = 0
 		}
-		target, err = scaleProductionQuantity(target, p.qty-p.outsource, p.qty)
+		target, err = scaleProductionQuantity(target, max(p.qty-p.outsource, 0), p.qty)
 		if err != nil {
 			return nil, err
 		}

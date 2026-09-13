@@ -11,7 +11,8 @@ import (
 )
 
 func TestReportsReconcileJournalLinesAndPersistedSettings(t *testing.T) {
-	s, err := Open(filepath.Join(t.TempDir(), "reporting.db"))
+	path := filepath.Join(t.TempDir(), "reporting.db")
+	s, err := Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,11 +57,12 @@ func TestReportsReconcileJournalLinesAndPersistedSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	settings.ShopName = "Reconciled Shop"
+	settings.MonetaryRoundingStepRial = 10000
 	if err = s.SaveShopSettings(ctx, settings); err != nil {
 		t.Fatal(err)
 	}
 	saved, err := s.GetShopSettings(ctx)
-	if err != nil || saved.ShopName != "Reconciled Shop" {
+	if err != nil || saved.ShopName != "Reconciled Shop" || saved.MonetaryRoundingStepRial != 10000 {
 		t.Fatalf("settings=%+v err=%v", saved, err)
 	}
 	dashboard, err := s.Dashboard(ctx, when.Add(-time.Hour), when.Add(time.Hour))
@@ -74,6 +76,18 @@ func TestReportsReconcileJournalLinesAndPersistedSettings(t *testing.T) {
 		if _, err = s.Report(ctx, kind, when.Add(-time.Hour), when.Add(time.Hour)); err != nil {
 			t.Fatalf("%s query: %v", kind, err)
 		}
+	}
+	if err = s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	persisted, err := reopened.GetShopSettings(ctx)
+	if err != nil || persisted.MonetaryRoundingStepRial != 10000 {
+		t.Fatalf("persisted rounding setting=%+v err=%v", persisted, err)
 	}
 }
 

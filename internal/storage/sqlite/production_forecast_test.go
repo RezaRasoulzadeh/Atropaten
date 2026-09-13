@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -31,7 +30,7 @@ func TestOrderPricingRoundsChargesAndPreservesExactCost(t *testing.T) {
 	}
 	orders := application.NewOrdersService(s, s, application.NewPricingService(s, s, s))
 	view, err := orders.AddItem(ctx, order.ID, application.OrderItemInput{ServiceID: service.ID, Quantity: "0.5", QuantityUnit: "job"})
-	if err != nil || view.EstimatedCostRial != 835971 || view.TotalRial != 1004000 || view.MarginRial != 168029 {
+	if err != nil || view.EstimatedCostRial != 835971 || view.TotalRial != 1004000 || view.MarginRial != 168000 || view.ProjectedCostRial != 836000 {
 		t.Fatalf("rounded order=%+v err=%v", view, err)
 	}
 	invoice, err := application.NewInvoicesService(s, s).CreateFromOrder(ctx, order.ID)
@@ -40,7 +39,7 @@ func TestOrderPricingRoundsChargesAndPreservesExactCost(t *testing.T) {
 	}
 }
 
-func TestCompletedProductionRequiresReopeningForOrderQuantityChanges(t *testing.T) {
+func TestCompletedProductionOrderEditReconcilesAdditionalRequirements(t *testing.T) {
 	s, order, job := productionFlowFixture(t)
 	ctx := context.Background()
 	if err := s.TransitionProductionJob(ctx, job.ID, "In Progress"); err != nil {
@@ -54,17 +53,7 @@ func TestCompletedProductionRequiresReopeningForOrderQuantityChanges(t *testing.
 	if err := order.RecalculateTotals(); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SaveOrder(ctx, order); err == nil || !strings.Contains(err.Error(), "reopen") {
-		t.Fatalf("expected reopening requirement, got %v", err)
-	}
-	saved, err := s.GetOrder(ctx, order.ID)
-	if err != nil || saved.Items[0].Quantity != 10*domain.QuantityScale || saved.EstimatedCostRial != 2000 {
-		t.Fatalf("rejected edit was not rolled back: %+v err=%v", saved, err)
-	}
-	if err = s.TransitionProductionJob(ctx, job.ID, "In Progress"); err != nil {
-		t.Fatal(err)
-	}
-	if err = s.SaveOrder(ctx, order); err != nil {
+	if err := s.SaveOrder(ctx, order); err != nil {
 		t.Fatal(err)
 	}
 	current, err := s.GetProductionJob(ctx, job.ID)

@@ -63,6 +63,7 @@ type ProductionConsumption struct {
 }
 
 func ValidProductionTransition(from, to string) bool {
+	// Status is operator controlled; storage reconciles dependent state atomically.
 	return ValidProductionStatus(from) && ValidProductionStatus(to)
 }
 

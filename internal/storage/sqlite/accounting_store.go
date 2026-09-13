@@ -871,37 +871,7 @@ func (s *Store) ReversePayment(ctx context.Context, id, key string) (domain.Paym
 	if err != nil {
 		return domain.Payment{}, err
 	}
-	var status, journal string
-	var posted string
-	if err = tx.QueryRowContext(ctx, `SELECT status,journal_entry_id,posted_at FROM payments WHERE id=?`, id).Scan(&status, &journal, &posted); errors.Is(err, sql.ErrNoRows) {
-		tx.Rollback()
-		return domain.Payment{}, domain.ErrPaymentNotFound
-	}
-	if err != nil {
-		tx.Rollback()
-		return domain.Payment{}, err
-	}
-	if status == string(domain.PaymentReversedState) {
-		tx.Rollback()
-		return s.GetPayment(ctx, id)
-	}
-	if key == "" {
-		key = "payment:reverse:" + id
-	}
-	original, err := scanJournalTx(ctx, tx, journal)
-	if err != nil {
-		tx.Rollback()
-		return domain.Payment{}, err
-	}
-	if _, err = s.postJournalTx(ctx, tx, original.Reversal("REV-"+journal, key, "Payment reversal", time.Now().UTC())); err != nil {
-		tx.Rollback()
-		return domain.Payment{}, err
-	}
-	if _, err = tx.ExecContext(ctx, `UPDATE payments SET status='reversed' WHERE id=?`, id); err != nil {
-		tx.Rollback()
-		return domain.Payment{}, err
-	}
-	if _, err = tx.ExecContext(ctx, `UPDATE payment_allocations SET reversed=1 WHERE payment_id=?`, id); err != nil {
+	if err = s.reversePaymentTx(ctx, tx, id, key); err != nil {
 		tx.Rollback()
 		return domain.Payment{}, err
 	}
@@ -909,6 +879,36 @@ func (s *Store) ReversePayment(ctx context.Context, id, key string) (domain.Paym
 		return domain.Payment{}, err
 	}
 	return s.GetPayment(ctx, id)
+}
+
+func (s *Store) reversePaymentTx(ctx context.Context, tx *sql.Tx, id, key string) error {
+	var status, journal string
+	if err := tx.QueryRowContext(ctx, `SELECT status,journal_entry_id FROM payments WHERE id=?`, id).Scan(&status, &journal); errors.Is(err, sql.ErrNoRows) {
+		return domain.ErrPaymentNotFound
+	} else if err != nil {
+		return err
+	}
+	if status == string(domain.PaymentReversedState) {
+		return nil
+	}
+	if key == "" {
+		key = "payment:reverse:" + id
+	}
+	original, err := scanJournalTx(ctx, tx, journal)
+	if err != nil {
+		return err
+	}
+	if _, err = s.postJournalTx(ctx, tx, original.Reversal("REV-"+journal, key, "Payment reversal", time.Now().UTC())); err != nil {
+		return err
+	}
+	if err = s.reversePaymentAllocationAdjustmentsTx(ctx, tx, id); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE payments SET status='reversed' WHERE id=?`, id); err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `UPDATE payment_allocations SET reversed=1 WHERE payment_id=?`, id)
+	return err
 }
 
 func (s *Store) OrderPaymentSummary(ctx context.Context, id string) (int64, int64, domain.PaymentStatus, error) {
@@ -945,6 +945,7 @@ const orderPaidTotalSQL = `SELECT COALESCE(SUM(a.amount_rial),0)
 	(a.target_type='invoice' AND a.target_id IN (
 	 SELECT id FROM invoices WHERE order_id=? AND status IN ('Posted','Partially Paid','Paid')
 	)))`
+
 func (s *Store) PurchasePaymentSummary(ctx context.Context, id string) (int64, int64, error) {
 	var total, paid int64
 	if err := s.db.QueryRowContext(ctx, `SELECT total_rial FROM purchases WHERE id=?`, id).Scan(&total); err != nil {

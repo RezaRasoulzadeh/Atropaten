@@ -23,10 +23,28 @@ func TestOrderTotalsUseIntegerRialAndDiscountValidation(t *testing.T) {
 }
 
 func TestOrderStateAxesHaveBasicTransitions(t *testing.T) {
-	if !ValidCommercialTransition(CommercialDraft, CommercialConfirmed) || ValidCommercialTransition(CommercialClosed, CommercialDraft) {
-		t.Fatal("commercial transition rules are incorrect")
+	statuses := []CommercialStatus{CommercialDraft, CommercialConfirmed, CommercialClosed, CommercialCancelled}
+	for _, from := range statuses {
+		for _, to := range statuses {
+			if !ValidCommercialTransition(from, to) {
+				t.Errorf("valid commercial transition %s -> %s was rejected", from, to)
+			}
+		}
 	}
-	if !ValidFulfillmentTransition(FulfillmentPending, FulfillmentInProduction) || ValidFulfillmentTransition(FulfillmentDelivered, FulfillmentPending) {
+	for _, status := range statuses {
+		if !ValidCommercialTransition(status, status) {
+			t.Errorf("same-status assignment %s was rejected", status)
+		}
+	}
+	if ValidCommercialTransition(CommercialStatus("Unknown"), CommercialDraft) {
+		t.Error("invalid commercial source status was accepted")
+	}
+	if ValidCommercialTransition(CommercialDraft, CommercialStatus("Unknown")) {
+		t.Error("invalid commercial target status was accepted")
+	}
+	// Fulfillment has its own operational rules: work can be reset to Pending.
+	// This axis is separate from the permissive commercial status contract above.
+	if !ValidFulfillmentTransition(FulfillmentPending, FulfillmentInProduction) || !ValidFulfillmentTransition(FulfillmentDelivered, FulfillmentPending) {
 		t.Fatal("fulfillment transition rules are incorrect")
 	}
 }

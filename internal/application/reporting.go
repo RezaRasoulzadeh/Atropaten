@@ -79,5 +79,8 @@ func (s *ReportingService) SaveShopSettings(ctx context.Context, v domain.ShopSe
 	if strings.TrimSpace(v.ShopName) == "" {
 		return fmt.Errorf("shop name is required")
 	}
+	if v.MonetaryRoundingStepRial <= 0 {
+		return fmt.Errorf("monetary rounding step must be positive Rial")
+	}
 	return s.repository.SaveShopSettings(ctx, v)
 }

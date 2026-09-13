@@ -11,7 +11,7 @@ import (
 	"Atropaten/internal/domain"
 )
 
-const invoiceSelect = `SELECT id,invoice_number,COALESCE(customer_id,''),customer_name_snapshot,customer_phone_snapshot,COALESCE(order_id,''),issue_date,due_date,status,notes,subtotal_rial,discount_rial,total_rial,COALESCE(accounting_journal_entry_id,''),COALESCE(cogs_journal_entry_id,''),created_at,updated_at FROM invoices`
+const invoiceSelect = `SELECT id,invoice_number,COALESCE(customer_id,''),customer_name_snapshot,customer_phone_snapshot,COALESCE(order_id,''),issue_date,due_date,status,notes,subtotal_rial,discount_rial,total_rial,COALESCE(accounting_journal_entry_id,''),COALESCE(cogs_journal_entry_id,''),created_at,updated_at,COALESCE((SELECT previous_invoice_id FROM invoice_replacements WHERE replacement_invoice_id=invoices.id),''),COALESCE((SELECT replacement_invoice_id FROM invoice_replacements WHERE previous_invoice_id=invoices.id),'') FROM invoices`
 
 func (s *Store) ListInvoices(ctx context.Context) ([]domain.Invoice, error) {
 	rows, err := s.db.QueryContext(ctx, invoiceSelect+` ORDER BY issue_date DESC,invoice_number DESC`)
@@ -57,7 +57,7 @@ func (s *Store) GetInvoice(ctx context.Context, id string) (domain.Invoice, erro
 	return v, err
 }
 func (s *Store) GetInvoiceForOrder(ctx context.Context, orderID string) (domain.Invoice, error) {
-	v, err := scanInvoice(s.db.QueryRowContext(ctx, invoiceSelect+` WHERE order_id=?`, orderID))
+	v, err := scanInvoice(s.db.QueryRowContext(ctx, invoiceSelect+` WHERE order_id=? AND status<>'Voided' ORDER BY created_at DESC,id DESC LIMIT 1`, orderID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return domain.Invoice{}, domain.ErrInvoiceNotFound
 	}
@@ -70,7 +70,7 @@ func (s *Store) GetInvoiceForOrder(ctx context.Context, orderID string) (domain.
 	return v, s.withInvoicePayment(ctx, &v)
 }
 func (s *Store) OrderInvoiceSummary(ctx context.Context, orderID string) (string, string, int64, int64, int64, error) {
-	v, err := scanInvoice(s.db.QueryRowContext(ctx, invoiceSelect+` WHERE order_id=?`, orderID))
+	v, err := scanInvoice(s.db.QueryRowContext(ctx, invoiceSelect+` WHERE order_id=? ORDER BY created_at DESC,id DESC LIMIT 1`, orderID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", "", 0, 0, 0, domain.ErrInvoiceNotFound
 	}
@@ -135,17 +135,26 @@ func (s *Store) loadInvoiceItems(ctx context.Context, v *domain.Invoice) error {
 }
 
 func (s *Store) SaveInvoice(ctx context.Context, v domain.Invoice) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = s.saveInvoiceTx(ctx, tx, v); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *Store) saveInvoiceTx(ctx context.Context, tx *sql.Tx, v domain.Invoice) error {
 	if err := v.Validate(); err != nil {
 		return err
 	}
 	if v.Status != domain.InvoiceDraft {
 		return domain.ErrInvoiceNotDraft
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	fail := func(e error) error { tx.Rollback(); return e }
+	var err error
+	fail := func(e error) error { return e }
 	var status string
 	if e := tx.QueryRowContext(ctx, `SELECT status FROM invoices WHERE id=?`, v.ID).Scan(&status); e == nil && status != domain.InvoiceDraft {
 		return fail(domain.ErrInvoiceNotDraft)
@@ -174,7 +183,10 @@ func (s *Store) SaveInvoice(ctx context.Context, v domain.Invoice) error {
 			return fail(err)
 		}
 	}
-	return tx.Commit()
+	if err = saveInvoiceOrderSnapshotTx(ctx, tx, v.ID, v.OrderID); err != nil {
+		return err
+	}
+	return linkInvoiceReplacementTx(ctx, tx, v.ID, v.OrderID)
 }
 func (s *Store) DeleteDraftInvoice(ctx context.Context, id string) error {
 	var status string
@@ -202,18 +214,28 @@ func (s *Store) PostInvoice(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	fail := func(e error) error { tx.Rollback(); return e }
+	defer tx.Rollback()
+	if err = s.postInvoiceTx(ctx, tx, id, false); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// Zero-value replacements still carry actual historical COGS, but no revenue.
+func (s *Store) postInvoiceTx(ctx context.Context, tx *sql.Tx, id string, allowZero bool) error {
+	var err error
+	fail := func(e error) error { return e }
 	var v domain.Invoice
 	var issue, created, updated string
 	var due sql.NullString
-	if err = tx.QueryRowContext(ctx, invoiceSelect+` WHERE id=?`, id).Scan(&v.ID, &v.InvoiceNumber, &v.CustomerID, &v.CustomerNameSnapshot, &v.CustomerPhoneSnapshot, &v.OrderID, &issue, &due, &v.Status, &v.Notes, &v.SubtotalRial, &v.DiscountRial, &v.TotalRial, &v.AccountingJournalEntryID, &v.COGSJournalEntryID, &created, &updated); errors.Is(err, sql.ErrNoRows) {
+	if err = tx.QueryRowContext(ctx, invoiceSelect+` WHERE id=?`, id).Scan(&v.ID, &v.InvoiceNumber, &v.CustomerID, &v.CustomerNameSnapshot, &v.CustomerPhoneSnapshot, &v.OrderID, &issue, &due, &v.Status, &v.Notes, &v.SubtotalRial, &v.DiscountRial, &v.TotalRial, &v.AccountingJournalEntryID, &v.COGSJournalEntryID, &created, &updated, &v.PreviousInvoiceID, &v.ReplacementInvoiceID); errors.Is(err, sql.ErrNoRows) {
 		return fail(domain.ErrInvoiceNotFound)
 	}
 	if err != nil {
 		return fail(err)
 	}
 	if v.Status != domain.InvoiceDraft {
-		return tx.Commit()
+		return nil
 	}
 	v.IssueDate, _ = time.Parse(time.RFC3339Nano, issue)
 	v.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
@@ -237,14 +259,18 @@ func (s *Store) PostInvoice(ctx context.Context, id string) error {
 	if err = rows.Err(); err != nil {
 		return fail(err)
 	}
-	if v.TotalRial <= 0 {
+	if v.TotalRial < 0 || (v.TotalRial == 0 && !allowZero) {
 		return fail(fmt.Errorf("invoice total must be positive before posting"))
 	}
 	now := time.Now().UTC()
 	je := "JE-INV-" + id
 	entry := domain.JournalEntry{ID: je, Description: "Posted invoice " + v.InvoiceNumber, SourceType: "invoice", SourceID: id, IdempotencyKey: "invoice:post:" + id, PostedAt: v.IssueDate, CreatedAt: now, Lines: []domain.JournalLine{{ID: je + "-L1", JournalEntryID: je, Position: 0, AccountID: "ACC-AR", DebitRial: v.TotalRial, PartyType: "customer", PartyID: v.CustomerID, Memo: "Invoice receivable"}, {ID: je + "-L2", JournalEntryID: je, Position: 1, AccountID: "ACC-REVENUE", CreditRial: v.TotalRial, PartyType: "customer", PartyID: v.CustomerID, Memo: "Sales/service revenue"}}}
-	if _, err = s.postJournalTx(ctx, tx, entry); err != nil {
-		return fail(err)
+	if v.TotalRial > 0 {
+		if _, err = s.postJournalTx(ctx, tx, entry); err != nil {
+			return err
+		}
+	} else {
+		je = ""
 	}
 	cogs, err := s.orderCOGSValueTx(ctx, tx, v.OrderID)
 	if err != nil {
@@ -258,10 +284,10 @@ func (s *Store) PostInvoice(ctx context.Context, id string) error {
 			return fail(err)
 		}
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE invoices SET status='Posted',accounting_journal_entry_id=?,cogs_journal_entry_id=?,updated_at=? WHERE id=?`, je, nullableString(cogsID), now.Format(time.RFC3339Nano), id); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE invoices SET status='Posted',accounting_journal_entry_id=?,cogs_journal_entry_id=?,updated_at=? WHERE id=?`, nullableString(je), nullableString(cogsID), now.Format(time.RFC3339Nano), id); err != nil {
 		return fail(err)
 	}
-	return tx.Commit()
+	return nil
 }
 
 // COGS recognition boundary: invoice posting recognizes the exact net cost of
@@ -322,15 +348,15 @@ func (s *Store) voidInvoiceTx(ctx context.Context, tx *sql.Tx, id string) error 
 	if status == domain.InvoiceVoided {
 		return nil
 	}
-	if status != domain.InvoicePosted {
+	if status == domain.InvoiceDraft {
+		_, err = tx.ExecContext(ctx, `UPDATE invoices SET status='Voided',updated_at=? WHERE id=?`, time.Now().UTC().Format(time.RFC3339Nano), id)
+		return err
+	}
+	if status != domain.InvoicePosted && status != domain.InvoicePartiallyPaid && status != domain.InvoicePaid {
 		return fail(domain.ErrInvoiceCannotVoid)
 	}
-	var n int
-	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM payment_allocations WHERE target_type='invoice' AND target_id=? AND reversed=0`, id).Scan(&n); err != nil {
+	if err = s.releaseInvoiceAllocationsTx(ctx, tx, id); err != nil {
 		return fail(err)
-	}
-	if n > 0 {
-		return fail(domain.ErrInvoiceCannotVoid)
 	}
 	if je != "" {
 		if _, err = s.reverseJournalTx(ctx, tx, je, "invoice:void:"+id, "Void invoice "+id, time.Now().UTC()); err != nil {
@@ -355,7 +381,7 @@ func scanInvoice(row scanner) (domain.Invoice, error) {
 	var v domain.Invoice
 	var issue, created, updated string
 	var due sql.NullString
-	if err := row.Scan(&v.ID, &v.InvoiceNumber, &v.CustomerID, &v.CustomerNameSnapshot, &v.CustomerPhoneSnapshot, &v.OrderID, &issue, &due, &v.Status, &v.Notes, &v.SubtotalRial, &v.DiscountRial, &v.TotalRial, &v.AccountingJournalEntryID, &v.COGSJournalEntryID, &created, &updated); err != nil {
+	if err := row.Scan(&v.ID, &v.InvoiceNumber, &v.CustomerID, &v.CustomerNameSnapshot, &v.CustomerPhoneSnapshot, &v.OrderID, &issue, &due, &v.Status, &v.Notes, &v.SubtotalRial, &v.DiscountRial, &v.TotalRial, &v.AccountingJournalEntryID, &v.COGSJournalEntryID, &created, &updated, &v.PreviousInvoiceID, &v.ReplacementInvoiceID); err != nil {
 		return v, err
 	}
 	var err error

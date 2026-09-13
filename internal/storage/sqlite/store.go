@@ -704,6 +704,69 @@ var migrations = []migration{{
 			return nil
 		},
 	},
+	{
+		version: 28,
+		sql: `ALTER TABLE order_items ADD COLUMN removed_at TEXT;
+		ALTER TABLE production_jobs ADD COLUMN produced_quantity_units INTEGER NOT NULL DEFAULT 0;
+		UPDATE production_jobs SET produced_quantity_units=quantity_units WHERE status='Completed';
+		DROP INDEX invoices_order_unique;
+		CREATE UNIQUE INDEX invoices_order_unique ON invoices(order_id) WHERE order_id IS NOT NULL AND status<>'Voided';
+		CREATE TABLE invoice_replacements (previous_invoice_id TEXT PRIMARY KEY REFERENCES invoices(id), replacement_invoice_id TEXT NOT NULL UNIQUE REFERENCES invoices(id), created_at TEXT NOT NULL);
+		CREATE TABLE invoice_order_snapshots (invoice_id TEXT PRIMARY KEY REFERENCES invoices(id) ON DELETE CASCADE, snapshot_json TEXT NOT NULL);`,
+		run: func(ctx context.Context, tx *sql.Tx) error {
+			var definition string
+			if err := tx.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type='trigger' AND name='invoices_immutable_update'`).Scan(&definition); err != nil {
+				return err
+			}
+			definition = strings.Replace(definition, "OLD.status='Posted' AND NEW.status='Voided'", "OLD.status IN ('Posted','Partially Paid','Paid') AND NEW.status='Voided'", 1)
+			if _, err := tx.ExecContext(ctx, `DROP TRIGGER invoices_immutable_update`); err != nil {
+				return err
+			}
+			_, err := tx.ExecContext(ctx, definition)
+			return err
+		},
+	},
+	{
+		version: 29,
+		sql: `CREATE INDEX IF NOT EXISTS invoice_replacements_previous ON invoice_replacements(previous_invoice_id);
+		CREATE INDEX IF NOT EXISTS invoice_replacements_replacement ON invoice_replacements(replacement_invoice_id);`,
+	},
+	{
+		version: 30,
+		sql:     `INSERT INTO shop_settings(key,value,updated_at) VALUES('monetary_rounding_step_rial','1000',strftime('%Y-%m-%dT%H:%M:%fZ','now')) ON CONFLICT(key) DO NOTHING;`,
+	},
+	{
+		version: 31,
+		sql: `DROP TRIGGER invoices_immutable_update;
+		CREATE TRIGGER invoices_immutable_update BEFORE UPDATE ON invoices
+		WHEN NOT (
+			OLD.status='Draft'
+			OR (OLD.status IN ('Posted','Partially Paid','Paid') AND NEW.status='Voided')
+			OR (
+				OLD.status='Voided' AND OLD.order_id IS NOT NULL AND NEW.order_id IS NULL
+				AND EXISTS(SELECT 1 FROM deleted_order_records WHERE id=OLD.order_id)
+				AND (NEW.id,NEW.invoice_number,NEW.customer_id,NEW.customer_name_snapshot,NEW.customer_phone_snapshot,NEW.issue_date,NEW.due_date,NEW.status,NEW.notes,NEW.subtotal_rial,NEW.discount_rial,NEW.total_rial,NEW.accounting_journal_entry_id,NEW.cogs_journal_entry_id,NEW.created_at,NEW.updated_at)
+				 IS (OLD.id,OLD.invoice_number,OLD.customer_id,OLD.customer_name_snapshot,OLD.customer_phone_snapshot,OLD.issue_date,OLD.due_date,OLD.status,OLD.notes,OLD.subtotal_rial,OLD.discount_rial,OLD.total_rial,OLD.accounting_journal_entry_id,OLD.cogs_journal_entry_id,OLD.created_at,OLD.updated_at)
+			)
+			OR (
+				OLD.status='Voided' AND NEW.status='Voided'
+				AND NEW.accounting_journal_entry_id IS NULL AND NEW.cogs_journal_entry_id IS NULL
+				AND EXISTS(SELECT 1 FROM deleted_order_records d WHERE d.id=OLD.order_id OR d.invoice_id=OLD.id)
+				AND (NEW.id,NEW.invoice_number,NEW.customer_id,NEW.customer_name_snapshot,NEW.customer_phone_snapshot,NEW.order_id,NEW.issue_date,NEW.due_date,NEW.status,NEW.notes,NEW.subtotal_rial,NEW.discount_rial,NEW.total_rial,NEW.created_at,NEW.updated_at)
+				 IS (OLD.id,OLD.invoice_number,OLD.customer_id,OLD.customer_name_snapshot,OLD.customer_phone_snapshot,OLD.order_id,OLD.issue_date,OLD.due_date,OLD.status,OLD.notes,OLD.subtotal_rial,OLD.discount_rial,OLD.total_rial,OLD.created_at,OLD.updated_at)
+			)
+		)
+		BEGIN SELECT RAISE(ABORT,'posted invoices are immutable; use void'); END;
+		DROP TRIGGER invoices_immutable_delete;
+		CREATE TRIGGER invoices_immutable_delete BEFORE DELETE ON invoices
+		WHEN OLD.status <> 'Draft' AND NOT EXISTS(SELECT 1 FROM deleted_order_records d WHERE d.id=OLD.order_id OR d.invoice_id=OLD.id)
+		BEGIN SELECT RAISE(ABORT,'posted invoices cannot be deleted'); END;
+		DROP TRIGGER invoice_items_immutable_delete;
+		CREATE TRIGGER invoice_items_immutable_delete BEFORE DELETE ON invoice_items
+		WHEN EXISTS(SELECT 1 FROM invoices WHERE id=OLD.invoice_id AND status<>'Draft')
+		 AND NOT EXISTS(SELECT 1 FROM invoices i JOIN deleted_order_records d ON d.id=i.order_id OR d.invoice_id=i.id WHERE i.id=OLD.invoice_id)
+		BEGIN SELECT RAISE(ABORT,'posted invoice lines are immutable'); END;`,
+	},
 }
 
 func (s *Store) seedAccounting(ctx context.Context) error {
@@ -1728,10 +1791,22 @@ func (s *Store) SaveOrder(ctx context.Context, order domain.Order) error {
 		return fmt.Errorf("begin order save: %w", err)
 	}
 	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	previous, err := loadOrderTx(ctx, tx, order.ID)
+	if err != nil {
+		return rollback(err)
+	}
 	if err := updateOrderRowTx(ctx, tx, &order); err != nil {
 		return rollback(fmt.Errorf("release order reservations: %w", err))
 	}
 	if err := s.syncOrderItemsTx(ctx, tx, order); err != nil {
+		return rollback(err)
+	}
+	if previous.CommercialStatus != order.CommercialStatus {
+		if err := syncOrderCommercialProductionTx(ctx, tx, order.ID); err != nil {
+			return rollback(err)
+		}
+	}
+	if err := s.reconcileOrderFinancialsTx(ctx, tx, order.ID); err != nil {
 		return rollback(err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -1748,8 +1823,22 @@ func (s *Store) SaveOrderMetadata(ctx context.Context, order domain.Order) error
 	if err != nil {
 		return fmt.Errorf("begin order metadata save: %w", err)
 	}
+	defer tx.Rollback()
+	previous, err := loadOrderTx(ctx, tx, order.ID)
+	if err != nil {
+		return err
+	}
 	if err := updateOrderRowTx(ctx, tx, &order); err != nil {
 		_ = tx.Rollback()
+		return err
+	}
+	if previous.CommercialStatus != order.CommercialStatus {
+		if err := syncOrderCommercialProductionTx(ctx, tx, order.ID); err != nil {
+			return err
+		}
+	}
+	if err := s.reconcileOrderFinancialsTx(ctx, tx, order.ID); err != nil {
+		tx.Rollback()
 		return err
 	}
 	if err := tx.Commit(); err != nil {
@@ -1759,8 +1848,9 @@ func (s *Store) SaveOrderMetadata(ctx context.Context, order domain.Order) error
 }
 
 func updateOrderRowTx(ctx context.Context, tx *sql.Tx, order *domain.Order) error {
-	var paid, total int64
-	if err := tx.QueryRowContext(ctx, `SELECT total_rial FROM orders WHERE id=?`, order.ID).Scan(&total); errors.Is(err, sql.ErrNoRows) {
+	var paid int64
+	var previousStatus string
+	if err := tx.QueryRowContext(ctx, `SELECT commercial_status FROM orders WHERE id=?`, order.ID).Scan(&previousStatus); errors.Is(err, sql.ErrNoRows) {
 		return domain.ErrOrderNotFound
 	} else if err != nil {
 		return err
@@ -1783,7 +1873,7 @@ func updateOrderRowTx(ctx context.Context, tx *sql.Tx, order *domain.Order) erro
 	if count == 0 {
 		return domain.ErrOrderNotFound
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE inventory_reservations SET status=CASE WHEN ?='Cancelled' THEN 'cancelled' ELSE 'released' END, updated_at=? WHERE order_id=? AND status='active' AND (?='Cancelled' OR ?='Draft')`, string(order.CommercialStatus), order.UpdatedAt.UTC().Format(time.RFC3339Nano), order.ID, string(order.CommercialStatus), string(order.CommercialStatus)); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE inventory_reservations SET status=CASE WHEN ?='Cancelled' THEN 'cancelled' ELSE 'released' END, updated_at=? WHERE order_id=? AND status='active' AND (?='Cancelled' OR ?='Draft') AND ?<>?`, string(order.CommercialStatus), order.UpdatedAt.UTC().Format(time.RFC3339Nano), order.ID, string(order.CommercialStatus), string(order.CommercialStatus), previousStatus, string(order.CommercialStatus)); err != nil {
 		return fmt.Errorf("release order reservations: %w", err)
 	}
 	return nil
@@ -1818,7 +1908,7 @@ func insertOrderItems(ctx context.Context, tx *sql.Tx, order domain.Order) error
 }
 
 func (s *Store) loadOrderItems(ctx context.Context, order *domain.Order) error {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,order_id,display_order,service_id,service_name_snapshot,service_code_snapshot,quantity_units,quantity_unit,resolved_parameters_json,cost_breakdown_json,pricing_snapshot_json,estimated_cost_rial,suggested_price_rial,selling_price_rial,notes FROM order_items WHERE order_id=? ORDER BY display_order,id`, order.ID)
+	rows, err := s.db.QueryContext(ctx, orderItemsSelect, order.ID)
 	if err != nil {
 		return fmt.Errorf("list order items: %w", err)
 	}

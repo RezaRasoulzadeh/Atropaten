@@ -45,7 +45,10 @@ func productionFlowFixture(t *testing.T) (*Store, domain.Order, domain.Productio
 	if err != nil {
 		t.Fatal(err)
 	}
-	o,err=s.GetOrder(ctx,o.ID);if err!=nil{t.Fatal(err)}
+	o, err = s.GetOrder(ctx, o.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return s, o, j
 }
 
@@ -135,7 +138,7 @@ func TestProductionOrderEditsOverridesConsumptionAndPartialOutsourcing(t *testin
 		t.Fatalf("cost=%d err=%v", cost, err)
 	}
 	view, err := application.NewOrdersService(s, s, nil).Get(ctx, o.ID)
-	if err != nil || view.ActualCostRial != 4000 || view.ProjectedCostRial != 5200 || view.MarginRial != 4800 {
+	if err != nil || view.ActualCostRial != 4000 || view.ProjectedCostRial != 6000 || view.MarginRial != 4000 {
 		t.Fatalf("order=%+v err=%v", view, err)
 	}
 	journals := countRows(t, s, "SELECT COUNT(*) FROM journal_entries")
@@ -191,7 +194,7 @@ func TestProductionOrderEditsOverridesConsumptionAndPartialOutsourcing(t *testin
 		t.Fatal(err)
 	}
 	check(200, 0)
-	// Removing the item removes its linked job and allocations in the same save.
+	// Removing the item cancels its remaining work and retains its historical links.
 	o.Items = nil
 	if err = o.RecalculateTotals(); err != nil {
 		t.Fatal(err)
@@ -199,8 +202,8 @@ func TestProductionOrderEditsOverridesConsumptionAndPartialOutsourcing(t *testin
 	if err = s.SaveOrder(ctx, o); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.GetProductionJob(ctx, j.ID); !errors.Is(err, domain.ErrProductionJobNotFound) {
-		t.Fatalf("orphan job: %v", err)
+	if retained, err := s.GetProductionJob(ctx, j.ID); err != nil || retained.Status != domain.ProductionCancelled {
+		t.Fatalf("retained job=%+v err=%v", retained, err)
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -55,7 +56,14 @@ func (s *Store) GetShopSettings(ctx context.Context) (domain.ShopSettings, error
 			v.BackupDirectory = value
 		case "attachment_directory":
 			v.AttachmentDirectory = value
+		case "monetary_rounding_step_rial":
+			if parsed, parseErr := strconv.ParseInt(value, 10, 64); parseErr == nil {
+				v.MonetaryRoundingStepRial = parsed
+			}
 		}
+	}
+	if v.MonetaryRoundingStepRial <= 0 {
+		v.MonetaryRoundingStepRial = domain.DefaultMonetaryRoundingStepRial
 	}
 	return v, rows.Err()
 }
@@ -68,6 +76,11 @@ func (s *Store) SaveShopSettings(ctx context.Context, v domain.ShopSettings) err
 		"logo_path": v.LogoPath, "document_footer": v.DocumentFooter, "document_notes": v.DocumentNotes,
 		"backup_directory": v.BackupDirectory, "attachment_directory": v.AttachmentDirectory,
 	}
+	step := v.MonetaryRoundingStepRial
+	if step <= 0 {
+		step = domain.DefaultMonetaryRoundingStepRial
+	}
+	values["monetary_rounding_step_rial"] = strconv.FormatInt(step, 10)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err

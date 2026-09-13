@@ -32,6 +32,7 @@ const (
 
 type Invoice struct {
 	ID, InvoiceNumber, CustomerID, CustomerNameSnapshot, CustomerPhoneSnapshot, OrderID string
+	PreviousInvoiceID, ReplacementInvoiceID                                             string
 	IssueDate                                                                           time.Time
 	DueDate                                                                             *time.Time
 	Status, Notes                                                                       string

@@ -30,7 +30,7 @@ func remainingProductionMaterialsTx(ctx context.Context, tx *sql.Tx, jobID strin
 		if target < 0 || required == 0 {
 			target = 0
 		}
-		target, err = scaleProductionQuantity(target, qty-outsource, qty)
+		target, err = scaleProductionQuantity(target, max(qty-outsource, 0), qty)
 		if err != nil {
 			rows.Close()
 			return nil, err

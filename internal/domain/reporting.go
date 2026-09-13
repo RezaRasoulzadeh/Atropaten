@@ -66,6 +66,7 @@ type ShopSettings struct {
 	ShopName, ShopSubtitle, Phone, Address, Email, Website         string
 	RegistrationID, TaxID, LogoPath, DocumentFooter, DocumentNotes string
 	BackupDirectory, AttachmentDirectory                           string
+	MonetaryRoundingStepRial                                       int64
 }
 
 type PrintLine struct {

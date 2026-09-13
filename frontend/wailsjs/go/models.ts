@@ -2137,6 +2137,7 @@ export namespace main {
 	    marginPercentage: string;
 	    warnings: string[];
 	    belowCost: boolean;
+	    roundingStepRial: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new PricingDTO(source);
@@ -2156,6 +2157,7 @@ export namespace main {
 	        this.marginPercentage = source["marginPercentage"];
 	        this.warnings = source["warnings"];
 	        this.belowCost = source["belowCost"];
+	        this.roundingStepRial = source["roundingStepRial"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -2388,6 +2390,7 @@ export namespace main {
 	    documentNotes: string;
 	    backupDirectory: string;
 	    attachmentDirectory: string;
+	    monetaryRoundingStepRial: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new ShopSettingsDTO(source);
@@ -2408,6 +2411,7 @@ export namespace main {
 	        this.documentNotes = source["documentNotes"];
 	        this.backupDirectory = source["backupDirectory"];
 	        this.attachmentDirectory = source["attachmentDirectory"];
+	        this.monetaryRoundingStepRial = source["monetaryRoundingStepRial"];
 	    }
 	}
 	export class PrintDocumentDTO {

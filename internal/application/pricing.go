@@ -55,12 +55,17 @@ type PricingView struct {
 	MarginPercentage          string                  `json:"marginPercentage"`
 	Warnings                  []string                `json:"warnings"`
 	BelowCost                 bool                    `json:"belowCost"`
+	RoundingStepRial          int64                   `json:"roundingStepRial"`
 }
 
 type PricingService struct {
 	repository ServiceRepository
 	material   MaterialLookup
 	machine    MachineLookup
+}
+
+type PricingSettingsLookup interface {
+	GetShopSettings(context.Context) (domain.ShopSettings, error)
 }
 
 func NewPricingService(repository ServiceRepository, material MaterialLookup, machine MachineLookup) *PricingService {
@@ -85,6 +90,16 @@ func (s *PricingService) calculate(ctx context.Context, request PricingRequest, 
 	}
 	if !service.Active {
 		return PricingView{}, fmt.Errorf("service is archived")
+	}
+	step := domain.DefaultMonetaryRoundingStepRial
+	if lookup, ok := s.repository.(PricingSettingsLookup); ok {
+		settings, settingsErr := lookup.GetShopSettings(ctx)
+		if settingsErr != nil {
+			return PricingView{}, fmt.Errorf("read monetary rounding settings: %w", settingsErr)
+		}
+		if settings.MonetaryRoundingStepRial > 0 {
+			step = settings.MonetaryRoundingStepRial
+		}
 	}
 	resolved, err := s.resolveParameters(ctx, service.Parameters, request.Parameters)
 	if err != nil {
@@ -151,11 +166,13 @@ func (s *PricingService) calculate(ctx context.Context, request PricingRequest, 
 			serviceCosts[component.ReferenceID] = nested.EstimatedCostRial
 		}
 	}
-	result, err := domain.EvaluatePricing(domain.PricingInput{Service: service, Parameters: parameterMap, Materials: materials, Machines: machines, ServiceCosts: serviceCosts, ManualCosts: request.ManualCosts, SellingPriceOverrideRial: request.SellingPriceOverrideRial})
+	result, err := domain.EvaluatePricing(domain.PricingInput{Service: service, Parameters: parameterMap, Materials: materials, Machines: machines, ServiceCosts: serviceCosts, ManualCosts: request.ManualCosts, SellingPriceOverrideRial: request.SellingPriceOverrideRial, MonetaryRoundingStepRial: step})
 	if err != nil {
 		return PricingView{}, err
 	}
-	return pricingView(service, result), nil
+	view := pricingView(service, result)
+	view.RoundingStepRial = step
+	return view, nil
 }
 
 func (s *PricingService) resolveParameters(ctx context.Context, definitions []domain.ServiceParameter, submitted map[string]string) ([]domain.ResolvedParameter, error) {

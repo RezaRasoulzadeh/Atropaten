@@ -65,20 +65,6 @@ func TestDeleteOrderCleansDependenciesAndPreservesReversedHistory(t *testing.T) 
 			if _, err = s.CreatePayment(ctx, p); err != nil {
 				t.Fatal(err)
 			}
-			before, err := s.InventoryState(ctx, "MAT-paper")
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err = s.DeleteOrder(ctx, o.ID); !errors.Is(err, domain.ErrOrderDeleteProtected) {
-				t.Fatalf("active payment should block: %v", err)
-			}
-			after, err := s.InventoryState(ctx, "MAT-paper")
-			if err != nil || before != after {
-				t.Fatalf("failed deletion changed stock: before=%+v after=%+v err=%v", before, after, err)
-			}
-			if _, err = s.ReversePayment(ctx, p.ID, ""); err != nil {
-				t.Fatal(err)
-			}
 			if err = s.DeleteOrder(ctx, o.ID); err != nil {
 				t.Fatal(err)
 			}
@@ -89,7 +75,7 @@ func TestDeleteOrderCleansDependenciesAndPreservesReversedHistory(t *testing.T) 
 			if err != nil || state.PhysicalStock != 200*domain.QuantityScale || state.ReservedStock != 0 {
 				t.Fatalf("stock not restored: %+v %v", state, err)
 			}
-			for _, table := range []string{"orders", "order_items", "production_jobs", "production_consumptions", "production_material_plans", "inventory_reservations", "attachments", "proofs"} {
+			for _, table := range []string{"orders", "order_items", "production_jobs", "production_consumptions", "production_material_plans", "inventory_reservations", "invoices", "invoice_items", "invoice_order_snapshots", "invoice_replacements", "attachments", "proofs"} {
 				var count int
 				if err = s.db.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&count); err != nil || count != 0 {
 					t.Fatalf("%s count=%d err=%v", table, count, err)
@@ -103,20 +89,9 @@ func TestDeleteOrderCleansDependenciesAndPreservesReversedHistory(t *testing.T) 
 			if err != nil || payment.Status != domain.PaymentReversedState || len(payment.Allocations) != 1 {
 				t.Fatalf("payment audit lost: %+v %v", payment, err)
 			}
-			if invoiceStatus == "Posted" || invoiceStatus == "Voided" {
-				inv, err := s.GetInvoice(ctx, invoiceID)
-				if err != nil || inv.Status != "Voided" || inv.OrderID != "" || len(inv.Items) != 1 || inv.Items[0].OrderItemID != "" || inv.TotalRial != o.TotalRial {
-					t.Fatalf("invoice audit=%+v err=%v", inv, err)
-				}
-				if _, err = s.db.Exec(`UPDATE invoices SET notes='tampered' WHERE id=?`, invoiceID); err == nil {
-					t.Fatal("voided invoice is no longer immutable")
-				}
-				if _, err = s.db.Exec(`UPDATE invoice_items SET quantity_units=1 WHERE invoice_id=?`, invoiceID); err == nil {
-					t.Fatal("voided invoice items are no longer immutable")
-				}
-			} else if invoiceStatus == "Draft" {
+			if invoiceStatus != "none" {
 				if _, err = s.GetInvoice(ctx, invoiceID); !errors.Is(err, domain.ErrInvoiceNotFound) {
-					t.Fatalf("draft retained: %v", err)
+					t.Fatalf("invoice retained after order deletion: %v", err)
 				}
 			}
 			var nonzero int
@@ -146,7 +121,7 @@ func TestDeleteOrderCleansDependenciesAndPreservesReversedHistory(t *testing.T) 
 	}
 }
 
-func TestDeleteOrderBlocksInvoicePaymentsAndRollsBackCleanupFailure(t *testing.T) {
+func TestDeleteOrderReversesInvoicePaymentsAndRollsBackCleanupFailure(t *testing.T) {
 	s, o, j := productionFlowFixture(t)
 	ctx := context.Background()
 	inv, err := application.NewInvoicesService(s, s).CreateFromOrder(ctx, o.ID)
@@ -159,12 +134,6 @@ func TestDeleteOrderBlocksInvoicePaymentsAndRollsBackCleanupFailure(t *testing.T
 	now := time.Now().UTC()
 	p := domain.Payment{ID: "PAY-invoice-delete", Direction: domain.PaymentIncoming, Method: domain.PaymentCash, FinancialAccountID: "FIN-CASH", AmountRial: 500, PostedAt: now, CreatedAt: now, Allocations: []domain.PaymentAllocation{{TargetType: "invoice", TargetID: inv.ID, AmountRial: 500}}}
 	if _, err = s.CreatePayment(ctx, p); err != nil {
-		t.Fatal(err)
-	}
-	if err = s.DeleteOrder(ctx, o.ID); !errors.Is(err, domain.ErrOrderDeleteProtected) {
-		t.Fatalf("invoice payment not protected: %v", err)
-	}
-	if _, err = s.ReversePayment(ctx, p.ID, ""); err != nil {
 		t.Fatal(err)
 	}
 	if err = s.TransitionProductionJob(ctx, j.ID, "In Progress"); err != nil {
@@ -184,8 +153,12 @@ func TestDeleteOrderBlocksInvoicePaymentsAndRollsBackCleanupFailure(t *testing.T
 		t.Fatalf("partial cleanup committed: %+v %v", state, err)
 	}
 	invoice, err := s.GetInvoice(ctx, inv.ID)
-	if err != nil || invoice.Status != "Posted" || invoice.OrderID != o.ID {
+	if err != nil || invoice.Status != domain.InvoicePartiallyPaid || invoice.OrderID != o.ID {
 		t.Fatalf("invoice void was not rolled back: %+v %v", invoice, err)
+	}
+	payment, err := s.GetPayment(ctx, p.ID)
+	if err != nil || payment.Status != domain.PaymentPosted {
+		t.Fatalf("payment reversal was not rolled back: %+v %v", payment, err)
 	}
 	var count int
 	if err = s.db.QueryRow(`SELECT COUNT(*) FROM deleted_order_records`).Scan(&count); err != nil || count != 0 {
@@ -196,5 +169,12 @@ func TestDeleteOrderBlocksInvoicePaymentsAndRollsBackCleanupFailure(t *testing.T
 	}
 	if err = s.DeleteOrder(ctx, o.ID); err != nil {
 		t.Fatal(err)
+	}
+	if _, err = s.GetInvoice(ctx, inv.ID); !errors.Is(err, domain.ErrInvoiceNotFound) {
+		t.Fatalf("invoice retained after successful deletion: %v", err)
+	}
+	payment, err = s.GetPayment(ctx, p.ID)
+	if err != nil || payment.Status != domain.PaymentReversedState {
+		t.Fatalf("payment was not reversed with deletion: %+v %v", payment, err)
 	}
 }

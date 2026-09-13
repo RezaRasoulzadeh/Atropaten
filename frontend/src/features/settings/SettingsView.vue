@@ -32,6 +32,7 @@ const form = ref<ShopSettingsRecord>({
   documentNotes: '',
   backupDirectory: '',
   attachmentDirectory: '',
+  monetaryRoundingStepRial: 1000,
 });
 const loading = ref(true);
 const backupBusy = ref(false);

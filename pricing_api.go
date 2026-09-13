@@ -51,6 +51,7 @@ type PricingDTO struct {
 	MarginPercentage          string                 `json:"marginPercentage"`
 	Warnings                  []string               `json:"warnings"`
 	BelowCost                 bool                   `json:"belowCost"`
+	RoundingStepRial          int64                  `json:"roundingStepRial"`
 }
 
 func (a *App) pricingService() (*application.PricingService, error) {
@@ -76,7 +77,7 @@ func (a *App) CalculateServicePrice(request PricingRequest) (PricingDTO, error) 
 }
 
 func pricingDTO(view application.PricingView) PricingDTO {
-	dto := PricingDTO{ServiceID: view.ServiceID, ServiceName: view.ServiceName, ServiceCode: view.ServiceCode, EstimatedCostRial: view.EstimatedCostRial, SuggestedSellingPriceRial: view.SuggestedSellingPriceRial, EffectiveSellingPriceRial: view.EffectiveSellingPriceRial, ProfitRial: view.ProfitRial, MarginPercentage: view.MarginPercentage, Warnings: view.Warnings, BelowCost: view.BelowCost}
+	dto := PricingDTO{ServiceID: view.ServiceID, ServiceName: view.ServiceName, ServiceCode: view.ServiceCode, EstimatedCostRial: view.EstimatedCostRial, SuggestedSellingPriceRial: view.SuggestedSellingPriceRial, EffectiveSellingPriceRial: view.EffectiveSellingPriceRial, ProfitRial: view.ProfitRial, MarginPercentage: view.MarginPercentage, Warnings: view.Warnings, BelowCost: view.BelowCost, RoundingStepRial: view.RoundingStepRial}
 	for _, parameter := range view.Parameters {
 		dto.Parameters = append(dto.Parameters, ResolvedParameterDTO{Key: parameter.Key, Label: parameter.Label, Type: parameter.Type, Value: parameter.Value, Quantity: parameter.Quantity, MaterialID: parameter.MaterialID, Unit: parameter.Unit})
 	}

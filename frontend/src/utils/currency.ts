@@ -4,11 +4,19 @@
  */
 export type CurrencyUnit = 'Toman' | 'Rial'
 
-/** Customer charges ceil to 100 tomans; inventory costs are never rounded here. */
-export function sellingPriceTotal(rateRial: number, quantity: number): number {
+/** Mirrors the backend's one-time calculated price boundary for display only. */
+export function roundMoneyUp(amountRial: number, stepRial: number): number {
+  const amount = BigInt(Math.trunc(amountRial))
+  const step = BigInt(stepRial > 0 ? Math.trunc(stepRial) : 1)
+  return Number(((amount + (amount >= 0n ? step - 1n : 0n)) / step) * step)
+}
+
+export function sellingPriceTotal(rateRial: number, quantity: number, stepRial = 1000): number {
   const scaledQuantity = BigInt(Math.round(quantity * 1_000_000))
-  const divisor = 1_000_000_000n
-  return Number(((BigInt(rateRial) * scaledQuantity + divisor - 1n) / divisor) * 1000n)
+  const divisor = 1_000_000n
+  const exact = BigInt(rateRial) * scaledQuantity
+  const units = (exact + divisor - 1n) / divisor
+  return roundMoneyUp(Number(units), stepRial)
 }
 
 const currencyLabels: Record<CurrencyUnit, string> = {

@@ -23,9 +23,9 @@ type InvoiceOrderRepository interface {
 	GetOrder(context.Context, string) (domain.Order, error)
 }
 type InvoiceView struct {
-	ID, InvoiceNumber, CustomerID, CustomerName, CustomerPhone, OrderID, IssueDate, DueDate, Status, Notes, AccountingJournalEntryID, COGSJournalEntryID, CreatedAt, UpdatedAt string
-	SubtotalRial, DiscountRial, TotalRial, PaidRial, RemainingRial                                                                                                             int64
-	Items                                                                                                                                                                      []InvoiceItemView
+	ID, InvoiceNumber, CustomerID, CustomerName, CustomerPhone, OrderID, PreviousInvoiceID, ReplacementInvoiceID, IssueDate, DueDate, Status, Notes, AccountingJournalEntryID, COGSJournalEntryID, CreatedAt, UpdatedAt string
+	SubtotalRial, DiscountRial, TotalRial, PaidRial, RemainingRial                                                                                                                                                      int64
+	Items                                                                                                                                                                                                               []InvoiceItemView
 }
 type InvoiceItemView struct {
 	ID, OrderItemID, Description, ServiceID, QuantityUnit, Notes string
@@ -76,13 +76,9 @@ func (s *InvoicesService) CreateFromOrder(ctx context.Context, orderID string) (
 	}
 	now := s.now().UTC()
 	id := mustID("INV-")
-	name := order.CustomerNameSnapshot
-	if name == "" {
-		name = "Walk-in customer"
-	}
-	v := domain.Invoice{ID: id, CustomerID: order.CustomerID, CustomerNameSnapshot: name, CustomerPhoneSnapshot: order.CustomerPhoneSnapshot, OrderID: order.ID, IssueDate: now, Status: domain.InvoiceDraft, Notes: order.Notes, SubtotalRial: order.SubtotalRial, DiscountRial: order.DiscountRial, TotalRial: order.TotalRial, CreatedAt: now, UpdatedAt: now}
-	for position, item := range order.Items {
-		v.Items = append(v.Items, domain.InvoiceItem{ID: mustID("INVL-"), InvoiceID: id, OrderItemID: item.ID, Position: position, DescriptionSnapshot: item.ServiceNameSnapshot, ServiceID: item.ServiceID, QuantityUnits: int64(item.Quantity), QuantityUnit: item.QuantityUnit, UnitPriceRial: item.SellingPriceRial, LineTotalRial: item.SellingPriceRial, Notes: item.Notes})
+	v, e := (domain.Invoice{ID: id, IssueDate: now, Status: domain.InvoiceDraft, CreatedAt: now, UpdatedAt: now}).SnapshotOrder(order)
+	if e != nil {
+		return InvoiceView{}, e
 	}
 	if e = v.Validate(); e != nil {
 		return InvoiceView{}, e
@@ -108,7 +104,7 @@ func (s *InvoicesService) DeleteDraft(ctx context.Context, id string) error {
 	return s.repository.DeleteDraftInvoice(ctx, id)
 }
 func invoiceView(i domain.Invoice) InvoiceView {
-	v := InvoiceView{ID: i.ID, InvoiceNumber: i.InvoiceNumber, CustomerID: i.CustomerID, CustomerName: i.CustomerNameSnapshot, CustomerPhone: i.CustomerPhoneSnapshot, OrderID: i.OrderID, IssueDate: i.IssueDate.UTC().Format(time.RFC3339Nano), Status: i.Status, Notes: i.Notes, AccountingJournalEntryID: i.AccountingJournalEntryID, COGSJournalEntryID: i.COGSJournalEntryID, CreatedAt: i.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: i.UpdatedAt.UTC().Format(time.RFC3339Nano), SubtotalRial: i.SubtotalRial, DiscountRial: i.DiscountRial, TotalRial: i.TotalRial, PaidRial: i.PaidRial, RemainingRial: i.RemainingRial}
+	v := InvoiceView{ID: i.ID, InvoiceNumber: i.InvoiceNumber, CustomerID: i.CustomerID, CustomerName: i.CustomerNameSnapshot, CustomerPhone: i.CustomerPhoneSnapshot, OrderID: i.OrderID, PreviousInvoiceID: i.PreviousInvoiceID, ReplacementInvoiceID: i.ReplacementInvoiceID, IssueDate: i.IssueDate.UTC().Format(time.RFC3339Nano), Status: i.Status, Notes: i.Notes, AccountingJournalEntryID: i.AccountingJournalEntryID, COGSJournalEntryID: i.COGSJournalEntryID, CreatedAt: i.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: i.UpdatedAt.UTC().Format(time.RFC3339Nano), SubtotalRial: i.SubtotalRial, DiscountRial: i.DiscountRial, TotalRial: i.TotalRial, PaidRial: i.PaidRial, RemainingRial: i.RemainingRial}
 	if i.DueDate != nil {
 		v.DueDate = i.DueDate.UTC().Format(time.RFC3339Nano)
 	}

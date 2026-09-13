@@ -61,6 +61,10 @@ func (s *Store) dashboardFinancialTrend(ctx context.Context, start, end time.Tim
 		if err != nil {
 			return err
 		}
+		cost, err = s.roundCalculatedMoney(ctx, cost)
+		if err != nil {
+			return err
+		}
 		if err = add(v.at, v.revenue, v.revenue-cost); err != nil {
 			return err
 		}

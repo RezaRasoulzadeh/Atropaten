@@ -276,7 +276,7 @@ func (s *Store) CreateProductionJob(ctx context.Context, j domain.ProductionJob)
 	var qty int64
 	var unit string
 	var estimated int64
-	if e = tx.QueryRowContext(ctx, `SELECT service_name_snapshot,quantity_units,quantity_unit,estimated_cost_rial FROM order_items WHERE id=? AND order_id=?`, j.OrderItemID, j.OrderID).Scan(&service, &qty, &unit, &estimated); e != nil {
+	if e = tx.QueryRowContext(ctx, `SELECT service_name_snapshot,quantity_units,quantity_unit,estimated_cost_rial FROM order_items WHERE id=? AND order_id=? AND removed_at IS NULL`, j.OrderItemID, j.OrderID).Scan(&service, &qty, &unit, &estimated); e != nil {
 		return fail(fmt.Errorf("order item: %w", e))
 	}
 	j.ServiceNameSnapshot = service
@@ -534,24 +534,18 @@ func (s *Store) TransitionProductionJob(ctx context.Context, id, status string) 
 			return fail(e)
 		}
 	}
-	if _, e = tx.ExecContext(ctx, `UPDATE production_jobs SET status=?,started_at=COALESCE(?,started_at),completed_at=?,updated_at=? WHERE id=?`, status, started, completed, now.Format(time.RFC3339Nano), id); e != nil {
+	if _, e = tx.ExecContext(ctx, `UPDATE production_jobs SET status=?,started_at=COALESCE(started_at,?),completed_at=?,updated_at=?,produced_quantity_units=CASE WHEN ?='Completed' THEN MAX(produced_quantity_units,quantity_units) ELSE produced_quantity_units END WHERE id=?`, status, started, completed, now.Format(time.RFC3339Nano), status, id); e != nil {
 		return fail(e)
 	}
-	if status == domain.ProductionCompleted {
-		var open int
-		if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM order_items i WHERE i.order_id=? AND NOT EXISTS(SELECT 1 FROM production_jobs p WHERE p.order_item_id=i.id AND p.status='Completed')`, orderID).Scan(&open); e != nil {
+	if current == domain.ProductionCompleted && status != domain.ProductionCancelled {
+		// Synchronize after changing status so the completed-job guard no longer
+		// applies. Historical usage/corrections remain the authoritative actuals.
+		if e = reopenProductionMaterialsTx(ctx, tx, id); e != nil {
 			return fail(e)
-		}
-		if open == 0 {
-			if _, e = tx.ExecContext(ctx, `UPDATE orders SET fulfillment_status=?,updated_at=? WHERE id=? AND fulfillment_status IN (?,?)`, domain.FulfillmentReady, now.Format(time.RFC3339Nano), orderID, domain.FulfillmentPending, domain.FulfillmentInProduction); e != nil {
-				return fail(e)
-			}
 		}
 	}
-	if status == domain.ProductionInProgress || status == domain.ProductionPaused {
-		if _, e = tx.ExecContext(ctx, `UPDATE orders SET fulfillment_status='In Production',updated_at=? WHERE id=? AND fulfillment_status IN ('Pending','Ready','In Production')`, now.Format(time.RFC3339Nano), orderID); e != nil {
-			return fail(e)
-		}
+	if e = syncProductionFulfillmentTx(ctx, tx, orderID, now); e != nil {
+		return fail(e)
 	}
 	if e = s.reconcileJobCOGSTx(ctx, tx, id); e != nil {
 		return fail(e)

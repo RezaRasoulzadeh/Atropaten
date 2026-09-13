@@ -149,7 +149,7 @@ func (s *OrdersService) Update(ctx context.Context, id string, input OrderInput)
 	if err := s.repository.SaveOrderMetadata(ctx, row); err != nil {
 		return OrderView{}, err
 	}
-	return s.enrich(ctx, orderView(row))
+	return s.Get(ctx, row.ID)
 }
 
 func (s *OrdersService) Delete(ctx context.Context, id string) error {
@@ -172,6 +172,22 @@ func (s *OrdersService) enrich(ctx context.Context, view OrderView) (OrderView, 
 	}
 	if lookup, ok := s.repository.(OrderProductionForecastLookup); ok {
 		view.ProjectedCostRial, err = lookup.ProductionProjectedCostSummary(ctx, view.ID)
+		if err != nil {
+			return OrderView{}, err
+		}
+	}
+	if lookup, ok := s.repository.(interface {
+		GetShopSettings(context.Context) (domain.ShopSettings, error)
+	}); ok {
+		settings, settingsErr := lookup.GetShopSettings(ctx)
+		if settingsErr != nil {
+			return OrderView{}, settingsErr
+		}
+		step := settings.MonetaryRoundingStepRial
+		if step <= 0 {
+			step = domain.DefaultMonetaryRoundingStepRial
+		}
+		view.ProjectedCostRial, err = domain.RoundMoneyUp(view.ProjectedCostRial, step)
 		if err != nil {
 			return OrderView{}, err
 		}
@@ -273,11 +289,17 @@ func (s *OrdersService) saveConfiguredItem(ctx context.Context, id string, pos i
 	if err != nil {
 		return OrderView{}, fmt.Errorf("estimated cost for quantity: %w", err)
 	}
-	suggestedPriceRial, err := domain.MulQuantitySellingPriceRial(qty, price.SuggestedSellingPriceRial)
+	if price.RoundingStepRial > 0 && price.RoundingStepRial != domain.DefaultMonetaryRoundingStepRial {
+		estimatedCostRial, err = domain.RoundMoneyUp(estimatedCostRial, price.RoundingStepRial)
+		if err != nil {
+			return OrderView{}, fmt.Errorf("round estimated cost for quantity: %w", err)
+		}
+	}
+	suggestedPriceRial, err := domain.MulQuantitySellingPriceRialWithStep(qty, price.SuggestedSellingPriceRial, price.RoundingStepRial)
 	if err != nil {
 		return OrderView{}, fmt.Errorf("suggested price for quantity: %w", err)
 	}
-	sellingPriceRial, err := domain.MulQuantitySellingPriceRial(qty, price.EffectiveSellingPriceRial)
+	sellingPriceRial, err := domain.MulQuantitySellingPriceRialWithStep(qty, price.EffectiveSellingPriceRial, price.RoundingStepRial)
 	if err != nil {
 		return OrderView{}, fmt.Errorf("selling price for quantity: %w", err)
 	}
@@ -309,7 +331,7 @@ func (s *OrdersService) saveConfiguredItem(ctx context.Context, id string, pos i
 	if err := s.repository.SaveOrder(ctx, row); err != nil {
 		return OrderView{}, err
 	}
-	return s.enrich(ctx, orderView(row))
+	return s.Get(ctx, row.ID)
 }
 func parseOrderQuantity(value string, price PricingView) (domain.Quantity, error) {
 	if strings.TrimSpace(value) != "" {
@@ -364,7 +386,7 @@ func (s *OrdersService) RemoveItem(ctx context.Context, id, itemID string) (Orde
 	if err := s.repository.SaveOrder(ctx, row); err != nil {
 		return OrderView{}, err
 	}
-	return s.enrich(ctx, orderView(row))
+	return s.Get(ctx, row.ID)
 }
 func (s *OrdersService) ReorderItems(ctx context.Context, id string, itemIDs []string) (OrderView, error) {
 	row, err := s.repository.GetOrder(ctx, id)
@@ -394,7 +416,7 @@ func (s *OrdersService) ReorderItems(ctx context.Context, id string, itemIDs []s
 	if err := s.repository.SaveOrder(ctx, row); err != nil {
 		return OrderView{}, err
 	}
-	return s.enrich(ctx, orderView(row))
+	return s.Get(ctx, row.ID)
 }
 func (s *OrdersService) ApplyDiscount(ctx context.Context, id string, discount int64) (OrderView, error) {
 	row, err := s.repository.GetOrder(ctx, id)
@@ -409,7 +431,7 @@ func (s *OrdersService) ApplyDiscount(ctx context.Context, id string, discount i
 	if err := s.repository.SaveOrderMetadata(ctx, row); err != nil {
 		return OrderView{}, err
 	}
-	return s.enrich(ctx, orderView(row))
+	return s.Get(ctx, row.ID)
 }
 func (s *OrdersService) SetCommercialStatus(ctx context.Context, id string, status string) (OrderView, error) {
 	row, err := s.repository.GetOrder(ctx, id)
@@ -448,7 +470,7 @@ func (s *OrdersService) saveStatus(ctx context.Context, row domain.Order) (Order
 	if err := s.repository.SaveOrderMetadata(ctx, row); err != nil {
 		return OrderView{}, err
 	}
-	return s.enrich(ctx, orderView(row))
+	return s.Get(ctx, row.ID)
 }
 func orderView(o domain.Order) OrderView {
 	v := OrderView{ProjectedCostRial: o.EstimatedCostRial, ID: o.ID, OrderNumber: o.OrderNumber, CustomerID: o.CustomerID, CustomerName: o.CustomerNameSnapshot, CustomerPhone: o.CustomerPhoneSnapshot, Notes: o.Notes, CreatedAt: o.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: o.UpdatedAt.UTC().Format(time.RFC3339Nano), Priority: string(o.Priority), CommercialStatus: string(o.CommercialStatus), FulfillmentStatus: string(o.FulfillmentStatus), PaymentStatus: string(o.PaymentStatus), Archived: o.Archived, SubtotalRial: o.SubtotalRial, DiscountRial: o.DiscountRial, TotalRial: o.TotalRial, EstimatedCostRial: o.EstimatedCostRial}

@@ -73,11 +73,11 @@ func (s *Store) withProductionForecast(ctx context.Context, j domain.ProductionJ
 	if err = tx.QueryRowContext(ctx, `SELECT cost_breakdown_json,quantity_units,quantity_unit,service_name_snapshot,estimated_cost_rial FROM production_jobs WHERE id=?`, j.ID).Scan(&snapshot, &j.Quantity, &j.QuantityUnit, &j.ServiceNameSnapshot, &j.EstimatedCostRial); err != nil {
 		return j, err
 	}
-	fallback, err := scaleProductionQuantity(domain.Quantity(j.EstimatedCostRial), j.Quantity-j.OutsourceQuantity, j.Quantity)
+	fallback, err := scaleProductionQuantity(domain.Quantity(j.EstimatedCostRial), max(j.Quantity-j.OutsourceQuantity, 0), j.Quantity)
 	if err != nil {
 		return j, err
 	}
-	j.EstimatedConversionCostRial, err = productionConversionCost(snapshot, j.Quantity-j.OutsourceQuantity, int64(fallback))
+	j.EstimatedConversionCostRial, err = productionConversionCost(snapshot, max(j.Quantity-j.OutsourceQuantity, 0), int64(fallback))
 	if err != nil {
 		return j, err
 	}
@@ -154,7 +154,7 @@ func (s *Store) ProductionProjectedCostSummary(ctx context.Context, orderID stri
 		return 0, err
 	}
 	var total int64
-	if err = s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(estimated_cost_rial),0) FROM order_items i WHERE i.order_id=? AND NOT EXISTS(SELECT 1 FROM production_jobs p WHERE p.order_item_id=i.id AND p.status<>'Cancelled')`, orderID).Scan(&total); err != nil {
+	if err = s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(estimated_cost_rial),0) FROM order_items i WHERE i.order_id=? AND i.removed_at IS NULL AND NOT EXISTS(SELECT 1 FROM production_jobs p WHERE p.order_item_id=i.id AND p.status<>'Cancelled')`, orderID).Scan(&total); err != nil {
 		return 0, err
 	}
 	for _, id := range ids {
