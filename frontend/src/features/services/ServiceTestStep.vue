@@ -8,8 +8,8 @@ import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
-import { calculateServiceTest, isAutomaticVariationParameter, isMachineRateParameter, visibleTestParameters, type TestPricingResult, type TestValues } from './serviceTestPricing'
-import type { ComponentForm, ParameterForm, ServiceForm } from './types'
+import { calculateServiceTest, isAutomaticVariationParameter, testParameterLabel, visibleTestParameters, type TestPricingResult, type TestValues } from './serviceTestPricing'
+import type { ParameterForm, ServiceForm } from './types'
 
 const props = defineProps<{
   form: ServiceForm
@@ -40,25 +40,6 @@ function syncValues() {
   for (const key of Object.keys(props.values)) if (!keys.has(key)) delete props.values[key]
 }
 
-function activeMachineFor(component: ComponentForm) {
-  const selectedID = props.values[component.parameterKey] || props.parameters.find((parameter) => parameter.key === component.parameterKey)?.defaultValue
-  return props.machines.find((machine) => machine.id === selectedID && machine.active) || null
-}
-
-function machineRateOptions(parameter: ParameterForm) {
-  const components = props.form.components.filter((component) => component.type === 'machine' && component.rateParameterKey === parameter.key)
-  const selectedMachines = components.map(activeMachineFor).filter((machine): machine is MachineRecord => Boolean(machine))
-  const machines = selectedMachines.length ? selectedMachines : props.machines.filter((machine) => machine.active)
-  const options = new Map<string, { label: string; value: string }>()
-  for (const machine of machines) {
-    for (const rate of machine.rates?.filter((item: any) => item.active) || []) {
-      const value = String(rate.selectorValue || rate.name || rate.id || '').trim()
-      if (value && !options.has(value)) options.set(value, { label: rate.name || value, value })
-    }
-  }
-  return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...Array.from(options.values()).sort((left, right) => left.label.localeCompare(right.label))]
-}
-
 function syncDynamicSelections() {
   for (const parameter of visibleTestParameters(props.form, props.parameters)) {
     if (!isAutomaticVariationParameter(props.form, parameter)) continue
@@ -84,7 +65,6 @@ function updateBoolean(key: string, event: Event) {
 }
 
 function valueOptions(parameter: ParameterForm) {
-	if (isMachineRateParameter(props.form, parameter)) return machineRateOptions(parameter)
 	if (parameter.type === 'choice') {
     if (parameter.materialSource) {
       const values = Array.from(new Set(props.form.materialVariants.filter((variant) => variant.active !== false).map((variant) => variant.values[parameter.key]).filter(Boolean)))
@@ -127,7 +107,7 @@ const result = computed<TestPricingResult>(() => calculateServiceTest(props.form
           <div v-for="parameter in visibleTestParameters(form, parameters)" :key="parameter.id" class="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] items-start gap-3">
             <span class="grid size-8 place-items-center rounded-box bg-base-300/60 text-base-content/70"><span v-if="parameter.type === 'integer' || parameter.type === 'decimal'" class="text-lg">#</span><span v-else-if="parameter.type === 'boolean'" class="text-sm">✓</span><span v-else class="text-base">◈</span></span>
             <FormField class="min-w-0 gap-1">
-              <span class="text-sm text-base-content">{{ parameter.label || 'Parameter' }}<em v-if="parameter.required" class="text-error"> *</em></span>
+              <span class="text-sm text-base-content">{{ testParameterLabel(form, parameter, parameters) }}<em v-if="parameter.required" class="text-error"> *</em></span>
               <small class="text-xs text-base-content/50">{{ isAutomaticVariationParameter(form, parameter) ? 'Affects automatic variation pricing' : 'Price can be entered on the order' }}</small>
               <AppInput v-if="parameter.type === 'integer' || parameter.type === 'decimal'" v-model="values[parameter.key]" class="input w-full min-w-0" :type="parameter.type === 'integer' ? 'number' : 'text'" :step="parameter.type === 'integer' ? '1' : 'any'" :min="parameter.minValue || undefined" :max="parameter.maxValue || undefined" inputmode="decimal" @update:model-value="onValueChanged" />
               <SelectField v-else-if="parameter.type === 'choice' || parameter.type === 'machine-reference'" v-model="values[parameter.key]" :aria-label="parameter.label" :options="valueOptions(parameter)" @update:model-value="onValueChanged" />

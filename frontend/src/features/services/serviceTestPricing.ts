@@ -38,9 +38,21 @@ export function isLegacyTestParameter(form: ServiceForm, parameter: ParameterFor
 export function visibleTestParameters(form: ServiceForm, parameters: ParameterForm[]) {
   return parameters.filter((parameter) => {
     if (isLegacyTestParameter(form, parameter)) return false
+    if (isMachineRateParameter(form, parameter)) return false
     if (isAutomaticVariationParameter(form, parameter)) return true
     return parameter.type === 'integer' || parameter.type === 'decimal'
   })
+}
+
+export function testParameterLabel(form: ServiceForm, parameter: ParameterForm, parameters: ParameterForm[]) {
+  if (isMachineGroupParameter(form, parameter)) {
+    const rateParameter = form.components
+      .filter((component) => component.type === 'machine' && component.rateParameterKey)
+      .map((component) => parameters.find((item) => item.key === component.rateParameterKey))
+      .find((item) => item && item.label.trim() === parameter.label.trim())
+    if (rateParameter) return 'Machine'
+  }
+  return parameter.label || 'Parameter'
 }
 
 function number(value: string | undefined, fallback = 0) {
