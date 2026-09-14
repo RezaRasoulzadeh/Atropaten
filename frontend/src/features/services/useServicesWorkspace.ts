@@ -1,5 +1,5 @@
 import {componentNeedsRate,componentNeedsReference,componentNeedsPercentage} from './serviceFields'
-import type {ServiceFilter,EditorMode,ParameterType,ParameterForm,ComponentType,ComponentForm,PricingTierForm,PricingRuleForm,ServiceForm} from './types'
+import type {ServiceFilter,EditorMode,ParameterType,ParameterForm,ComponentType,ComponentForm,PricingTierForm,PricingRuleForm,ServiceForm,PredefinedParameter} from './types'
 import {useWorkspaceActions} from '../../composables/useWorkspaceActions'
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { materialsApi, type MaterialRecord } from '../../api/materials';
@@ -20,6 +20,7 @@ const toast = useToast();
 const services = ref<ServiceRecord[]>([]);
 const materials = ref<MaterialRecord[]>([]);
 const machines = ref<MachineRecord[]>([]);
+const predefinedParameters = ref<PredefinedParameter[]>([]);
 const selectedId = ref<string | null>(null);
 const searchQuery = ref('');
 const serviceFilter = ref<ServiceFilter>('All');
@@ -85,6 +86,7 @@ function emptyForm(): ServiceForm {
       parameterKey: '',
       tiers: [],
     },
+    finishedSize: null,
   };
 }
 function emptyParameter(type: ParameterType = 'integer'): ParameterForm {
@@ -124,14 +126,16 @@ function emptyComponent(type: ComponentType = 'fixed'): ComponentForm {
 async function loadServices() {
   isLoading.value = true;
   try {
-    const [serviceData, materialData, machineData] = await Promise.all([
+    const [serviceData, materialData, machineData, predefinedData] = await Promise.all([
       servicesApi.list(true),
       materialsApi.list(false),
       machinesApi.list(false),
+      servicesApi.predefinedParameters(),
     ]);
     services.value = serviceData;
     materials.value = materialData;
     machines.value = machineData;
+    predefinedParameters.value = predefinedData as unknown as PredefinedParameter[];
     if (!selectedId.value) {
       const firstService = serviceData.find((service) => service.active) ?? serviceData[0];
       selectedId.value = firstService?.id ?? null;
@@ -174,6 +178,14 @@ function startEdit() {
       minValue: parameter.minValue ?? null,
       maxValue: parameter.maxValue ?? null,
       unit: parameter.unit,
+      predefinedKey: parameter.predefinedKey || '',
+      materialSource: parameter.materialSource ? {
+        allowedKinds: [...(parameter.materialSource.allowedKinds || [])],
+        exposedAttributeKey: parameter.materialSource.exposedAttributeKey || '',
+        allowedValues: [...(parameter.materialSource.allowedValues || [])],
+        selectMaterial: parameter.materialSource.selectMaterial === true,
+        additionalFilters: [...(parameter.materialSource.additionalFilters || [])],
+      } : undefined,
     })),
     components: service.components.map((component) => ({
       id: component.id,
@@ -219,6 +231,23 @@ function startEdit() {
           })),
         }
       : emptyForm().pricingRule,
+    finishedSize: service.parameters.some((parameter) => parameter.predefinedKey === 'print_size') ? null : service.finishedSize ? {
+      parameterKey: service.finishedSize.parameterKey || '',
+      quantityParameterKey: service.finishedSize.quantityParameterKey || '',
+      widthParameterKey: service.finishedSize.widthParameterKey || '',
+      heightParameterKey: service.finishedSize.heightParameterKey || '',
+      allowCustom: service.finishedSize.allowCustom === true,
+      allowRotation: service.finishedSize.allowRotation !== false,
+      options: (service.finishedSize.options || []).map((option) => ({
+        id: option.id,
+        code: option.code,
+        label: option.label,
+        widthMM: option.widthMM,
+        heightMM: option.heightMM,
+        position: option.position,
+        active: option.active,
+      })),
+    } : null,
   };
   validationAttempted.value = false;
   editorMode.value = 'edit';
@@ -418,11 +447,13 @@ function normalizeParameter(parameter: ParameterForm) {
   if (parameter.type === 'choice') {
     parameter.minValue = null;
     parameter.maxValue = null;
-    parameter.defaultValue = parameter.options.includes(parameter.defaultValue)
+		if (parameter.materialSource) return;
+		parameter.defaultValue = parameter.options.includes(parameter.defaultValue)
       ? parameter.defaultValue
       : '';
     return;
-  }
+	}
+	parameter.materialSource = undefined;
   parameter.options = [];
   if (parameter.type !== 'integer' && parameter.type !== 'decimal') {
     parameter.minValue = null;
@@ -524,6 +555,10 @@ return runAction(async () => {
             })),
           }
         : null,
+      finishedSize: form.value.finishedSize ? {
+        ...form.value.finishedSize,
+        options: form.value.finishedSize.options.map((option, position) => ({ ...option, position })),
+      } : null,
     };
     const saved =
       wasEditing && selectedId.value
@@ -625,5 +660,5 @@ function errorMessageFrom(error: unknown, fallback: string): string {
       ? error
       : fallback;
 }
-return {busy,runAction,services,materials,machines,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,validationAttempted,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,syncParameterKey,normalizeParameter,addOption,removeOption,saveService,setActive,remove,typeLabel,dateLabel,errorMessageFrom}
+return {busy,runAction,services,materials,machines,predefinedParameters,selectedId,searchQuery,serviceFilter,editorMode,form,isLoading,isSaving,validationAttempted,selectedService,filteredServices,emptyForm,emptyParameter,emptyComponent,loadServices,selectService,startCreate,startEdit,numericParameters,normalizeComponent,updateComponentType,addComponent,removeComponent,moveComponent,updateComponentRate,updateGroupedMoney,normalizePricingRule,addPricingTier,removePricingTier,componentSummary,cancelEditor,addParameter,removeParameter,moveParameter,syncParameterKey,normalizeParameter,addOption,removeOption,saveService,setActive,remove,typeLabel,dateLabel,errorMessageFrom}
 }

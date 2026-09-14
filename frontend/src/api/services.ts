@@ -10,6 +10,8 @@ import {
   RemoveServiceCostComponent,
   ReorderServiceCostComponents,
   UpdateServiceCostComponent,
+  GetServiceMaterialOptions,
+  ListPredefinedParameters,
 } from '../../wailsjs/go/main/App'
 import type { main as mainTypes } from '../../wailsjs/go/models'
 
@@ -25,6 +27,8 @@ export type ServiceParameterPayload = {
   minValue: string | null
   maxValue: string | null
   unit: string
+  predefinedKey?: string
+  materialSource?: any
 }
 export type ServiceCostComponentPayload = {
   id: string
@@ -54,6 +58,15 @@ export type PricingRulePayload = {
   parameterKey: string
   tiers: PricingTierPayload[]
 }
+export type FinishedSizePayload = {
+  parameterKey: string
+  quantityParameterKey: string
+  widthParameterKey: string
+  heightParameterKey: string
+  allowCustom: boolean
+  allowRotation: boolean
+  options: Array<{ id: string; code: string; label: string; widthMM: string; heightMM: string; position: number; active: boolean }>
+}
 export type ServicePayload = {
   name: string
   code: string
@@ -65,11 +78,18 @@ export type ServicePayload = {
   parameters: ServiceParameterPayload[]
   components: ServiceCostComponentPayload[]
   pricingRule: PricingRulePayload | null
+  finishedSize: FinishedSizePayload | null
 }
 
 export const servicesApi = {
   list(includeArchived = true): Promise<ServiceRecord[]> {
     return ListServices(includeArchived)
+  },
+  materialOptions(id: string, selected: Record<string, string>) {
+    return GetServiceMaterialOptions(id, selected)
+  },
+  predefinedParameters() {
+    return ListPredefinedParameters()
   },
   get(id: string): Promise<ServiceRecord> {
     return GetService(id)

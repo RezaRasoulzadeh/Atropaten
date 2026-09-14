@@ -28,13 +28,14 @@ type MachineInput struct {
 }
 
 type MachineRateInput struct {
-	ID            string
-	Name          string
-	SelectorValue string
-	RateBasis     string
-	RateRial      int64
-	SetupCostRial int64
-	Active        bool
+	ID                    string
+	Name                  string
+	SelectorValue         string
+	SelectorPredefinedKey string
+	RateBasis             string
+	RateRial              int64
+	SetupCostRial         int64
+	Active                bool
 }
 
 type MachineView struct {
@@ -54,13 +55,14 @@ type MachineView struct {
 }
 
 type MachineRateView struct {
-	ID            string
-	Name          string
-	SelectorValue string
-	RateBasis     string
-	RateRial      int64
-	SetupCostRial int64
-	Active        bool
+	ID                    string
+	Name                  string
+	SelectorValue         string
+	SelectorPredefinedKey string
+	RateBasis             string
+	RateRial              int64
+	SetupCostRial         int64
+	Active                bool
 }
 
 type MachinesService struct {
@@ -153,7 +155,7 @@ func (s *MachinesService) setActive(ctx context.Context, id string, active bool)
 func machineDraft(input MachineInput) domain.MachineDraft {
 	rates := make([]domain.MachineRate, 0, len(input.Rates))
 	for _, rate := range input.Rates {
-		rates = append(rates, domain.MachineRate{ID: rate.ID, Name: rate.Name, SelectorValue: rate.SelectorValue, RateBasis: rate.RateBasis, RateRial: rate.RateRial, SetupCostRial: rate.SetupCostRial, Active: rate.Active})
+		rates = append(rates, domain.MachineRate{ID: rate.ID, Name: rate.Name, SelectorValue: rate.SelectorValue, SelectorPredefinedKey: rate.SelectorPredefinedKey, RateBasis: rate.RateBasis, RateRial: rate.RateRial, SetupCostRial: rate.SetupCostRial, Active: rate.Active})
 	}
 	return domain.MachineDraft{Name: input.Name, Code: input.Code, Category: input.Category, ImagePath: input.ImagePath, RateBasis: input.RateBasis, RateRial: input.RateRial, SetupCostRial: input.SetupCostRial, Notes: input.Notes, Rates: rates}
 }
@@ -161,7 +163,7 @@ func machineDraft(input MachineInput) domain.MachineDraft {
 func machineView(machine domain.Machine) MachineView {
 	rates := make([]MachineRateView, 0, len(machine.Rates))
 	for _, rate := range machine.Rates {
-		rates = append(rates, MachineRateView{ID: rate.ID, Name: rate.Name, SelectorValue: rate.SelectorValue, RateBasis: rate.RateBasis, RateRial: rate.RateRial, SetupCostRial: rate.SetupCostRial, Active: rate.Active})
+		rates = append(rates, MachineRateView{ID: rate.ID, Name: rate.Name, SelectorValue: rate.SelectorValue, SelectorPredefinedKey: rate.SelectorPredefinedKey, RateBasis: rate.RateBasis, RateRial: rate.RateRial, SetupCostRial: rate.SetupCostRial, Active: rate.Active})
 	}
 	return MachineView{ID: machine.ID, Name: machine.Name, Code: machine.Code, Category: machine.Category, ImagePath: machine.ImagePath, RateBasis: machine.RateBasis, RateRial: machine.RateRial, SetupCostRial: machine.SetupCostRial, Notes: machine.Notes, Active: machine.Active, CreatedAt: machine.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: machine.UpdatedAt.UTC().Format(time.RFC3339Nano), Rates: rates}
 }

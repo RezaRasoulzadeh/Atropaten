@@ -153,6 +153,8 @@ export function GetReport(arg1:string,arg2:string,arg3:string):Promise<main.Repo
 
 export function GetService(arg1:string):Promise<main.ServiceDTO>;
 
+export function GetServiceMaterialOptions(arg1:string,arg2:Record<string, string>):Promise<Array<main.ServiceMaterialOptionsDTO>>;
+
 export function GetShopSettings():Promise<main.ShopSettingsDTO>;
 
 export function GetSupplier(arg1:string):Promise<main.SupplierDTO>;
@@ -189,6 +191,8 @@ export function ListLoans(arg1:string,arg2:string):Promise<Array<main.LoanDTO>>;
 
 export function ListMachines(arg1:boolean):Promise<Array<main.MachineDTO>>;
 
+export function ListMaterialAttributeDefinitions():Promise<Array<main.MaterialAttributeDefinitionDTO>>;
+
 export function ListMaterialMovements(arg1:string):Promise<Array<main.InventoryMovementDTO>>;
 
 export function ListMaterials(arg1:boolean):Promise<Array<main.MaterialDTO>>;
@@ -200,6 +204,8 @@ export function ListOwnerTransactions(arg1:string):Promise<Array<main.OwnerTrans
 export function ListOwners(arg1:boolean):Promise<Array<main.OwnerDTO>>;
 
 export function ListPayments():Promise<Array<main.PaymentDTO>>;
+
+export function ListPredefinedParameters():Promise<Array<main.PredefinedParameterDTO>>;
 
 export function ListProductionConsumptions(arg1:string):Promise<Array<main.ProductionConsumptionDTO>>;
 

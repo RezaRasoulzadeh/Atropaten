@@ -10,12 +10,13 @@ import (
 // ResolvedParameter is the canonical, validated value used by the pricing engine.
 // Value remains textual so booleans, choices, and material IDs do not lose meaning.
 type ResolvedParameter struct {
-	Key        string
-	Type       ParameterType
-	Value      string
-	Quantity   Quantity
-	MaterialID string
-	MachineID  string
+	Key           string
+	Type          ParameterType
+	Value         string
+	Quantity      Quantity
+	MaterialID    string
+	MachineID     string
+	PredefinedKey string
 }
 
 type PricingInput struct {
@@ -124,6 +125,13 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 				material, exists := input.Materials[materialID]
 				if !exists {
 					return PricingResult{}, fmt.Errorf("component %q: material %q not found", component.Name, materialID)
+				}
+				if input.Service.FinishedSize != nil && input.Service.FinishedSize.QuantityParameterKey != "" {
+					usage, err = CalculateMaterialConsumption(material, input.Service, input.Parameters)
+					if err != nil {
+						return PricingResult{}, fmt.Errorf("component %q: material consumption: %w", component.Name, err)
+					}
+					item.UsageQuantity = usage
 				}
 				materialUnitCost := material.HighestPurchaseUnitCostRial
 				item.MaterialID = materialID
@@ -255,7 +263,7 @@ func machineRateFor(machine Machine, component ServiceCostComponent, parameters 
 		}
 		wanted := normalizeRateSelector(parameter.Value)
 		for _, rate := range machine.Rates {
-			if rate.Active && wanted != "" && (wanted == normalizeRateSelector(rate.SelectorValue) || wanted == normalizeRateSelector(rate.Name) || wanted == normalizeRateSelector(rate.ID)) {
+			if rate.Active && wanted != "" && (rate.SelectorPredefinedKey == "" || rate.SelectorPredefinedKey == parameter.PredefinedKey) && (wanted == normalizeRateSelector(rate.SelectorValue) || wanted == normalizeRateSelector(rate.Name) || wanted == normalizeRateSelector(rate.ID)) {
 				return rate, true
 			}
 		}

@@ -48,6 +48,19 @@ function updateOption(index: number, previous: string, value: string) {
   props.parameter.options[index] = value
   if (props.parameter.defaultValue === previous) props.parameter.defaultValue = value
 }
+function setMaterialBacked(event: Event) {
+  const enabled = (event.target as HTMLInputElement).checked
+  props.parameter.materialSource = enabled ? {
+    allowedKinds: ['sheet-stock'],
+    exposedAttributeKey: 'grammage_gsm',
+    allowedValues: [],
+    selectMaterial: false,
+    additionalFilters: [],
+  } : undefined
+  props.parameter.options = []
+  props.parameter.defaultValue = ''
+  emit('normalize')
+}
 </script>
 
 <template>
@@ -117,6 +130,39 @@ function updateOption(index: number, previous: string, value: string) {
           <p class="mt-2 text-xs leading-5 text-base-content/60">Use this input when the operator should choose the machine used by the service.</p>
         </div>
 
+        <div v-else-if="parameter.type === 'choice'" class="space-y-3">
+          <label class="flex items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2.5 text-sm"><input class="checkbox checkbox-sm" type="checkbox" :checked="Boolean(parameter.materialSource)" @change="setMaterialBacked" />Derive choices from compatible inventory materials</label>
+          <div v-if="parameter.materialSource" class="min-w-0 space-y-3 rounded-box border border-primary/25 bg-primary/5 p-3">
+          <div class="flex items-start gap-3"><span class="mt-0.5 text-primary">◈</span><div><h4 class="text-sm font-semibold">Inventory-backed options</h4><p class="mt-1 text-xs leading-5 text-base-content/60">Options are derived from active materials and resolve through material identity, not labels.</p></div></div>
+          <div class="grid min-w-0 gap-3 sm:grid-cols-2">
+            <SelectField :model-value="parameter.materialSource.allowedKinds[0] || ''" label="Allowed material kind" :options="[
+              { label: 'Choose kind…', value: '' },
+              { label: 'Sheet stock', value: 'sheet-stock' },
+              { label: 'Roll media', value: 'roll-media' },
+              { label: 'Board', value: 'board' },
+              { label: 'Fabric', value: 'fabric' },
+              { label: 'Packaging', value: 'packaging' },
+              { label: 'Generic consumable', value: 'generic-consumable' },
+            ]" @update:model-value="parameter.materialSource.allowedKinds = $event ? [$event] : []" />
+            <SelectField :model-value="parameter.materialSource.exposedAttributeKey" label="Exposed specification" :options="[
+              { label: 'Choose specification…', value: '' },
+              { label: 'Grammage (gsm)', value: 'grammage_gsm' },
+              { label: 'Material subtype', value: 'material_subtype' },
+              { label: 'Finish', value: 'finish' },
+              { label: 'Coating', value: 'coating' },
+              { label: 'Color', value: 'color' },
+            ]" @update:model-value="parameter.materialSource.exposedAttributeKey = $event" />
+          </div>
+          <label class="flex items-center gap-2 text-sm"><input v-model="parameter.materialSource.selectMaterial" class="checkbox checkbox-sm" type="checkbox" />Also require explicit material selection when multiple physical materials match</label>
+          <p class="text-xs leading-5 text-base-content/60">Allowed values are populated from real compatible inventory materials at order time.</p>
+          </div>
+          <div v-else class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
+            <div class="flex flex-wrap items-center justify-between gap-2"><div><h4 class="text-sm font-semibold">Choices the operator can pick</h4><p class="mt-1 text-xs text-base-content/60">For arbitrary non-inventory choices, add stable option values.</p></div><button class="btn btn-outline btn-sm" type="button" @click="emit('addOption')"><Plus :size="14" aria-hidden="true" />Add choice</button></div>
+            <div v-if="parameter.options.length" class="grid min-w-0 gap-2 sm:grid-cols-2"><div v-for="(option, optionIndex) in parameter.options" :key="`${parameter.id}-${optionIndex}`" class="flex min-w-0 items-center gap-2"><AppInput :model-value="parameter.options[optionIndex]" class="input w-full min-w-0" type="text" required :aria-label="`Choice ${optionIndex + 1}`" placeholder="A4" @update:model-value="updateOption(optionIndex, option, $event)" /><button class="btn btn-outline btn-error btn-sm shrink-0" type="button" :aria-label="`Remove choice ${optionIndex + 1}`" @click="emit('removeOption', optionIndex)"><Trash2 :size="13" aria-hidden="true" /></button></div></div>
+            <p v-else class="rounded-box border border-dashed border-base-300 p-3 text-sm text-base-content/60">Add at least one choice.</p>
+            <SelectField v-if="parameter.options.length" v-model="parameter.defaultValue" label="Default choice" :options="[{ label: 'No default choice', value: '' }, ...parameter.options.map((option) => ({ label: option, value: option }))]" />
+          </div>
+        </div>
         <div v-else class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div><h4 class="text-sm font-semibold">Choices the operator can pick</h4><p class="mt-1 text-xs text-base-content/60">For paper sizes, add choices such as A4 and A5.</p></div>

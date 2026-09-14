@@ -193,8 +193,7 @@ func (s *Store) DeleteDraftPurchase(ctx context.Context, id string) error {
 	if status != domain.PurchaseDraft {
 		return domain.ErrPurchaseNotDraft
 	}
-	_, e = s.db.ExecContext(ctx, `DELETE FROM purchases WHERE id=?`, id)
-	return e
+	return s.DeletePurchase(ctx, id)
 }
 
 func (s *Store) ArchivePurchase(ctx context.Context, id string) error {
@@ -222,43 +221,118 @@ func (s *Store) UnarchivePurchase(ctx context.Context, id string) error {
 }
 
 func (s *Store) PurchaseHasDependencies(ctx context.Context, id string) (bool, error) {
-	queries := []string{
-		`SELECT COUNT(*) FROM payment_allocations WHERE target_type='purchase' AND target_id=?`,
-		`SELECT COUNT(*) FROM production_consumptions pc JOIN purchase_items pi ON pi.material_id=pc.material_id WHERE pi.purchase_id=?`,
+	var count int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM production_consumptions pc JOIN purchase_items pi ON pi.material_id=pc.material_id JOIN purchases p ON p.id=pi.purchase_id WHERE pi.purchase_id=? AND p.status=?`, id, domain.PurchasePosted).Scan(&count); err != nil {
+		return false, err
 	}
-	for _, query := range queries {
-		var count int
-		if err := s.db.QueryRowContext(ctx, query, id).Scan(&count); err != nil {
-			return false, err
-		}
-		if count > 0 {
-			return true, nil
-		}
-	}
-	return false, nil
+	return count > 0, nil
 }
 
 func (s *Store) PurchaseItemHasDependencies(ctx context.Context, purchaseID, itemID string) (bool, error) {
 	var count int
-	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM production_consumptions pc JOIN purchase_items pi ON pi.material_id=pc.material_id WHERE pi.purchase_id=? AND pi.id=?`, purchaseID, itemID).Scan(&count)
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM production_consumptions pc JOIN purchase_items pi ON pi.material_id=pc.material_id JOIN purchases p ON p.id=pi.purchase_id WHERE pi.purchase_id=? AND pi.id=? AND p.status=?`, purchaseID, itemID, domain.PurchasePosted).Scan(&count)
 	return count > 0, err
 }
 
 func (s *Store) DeletePurchase(ctx context.Context, id string) error {
-	blocked, err := s.PurchaseHasDependencies(ctx, id)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	if blocked {
-		return domain.ErrPurchaseDeleteProtected
+	fail := func(e error) error { _ = tx.Rollback(); return e }
+	var status, journalID string
+	if err = tx.QueryRowContext(ctx, `SELECT status,COALESCE(accounting_journal_entry_id,'') FROM purchases WHERE id=?`, id).Scan(&status, &journalID); errors.Is(err, sql.ErrNoRows) {
+		return fail(domain.ErrPurchaseNotFound)
 	}
-	result, err := s.db.ExecContext(ctx, `DELETE FROM purchases WHERE id=?`, id)
 	if err != nil {
-		return err
+		return fail(err)
+	}
+	if status == domain.PurchasePosted {
+		return fail(fmt.Errorf("posted purchase must be cancelled before deletion"))
+	}
+	var productionCount int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM production_consumptions pc JOIN purchase_items pi ON pi.material_id=pc.material_id JOIN purchases p ON p.id=pi.purchase_id WHERE pi.purchase_id=? AND p.status=?`, id, domain.PurchasePosted).Scan(&productionCount); err != nil {
+		return fail(err)
+	}
+	if productionCount > 0 {
+		return fail(domain.ErrPurchaseDeleteProtected)
+	}
+	if err = s.deletePurchasePaymentsTx(ctx, tx, id); err != nil {
+		return fail(fmt.Errorf("remove purchase payments: %w", err))
+	}
+	// Posted purchases are cancelled by the application before this method is
+	// called. Keep the immutable purchase journal and its compensating entry as
+	// accounting history, but detach the deleted operational record from it.
+	if journalID != "" {
+		if _, err = tx.ExecContext(ctx, `UPDATE purchases SET accounting_journal_entry_id=NULL WHERE id=?`, id); err != nil {
+			return fail(err)
+		}
+	}
+	result, err := tx.ExecContext(ctx, `DELETE FROM purchases WHERE id=?`, id)
+	if err != nil {
+		return fail(err)
 	}
 	count, _ := result.RowsAffected()
 	if count == 0 {
-		return domain.ErrPurchaseNotFound
+		return fail(domain.ErrPurchaseNotFound)
+	}
+	return tx.Commit()
+}
+
+// deletePurchasePaymentsTx removes allocations belonging to the purchase.
+// A payment used only by this purchase is reversed before its operational row
+// is removed; a mixed payment remains because deleting it would damage the
+// other allocation. Immutable journal rows are retained for accounting audit.
+func (s *Store) deletePurchasePaymentsTx(ctx context.Context, tx *sql.Tx, purchaseID string) error {
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT payment_id FROM payment_allocations WHERE target_type='purchase' AND target_id=? ORDER BY payment_id`, purchaseID)
+	if err != nil {
+		return err
+	}
+	var paymentIDs []string
+	for rows.Next() {
+		var paymentID string
+		if err = rows.Scan(&paymentID); err != nil {
+			rows.Close()
+			return err
+		}
+		paymentIDs = append(paymentIDs, paymentID)
+	}
+	if err = rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	if err = rows.Close(); err != nil {
+		return err
+	}
+	for _, paymentID := range paymentIDs {
+		var unrelated int
+		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM payment_allocations WHERE payment_id=? AND NOT (target_type='purchase' AND target_id=?)`, paymentID, purchaseID).Scan(&unrelated); err != nil {
+			return err
+		}
+		if unrelated > 0 {
+			if _, err = tx.ExecContext(ctx, `DELETE FROM payment_allocations WHERE payment_id=? AND target_type='purchase' AND target_id=?`, paymentID, purchaseID); err != nil {
+				return err
+			}
+			continue
+		}
+		var status string
+		if err = tx.QueryRowContext(ctx, `SELECT status FROM payments WHERE id=?`, paymentID).Scan(&status); errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if status == string(domain.PaymentPosted) {
+			if err = s.reversePaymentTx(ctx, tx, paymentID, "payment:purchase-delete:"+purchaseID+":"+paymentID); err != nil {
+				return err
+			}
+		}
+		if _, err = tx.ExecContext(ctx, `DELETE FROM payment_allocations WHERE payment_id=?`, paymentID); err != nil {
+			return err
+		}
+		if _, err = tx.ExecContext(ctx, `DELETE FROM payments WHERE id=?`, paymentID); err != nil {
+			return err
+		}
 	}
 	return nil
 }

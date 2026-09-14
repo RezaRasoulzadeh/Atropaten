@@ -20,8 +20,9 @@ import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
 import type { CurrencyUnit } from '../../utils/currency'
 import ServiceCostComponentsStep from './ServiceCostComponentsStep.vue'
-import type { ParameterTemplateSeed, ServiceForm } from './types'
+import type { ParameterTemplateSeed, PredefinedParameter, ServiceForm } from './types'
 import type { TestPricingResult, TestValues } from './serviceTestPricing'
+import { ensureSuggestedCostComponents, reconcileCostComponents } from './serviceComponentSync'
 
 const props = defineProps<{
   form: ServiceForm
@@ -35,6 +36,7 @@ const props = defineProps<{
   services: ServiceRecord[]
   serviceId?: string
   currencyUnit: CurrencyUnit
+  predefinedParameters: PredefinedParameter[]
 }>()
 const emit = defineEmits<{
   cancel: []
@@ -64,16 +66,26 @@ function submit() {
   else emit('save')
 }
 
+function goToStep(number: number) {
+  reconcileCostComponents(props.form.components, props.form.parameters)
+  if (number === 3) ensureSuggestedCostComponents(props.form.components, props.form.parameters)
+  activeStep.value = number
+}
+function requestSave() {
+  reconcileCostComponents(props.form.components, props.form.parameters)
+  emit('save')
+}
+
 function next() {
   if (props.busy || props.isSaving) return
   if (activeStep.value === 1) {
     const formElement = document.querySelector<HTMLFormElement>('#service-editor')
     if (formElement && !formElement.reportValidity()) return
   }
-  if (activeStep.value < steps.length) activeStep.value += 1
+  if (activeStep.value < steps.length) goToStep(activeStep.value + 1)
 }
 function previous() {
-  if (activeStep.value > 1) activeStep.value -= 1
+  if (activeStep.value > 1) goToStep(activeStep.value - 1)
 }
 function browseImage() {
   imageInput.value?.click()
@@ -116,11 +128,20 @@ function stepClass(number: number) {
   if (number < activeStep.value) return 'wizard-step-complete'
   return 'wizard-step-idle'
 }
+function stepDescription(number: number, fallback: string) {
+  if (number === 2) return `${props.form.parameters.length} parameter${props.form.parameters.length === 1 ? '' : 's'} configured`
+  if (number === 3) return `${props.form.components.length} cost component${props.form.components.length === 1 ? '' : 's'} configured`
+  if (number === 4) return props.form.pricingRule?.type === 'manual' ? 'Manual price setup' : 'Selling price rules'
+  if (number === 5) return testResult.value ? 'Test result available' : 'Try it with real values'
+  return fallback
+}
 function applyParameterTemplate(parameters: ParameterTemplateSeed[]) {
   props.form.parameters = parameters.map((parameter, index) => ({
     ...parameter,
     id: `draft-parameter-${Date.now()}-${index}-${Math.random().toString(16).slice(2)}`,
   }))
+  reconcileCostComponents(props.form.components, props.form.parameters)
+  if (activeStep.value === 3) ensureSuggestedCostComponents(props.form.components, props.form.parameters)
 }
 function generateServiceCode(name: string) {
   const words = name
@@ -159,17 +180,17 @@ watch(
       </div>
       <div class="flex shrink-0 items-center gap-2">
         <button class="btn btn-error" type="button" :disabled="busy || isSaving" @click="emit('cancel')">Cancel</button>
-        <button v-if="editorMode === 'create'" class="btn btn-primary gap-2" type="button" :disabled="busy || isSaving" @click="emit('save')"><Save :size="15" aria-hidden="true" />Save as draft</button>
-        <button class="btn btn-success gap-2" type="button" :disabled="busy || isSaving" @click="emit('save')"><Save :size="16" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save' }}</button>
+        <button v-if="editorMode === 'create'" class="btn btn-primary gap-2" type="button" :disabled="busy || isSaving" @click="requestSave"><Save :size="15" aria-hidden="true" />Save as draft</button>
+        <button class="btn btn-success gap-2" type="button" :disabled="busy || isSaving" @click="requestSave"><Save :size="16" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save' }}</button>
       </div>
     </header>
 
     <div class="service-wizard-main flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-visible xl:overflow-hidden">
       <aside class="service-wizard-steps flex min-w-0 shrink-0 flex-col border-b border-base-300 pb-3 xl:sticky xl:top-0 xl:z-20 xl:bg-base-200">
         <nav aria-label="Service setup steps" class="service-wizard-step-nav flex min-w-0 gap-1 overflow-x-auto pb-1 xl:overflow-visible">
-          <button v-for="step in steps" :key="step.number" class="wizard-step w-auto min-w-[11rem] shrink-0 text-start xl:min-w-0 xl:flex-1" :class="stepClass(step.number)" type="button" @click="activeStep = step.number">
+          <button v-for="step in steps" :key="step.number" class="wizard-step w-auto min-w-[11rem] shrink-0 text-start xl:min-w-0 xl:flex-1" :class="stepClass(step.number)" type="button" @click="goToStep(step.number)">
             <span class="wizard-step-number"><CheckCheck v-if="step.number < activeStep" :size="17" :stroke-width="2.2" aria-hidden="true" /><span v-else>{{ step.number }}</span></span>
-            <span class="min-w-0"><strong class="block truncate whitespace-nowrap text-sm">{{ step.title }}</strong><small class="mt-0.5 block truncate whitespace-nowrap text-xs leading-4 text-base-content/60">{{ step.description }}</small></span>
+            <span class="min-w-0"><strong class="block truncate whitespace-nowrap text-sm">{{ step.title }}</strong><small class="mt-0.5 block truncate whitespace-nowrap text-xs leading-4 text-base-content/60">{{ stepDescription(step.number, step.description) }}</small></span>
           </button>
         </nav>
       </aside>
@@ -208,6 +229,7 @@ watch(
             :materials="materials"
             :machines="machines"
             :template-scope="form.code || form.name || 'new-service'"
+            :predefined-parameters="predefinedParameters"
             :show-errors="validationAttempted"
             @apply-template="applyParameterTemplate"
           />
@@ -254,7 +276,7 @@ watch(
         <ServiceOrderPreview v-if="activeStep === 2" :form="form" :materials="materials" :machines="machines" :active="active" />
         <ServiceCostBreakdownPreview v-show="activeStep === 3" :form="form" :active="active" :components="form.components" :parameters="form.parameters" :materials="materials" :machines="machines" :services="services" :currency-unit="currencyUnit" @update:total="pricingCostEstimate = $event" @update:breakdown="pricingBreakdown = $event" />
         <ServicePricingPreview v-if="activeStep === 4" :form="form" :active="active" :pricing-rule="form.pricingRule" :parameters="form.parameters" :estimated-cost-rial="pricingCostEstimate" :breakdown="pricingBreakdown" :currency-unit="currencyUnit" />
-        <ServiceTestPreview v-if="activeStep === 5" :form="form" :active="active" :parameters="form.parameters" :values="testValues" :materials="materials" :machines="machines" :result="testResult" :currency-unit="currencyUnit" @edit="activeStep = 2" />
+        <ServiceTestPreview v-if="activeStep === 5" :form="form" :active="active" :parameters="form.parameters" :values="testValues" :materials="materials" :machines="machines" :result="testResult" :currency-unit="currencyUnit" @edit="goToStep(2)" />
         <template v-if="activeStep === 1">
         <div class="space-y-4">
           <ServiceOverviewIdentity :form="form" :active="active" />
@@ -275,6 +297,6 @@ watch(
         </aside>
       </div>
     </div>
-    <footer class="flex min-w-0 items-center justify-between gap-3 border-t border-base-300 px-1 pt-3"><button class="btn btn-ghost btn-sm" type="button" :disabled="activeStep === 1 || busy || isSaving" @click="previous">Back</button><span class="text-xs text-base-content/55">Step {{ activeStep }} of {{ steps.length }}</span><button v-if="activeStep < steps.length" class="btn btn-primary btn-sm" type="button" @click="next">Continue</button><button v-else class="btn btn-success btn-sm gap-2" type="button" :disabled="busy || isSaving" @click="emit('save')"><Save :size="14" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save service' }}</button></footer>
+    <footer class="flex min-w-0 items-center justify-between gap-3 border-t border-base-300 px-1 pt-3"><button class="btn btn-ghost btn-sm" type="button" :disabled="activeStep === 1 || busy || isSaving" @click="previous">Back</button><span class="text-xs text-base-content/55">Step {{ activeStep }} of {{ steps.length }}</span><button v-if="activeStep < steps.length" class="btn btn-primary btn-sm" type="button" @click="next">Continue</button><button v-else class="btn btn-success btn-sm gap-2" type="button" :disabled="busy || isSaving" @click="requestSave"><Save :size="14" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save service' }}</button></footer>
   </div>
 </template>

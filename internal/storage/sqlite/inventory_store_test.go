@@ -173,6 +173,68 @@ func TestDraftDeleteAndManualAdjustmentUseLedger(t *testing.T) {
 	}
 }
 
+func TestPostedPurchaseDeleteRemovesItsPaymentAndReturnsMaterialStock(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "purchase-delete.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	ctx := context.Background()
+	now := time.Date(2026, 2, 1, 8, 0, 0, 0, time.UTC)
+	supplier := domain.Supplier{ID: "SUP-delete", Name: "Supplier", Active: true, CreatedAt: now, UpdatedAt: now}
+	if err = store.SaveSupplier(ctx, supplier); err != nil {
+		t.Fatal(err)
+	}
+	m, err := domain.NewMaterial("MAT-delete", domain.MaterialDraft{Name: "Stock material", PurchaseUnit: "pack", ConsumptionUnit: "piece", ConversionFactor: domain.QuantityScale}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = store.Create(ctx, m); err != nil {
+		t.Fatal(err)
+	}
+	p := domain.Purchase{ID: "PUR-delete", SupplierID: supplier.ID, SupplierNameSnapshot: supplier.Name, PurchaseDate: now, Status: domain.PurchaseDraft, CreatedAt: now, UpdatedAt: now, Items: []domain.PurchaseItem{{ID: "PITM-delete", MaterialID: m.ID, MaterialNameSnapshot: m.Name, PurchaseUnitSnapshot: m.PurchaseUnit, ConsumptionUnitSnapshot: m.ConsumptionUnit, PurchaseQuantity: 5 * domain.QuantityScale, ConversionFactorSnapshot: domain.QuantityScale, ConsumptionQuantity: 5 * domain.QuantityScale, UnitAcquisitionCostRial: 100, LineTotalRial: 500}}, SubtotalRial: 500, TotalRial: 500}
+	if err = store.SavePurchase(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.PostPurchase(ctx, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	payment := domain.Payment{ID: "PAY-delete", Direction: domain.PaymentOutgoing, Method: domain.PaymentCash, FinancialAccountID: "FIN-CASH", SupplierID: supplier.ID, AmountRial: 500, PostedAt: now, CreatedAt: now, Allocations: []domain.PaymentAllocation{{ID: "AL-delete", TargetType: "purchase", TargetID: p.ID, AmountRial: 500}}}
+	if _, err = store.CreatePayment(ctx, payment); err != nil {
+		t.Fatal(err)
+	}
+	if blocked, depErr := store.PurchaseHasDependencies(ctx, p.ID); depErr != nil || blocked {
+		t.Fatalf("payment should not block purchase deletion: blocked=%v err=%v", blocked, depErr)
+	}
+	if err = store.CancelPurchase(ctx, p.ID); err != nil {
+		t.Fatal("return purchase stock:", err)
+	}
+	if err = store.DeletePurchase(ctx, p.ID); err != nil {
+		t.Fatal("delete purchase:", err)
+	}
+	if _, err = store.GetPurchase(ctx, p.ID); !errors.Is(err, domain.ErrPurchaseNotFound) {
+		t.Fatalf("purchase still exists: %v", err)
+	}
+	if _, err = store.GetPayment(ctx, payment.ID); !errors.Is(err, domain.ErrPaymentNotFound) {
+		t.Fatalf("purchase payment still exists: %v", err)
+	}
+	got, err := store.Get(ctx, m.ID)
+	value, valueErr := store.InventoryValue(ctx, m.ID)
+	if err != nil || valueErr != nil || got.PhysicalStock != 0 || value != 0 {
+		t.Fatalf("material inventory after purchase deletion: stock=%v value=%v err=%v valueErr=%v", got.PhysicalStock, value, err, valueErr)
+	}
+	var allocationCount, paymentCount int
+	if err = store.db.QueryRow(`SELECT COUNT(*) FROM payment_allocations WHERE target_id=?`, p.ID).Scan(&allocationCount); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.db.QueryRow(`SELECT COUNT(*) FROM payments WHERE id=?`, payment.ID).Scan(&paymentCount); err != nil {
+		t.Fatal(err)
+	}
+	if allocationCount != 0 || paymentCount != 0 {
+		t.Fatalf("deleted purchase financial rows remain: allocations=%d payments=%d", allocationCount, paymentCount)
+	}
+}
+
 func TestPurchaseCancellationCannotBreakActiveReservationAvailability(t *testing.T) {
 	store, err := Open(filepath.Join(t.TempDir(), "reserved-cancel.db"))
 	if err != nil {

@@ -110,37 +110,39 @@ func TestPricingServiceCalculatesMaterialSelectedByParameter(t *testing.T) {
 	}
 }
 
-func TestPricingServiceMapsChoiceMaterialOptionToMaterialCost(t *testing.T) {
+func TestPricingServiceCalculatesMaterialBackedChoiceByResolvedMaterial(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	service, err := domain.NewService("SVC-choice-paper", domain.ServiceDraft{
-		Name:       "Choice paper",
-		Parameters: []domain.ServiceParameterDraft{{ID: "P-paper", Key: "paper", Label: "Paper size", Type: domain.ParameterChoice, Required: true, Options: []string{"A4", "A5"}, DefaultValue: "A4"}},
-		Components: []domain.ServiceCostComponentDraft{{ID: "C-paper", Name: "Paper", Type: domain.CostMaterial, UsageMode: domain.UsageParameter, ParameterKey: "paper", UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true}},
+	service, err := domain.NewService("SVC-material-choice", domain.ServiceDraft{
+		Name: "Material-backed paper choice",
+		Parameters: []domain.ServiceParameterDraft{{
+			ID: "P-grammage", Key: "grammage", Label: "Grammage", Type: domain.ParameterChoice, Required: true,
+			MaterialSource: &domain.MaterialParameterSource{AllowedKinds: []domain.MaterialKind{domain.MaterialKindSheetStock}, ExposedAttributeKey: "grammage_gsm"},
+		}},
+		Components: []domain.ServiceCostComponentDraft{{ID: "C-paper", Name: "Paper", Type: domain.CostMaterial, UsageMode: domain.UsageParameter, ParameterKey: "grammage", UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true}},
 	}, now)
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	pricing := NewPricingService(
-		&serviceRepositoryStub{service: service},
-		materialLookupStub{items: []domain.Material{
-			{ID: "MAT-a4", Name: "A4 80gsm paper", SKU: "PAPER-A4", Active: true, HighestPurchaseUnitCostRial: 225},
-			{ID: "MAT-a5", Name: "A5 120gsm paper", SKU: "PAPER-A5", Active: true, HighestPurchaseUnitCostRial: 450},
-		}},
-		machineLookupStub{},
-	)
-	result, err := pricing.Calculate(context.Background(), PricingRequest{ServiceID: service.ID, Parameters: map[string]string{"paper": "A4"}})
+	material := domain.Material{ID: "MAT-170", Name: "170 gsm sheet", Kind: domain.MaterialKindSheetStock, Active: true, PurchaseUnit: "sheet", ConsumptionUnit: "sheet", ConversionFactor: domain.QuantityScale, HighestPurchaseUnitCostRial: 1700, Attributes: []domain.MaterialAttributeValue{{Key: "grammage_gsm", ValueType: domain.MaterialAttributeInteger, IntegerValue: 170}}}
+	pricing := NewPricingService(&serviceRepositoryStub{service: service}, materialLookupStub{items: []domain.Material{material}}, machineLookupStub{})
+	result, err := pricing.Calculate(context.Background(), PricingRequest{ServiceID: service.ID, Parameters: map[string]string{"grammage": "170"}})
 	if err != nil {
-		t.Fatalf("calculate: %v", err)
+		t.Fatalf("calculate material-backed choice: %v", err)
 	}
-	if result.EstimatedCostRial != 225 {
-		t.Fatalf("choice material cost = %d, want 225", result.EstimatedCostRial)
+	if result.EstimatedCostRial != 1700 || len(result.Components) != 1 || result.Components[0].MaterialID != material.ID {
+		t.Fatalf("material-backed choice pricing = %+v, want 1700 Rial using %s", result, material.ID)
 	}
-	result, err = pricing.Calculate(context.Background(), PricingRequest{ServiceID: service.ID, Parameters: map[string]string{"paper": "A5"}})
-	if err != nil {
-		t.Fatalf("calculate alternate choice: %v", err)
-	}
-	if result.EstimatedCostRial != 450 {
-		t.Fatalf("alternate choice material cost = %d, want 450", result.EstimatedCostRial)
+}
+
+func TestPricingServiceDoesNotInferMaterialFromChoiceLabels(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	_, err := domain.NewService("SVC-choice-paper", domain.ServiceDraft{
+		Name:       "Choice paper",
+		Parameters: []domain.ServiceParameterDraft{{ID: "P-paper", Key: "paper", Label: "Paper size", Type: domain.ParameterChoice, Required: true, Options: []string{"A4", "A5"}, DefaultValue: "A4"}},
+		Components: []domain.ServiceCostComponentDraft{{ID: "C-paper", Name: "Paper", Type: domain.CostMaterial, UsageMode: domain.UsageParameter, ParameterKey: "paper", UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true}},
+	}, now)
+	if err == nil {
+		t.Fatal("ordinary choice must not be accepted as an inventory-backed material component")
 	}
 }
 

@@ -767,6 +767,256 @@ var migrations = []migration{{
 		 AND NOT EXISTS(SELECT 1 FROM invoices i JOIN deleted_order_records d ON d.id=i.order_id OR d.invoice_id=i.id WHERE i.id=OLD.invoice_id)
 		BEGIN SELECT RAISE(ABORT,'posted invoice lines are immutable'); END;`,
 	},
+	{
+		version: 32,
+		sql: `CREATE TABLE material_kinds (
+			code TEXT PRIMARY KEY,
+			label TEXT NOT NULL,
+			active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+			display_order INTEGER NOT NULL CHECK(display_order >= 0)
+		);
+		INSERT INTO material_kinds(code,label,display_order) VALUES
+			('sheet-stock','Sheet stock',0),('roll-media','Roll media',1),('board','Board',2),
+			('ink','Ink',3),('lamination-film','Lamination film',4),('adhesive','Adhesive',5),
+			('fabric','Fabric',6),('packaging','Packaging',7),('chemical','Chemical',8),('generic-consumable','Generic consumable',9);
+		ALTER TABLE materials ADD COLUMN material_kind TEXT REFERENCES material_kinds(code);
+		UPDATE materials SET material_kind='generic-consumable' WHERE material_kind IS NULL;
+		CREATE TABLE material_attribute_definitions (
+			attribute_key TEXT PRIMARY KEY,
+			label TEXT NOT NULL,
+			value_type TEXT NOT NULL CHECK(value_type IN ('decimal','integer','enum','text','boolean')),
+			unit_label TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+			display_order INTEGER NOT NULL CHECK(display_order >= 0)
+		);
+		CREATE TABLE material_attribute_definition_kinds (
+			attribute_key TEXT NOT NULL REFERENCES material_attribute_definitions(attribute_key) ON DELETE CASCADE,
+			kind_code TEXT NOT NULL REFERENCES material_kinds(code) ON DELETE CASCADE,
+			PRIMARY KEY(attribute_key,kind_code)
+		);
+		CREATE TABLE material_attribute_enum_options (
+			attribute_key TEXT NOT NULL REFERENCES material_attribute_definitions(attribute_key) ON DELETE CASCADE,
+			option_code TEXT NOT NULL,	option_label TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+			display_order INTEGER NOT NULL CHECK(display_order >= 0), PRIMARY KEY(attribute_key,option_code)
+		);
+		CREATE TABLE material_attribute_values (
+			material_id TEXT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+			attribute_key TEXT NOT NULL REFERENCES material_attribute_definitions(attribute_key) ON DELETE RESTRICT,
+			value_type TEXT NOT NULL CHECK(value_type IN ('decimal','integer','enum','text','boolean')),
+			decimal_value_units INTEGER, integer_value INTEGER, enum_code TEXT, text_value TEXT, boolean_value INTEGER CHECK(boolean_value IS NULL OR boolean_value IN (0,1)),
+			PRIMARY KEY(material_id,attribute_key),
+			FOREIGN KEY(attribute_key,enum_code) REFERENCES material_attribute_enum_options(attribute_key,option_code)
+		);
+		CREATE INDEX material_attribute_values_lookup ON material_attribute_values(attribute_key,value_type,enum_code,integer_value,decimal_value_units);
+		CREATE TABLE service_parameter_material_sources (
+			parameter_id TEXT PRIMARY KEY REFERENCES service_parameters(id) ON DELETE CASCADE,
+			exposed_attribute_key TEXT NOT NULL DEFAULT '', select_material INTEGER NOT NULL DEFAULT 0 CHECK(select_material IN (0,1)),
+			FOREIGN KEY(exposed_attribute_key) REFERENCES material_attribute_definitions(attribute_key) ON DELETE RESTRICT
+		);
+		CREATE TABLE service_parameter_material_kinds (
+			parameter_id TEXT NOT NULL REFERENCES service_parameter_material_sources(parameter_id) ON DELETE CASCADE,
+			kind_code TEXT NOT NULL REFERENCES material_kinds(code) ON DELETE RESTRICT,
+			PRIMARY KEY(parameter_id,kind_code)
+		);
+		CREATE TABLE service_parameter_material_values (
+			parameter_id TEXT NOT NULL REFERENCES service_parameter_material_sources(parameter_id) ON DELETE CASCADE,
+			attribute_key TEXT NOT NULL REFERENCES material_attribute_definitions(attribute_key) ON DELETE RESTRICT,
+			value_type TEXT NOT NULL CHECK(value_type IN ('decimal','integer','enum','text','boolean')),
+			decimal_value_units INTEGER, integer_value INTEGER, enum_code TEXT, text_value TEXT, boolean_value INTEGER CHECK(boolean_value IS NULL OR boolean_value IN (0,1)),
+			FOREIGN KEY(attribute_key,enum_code) REFERENCES material_attribute_enum_options(attribute_key,option_code)
+		);
+		CREATE TABLE service_parameter_material_filters (
+			parameter_id TEXT NOT NULL REFERENCES service_parameter_material_sources(parameter_id) ON DELETE CASCADE,
+			attribute_key TEXT NOT NULL REFERENCES material_attribute_definitions(attribute_key) ON DELETE RESTRICT,
+			value_type TEXT NOT NULL CHECK(value_type IN ('decimal','integer','enum','text','boolean')),
+			decimal_value_units INTEGER, integer_value INTEGER, enum_code TEXT, text_value TEXT, boolean_value INTEGER CHECK(boolean_value IS NULL OR boolean_value IN (0,1)),
+			FOREIGN KEY(attribute_key,enum_code) REFERENCES material_attribute_enum_options(attribute_key,option_code)
+		);
+		INSERT INTO material_attribute_definitions(attribute_key,label,value_type,unit_label,display_order) VALUES
+			('width_mm','Width','decimal','mm',0),('height_mm','Height','decimal','mm',1),('length_mm','Length','decimal','mm',2),
+			('grammage_gsm','Grammage','integer','gsm',3),('thickness_micron','Thickness','integer','micron',4),
+			('material_subtype','Material subtype','enum','',5),('finish','Finish','enum','',6),('coating','Coating','enum','',7),
+			('color','Color','enum','',8),('adhesive_type','Adhesive type','enum','',9);
+		INSERT INTO material_attribute_definition_kinds(attribute_key,kind_code)
+			SELECT d.attribute_key,k.code FROM material_attribute_definitions d CROSS JOIN material_kinds k
+			WHERE d.attribute_key IN ('material_subtype','color');
+		INSERT INTO material_attribute_definition_kinds(attribute_key,kind_code) VALUES
+			('width_mm','sheet-stock'),('height_mm','sheet-stock'),('width_mm','roll-media'),('width_mm','board'),('height_mm','board'),('width_mm','fabric'),('height_mm','fabric'),('width_mm','packaging'),('height_mm','packaging'),
+			('length_mm','roll-media'),('grammage_gsm','sheet-stock'),('grammage_gsm','board'),('grammage_gsm','fabric'),('grammage_gsm','packaging'),('thickness_micron','sheet-stock'),('thickness_micron','roll-media'),('thickness_micron','board'),('thickness_micron','lamination-film'),('thickness_micron','adhesive'),('thickness_micron','fabric'),('thickness_micron','packaging'),
+			('finish','sheet-stock'),('finish','roll-media'),('finish','board'),('finish','fabric'),('finish','lamination-film'),('coating','sheet-stock'),('coating','roll-media'),('coating','board'),('adhesive_type','adhesive'),('adhesive_type','lamination-film');
+	INSERT INTO material_attribute_enum_options(attribute_key,option_code,option_label,display_order) VALUES
+			('material_subtype','coated-paper','Coated paper',0),('material_subtype','uncoated-paper','Uncoated paper',1),('material_subtype','vinyl','Vinyl',2),('material_subtype','sticker','Sticker',3),('material_subtype','canvas','Canvas',4),
+			('finish','matte','Matte',0),('finish','gloss','Gloss',1),('finish','satin','Satin',2),('finish','textured','Textured',3),
+			('coating','none','None',0),('coating','aqueous','Aqueous',1),('coating','uv','UV',2),('coating','laminated','Laminated',3),
+			('color','white','White',0),('color','black','Black',1),('color','clear','Clear',2),('color','transparent','Transparent',3),('color','other','Other',4),
+			('adhesive_type','permanent','Permanent',0),('adhesive_type','removable','Removable',1),('adhesive_type','repositionable','Repositionable',2);`,
+	},
+	{
+		version: 33,
+		sql: `CREATE TABLE service_finished_size_definitions (
+			service_id TEXT PRIMARY KEY REFERENCES services(id) ON DELETE CASCADE,
+			parameter_key TEXT NOT NULL DEFAULT '',
+			width_parameter_key TEXT NOT NULL DEFAULT '',
+			height_parameter_key TEXT NOT NULL DEFAULT '',
+			allow_custom INTEGER NOT NULL DEFAULT 0 CHECK(allow_custom IN (0,1)),
+			allow_rotation INTEGER NOT NULL DEFAULT 1 CHECK(allow_rotation IN (0,1))
+		);
+		CREATE TABLE service_finished_size_options (
+			option_id TEXT PRIMARY KEY,
+			service_id TEXT NOT NULL REFERENCES service_finished_size_definitions(service_id) ON DELETE CASCADE,
+			option_code TEXT NOT NULL,
+			option_label TEXT NOT NULL,
+			width_mm_units INTEGER NOT NULL CHECK(width_mm_units > 0),
+			height_mm_units INTEGER NOT NULL CHECK(height_mm_units > 0),
+			display_order INTEGER NOT NULL CHECK(display_order >= 0),
+			active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+			UNIQUE(service_id, option_code)
+		);
+		CREATE INDEX service_finished_size_options_order ON service_finished_size_options(service_id, display_order, option_id);`,
+	},
+	{
+		version: 34,
+		sql:     `ALTER TABLE service_finished_size_definitions ADD COLUMN quantity_parameter_key TEXT NOT NULL DEFAULT '';`,
+	},
+	{
+		version: 35,
+		sql: `ALTER TABLE service_parameters ADD COLUMN predefined_key TEXT NOT NULL DEFAULT '';
+		CREATE TABLE predefined_parameter_definitions (
+			parameter_key TEXT PRIMARY KEY,
+			label TEXT NOT NULL CHECK(length(trim(label)) > 0),
+			value_type TEXT NOT NULL CHECK(value_type = 'choice'),
+			unit_label TEXT NOT NULL DEFAULT '',
+			active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+			display_order INTEGER NOT NULL CHECK(display_order >= 0)
+		);
+		CREATE TABLE predefined_parameter_options (
+			parameter_key TEXT NOT NULL REFERENCES predefined_parameter_definitions(parameter_key) ON DELETE CASCADE,
+			option_code TEXT NOT NULL,
+			option_label TEXT NOT NULL CHECK(length(trim(option_label)) > 0),
+			width_mm_units INTEGER,
+			height_mm_units INTEGER,
+			active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+			display_order INTEGER NOT NULL CHECK(display_order >= 0),
+			PRIMARY KEY(parameter_key, option_code),
+			CHECK((width_mm_units IS NULL AND height_mm_units IS NULL) OR (width_mm_units > 0 AND height_mm_units > 0))
+		);
+		CREATE INDEX predefined_parameter_options_order ON predefined_parameter_options(parameter_key, display_order, option_code);`,
+		run: seedPredefinedParameters,
+	},
+	{
+		version: 36,
+		sql:     ``,
+		run:     seedPaperTypePredefinedParameter,
+	},
+	{
+		version: 37,
+		sql: `CREATE TABLE material_history_delete_context (
+			material_id TEXT PRIMARY KEY REFERENCES materials(id) ON DELETE CASCADE
+		);
+		DROP TRIGGER inventory_movements_immutable_delete;
+		CREATE TRIGGER inventory_movements_immutable_delete BEFORE DELETE ON inventory_movements
+		WHEN NOT EXISTS (SELECT 1 FROM material_history_delete_context WHERE material_id=OLD.material_id)
+		BEGIN SELECT RAISE(ABORT, 'inventory movements are immutable'); END;`,
+	},
+	{
+		version: 38,
+		sql:     `ALTER TABLE machine_rates ADD COLUMN selector_predefined_key TEXT NOT NULL DEFAULT '';`,
+		run:     seedColorPredefinedParameter,
+	},
+}
+
+func seedPredefinedParameters(ctx context.Context, tx *sql.Tx) error {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO predefined_parameter_definitions(parameter_key,label,value_type,unit_label,active,display_order) VALUES(?,?,?,?,1,0)`, domain.PredefinedParameterPrintSize, "Print size", string(domain.ParameterChoice), "mm"); err != nil {
+		return err
+	}
+	type size struct {
+		code, label   string
+		width, height any
+	}
+	// The catalog intentionally contains common ISO/DIN, envelope, North
+	// American, and print-shop sizes. Custom remains a valid option without
+	// dimensions for services that collect dimensions separately in the future.
+	sizes := []size{
+		{"a0", "A0", 841 * domain.QuantityScale, 1189 * domain.QuantityScale},
+		{"a1", "A1", 594 * domain.QuantityScale, 841 * domain.QuantityScale},
+		{"a2", "A2", 420 * domain.QuantityScale, 594 * domain.QuantityScale},
+		{"a3", "A3", 297 * domain.QuantityScale, 420 * domain.QuantityScale},
+		{"a4", "A4", 210 * domain.QuantityScale, 297 * domain.QuantityScale},
+		{"a5", "A5", 148 * domain.QuantityScale, 210 * domain.QuantityScale},
+		{"a6", "A6", 105 * domain.QuantityScale, 148 * domain.QuantityScale},
+		{"a7", "A7", 74 * domain.QuantityScale, 105 * domain.QuantityScale},
+		{"a8", "A8", 52 * domain.QuantityScale, 74 * domain.QuantityScale},
+		{"b0", "B0", 1000 * domain.QuantityScale, 1414 * domain.QuantityScale},
+		{"b1", "B1", 707 * domain.QuantityScale, 1000 * domain.QuantityScale},
+		{"b2", "B2", 500 * domain.QuantityScale, 707 * domain.QuantityScale},
+		{"b3", "B3", 353 * domain.QuantityScale, 500 * domain.QuantityScale},
+		{"b4", "B4", 250 * domain.QuantityScale, 353 * domain.QuantityScale},
+		{"b5", "B5", 176 * domain.QuantityScale, 250 * domain.QuantityScale},
+		{"b6", "B6", 125 * domain.QuantityScale, 176 * domain.QuantityScale},
+		{"c4", "C4 envelope", 229 * domain.QuantityScale, 324 * domain.QuantityScale},
+		{"c5", "C5 envelope", 162 * domain.QuantityScale, 229 * domain.QuantityScale},
+		{"c6", "C6 envelope", 114 * domain.QuantityScale, 162 * domain.QuantityScale},
+		{"dl", "DL envelope", 110 * domain.QuantityScale, 220 * domain.QuantityScale},
+		{"letter", "US Letter", 216 * domain.QuantityScale, 279 * domain.QuantityScale},
+		{"legal", "US Legal", 216 * domain.QuantityScale, 356 * domain.QuantityScale},
+		{"tabloid", "US Tabloid", 279 * domain.QuantityScale, 432 * domain.QuantityScale},
+		{"business-card", "Business card", 90 * domain.QuantityScale, 50 * domain.QuantityScale},
+		{"business-card-eu", "European business card", 85 * domain.QuantityScale, 55 * domain.QuantityScale},
+		{"custom", "Custom size", nil, nil},
+	}
+	for position, option := range sizes {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO predefined_parameter_options(parameter_key,option_code,option_label,width_mm_units,height_mm_units,active,display_order) VALUES(?,?,?,?,?,1,?)`, domain.PredefinedParameterPrintSize, option.code, option.label, option.width, option.height, position); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func seedPaperTypePredefinedParameter(ctx context.Context, tx *sql.Tx) error {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO predefined_parameter_definitions(parameter_key,label,value_type,unit_label,active,display_order) VALUES(?,?,?,?,1,1)`, domain.PredefinedParameterPaperType, "Paper type", string(domain.ParameterChoice), ""); err != nil {
+		return err
+	}
+	types := []struct{ code, label string }{
+		{"uncoated", "Uncoated paper"},
+		{"coated", "Coated paper"},
+		{"matte-coated", "Matte coated paper"},
+		{"gloss-coated", "Gloss coated paper"},
+		{"silk-coated", "Silk coated paper"},
+		{"kraft", "Kraft paper"},
+		{"recycled", "Recycled paper"},
+		{"newsprint", "Newsprint"},
+		{"photo", "Photo paper"},
+		{"synthetic", "Synthetic paper"},
+		{"carbonless", "Carbonless paper"},
+		{"label-paper", "Label paper"},
+	}
+	for position, item := range types {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO predefined_parameter_options(parameter_key,option_code,option_label,width_mm_units,height_mm_units,active,display_order) VALUES(?,?,?,NULL,NULL,1,?)`, domain.PredefinedParameterPaperType, item.code, item.label, position); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func seedColorPredefinedParameter(ctx context.Context, tx *sql.Tx) error {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO predefined_parameter_definitions(parameter_key,label,value_type,unit_label,active,display_order) VALUES(?,?,?,?,1,2)`, domain.PredefinedParameterColor, "Color", string(domain.ParameterChoice), ""); err != nil {
+		return err
+	}
+	colors := []struct{ code, label string }{
+		{"black-and-white", "Black & white"},
+		{"grayscale", "Grayscale"},
+		{"full-color", "Full color"},
+		{"spot-color", "Spot color"},
+		{"white-ink", "White ink"},
+		{"clear-ink", "Clear ink"},
+		{"metallic-ink", "Metallic ink"},
+		{"other", "Other"},
+	}
+	for position, item := range colors {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO predefined_parameter_options(parameter_key,option_code,option_label,width_mm_units,height_mm_units,active,display_order) VALUES(?,?,?,NULL,NULL,1,?)`, domain.PredefinedParameterColor, item.code, item.label, position); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Store) seedAccounting(ctx context.Context) error {
@@ -855,7 +1105,7 @@ func (s *Store) ensureLegacyOpeningMovements(ctx context.Context) error {
 }
 
 func (s *Store) List(ctx context.Context, includeArchived bool) ([]domain.Material, error) {
-	query := `SELECT id, name, sku, category, purchase_unit, consumption_unit,
+	query := `SELECT id, name, sku, category, material_kind, purchase_unit, consumption_unit,
 		conversion_factor_units, physical_stock_units, reorder_level_units,
 		average_unit_cost_rial, preferred_supplier, notes, active, created_at, updated_at
 		FROM materials`
@@ -883,6 +1133,10 @@ func (s *Store) List(ctx context.Context, includeArchived bool) ([]domain.Materi
 		return nil, fmt.Errorf("close materials: %w", err)
 	}
 	for i := range materials {
+		materials[i].Attributes, err = s.loadMaterialAttributes(ctx, materials[i].ID)
+		if err != nil {
+			return nil, err
+		}
 		materials[i], err = s.withInventorySummary(ctx, materials[i])
 		if err != nil {
 			return nil, err
@@ -891,8 +1145,69 @@ func (s *Store) List(ctx context.Context, includeArchived bool) ([]domain.Materi
 	return materials, nil
 }
 
+func (s *Store) ListMaterialAttributeDefinitions(ctx context.Context) ([]domain.MaterialAttributeDefinition, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT attribute_key,label,value_type,unit_label,active,display_order FROM material_attribute_definitions ORDER BY display_order,attribute_key`)
+	if err != nil {
+		return nil, fmt.Errorf("list material attribute definitions: %w", err)
+	}
+	definitions := []domain.MaterialAttributeDefinition{}
+	for rows.Next() {
+		var definition domain.MaterialAttributeDefinition
+		var valueType string
+		var active int
+		if err := rows.Scan(&definition.Key, &definition.Label, &valueType, &definition.Unit, &active, &definition.Position); err != nil {
+			return nil, err
+		}
+		definition.ValueType, definition.Active = domain.MaterialAttributeValueType(valueType), active == 1
+		definitions = append(definitions, definition)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	for index := range definitions {
+		definition := &definitions[index]
+		kindRows, err := s.db.QueryContext(ctx, `SELECT kind_code FROM material_attribute_definition_kinds WHERE attribute_key=? ORDER BY kind_code`, definition.Key)
+		if err != nil {
+			return nil, err
+		}
+		for kindRows.Next() {
+			var kind string
+			if err := kindRows.Scan(&kind); err != nil {
+				kindRows.Close()
+				return nil, err
+			}
+			definition.ApplicableKinds = append(definition.ApplicableKinds, domain.MaterialKind(kind))
+		}
+		if err := kindRows.Close(); err != nil {
+			return nil, err
+		}
+		optionRows, err := s.db.QueryContext(ctx, `SELECT option_code,option_label,active,display_order FROM material_attribute_enum_options WHERE attribute_key=? ORDER BY display_order,option_code`, definition.Key)
+		if err != nil {
+			return nil, err
+		}
+		for optionRows.Next() {
+			var option domain.MaterialAttributeEnumOption
+			var active int
+			if err := optionRows.Scan(&option.Code, &option.Label, &active, &option.Position); err != nil {
+				optionRows.Close()
+				return nil, err
+			}
+			option.Active = active == 1
+			definition.EnumOptions = append(definition.EnumOptions, option)
+		}
+		if err := optionRows.Close(); err != nil {
+			return nil, err
+		}
+	}
+	return definitions, nil
+}
+
 func (s *Store) Get(ctx context.Context, id string) (domain.Material, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, name, sku, category, purchase_unit, consumption_unit,
+	row := s.db.QueryRowContext(ctx, `SELECT id, name, sku, category, material_kind, purchase_unit, consumption_unit,
 		conversion_factor_units, physical_stock_units, reorder_level_units,
 		average_unit_cost_rial, preferred_supplier, notes, active, created_at, updated_at
 		FROM materials WHERE id = ?`, id)
@@ -903,6 +1218,10 @@ func (s *Store) Get(ctx context.Context, id string) (domain.Material, error) {
 	if err != nil {
 		return domain.Material{}, fmt.Errorf("get material: %w", err)
 	}
+	material.Attributes, err = s.loadMaterialAttributes(ctx, material.ID)
+	if err != nil {
+		return domain.Material{}, err
+	}
 	material, err = s.withInventorySummary(ctx, material)
 	if err != nil {
 		return domain.Material{}, err
@@ -911,16 +1230,19 @@ func (s *Store) Get(ctx context.Context, id string) (domain.Material, error) {
 }
 
 func (s *Store) Create(ctx context.Context, material domain.Material) error {
+	if material.Kind == "" {
+		material.Kind = domain.MaterialKindGenericConsumable
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin create material: %w", err)
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO materials
-		(id, name, sku, category, purchase_unit, consumption_unit, conversion_factor_units,
+		(id, name, sku, category, material_kind, purchase_unit, consumption_unit, conversion_factor_units,
 		physical_stock_units, reorder_level_units, average_unit_cost_rial, preferred_supplier,
 		notes, active, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		material.ID, material.Name, material.SKU, material.Category, material.PurchaseUnit, material.ConsumptionUnit,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		material.ID, material.Name, material.SKU, material.Category, string(material.Kind), material.PurchaseUnit, material.ConsumptionUnit,
 		material.ConversionFactor, material.PhysicalStock, material.ReorderLevel, material.AverageUnitCostRial,
 		material.PreferredSupplier, material.Notes, boolToInt(material.Active), material.CreatedAt.UTC().Format(time.RFC3339Nano), material.UpdatedAt.UTC().Format(time.RFC3339Nano))
 	if err != nil {
@@ -939,6 +1261,10 @@ func (s *Store) Create(ctx context.Context, material domain.Material) error {
 			return fmt.Errorf("create opening balance: %w", e)
 		}
 	}
+	if err := s.saveMaterialAttributes(ctx, tx, material); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit material: %w", err)
 	}
@@ -946,29 +1272,40 @@ func (s *Store) Create(ctx context.Context, material domain.Material) error {
 }
 
 func (s *Store) Update(ctx context.Context, material domain.Material) error {
-	result, err := s.db.ExecContext(ctx, `UPDATE materials SET name = ?, sku = ?, category = ?,
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin material update: %w", err)
+	}
+	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	result, err := tx.ExecContext(ctx, `UPDATE materials SET name = ?, sku = ?, category = ?, material_kind = ?,
 		purchase_unit = ?, consumption_unit = ?, conversion_factor_units = ?,
 		reorder_level_units = ?, preferred_supplier = ?, notes = ?,
 		active = ?, updated_at = ? WHERE id = ?`,
-		material.Name, material.SKU, material.Category, material.PurchaseUnit, material.ConsumptionUnit,
+		material.Name, material.SKU, material.Category, string(material.Kind), material.PurchaseUnit, material.ConsumptionUnit,
 		material.ConversionFactor, material.ReorderLevel,
 		material.PreferredSupplier, material.Notes, boolToInt(material.Active), material.UpdatedAt.UTC().Format(time.RFC3339Nano), material.ID)
 	if err != nil {
-		return fmt.Errorf("update material: %w", err)
+		return rollback(fmt.Errorf("update material: %w", err))
 	}
 	count, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("check material update: %w", err)
+		return rollback(fmt.Errorf("check material update: %w", err))
 	}
 	if count == 0 {
-		return domain.ErrMaterialNotFound
+		return rollback(domain.ErrMaterialNotFound)
+	}
+	if err := s.saveMaterialAttributes(ctx, tx, material); err != nil {
+		return rollback(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit material update: %w", err)
 	}
 	return nil
 }
 
-// Delete permanently removes only a material with no authoritative history.
-// Once referenced by inventory, purchasing, production, or a service recipe,
-// archive semantics are required to preserve that history.
+// Delete permanently removes a material only when it has no live inventory or
+// operational dependency. Its reversible inventory ledger is material-owned
+// history and is purged atomically with the material.
 func (s *Store) Delete(ctx context.Context, materialID string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -982,11 +1319,18 @@ func (s *Store) Delete(ctx context.Context, materialID string) error {
 	if count == 0 {
 		return fail(domain.ErrMaterialNotFound)
 	}
+	state, err := inventoryStateTx(ctx, tx, materialID)
+	if err != nil {
+		return fail(err)
+	}
+	if state.PhysicalStock > 0 || state.ReservedStock > 0 {
+		return fail(domain.ErrMaterialDeleteProtected)
+	}
 	for _, query := range []string{
 		`SELECT COUNT(*) FROM purchase_items WHERE material_id=?`,
-		`SELECT COUNT(*) FROM inventory_movements WHERE material_id=?`,
-		`SELECT COUNT(*) FROM inventory_reservations WHERE material_id=?`,
+		`SELECT COUNT(*) FROM inventory_reservations WHERE material_id=? AND status='active'`,
 		`SELECT COUNT(*) FROM production_consumptions WHERE material_id=?`,
+		`SELECT COUNT(*) FROM production_material_plans WHERE material_id=?`,
 		`SELECT COUNT(*) FROM service_cost_components WHERE component_type='material' AND reference_id=?`,
 	} {
 		if err = tx.QueryRowContext(ctx, query, materialID).Scan(&count); err != nil {
@@ -995,6 +1339,18 @@ func (s *Store) Delete(ctx context.Context, materialID string) error {
 		if count > 0 {
 			return fail(domain.ErrMaterialDeleteProtected)
 		}
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO material_history_delete_context(material_id) VALUES(?)`, materialID); err != nil {
+		return fail(fmt.Errorf("authorize material history purge: %w", err))
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM inventory_movements WHERE material_id=?`, materialID); err != nil {
+		return fail(fmt.Errorf("delete material inventory history: %w", err))
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM inventory_reservations WHERE material_id=?`, materialID); err != nil {
+		return fail(fmt.Errorf("delete material reservations: %w", err))
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM material_history_delete_context WHERE material_id=?`, materialID); err != nil {
+		return fail(fmt.Errorf("finish material history purge: %w", err))
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM materials WHERE id=?`, materialID); err != nil {
 		return fail(fmt.Errorf("delete material: %w", err))
@@ -1108,7 +1464,16 @@ func (s *Store) SaveMachine(ctx context.Context, machine domain.Machine) error {
 		return fail(fmt.Errorf("replace machine rates: %w", err))
 	}
 	for _, rate := range rates {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO machine_rates (machine_id, rate_id, rate_name, selector_value, rate_basis, rate_rial, setup_cost_rial, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, machine.ID, rate.ID, rate.Name, rate.SelectorValue, rate.RateBasis, rate.RateRial, rate.SetupCostRial, boolToInt(rate.Active)); err != nil {
+		if rate.SelectorPredefinedKey != "" {
+			var optionCount int
+			if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM predefined_parameter_options WHERE parameter_key=? AND option_code=? AND active=1`, rate.SelectorPredefinedKey, rate.SelectorValue).Scan(&optionCount); err != nil {
+				return fail(fmt.Errorf("validate machine rate selector: %w", err))
+			}
+			if optionCount == 0 {
+				return fail(fmt.Errorf("machine rate selector %q is not an active option of predefined parameter %q", rate.SelectorValue, rate.SelectorPredefinedKey))
+			}
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO machine_rates (machine_id, rate_id, rate_name, selector_value, selector_predefined_key, rate_basis, rate_rial, setup_cost_rial, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, machine.ID, rate.ID, rate.Name, rate.SelectorValue, rate.SelectorPredefinedKey, rate.RateBasis, rate.RateRial, rate.SetupCostRial, boolToInt(rate.Active)); err != nil {
 			return fail(fmt.Errorf("insert machine rate: %w", err))
 		}
 	}
@@ -1187,6 +1552,11 @@ func (s *Store) ListServices(ctx context.Context, includeArchived bool) ([]domai
 		if err != nil {
 			return nil, err
 		}
+		services[index].FinishedSize, err = s.loadFinishedSize(ctx, services[index].ID)
+		if err != nil {
+			return nil, err
+		}
+		hydratePredefinedFinishedSize(&services[index])
 	}
 	return services, nil
 }
@@ -1212,12 +1582,54 @@ func (s *Store) GetService(ctx context.Context, id string) (domain.Service, erro
 	if err != nil {
 		return domain.Service{}, err
 	}
+	service.FinishedSize, err = s.loadFinishedSize(ctx, service.ID)
+	if err != nil {
+		return domain.Service{}, err
+	}
+	hydratePredefinedFinishedSize(&service)
 	return service, nil
+}
+
+// hydratePredefinedFinishedSize is a read-time compatibility projection. New
+// services store the shared print-size parameter only; the existing domain
+// consumption strategy can continue to resolve dimensions from this view.
+func hydratePredefinedFinishedSize(service *domain.Service) {
+	if service.FinishedSize != nil {
+		return
+	}
+	for _, parameter := range service.Parameters {
+		if parameter.PredefinedKey != domain.PredefinedParameterPrintSize {
+			continue
+		}
+		definition := &domain.ServiceFinishedSizeDefinition{ParameterKey: parameter.Key, AllowRotation: true}
+		for _, candidate := range service.Parameters {
+			if candidate.Key == "quantity" && (candidate.Type == domain.ParameterInteger || candidate.Type == domain.ParameterDecimal) {
+				definition.QuantityParameterKey = candidate.Key
+				break
+			}
+		}
+		if definition.QuantityParameterKey == "" {
+			for _, candidate := range service.Parameters {
+				if candidate.Type == domain.ParameterInteger || candidate.Type == domain.ParameterDecimal {
+					definition.QuantityParameterKey = candidate.Key
+					break
+				}
+			}
+		}
+		for _, option := range parameter.PredefinedOptions {
+			if !option.Active || option.WidthMM == nil || option.HeightMM == nil {
+				continue
+			}
+			definition.Options = append(definition.Options, domain.FinishedSizeOption{ID: "PREDEFINED-" + option.Code, Code: option.Code, Label: option.Label, WidthMM: *option.WidthMM, HeightMM: *option.HeightMM, Position: len(definition.Options), Active: true})
+		}
+		service.FinishedSize = definition
+		return
+	}
 }
 
 func (s *Store) loadParameters(ctx context.Context, serviceID string) ([]domain.ServiceParameter, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, service_id, parameter_key, label, parameter_type, required,
-		display_order, default_value, min_value_units, max_value_units, unit_label, active, created_at, updated_at
+		display_order, default_value, min_value_units, max_value_units, unit_label, predefined_key, active, created_at, updated_at
 		FROM service_parameters WHERE service_id = ? ORDER BY display_order, id`, serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("list service parameters: %w", err)
@@ -1243,8 +1655,101 @@ func (s *Store) loadParameters(ctx context.Context, serviceID string) ([]domain.
 		if err != nil {
 			return nil, err
 		}
+		parameters[index].MaterialSource, err = s.loadMaterialParameterSource(ctx, parameters[index].ID)
+		if err != nil {
+			return nil, err
+		}
+		if parameters[index].PredefinedKey != "" {
+			definition, loadErr := s.loadPredefinedParameter(ctx, parameters[index].PredefinedKey)
+			if loadErr != nil {
+				return nil, loadErr
+			}
+			if definition != nil {
+				parameters[index].PredefinedOptions = definition.Options
+				parameters[index].Options = make([]string, 0, len(definition.Options))
+				for _, option := range definition.Options {
+					if option.Active {
+						parameters[index].Options = append(parameters[index].Options, option.Code)
+					}
+				}
+			}
+		}
 	}
 	return parameters, nil
+}
+
+func (s *Store) ListPredefinedParameters(ctx context.Context) ([]domain.PredefinedParameterDefinition, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT parameter_key,label,value_type,unit_label,active,display_order FROM predefined_parameter_definitions ORDER BY display_order,parameter_key`)
+	if err != nil {
+		return nil, fmt.Errorf("list predefined parameters: %w", err)
+	}
+	result := make([]domain.PredefinedParameterDefinition, 0)
+	for rows.Next() {
+		var definition domain.PredefinedParameterDefinition
+		var valueType string
+		var active int
+		if err := rows.Scan(&definition.Key, &definition.Label, &valueType, &definition.Unit, &active, &definition.Position); err != nil {
+			return nil, err
+		}
+		definition.ValueType = domain.ParameterType(valueType)
+		definition.Active = active == 1
+		result = append(result, definition)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	for index := range result {
+		loaded, err := s.loadPredefinedParameter(ctx, result[index].Key)
+		if err != nil {
+			return nil, err
+		}
+		if loaded != nil {
+			result[index].Options = loaded.Options
+		}
+	}
+	return result, nil
+}
+
+func (s *Store) loadPredefinedParameter(ctx context.Context, key string) (*domain.PredefinedParameterDefinition, error) {
+	var definition domain.PredefinedParameterDefinition
+	var valueType string
+	var active int
+	if err := s.db.QueryRowContext(ctx, `SELECT parameter_key,label,value_type,unit_label,active,display_order FROM predefined_parameter_definitions WHERE parameter_key=?`, key).Scan(&definition.Key, &definition.Label, &valueType, &definition.Unit, &active, &definition.Position); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read predefined parameter %q: %w", key, err)
+	}
+	definition.ValueType = domain.ParameterType(valueType)
+	definition.Active = active == 1
+	rows, err := s.db.QueryContext(ctx, `SELECT option_code,option_label,width_mm_units,height_mm_units,active,display_order FROM predefined_parameter_options WHERE parameter_key=? ORDER BY display_order,option_code`, key)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var option domain.PredefinedParameterOption
+		var width, height sql.NullInt64
+		var activeOption int
+		if err := rows.Scan(&option.Code, &option.Label, &width, &height, &activeOption, &option.Position); err != nil {
+			return nil, err
+		}
+		option.Active = activeOption == 1
+		if width.Valid {
+			value := domain.Quantity(width.Int64)
+			option.WidthMM = &value
+		}
+		if height.Valid {
+			value := domain.Quantity(height.Int64)
+			option.HeightMM = &value
+		}
+		definition.Options = append(definition.Options, option)
+	}
+	return &definition, rows.Err()
 }
 
 func (s *Store) loadParameterOptions(ctx context.Context, parameterID string) ([]string, error) {
@@ -1265,6 +1770,193 @@ func (s *Store) loadParameterOptions(ctx context.Context, parameterID string) ([
 		return nil, fmt.Errorf("read parameter options: %w", err)
 	}
 	return options, nil
+}
+
+func (s *Store) loadFinishedSize(ctx context.Context, serviceID string) (*domain.ServiceFinishedSizeDefinition, error) {
+	var parameterKey, quantityKey, widthKey, heightKey string
+	var allowCustom, allowRotation int
+	err := s.db.QueryRowContext(ctx, `SELECT parameter_key,quantity_parameter_key,width_parameter_key,height_parameter_key,allow_custom,allow_rotation FROM service_finished_size_definitions WHERE service_id=?`, serviceID).
+		Scan(&parameterKey, &quantityKey, &widthKey, &heightKey, &allowCustom, &allowRotation)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read finished size definition: %w", err)
+	}
+	definition := &domain.ServiceFinishedSizeDefinition{ParameterKey: parameterKey, QuantityParameterKey: quantityKey, WidthParameterKey: widthKey, HeightParameterKey: heightKey, AllowCustom: allowCustom == 1, AllowRotation: allowRotation == 1}
+	rows, err := s.db.QueryContext(ctx, `SELECT option_id,option_code,option_label,width_mm_units,height_mm_units,display_order,active FROM service_finished_size_options WHERE service_id=? ORDER BY display_order,option_id`, serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("list finished size options: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var option domain.FinishedSizeOption
+		var width, height int64
+		var active int
+		if err := rows.Scan(&option.ID, &option.Code, &option.Label, &width, &height, &option.Position, &active); err != nil {
+			return nil, fmt.Errorf("scan finished size option: %w", err)
+		}
+		option.WidthMM = domain.Quantity(width)
+		option.HeightMM = domain.Quantity(height)
+		option.Active = active == 1
+		definition.Options = append(definition.Options, option)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read finished size options: %w", err)
+	}
+	return definition, nil
+}
+
+func (s *Store) loadMaterialParameterSource(ctx context.Context, parameterID string) (*domain.MaterialParameterSource, error) {
+	var exposed string
+	var selectMaterial int
+	err := s.db.QueryRowContext(ctx, `SELECT exposed_attribute_key,select_material FROM service_parameter_material_sources WHERE parameter_id=?`, parameterID).Scan(&exposed, &selectMaterial)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read material parameter source: %w", err)
+	}
+	source := &domain.MaterialParameterSource{ExposedAttributeKey: exposed, SelectMaterial: selectMaterial == 1}
+	kindRows, err := s.db.QueryContext(ctx, `SELECT kind_code FROM service_parameter_material_kinds WHERE parameter_id=? ORDER BY kind_code`, parameterID)
+	if err != nil {
+		return nil, fmt.Errorf("list material parameter kinds: %w", err)
+	}
+	for kindRows.Next() {
+		var kind string
+		if err := kindRows.Scan(&kind); err != nil {
+			kindRows.Close()
+			return nil, err
+		}
+		source.AllowedKinds = append(source.AllowedKinds, domain.MaterialKind(kind))
+	}
+	if err := kindRows.Close(); err != nil {
+		return nil, err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT attribute_key,value_type,decimal_value_units,integer_value,enum_code,text_value,boolean_value FROM service_parameter_material_values WHERE parameter_id=? ORDER BY attribute_key`, parameterID)
+	if err != nil {
+		return nil, fmt.Errorf("list material parameter values: %w", err)
+	}
+	for rows.Next() {
+		value, scanErr := scanMaterialAttributeValue(rows)
+		if scanErr != nil {
+			rows.Close()
+			return nil, scanErr
+		}
+		source.AllowedValues = append(source.AllowedValues, value)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	rows, err = s.db.QueryContext(ctx, `SELECT attribute_key,value_type,decimal_value_units,integer_value,enum_code,text_value,boolean_value FROM service_parameter_material_filters WHERE parameter_id=? ORDER BY attribute_key`, parameterID)
+	if err != nil {
+		return nil, fmt.Errorf("list material parameter filters: %w", err)
+	}
+	for rows.Next() {
+		value, scanErr := scanMaterialAttributeValue(rows)
+		if scanErr != nil {
+			rows.Close()
+			return nil, scanErr
+		}
+		source.AdditionalFilters = append(source.AdditionalFilters, domain.MaterialAttributeFilter{Key: value.Key, Value: value})
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	return source, nil
+}
+
+func scanMaterialAttributeValue(row scanner) (domain.MaterialAttributeValue, error) {
+	var value domain.MaterialAttributeValue
+	var valueType string
+	var decimalValue, integerValue, booleanValue sql.NullInt64
+	var enumCode, textValue sql.NullString
+	if err := row.Scan(&value.Key, &valueType, &decimalValue, &integerValue, &enumCode, &textValue, &booleanValue); err != nil {
+		return value, err
+	}
+	value.ValueType = domain.MaterialAttributeValueType(valueType)
+	if decimalValue.Valid {
+		value.DecimalValue = domain.Quantity(decimalValue.Int64)
+	}
+	if integerValue.Valid {
+		value.IntegerValue = integerValue.Int64
+	}
+	if enumCode.Valid {
+		value.EnumCode = enumCode.String
+	}
+	if textValue.Valid {
+		value.TextValue = textValue.String
+	}
+	if booleanValue.Valid {
+		value.BooleanValue = booleanValue.Int64 == 1
+	}
+	return value, nil
+}
+
+func attributeColumns(value domain.MaterialAttributeValue) (any, any, any, any, any) {
+	var decimalValue, integerValue, enumCode, textValue, booleanValue any
+	switch value.ValueType {
+	case domain.MaterialAttributeDecimal:
+		decimalValue = int64(value.DecimalValue)
+	case domain.MaterialAttributeInteger:
+		integerValue = value.IntegerValue
+	case domain.MaterialAttributeEnum:
+		enumCode = value.EnumCode
+	case domain.MaterialAttributeText:
+		textValue = value.TextValue
+	case domain.MaterialAttributeBoolean:
+		if value.BooleanValue {
+			booleanValue = 1
+		} else {
+			booleanValue = 0
+		}
+	}
+	return decimalValue, integerValue, enumCode, textValue, booleanValue
+}
+
+func (s *Store) saveMaterialParameterSource(ctx context.Context, tx *sql.Tx, parameter domain.ServiceParameter) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM service_parameter_material_sources WHERE parameter_id=?`, parameter.ID); err != nil {
+		return fmt.Errorf("replace material parameter source: %w", err)
+	}
+	source := parameter.MaterialSource
+	if source == nil {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO service_parameter_material_sources(parameter_id,exposed_attribute_key,select_material) VALUES(?,?,?)`, parameter.ID, source.ExposedAttributeKey, boolToInt(source.SelectMaterial)); err != nil {
+		return fmt.Errorf("save material parameter source: %w", err)
+	}
+	for _, kind := range source.AllowedKinds {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO service_parameter_material_kinds(parameter_id,kind_code) VALUES(?,?)`, parameter.ID, kind); err != nil {
+			return fmt.Errorf("save material parameter kind: %w", err)
+		}
+	}
+	for _, value := range source.AllowedValues {
+		if err := value.Validate(); err != nil {
+			return err
+		}
+		decimalValue, integerValue, enumCode, textValue, booleanValue := attributeColumns(value)
+		if _, err := tx.ExecContext(ctx, `INSERT INTO service_parameter_material_values(parameter_id,attribute_key,value_type,decimal_value_units,integer_value,enum_code,text_value,boolean_value) VALUES(?,?,?,?,?,?,?,?)`, parameter.ID, value.Key, value.ValueType, decimalValue, integerValue, enumCode, textValue, booleanValue); err != nil {
+			return fmt.Errorf("save material parameter value: %w", err)
+		}
+	}
+	for _, filter := range source.AdditionalFilters {
+		if err := filter.Value.Validate(); err != nil {
+			return err
+		}
+		decimalValue, integerValue, enumCode, textValue, booleanValue := attributeColumns(filter.Value)
+		if _, err := tx.ExecContext(ctx, `INSERT INTO service_parameter_material_filters(parameter_id,attribute_key,value_type,decimal_value_units,integer_value,enum_code,text_value,boolean_value) VALUES(?,?,?,?,?,?,?,?)`, parameter.ID, filter.Key, filter.Value.ValueType, decimalValue, integerValue, enumCode, textValue, booleanValue); err != nil {
+			return fmt.Errorf("save material parameter filter: %w", err)
+		}
+	}
+	return nil
 }
 
 func (s *Store) SaveServiceDefinition(ctx context.Context, service domain.Service) error {
@@ -1305,16 +1997,19 @@ func (s *Store) SaveServiceDefinition(ctx context.Context, service domain.Servic
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO service_parameters
 			(id, service_id, parameter_key, label, parameter_type, required, display_order, default_value,
-			min_value_units, max_value_units, unit_label, active, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			min_value_units, max_value_units, unit_label, predefined_key, active, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			parameter.ID, service.ID, parameter.Key, parameter.Label, string(parameter.Type), boolToInt(parameter.Required), parameter.Position,
-			parameter.DefaultValue, minimum, maximum, parameter.Unit, boolToInt(parameter.Active), parameter.CreatedAt.UTC().Format(time.RFC3339Nano), parameter.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+			parameter.DefaultValue, minimum, maximum, parameter.Unit, parameter.PredefinedKey, boolToInt(parameter.Active), parameter.CreatedAt.UTC().Format(time.RFC3339Nano), parameter.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
 			return rollback(fmt.Errorf("insert service parameter: %w", err))
 		}
 		for optionOrder, option := range parameter.Options {
 			if _, err := tx.ExecContext(ctx, `INSERT INTO service_parameter_options (parameter_id, option_order, value) VALUES (?, ?, ?)`, parameter.ID, optionOrder, option); err != nil {
 				return rollback(fmt.Errorf("insert parameter option: %w", err))
 			}
+		}
+		if err := s.saveMaterialParameterSource(ctx, tx, parameter); err != nil {
+			return rollback(err)
 		}
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM service_cost_components WHERE service_id = ?`, service.ID); err != nil {
@@ -1336,6 +2031,20 @@ func (s *Store) SaveServiceDefinition(ctx context.Context, service domain.Servic
 		for _, tier := range rule.Tiers {
 			if _, err := tx.ExecContext(ctx, `INSERT INTO service_pricing_tiers (rule_id, display_order, minimum_quantity_units, price_rial) VALUES (?, ?, ?, ?)`, rule.ID, tier.Position, int64(tier.MinimumQuantity), tier.PriceRial); err != nil {
 				return rollback(fmt.Errorf("insert service pricing tier: %w", err))
+			}
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM service_finished_size_definitions WHERE service_id=?`, service.ID); err != nil {
+		return rollback(fmt.Errorf("replace finished size definition: %w", err))
+	}
+	if service.FinishedSize != nil {
+		finished := service.FinishedSize
+		if _, err := tx.ExecContext(ctx, `INSERT INTO service_finished_size_definitions(service_id,parameter_key,quantity_parameter_key,width_parameter_key,height_parameter_key,allow_custom,allow_rotation) VALUES(?,?,?,?,?,?,?)`, service.ID, finished.ParameterKey, finished.QuantityParameterKey, finished.WidthParameterKey, finished.HeightParameterKey, boolToInt(finished.AllowCustom), boolToInt(finished.AllowRotation)); err != nil {
+			return rollback(fmt.Errorf("insert finished size definition: %w", err))
+		}
+		for _, option := range finished.Options {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO service_finished_size_options(option_id,service_id,option_code,option_label,width_mm_units,height_mm_units,display_order,active) VALUES(?,?,?,?,?,?,?,?)`, option.ID, service.ID, option.Code, option.Label, int64(option.WidthMM), int64(option.HeightMM), option.Position, boolToInt(option.Active)); err != nil {
+				return rollback(fmt.Errorf("insert finished size option: %w", err))
 			}
 		}
 	}
@@ -1398,15 +2107,17 @@ type scanner interface {
 func scanMaterial(row scanner) (domain.Material, error) {
 	var material domain.Material
 	var conversion, physical, reorder int64
+	var kind string
 	var active int
 	var created, updated string
-	err := row.Scan(&material.ID, &material.Name, &material.SKU, &material.Category, &material.PurchaseUnit, &material.ConsumptionUnit,
+	err := row.Scan(&material.ID, &material.Name, &material.SKU, &material.Category, &kind, &material.PurchaseUnit, &material.ConsumptionUnit,
 		&conversion, &physical, &reorder, &material.AverageUnitCostRial, &material.PreferredSupplier, &material.Notes,
 		&active, &created, &updated)
 	if err != nil {
 		return domain.Material{}, err
 	}
 	material.ConversionFactor = domain.Quantity(conversion)
+	material.Kind = domain.MaterialKind(kind)
 	material.PhysicalStock = domain.Quantity(physical)
 	material.ReorderLevel = domain.Quantity(reorder)
 	material.Active = active == 1
@@ -1419,6 +2130,105 @@ func scanMaterial(row scanner) (domain.Material, error) {
 		return domain.Material{}, fmt.Errorf("parse updated timestamp: %w", err)
 	}
 	return material, nil
+}
+
+func (s *Store) loadMaterialAttributes(ctx context.Context, materialID string) ([]domain.MaterialAttributeValue, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT attribute_key,value_type,decimal_value_units,integer_value,enum_code,text_value,boolean_value FROM material_attribute_values WHERE material_id=? ORDER BY attribute_key`, materialID)
+	if err != nil {
+		return nil, fmt.Errorf("list material attributes: %w", err)
+	}
+	defer rows.Close()
+	values := []domain.MaterialAttributeValue{}
+	for rows.Next() {
+		var value domain.MaterialAttributeValue
+		var valueType string
+		var decimalValue, integerValue, booleanValue sql.NullInt64
+		var enumCode, textValue sql.NullString
+		if err := rows.Scan(&value.Key, &valueType, &decimalValue, &integerValue, &enumCode, &textValue, &booleanValue); err != nil {
+			return nil, fmt.Errorf("scan material attribute: %w", err)
+		}
+		value.ValueType = domain.MaterialAttributeValueType(valueType)
+		if decimalValue.Valid {
+			value.DecimalValue = domain.Quantity(decimalValue.Int64)
+		}
+		if integerValue.Valid {
+			value.IntegerValue = integerValue.Int64
+		}
+		if enumCode.Valid {
+			value.EnumCode = enumCode.String
+		}
+		if textValue.Valid {
+			value.TextValue = textValue.String
+		}
+		if booleanValue.Valid {
+			value.BooleanValue = booleanValue.Int64 == 1
+		}
+		values = append(values, value)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read material attributes: %w", err)
+	}
+	return values, nil
+}
+
+func (s *Store) saveMaterialAttributes(ctx context.Context, tx *sql.Tx, material domain.Material) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM material_attribute_values WHERE material_id=?`, material.ID); err != nil {
+		return fmt.Errorf("replace material attributes: %w", err)
+	}
+	for _, value := range material.Attributes {
+		if err := value.Validate(); err != nil {
+			return err
+		}
+		var definitionType string
+		if err := tx.QueryRowContext(ctx, `SELECT value_type FROM material_attribute_definitions WHERE attribute_key=? AND active=1`, value.Key).Scan(&definitionType); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("attribute %q is not defined", value.Key)
+			}
+			return fmt.Errorf("read attribute definition %q: %w", value.Key, err)
+		}
+		if definitionType != string(value.ValueType) {
+			return fmt.Errorf("attribute %q requires value type %q", value.Key, definitionType)
+		}
+		if value.Key == "width_mm" || value.Key == "height_mm" || value.Key == "length_mm" {
+			if value.ValueType != domain.MaterialAttributeDecimal || value.DecimalValue <= 0 {
+				return fmt.Errorf("attribute %q must be a positive dimension", value.Key)
+			}
+		}
+		if value.Key == "grammage_gsm" || value.Key == "thickness_micron" {
+			if value.ValueType != domain.MaterialAttributeInteger || value.IntegerValue <= 0 {
+				return fmt.Errorf("attribute %q must be a positive integer", value.Key)
+			}
+		}
+		var applicable int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM material_attribute_definition_kinds WHERE attribute_key=? AND kind_code=?`, value.Key, material.Kind).Scan(&applicable); err != nil {
+			return err
+		}
+		if applicable == 0 {
+			return fmt.Errorf("attribute %q is not applicable to material kind %q", value.Key, material.Kind)
+		}
+		var decimalValue, integerValue, booleanValue any
+		var enumCode, textValue any
+		switch value.ValueType {
+		case domain.MaterialAttributeDecimal:
+			decimalValue = int64(value.DecimalValue)
+		case domain.MaterialAttributeInteger:
+			integerValue = value.IntegerValue
+		case domain.MaterialAttributeEnum:
+			enumCode = value.EnumCode
+		case domain.MaterialAttributeText:
+			textValue = value.TextValue
+		case domain.MaterialAttributeBoolean:
+			if value.BooleanValue {
+				booleanValue = 1
+			} else {
+				booleanValue = 0
+			}
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO material_attribute_values(material_id,attribute_key,value_type,decimal_value_units,integer_value,enum_code,text_value,boolean_value) VALUES(?,?,?,?,?,?,?,?)`, material.ID, value.Key, value.ValueType, decimalValue, integerValue, enumCode, textValue, booleanValue); err != nil {
+			return fmt.Errorf("save material attribute %q: %w", value.Key, err)
+		}
+	}
+	return nil
 }
 
 func scanService(row scanner) (domain.Service, error) {
@@ -1455,11 +2265,13 @@ func scanParameter(row scanner) (domain.ServiceParameter, error) {
 	var required, active int
 	var minimum, maximum sql.NullInt64
 	var created, updated string
+	var predefinedKey string
 	if err := row.Scan(&parameter.ID, &parameter.ServiceID, &parameter.Key, &parameter.Label, &parameterType, &required,
-		&parameter.Position, &parameter.DefaultValue, &minimum, &maximum, &parameter.Unit, &active, &created, &updated); err != nil {
+		&parameter.Position, &parameter.DefaultValue, &minimum, &maximum, &parameter.Unit, &predefinedKey, &active, &created, &updated); err != nil {
 		return domain.ServiceParameter{}, err
 	}
 	parameter.Type = domain.ParameterType(parameterType)
+	parameter.PredefinedKey = predefinedKey
 	parameter.Required = required == 1
 	parameter.Active = active == 1
 	if minimum.Valid {
@@ -1529,7 +2341,7 @@ func scanMachine(row scanner) (domain.Machine, error) {
 }
 
 func (s *Store) attachMachineRates(ctx context.Context, machine *domain.Machine) error {
-	rows, err := s.db.QueryContext(ctx, `SELECT rate_id, rate_name, selector_value, rate_basis, rate_rial, setup_cost_rial, active FROM machine_rates WHERE machine_id = ? ORDER BY rowid`, machine.ID)
+	rows, err := s.db.QueryContext(ctx, `SELECT rate_id, rate_name, selector_value, selector_predefined_key, rate_basis, rate_rial, setup_cost_rial, active FROM machine_rates WHERE machine_id = ? ORDER BY rowid`, machine.ID)
 	if err != nil {
 		return fmt.Errorf("list machine rates: %w", err)
 	}
@@ -1538,7 +2350,7 @@ func (s *Store) attachMachineRates(ctx context.Context, machine *domain.Machine)
 	for rows.Next() {
 		var rate domain.MachineRate
 		var active int
-		if err := rows.Scan(&rate.ID, &rate.Name, &rate.SelectorValue, &rate.RateBasis, &rate.RateRial, &rate.SetupCostRial, &active); err != nil {
+		if err := rows.Scan(&rate.ID, &rate.Name, &rate.SelectorValue, &rate.SelectorPredefinedKey, &rate.RateBasis, &rate.RateRial, &rate.SetupCostRial, &active); err != nil {
 			return fmt.Errorf("scan machine rate: %w", err)
 		}
 		rate.Active = active == 1

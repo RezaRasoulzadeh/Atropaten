@@ -35,13 +35,14 @@ type Machine struct {
 }
 
 type MachineRate struct {
-	ID            string
-	Name          string
-	SelectorValue string
-	RateBasis     string
-	RateRial      int64
-	SetupCostRial int64
-	Active        bool
+	ID                    string
+	Name                  string
+	SelectorValue         string
+	SelectorPredefinedKey string
+	RateBasis             string
+	RateRial              int64
+	SetupCostRial         int64
+	Active                bool
 }
 
 type MachineDraft struct {
@@ -74,6 +75,7 @@ func NewMachine(id string, draft MachineDraft, now time.Time) (Machine, error) {
 		rates[index].RateBasis = strings.ToLower(strings.TrimSpace(rates[index].RateBasis))
 		rates[index].Name = strings.TrimSpace(rates[index].Name)
 		rates[index].SelectorValue = strings.TrimSpace(rates[index].SelectorValue)
+		rates[index].SelectorPredefinedKey = strings.TrimSpace(rates[index].SelectorPredefinedKey)
 	}
 	activeRate := false
 	for _, rate := range rates {
@@ -171,6 +173,12 @@ func (r MachineRate) Validate() error {
 	}
 	if r.SetupCostRial < 0 {
 		return validationError("setupCostRial", "cannot be negative")
+	}
+	if r.SelectorPredefinedKey != "" && !IsSupportedPredefinedParameter(r.SelectorPredefinedKey) {
+		return validationError("selectorPredefinedKey", "must reference a supported predefined parameter")
+	}
+	if r.SelectorPredefinedKey != "" && r.SelectorValue == "" {
+		return validationError("selectorValue", "is required when a predefined selector is used")
 	}
 	return nil
 }

@@ -55,7 +55,7 @@ function updateBoolean(key: string, event: Event) {
 }
 
 function valueOptions(parameter: ParameterForm) {
-  if (parameter.type === 'choice') return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...parameter.options.map((value) => ({ label: value, value }))]
+	if (parameter.type === 'choice') return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...(parameter.predefinedKey ? ((parameter as any).predefinedOptions || []).filter((option: any) => option.active !== false).map((option: any) => ({ label: option.label, value: option.code })) : parameter.options.map((value) => ({ label: value, value })))]
   if (parameter.type === 'material-reference') return [{ label: 'Select material', value: '' }, ...props.materials.filter((item) => item.active).map((item) => ({ label: `${item.name}${item.sku ? ` · ${item.sku}` : ''}`, value: item.id }))]
   return [{ label: 'Select machine', value: '' }, ...props.machines.filter((item) => item.active).map((item) => ({ label: `${item.name}${item.code ? ` · ${item.code}` : ''}`, value: item.id }))]
 }

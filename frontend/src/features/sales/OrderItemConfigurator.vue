@@ -7,6 +7,7 @@ import { Calculator, Layers3, Plus, X } from 'lucide-vue-next';
 import SelectField from '../../components/ui/SelectField.vue';
 import EmptyState from '../../components/ui/EmptyState.vue';
 import { pricingApi, type PricingRecord } from '../../api/pricing';
+import { servicesApi } from '../../api/services';
 import type { OrderItemPayload } from '../../api/orders';
 import {
   formatMoney,
@@ -47,6 +48,7 @@ const notes = ref('');
 const overrideText = ref('');
 const manualTexts = ref<Record<string, string>>({});
 const pricing = ref<PricingRecord | null>(null);
+const materialOptions = ref<Record<string, Array<{ label: string; value: string }>>>({});
 const toast = useToast();
 let lastWarningSignature = '';
 const calculating = ref(false);
@@ -136,6 +138,7 @@ function initialize() {
 }
 
 watch(() => [props.initial, props.presetServiceId, props.services], initialize, { immediate: true });
+watch([serviceId, values], refreshMaterialOptions, { deep: true });
 watch(serviceId, (next, previous) => {
   if (initializing || !previous || next === previous) return;
   const selectedService = props.services.find((value) => value.id === next);
@@ -155,6 +158,31 @@ watch(serviceId, (next, previous) => {
 
 function setValue(key: string, value: string) {
   values.value[key] = value;
+}
+
+function parameterOptions(parameter: any) {
+  if (parameter.materialSource) return materialOptions.value[parameter.key] || [];
+  if (parameter.predefinedKey) return (parameter.predefinedOptions || []).filter((option: any) => option.active !== false).map((option: any) => ({ label: option.label, value: option.code }));
+  return (parameter.options || []).map((option: string) => ({ label: option, value: option }));
+}
+
+let materialOptionsToken = 0;
+async function refreshMaterialOptions() {
+  const selected = serviceId.value;
+  if (!selected) { materialOptions.value = {}; return; }
+  const token = ++materialOptionsToken;
+  try {
+    const groups = await servicesApi.materialOptions(selected, values.value);
+    if (token !== materialOptionsToken || selected !== serviceId.value) return;
+    const next: Record<string, Array<{ label: string; value: string }>> = {};
+    for (const group of groups as any[]) next[group.parameterKey] = (group.options || []).map((option: any) => ({ label: option.label, value: option.value }));
+    materialOptions.value = next;
+    for (const parameter of activeParams.value) {
+      if (parameter.materialSource && values.value[parameter.key] && !(next[parameter.key] || []).some((option) => option.value === values.value[parameter.key])) values.value[parameter.key] = '';
+    }
+  } catch {
+    materialOptions.value = {};
+  }
 }
 
 function parameterIsMissing(parameter: any) {
@@ -317,7 +345,7 @@ function save() {
                 :invalid="parameterIsMissing(parameter)"
                 :options="[
                   { label: 'Select…', value: '' },
-                  ...parameter.options.map((option: string) => ({ label: option, value: option })),
+                  ...parameterOptions(parameter),
                 ]"
                 :aria-label="parameter.label"
                 @update:model-value="setValue(parameter.key, $event)"

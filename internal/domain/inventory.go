@@ -16,7 +16,7 @@ var (
 	ErrMovementAlreadyCanceled = errors.New("inventory movement is already cancelled")
 	ErrSupplierDeleteProtected = errors.New("supplier has purchase history; archive it instead")
 	ErrPurchaseNotDraft        = errors.New("only draft purchases can be edited or deleted")
-	ErrPurchaseDeleteProtected = errors.New("purchase has dependent inventory, production, or payment history; archive it instead")
+	ErrPurchaseDeleteProtected = errors.New("purchase has dependent production history; archive it instead")
 	ErrPurchaseAlreadyPosted   = errors.New("purchase is already posted")
 	ErrPurchaseCannotCancel    = errors.New("only posted purchases can be cancelled")
 	ErrInsufficientStock       = errors.New("operation would make stock negative")

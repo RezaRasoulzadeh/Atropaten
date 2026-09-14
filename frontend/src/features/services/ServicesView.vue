@@ -32,6 +32,7 @@ const {
   isSaving,
   validationAttempted,
   selectedService,
+  predefinedParameters,
   filteredServices,
   startCreate,
   startEdit,
@@ -97,6 +98,7 @@ watch(
       :services="services"
       :service-id="selectedService?.id || ''"
       :currency-unit="props.currencyUnit"
+      :predefined-parameters="predefinedParameters"
       @cancel="cancelEditor"
       @save="saveService"
     />

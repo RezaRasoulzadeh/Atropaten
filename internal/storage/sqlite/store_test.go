@@ -153,3 +153,58 @@ func TestMaterialPersistenceAndLifecycle(t *testing.T) {
 		t.Fatalf("all list = %v, err=%v", all, err)
 	}
 }
+
+func TestMaterialStructuredSpecificationsRoundTripAndTypedValidation(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "material-specs.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	material, err := domain.NewMaterial("MAT-spec", domain.MaterialDraft{
+		Name: "Verified sheet", Kind: domain.MaterialKindSheetStock, PurchaseUnit: "sheet", ConsumptionUnit: "sheet", ConversionFactor: domain.QuantityScale,
+		Attributes: []domain.MaterialAttributeValue{
+			{Key: "width_mm", ValueType: domain.MaterialAttributeDecimal, DecimalValue: 320 * domain.QuantityScale},
+			{Key: "height_mm", ValueType: domain.MaterialAttributeDecimal, DecimalValue: 450 * domain.QuantityScale},
+			{Key: "grammage_gsm", ValueType: domain.MaterialAttributeInteger, IntegerValue: 170},
+			{Key: "finish", ValueType: domain.MaterialAttributeEnum, EnumCode: "matte"},
+		},
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Create(context.Background(), material); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.Get(context.Background(), material.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byKey := make(map[string]domain.MaterialAttributeValue, len(got.Attributes))
+	for _, attribute := range got.Attributes {
+		byKey[attribute.Key] = attribute
+	}
+	if got.Kind != domain.MaterialKindSheetStock || len(got.Attributes) != 4 || byKey["width_mm"].DecimalValue != 320*domain.QuantityScale || byKey["grammage_gsm"].IntegerValue != 170 || byKey["finish"].EnumCode != "matte" {
+		t.Fatalf("structured material=%+v", got)
+	}
+	for index := range got.Attributes {
+		if got.Attributes[index].Key == "grammage_gsm" {
+			got.Attributes[index].ValueType = domain.MaterialAttributeDecimal
+		}
+	}
+	if err := store.Update(context.Background(), got); err == nil {
+		t.Fatal("invalid attribute type was persisted")
+	}
+	unchanged, err := store.Get(context.Background(), material.ID)
+	unchangedByKey := make(map[string]domain.MaterialAttributeValue, len(unchanged.Attributes))
+	for _, attribute := range unchanged.Attributes {
+		unchangedByKey[attribute.Key] = attribute
+	}
+	if err != nil || len(unchanged.Attributes) != 4 || unchangedByKey["grammage_gsm"].ValueType != domain.MaterialAttributeInteger {
+		t.Fatalf("failed typed update changed material=%+v err=%v", unchanged, err)
+	}
+	definitions, err := store.ListMaterialAttributeDefinitions(context.Background())
+	if err != nil || len(definitions) < 8 {
+		t.Fatalf("attribute definitions=%v err=%v", definitions, err)
+	}
+}

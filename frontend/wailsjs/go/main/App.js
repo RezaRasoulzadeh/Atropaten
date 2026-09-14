@@ -302,6 +302,10 @@ export function GetService(arg1) {
   return window['go']['main']['App']['GetService'](arg1);
 }
 
+export function GetServiceMaterialOptions(arg1, arg2) {
+  return window['go']['main']['App']['GetServiceMaterialOptions'](arg1, arg2);
+}
+
 export function GetShopSettings() {
   return window['go']['main']['App']['GetShopSettings']();
 }
@@ -374,6 +378,10 @@ export function ListMachines(arg1) {
   return window['go']['main']['App']['ListMachines'](arg1);
 }
 
+export function ListMaterialAttributeDefinitions() {
+  return window['go']['main']['App']['ListMaterialAttributeDefinitions']();
+}
+
 export function ListMaterialMovements(arg1) {
   return window['go']['main']['App']['ListMaterialMovements'](arg1);
 }
@@ -396,6 +404,10 @@ export function ListOwners(arg1) {
 
 export function ListPayments() {
   return window['go']['main']['App']['ListPayments']();
+}
+
+export function ListPredefinedParameters() {
+  return window['go']['main']['App']['ListPredefinedParameters']();
 }
 
 export function ListProductionConsumptions(arg1) {

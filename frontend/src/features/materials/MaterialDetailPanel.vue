@@ -19,6 +19,7 @@ const props = defineProps<{
 const {
   busy,
   selectedMaterial,
+  attributeDefinitions,
   isMovementsLoading,
   movements,
   adjustmentQuantity,
@@ -40,6 +41,21 @@ watch(() => selectedMaterial.value?.id, () => { activeTab.value = 'overview' })
 function pricingUnitCost() {
   if (!selectedMaterial.value) return 0
   return selectedMaterial.value.highestPurchaseUnitCostRial || selectedMaterial.value.averageUnitCostRial
+}
+function attributeDisplay(attribute: any) {
+  const value = attribute.valueType === 'decimal' ? attribute.decimalValue : attribute.valueType === 'integer' ? attribute.integerValue : attribute.valueType === 'enum' ? attribute.enumCode : attribute.valueType === 'boolean' ? (attribute.booleanValue ? 'Yes' : 'No') : attribute.textValue
+  const unit = attributeDefinitions.value.find((definition) => definition.key === attribute.key)?.unit || ({ width_mm: 'mm', height_mm: 'mm', length_mm: 'mm', grammage_gsm: 'gsm', thickness_micron: 'micron' } as Record<string, string>)[attribute.key]
+  return `${value || '—'}${unit ? ` ${unit}` : ''}`
+}
+function attributeLabel(key: string) {
+  return attributeDefinitions.value.find((definition) => definition.key === key)?.label || key
+}
+function kindLabel(kind: string) {
+  return ({
+    'sheet-stock': 'Sheet stock', 'roll-media': 'Roll media', board: 'Board', ink: 'Ink',
+    'lamination-film': 'Lamination film', adhesive: 'Adhesive', fabric: 'Fabric', packaging: 'Packaging',
+    chemical: 'Chemical', 'generic-consumable': 'Generic consumable',
+  } as Record<string, string>)[kind] || kind
 }
 </script>
 
@@ -115,7 +131,8 @@ function pricingUnitCost() {
       </div>
 
       <div v-else class="space-y-3">
-        <div class="rounded-box border border-base-300 p-4"><div class="flex items-start gap-3"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><FileText :size="18" aria-hidden="true" /></span><div><h3 class="text-sm font-semibold">Material information</h3><p class="mt-1 text-xs leading-5 text-base-content/60">Catalog identity and unit configuration.</p></div></div><dl class="mt-4 divide-y divide-base-300/70 text-sm"><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">SKU / category</dt><dd class="break-words text-end">{{ selectedMaterial.sku || 'No SKU' }} · {{ selectedMaterial.category || 'Uncategorized' }}</dd></div><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Unit conversion</dt><dd class="break-words text-end">1 {{ unitLabel(selectedMaterial.purchaseUnit) }} = {{ selectedMaterial.conversionFactor }} {{ unitLabel(selectedMaterial.consumptionUnit) }}</dd></div><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Preferred supplier</dt><dd class="break-words text-end">{{ selectedMaterial.preferredSupplier || 'Not specified' }}</dd></div><div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-base-content/60">Updated</dt><dd class="text-end">{{ dateLabel(selectedMaterial.updatedAt) }}</dd></div></dl></div>
+        <div class="rounded-box border border-base-300 p-4"><div class="flex items-start gap-3"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><FileText :size="18" aria-hidden="true" /></span><div><h3 class="text-sm font-semibold">Material information</h3><p class="mt-1 text-xs leading-5 text-base-content/60">Catalog identity, stable kind, and unit configuration.</p></div></div><dl class="mt-4 divide-y divide-base-300/70 text-sm"><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Kind</dt><dd class="break-words text-end">{{ kindLabel(selectedMaterial.kind || 'generic-consumable') }}</dd></div><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">SKU / category</dt><dd class="break-words text-end">{{ selectedMaterial.sku || 'No SKU' }} · {{ selectedMaterial.category || 'Uncategorized' }}</dd></div><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Unit conversion</dt><dd class="break-words text-end">1 {{ unitLabel(selectedMaterial.purchaseUnit) }} = {{ selectedMaterial.conversionFactor }} {{ unitLabel(selectedMaterial.consumptionUnit) }}</dd></div><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Preferred supplier</dt><dd class="break-words text-end">{{ selectedMaterial.preferredSupplier || 'Not specified' }}</dd></div><div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-base-content/60">Updated</dt><dd class="text-end">{{ dateLabel(selectedMaterial.updatedAt) }}</dd></div></dl></div>
+        <div class="rounded-box border border-primary/25 bg-primary/5 p-4"><h3 class="text-sm font-semibold">Structured specifications</h3><p v-if="!selectedMaterial.attributes?.length" class="mt-2 text-sm text-base-content/60">Incomplete — no verified physical specifications have been recorded.</p><dl v-else class="mt-3 divide-y divide-base-300/70 text-sm"><div v-for="attribute in selectedMaterial.attributes" :key="attribute.key" class="flex justify-between gap-3 py-2 first:pt-0"><dt class="text-base-content/60">{{ attributeLabel(attribute.key) }}</dt><dd class="text-end">{{ attributeDisplay(attribute) }}</dd></div></dl></div>
         <div v-if="selectedMaterial.notes" class="rounded-box border border-base-300 p-4"><h3 class="text-sm font-semibold">Notes</h3><p class="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-base-content/70">{{ selectedMaterial.notes }}</p></div>
       </div>
     </div>

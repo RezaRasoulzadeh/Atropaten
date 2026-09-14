@@ -27,16 +27,18 @@ type MachineLookup interface {
 }
 
 type ParameterInput struct {
-	ID           string
-	Key          string
-	Label        string
-	Type         string
-	Required     bool
-	DefaultValue string
-	Options      []string
-	MinValue     *string
-	MaxValue     *string
-	Unit         string
+	ID             string
+	Key            string
+	Label          string
+	Type           string
+	Required       bool
+	DefaultValue   string
+	Options        []string
+	MinValue       *string
+	MaxValue       *string
+	Unit           string
+	PredefinedKey  string
+	MaterialSource *domain.MaterialParameterSource
 }
 
 type ServiceInput struct {
@@ -50,6 +52,7 @@ type ServiceInput struct {
 	Parameters      []ParameterInput
 	Components      []CostComponentInput
 	PricingRule     *PricingRuleInput
+	FinishedSize    *domain.ServiceFinishedSizeDefinition
 }
 
 type CostComponentInput struct {
@@ -88,18 +91,21 @@ type PricingTierInput struct {
 }
 
 type ParameterView struct {
-	ID           string
-	Key          string
-	Label        string
-	Type         string
-	Required     bool
-	Position     int
-	DefaultValue string
-	Options      []string
-	MinValue     *string
-	MaxValue     *string
-	Unit         string
-	Active       bool
+	ID                string
+	Key               string
+	Label             string
+	Type              string
+	Required          bool
+	Position          int
+	DefaultValue      string
+	Options           []string
+	MinValue          *string
+	MaxValue          *string
+	Unit              string
+	PredefinedKey     string
+	PredefinedOptions []domain.PredefinedParameterOption
+	MaterialSource    *domain.MaterialParameterSource
+	Active            bool
 }
 
 type ServiceView struct {
@@ -117,6 +123,7 @@ type ServiceView struct {
 	Parameters      []ParameterView
 	Components      []CostComponentView
 	PricingRule     *PricingRuleView
+	FinishedSize    *domain.ServiceFinishedSizeDefinition
 }
 
 type CostComponentView struct {
@@ -162,6 +169,11 @@ type ServicesService struct {
 	now        func() time.Time
 }
 
+type ServiceMaterialOptions struct {
+	ParameterKey string
+	Options      []domain.MaterialOption
+}
+
 func NewServicesService(repository ServiceRepository, material MaterialLookup, machine MachineLookup) *ServicesService {
 	return &ServicesService{repository: repository, material: material, machine: machine, now: time.Now}
 }
@@ -184,6 +196,35 @@ func (s *ServicesService) Get(ctx context.Context, id string) (ServiceView, erro
 		return ServiceView{}, err
 	}
 	return serviceView(service), nil
+}
+
+func (s *ServicesService) MaterialOptions(ctx context.Context, serviceID string, selected map[string]string) ([]ServiceMaterialOptions, error) {
+	service, err := s.repository.GetService(ctx, strings.TrimSpace(serviceID))
+	if err != nil {
+		return nil, err
+	}
+	lookup, ok := s.material.(interface {
+		List(context.Context, bool) ([]domain.Material, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("material list lookup is not available")
+	}
+	materials, err := lookup.List(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]ServiceMaterialOptions, 0)
+	for _, parameter := range service.Parameters {
+		if parameter.MaterialSource == nil {
+			continue
+		}
+		options, err := domain.MaterialOptionsForParameter(service, parameter.Key, materials, selected)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, ServiceMaterialOptions{ParameterKey: parameter.Key, Options: options})
+	}
+	return result, nil
 }
 
 func (s *ServicesService) Create(ctx context.Context, input ServiceInput) (ServiceView, error) {
@@ -461,6 +502,36 @@ func (s *ServicesService) saveDefinition(ctx context.Context, service domain.Ser
 }
 
 func (s *ServicesService) validateReferences(ctx context.Context, service domain.Service) error {
+	hasMaterialSource := false
+	for _, parameter := range service.Parameters {
+		if parameter.MaterialSource != nil {
+			hasMaterialSource = true
+			break
+		}
+	}
+	if hasMaterialSource {
+		materials, ok := s.material.(interface {
+			List(context.Context, bool) ([]domain.Material, error)
+		})
+		if !ok {
+			return fmt.Errorf("material-backed service setup requires material list lookup")
+		}
+		items, err := materials.List(ctx, false)
+		if err != nil {
+			return fmt.Errorf("validate material-backed service: %w", err)
+		}
+		defaults := make(map[string]string, len(service.Parameters))
+		for _, parameter := range service.Parameters {
+			defaults[parameter.Key] = parameter.DefaultValue
+		}
+		compatible, err := domain.CompatibleMaterials(service, items, defaults)
+		if err != nil {
+			return err
+		}
+		if len(compatible) == 0 {
+			return fmt.Errorf("service material-backed setup has no compatible active material")
+		}
+	}
 	for _, parameter := range service.Parameters {
 		if parameter.DefaultValue == "" {
 			continue
@@ -495,7 +566,7 @@ func (s *ServicesService) validateReferences(ctx context.Context, service domain
 			if component.UsageMode == domain.UsageParameter && component.ReferenceID == "" {
 				validParameter := false
 				for _, parameter := range service.Parameters {
-					if parameter.Key == component.ParameterKey && (parameter.Type == domain.ParameterMaterialReference || parameter.Type == domain.ParameterChoice) {
+					if parameter.Key == component.ParameterKey && (parameter.Type == domain.ParameterMaterialReference || (parameter.Type == domain.ParameterChoice && parameter.MaterialSource != nil)) {
 						validParameter = true
 						break
 					}
@@ -532,7 +603,7 @@ func (s *ServicesService) validateReferences(ctx context.Context, service domain
 			if component.UsageMode == domain.UsageParameter && component.ReferenceID == "" {
 				validParameter := false
 				for _, parameter := range service.Parameters {
-					if parameter.Key == component.ParameterKey && (parameter.Type == domain.ParameterMachineReference || parameter.Type == domain.ParameterChoice) {
+					if parameter.Key == component.ParameterKey && parameter.Type == domain.ParameterMachineReference {
 						validParameter = true
 						break
 					}
@@ -633,7 +704,7 @@ func (s *ServicesService) parseDraft(ctx context.Context, input ServiceInput, se
 	if err != nil {
 		return domain.ServiceDraft{}, err
 	}
-	return domain.ServiceDraft{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, ImagePath: input.ImagePath, DefaultUnit: input.DefaultUnit, DefaultPriority: domain.Priority(strings.TrimSpace(input.DefaultPriority)), Parameters: parameters, Components: components, PricingRule: pricingRule}, nil
+	return domain.ServiceDraft{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, ImagePath: input.ImagePath, DefaultUnit: input.DefaultUnit, DefaultPriority: domain.Priority(strings.TrimSpace(input.DefaultPriority)), Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: input.FinishedSize}, nil
 }
 
 func (s *ServicesService) parseComponent(input CostComponentInput) (domain.ServiceCostComponentDraft, error) {
@@ -718,7 +789,7 @@ func componentFromDraft(serviceID string, draft domain.ServiceCostComponentDraft
 	return domain.ServiceCostComponent{ID: draft.ID, ServiceID: serviceID, Name: strings.TrimSpace(draft.Name), Type: domain.CostComponentType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), ReferenceID: strings.TrimSpace(draft.ReferenceID), UsageMode: usageMode, ParameterKey: strings.TrimSpace(draft.ParameterKey), RateID: strings.TrimSpace(draft.RateID), RateParameterKey: strings.TrimSpace(draft.RateParameterKey), UsageQuantity: usageQuantity, Multiplier: draft.Multiplier, RateRial: draft.RateRial, Percentage: draft.Percentage, RateBasis: strings.TrimSpace(draft.RateBasis), Enabled: draft.Enabled, Position: position, Notes: strings.TrimSpace(draft.Notes), CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
 }
 
-func (s *ServicesService) parseParameter(_ context.Context, input ParameterInput, _ string, _ []domain.ServiceParameter) (domain.ServiceParameterDraft, error) {
+func (s *ServicesService) parseParameter(ctx context.Context, input ParameterInput, _ string, _ []domain.ServiceParameter) (domain.ServiceParameterDraft, error) {
 	id := strings.TrimSpace(input.ID)
 	if id == "" {
 		var err error
@@ -737,6 +808,32 @@ func (s *ServicesService) parseParameter(_ context.Context, input ParameterInput
 	}
 	defaultValue := strings.TrimSpace(input.DefaultValue)
 	options := append([]string(nil), input.Options...)
+	var predefinedOptions []domain.PredefinedParameterOption
+	predefinedKey := strings.TrimSpace(input.PredefinedKey)
+	if predefinedKey != "" {
+		catalog, ok := s.repository.(interface {
+			ListPredefinedParameters(context.Context) ([]domain.PredefinedParameterDefinition, error)
+		})
+		if !ok {
+			return domain.ServiceParameterDraft{}, fmt.Errorf("predefined parameter catalog is not available")
+		}
+		definitions, err := catalog.ListPredefinedParameters(ctx)
+		if err != nil {
+			return domain.ServiceParameterDraft{}, err
+		}
+		found := false
+		for _, definition := range definitions {
+			if definition.Key == predefinedKey && definition.Active {
+				predefinedOptions = definition.Options
+				found = true
+				break
+			}
+		}
+		if !found {
+			return domain.ServiceParameterDraft{}, domain.ValidationError{Field: "predefinedKey", Message: "does not reference an active predefined parameter"}
+		}
+		options = nil
+	}
 	typeName := domain.ParameterType(strings.ToLower(strings.TrimSpace(input.Type)))
 	switch typeName {
 	case domain.ParameterInteger:
@@ -774,7 +871,8 @@ func (s *ServicesService) parseParameter(_ context.Context, input ParameterInput
 	}
 	return domain.ServiceParameterDraft{
 		ID: id, Key: input.Key, Label: input.Label, Type: typeName, Required: input.Required,
-		DefaultValue: defaultValue, Options: options, MinValue: minimum, MaxValue: maximum, Unit: input.Unit,
+		DefaultValue: defaultValue, Options: options, MinValue: minimum, MaxValue: maximum, Unit: input.Unit, PredefinedKey: predefinedKey, PredefinedOptions: predefinedOptions,
+		MaterialSource: input.MaterialSource,
 	}, nil
 }
 
@@ -805,14 +903,15 @@ func parameterFromDraft(serviceID string, draft domain.ServiceParameterDraft, po
 		Type: domain.ParameterType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), Required: draft.Required,
 		Position: position, DefaultValue: strings.TrimSpace(draft.DefaultValue), Options: append([]string(nil), draft.Options...),
 		MinValue: draft.MinValue, MaxValue: draft.MaxValue, Unit: strings.TrimSpace(draft.Unit), Active: true,
-		CreatedAt: now.UTC(), UpdatedAt: now.UTC(),
+		MaterialSource: draft.MaterialSource,
+		CreatedAt:      now.UTC(), UpdatedAt: now.UTC(),
 	}
 }
 
 func serviceView(service domain.Service) ServiceView {
 	parameters := make([]ParameterView, 0, len(service.Parameters))
 	for _, parameter := range service.Parameters {
-		view := ParameterView{ID: parameter.ID, Key: parameter.Key, Label: parameter.Label, Type: string(parameter.Type), Required: parameter.Required, Position: parameter.Position, DefaultValue: parameter.DefaultValue, Options: append([]string(nil), parameter.Options...), Unit: parameter.Unit, Active: parameter.Active}
+		view := ParameterView{ID: parameter.ID, Key: parameter.Key, Label: parameter.Label, Type: string(parameter.Type), Required: parameter.Required, Position: parameter.Position, DefaultValue: parameter.DefaultValue, Options: append([]string(nil), parameter.Options...), Unit: parameter.Unit, PredefinedKey: parameter.PredefinedKey, PredefinedOptions: append([]domain.PredefinedParameterOption(nil), parameter.PredefinedOptions...), MaterialSource: parameter.MaterialSource, Active: parameter.Active}
 		if parameter.MinValue != nil {
 			value := parameter.MinValue.String()
 			view.MinValue = &value
@@ -835,7 +934,7 @@ func serviceView(service domain.Service) ServiceView {
 			pricingRule.Tiers = append(pricingRule.Tiers, PricingTierView{Position: tier.Position, MinimumQuantity: tier.MinimumQuantity.String(), PriceRial: tier.PriceRial})
 		}
 	}
-	return ServiceView{ID: service.ID, Name: service.Name, Code: service.Code, Category: service.Category, Description: service.Description, ImagePath: service.ImagePath, Active: service.Active, CreatedAt: service.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: service.UpdatedAt.UTC().Format(time.RFC3339Nano), Parameters: parameters, Components: components, PricingRule: pricingRule}
+	return ServiceView{ID: service.ID, Name: service.Name, Code: service.Code, Category: service.Category, Description: service.Description, ImagePath: service.ImagePath, DefaultUnit: service.DefaultUnit, DefaultPriority: string(service.DefaultPriority), Active: service.Active, CreatedAt: service.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: service.UpdatedAt.UTC().Format(time.RFC3339Nano), Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: service.FinishedSize}
 }
 
 func newID(prefix string) (string, error) {

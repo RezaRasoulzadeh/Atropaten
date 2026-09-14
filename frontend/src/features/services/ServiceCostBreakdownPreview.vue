@@ -42,14 +42,10 @@ function normalize(value: string) {
 
 function materialFor(component: ComponentForm, parameters = props.parameters) {
   if (component.type !== 'material') return null
-  if (component.usageMode === 'parameter') {
-    const parameter = parameters.find((item) => item.key === component.parameterKey)
-    if (!parameter?.defaultValue) return null
-    const wanted = normalize(parameter.defaultValue)
-    if (!wanted) return null
-    return props.materials.find((material) => [material.id, material.name, material.sku].some((value) => normalize(value) === wanted))
-      || props.materials.find((material) => [material.name, material.sku].some((value) => normalize(value).includes(wanted) || wanted.includes(normalize(value))))
-      || null
+	if (component.usageMode === 'parameter') {
+		const parameter = parameters.find((item) => item.key === component.parameterKey)
+		if (parameter?.type !== 'material-reference' && !parameter?.materialSource?.selectMaterial) return null
+		return props.materials.find((material) => material.id === parameter.defaultValue && material.active) || null
   }
   return props.materials.find((material) => material.id === component.referenceId) || null
 }
@@ -59,13 +55,9 @@ function machineFor(component: ComponentForm, parameters = props.parameters) {
   if (component.usageMode === 'parameter' && !component.referenceId) {
     const parameter = parameters.find((item) => item.key === component.parameterKey)
     if (!parameter?.defaultValue) return null
-    const wanted = normalize(parameter.defaultValue)
-    if (!wanted) return null
-    return props.machines.find((machine) => [machine.id, machine.name, machine.code].some((value) => normalize(value) === wanted))
-      || props.machines.find((machine) => [machine.name, machine.code].some((value) => normalize(value).includes(wanted) || wanted.includes(normalize(value))))
-      || null
+    return props.machines.find((machine) => machine.id === parameter.defaultValue && machine.active) || null
   }
-  return props.machines.find((machine) => machine.id === component.referenceId) || null
+  return props.machines.find((machine) => machine.id === component.referenceId && machine.active) || null
 }
 
 function machineRateFor(component: ComponentForm, parameters = props.parameters) {
@@ -76,7 +68,7 @@ function machineRateFor(component: ComponentForm, parameters = props.parameters)
   if (component.rateParameterKey) {
     const parameter = parameters.find((item) => item.key === component.rateParameterKey)
     const wanted = normalize(parameter?.defaultValue || '')
-    return rates.find((rate) => rate.active && [rate.selectorValue, rate.name, rate.id].some((value) => normalize(value) === wanted)) || null
+    return rates.find((rate) => rate.active && (!rate.selectorPredefinedKey || rate.selectorPredefinedKey === parameter?.predefinedKey) && [rate.selectorValue, rate.name, rate.id].some((value) => normalize(value) === wanted)) || null
   }
   return rates.find((rate) => rate.active) || (rates.length ? rates[0] : { rateRial: machine.rateRial, name: 'Standard' })
 }

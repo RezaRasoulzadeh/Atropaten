@@ -6,6 +6,7 @@ import DataTable from '../../components/ui/DataTable.vue';
 import { ref, watch } from 'vue';
 import { Calculator, LoaderCircle, RotateCcw } from 'lucide-vue-next';
 import type { ServiceRecord } from '../../api/services';
+import { servicesApi } from '../../api/services';
 import type { MaterialRecord } from '../../api/materials';
 import type { MachineRecord } from '../../api/machines';
 import { pricingApi, type PricingRecord } from '../../api/pricing';
@@ -31,6 +32,7 @@ const overrideRial = ref<number | null>(null);
 const manualCosts = ref<Record<string, number>>({});
 const manualTexts = ref<Record<string, string>>({});
 const result = ref<PricingRecord | null>(null);
+const materialOptions = ref<Record<string, Array<{ label: string; value: string }>>>({});
 const loading = ref(false);
 const toast = useToast();
 let lastWarningSignature = '';
@@ -51,6 +53,12 @@ function resetValues() {
 }
 
 watch(() => props.service.id, resetValues, { immediate: true });
+watch(values, async () => {
+  try {
+    const groups = await servicesApi.materialOptions(props.service.id, values.value);
+    materialOptions.value = Object.fromEntries((groups as any[]).map((group) => [group.parameterKey, (group.options || []).map((option: any) => ({ label: option.label, value: option.value }))]));
+  } catch { materialOptions.value = {}; }
+}, { deep: true });
 watch(
   values,
   () => {
@@ -135,6 +143,11 @@ function updateBoolean(key: string, event: Event) {
 function money(value: number) {
   return formatMoney(value, props.currencyUnit);
 }
+function optionsFor(parameter: any) {
+  if (parameter.materialSource) return materialOptions.value[parameter.key] || [];
+  if (parameter.predefinedKey) return (parameter.predefinedOptions || []).filter((option: any) => option.active !== false).map((option: any) => ({ label: option.label, value: option.code }));
+  return (parameter.options || []).map((option: string) => ({ label: option, value: option }));
+}
 function signedMoney(value: number) {
   return `${value < 0 ? '−' : ''}${money(Math.abs(value))}`;
 }
@@ -195,7 +208,7 @@ function typeLabel(type: string) {
               :aria-label="parameter.label"
               :options="[
                 { label: `Select ${parameter.label.toLowerCase()}`, value: '' },
-                ...parameter.options.map((option) => ({ label: option, value: option })),
+                ...optionsFor(parameter),
               ]"
             />
             <SelectField
@@ -204,10 +217,10 @@ function typeLabel(type: string) {
               :aria-label="parameter.label"
               :options="[
                 { label: 'Select material', value: '' },
-                ...materials.map((material) => ({
+                ...(parameter.materialSource ? optionsFor(parameter) : materials.filter((material) => material.active).map((material) => ({
                   label: `${material.name}${material.sku ? ` · ${material.sku}` : ''}`,
                   value: material.id,
-                })),
+                }))),
               ]"
             />
             <SelectField

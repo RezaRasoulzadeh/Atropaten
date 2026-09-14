@@ -1,6 +1,13 @@
 export type ServiceFilter = 'Active' | 'Archived' | 'All';
 export type EditorMode = 'create' | 'edit' | null;
 export type ParameterType = 'integer' | 'decimal' | 'boolean' | 'choice' | 'material-reference' | 'machine-reference';
+export type MaterialParameterSourceForm = {
+  allowedKinds: string[];
+  exposedAttributeKey: string;
+  allowedValues: any[];
+  selectMaterial: boolean;
+  additionalFilters: any[];
+};
 export type ParameterForm = {
   id: string;
   key: string;
@@ -12,6 +19,8 @@ export type ParameterForm = {
   minValue: string | null;
   maxValue: string | null;
   unit: string;
+  predefinedKey?: string;
+  materialSource?: MaterialParameterSourceForm;
 };
 export type ParameterTemplateSeed = Omit<ParameterForm, 'id'>;
 export type ComponentType =
@@ -41,6 +50,7 @@ export type ComponentForm = {
   rateBasis: string;
   enabled: boolean;
   notes: string;
+  suggested?: boolean;
 };
 export type PricingTierForm = {
   position: number;
@@ -61,6 +71,24 @@ export type PricingRuleForm = {
   parameterKey: string;
   tiers: PricingTierForm[];
 };
+export type FinishedSizeOptionForm = {
+  id: string;
+  code: string;
+  label: string;
+  widthMM: string;
+  heightMM: string;
+  position: number;
+  active: boolean;
+};
+export type FinishedSizeForm = {
+  parameterKey: string;
+  quantityParameterKey: string;
+  widthParameterKey: string;
+  heightParameterKey: string;
+  allowCustom: boolean;
+  allowRotation: boolean;
+  options: FinishedSizeOptionForm[];
+};
 export type ServiceForm = {
   name: string;
   code: string;
@@ -72,4 +100,23 @@ export type ServiceForm = {
   parameters: ParameterForm[];
   components: ComponentForm[];
   pricingRule: PricingRuleForm;
+  finishedSize: FinishedSizeForm | null;
+};
+
+export type PredefinedParameterOption = {
+  code: string;
+  label: string;
+  widthMM: string | null;
+  heightMM: string | null;
+  active: boolean;
+  position: number;
+};
+export type PredefinedParameter = {
+  key: string;
+  label: string;
+  valueType: string;
+  unit: string;
+  active: boolean;
+  position: number;
+  options: PredefinedParameterOption[];
 };

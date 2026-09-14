@@ -18,10 +18,23 @@ type MaterialRepository interface {
 	Update(context.Context, domain.Material) error
 }
 
+type MaterialAttributeDefinitionView struct {
+	Key             string
+	Label           string
+	ValueType       string
+	Unit            string
+	ApplicableKinds []string
+	EnumOptions     []domain.MaterialAttributeEnumOption
+	Active          bool
+	Position        int
+}
+
 type MaterialInput struct {
 	Name                string
 	SKU                 string
 	Category            string
+	Kind                string
+	Attributes          []domain.MaterialAttributeValue
 	PurchaseUnit        string
 	ConsumptionUnit     string
 	ConversionFactor    string
@@ -37,6 +50,8 @@ type MaterialView struct {
 	Name                        string
 	SKU                         string
 	Category                    string
+	Kind                        string
+	Attributes                  []domain.MaterialAttributeValue
 	PurchaseUnit                string
 	ConsumptionUnit             string
 	ConversionFactor            string
@@ -100,6 +115,29 @@ func (s *MaterialsService) Get(ctx context.Context, id string) (MaterialView, er
 		}
 	}
 	return view, nil
+}
+
+func (s *MaterialsService) ListAttributeDefinitions(ctx context.Context) ([]MaterialAttributeDefinitionView, error) {
+	reader, ok := s.repository.(interface {
+		ListMaterialAttributeDefinitions(context.Context) ([]domain.MaterialAttributeDefinition, error)
+	})
+	if !ok {
+		return nil, fmt.Errorf("material attribute definitions are not supported")
+	}
+	definitions, err := reader.ListMaterialAttributeDefinitions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]MaterialAttributeDefinitionView, 0, len(definitions))
+	for _, definition := range definitions {
+		view := MaterialAttributeDefinitionView{Key: definition.Key, Label: definition.Label, ValueType: string(definition.ValueType), Unit: definition.Unit, Active: definition.Active, Position: definition.Position}
+		for _, kind := range definition.ApplicableKinds {
+			view.ApplicableKinds = append(view.ApplicableKinds, string(kind))
+		}
+		view.EnumOptions = append(view.EnumOptions, definition.EnumOptions...)
+		result = append(result, view)
+	}
+	return result, nil
 }
 
 func (s *MaterialsService) Create(ctx context.Context, input MaterialInput) (MaterialView, error) {
@@ -207,7 +245,7 @@ func parseDraft(input MaterialInput) (domain.MaterialDraft, error) {
 		return domain.MaterialDraft{}, domain.ValidationError{Field: "averageUnitCostRial", Message: "cannot be negative"}
 	}
 	return domain.MaterialDraft{
-		Name: input.Name, SKU: input.SKU, Category: input.Category,
+		Name: input.Name, SKU: input.SKU, Category: input.Category, Kind: domain.MaterialKind(strings.TrimSpace(input.Kind)), Attributes: input.Attributes,
 		PurchaseUnit: input.PurchaseUnit, ConsumptionUnit: input.ConsumptionUnit,
 		ConversionFactor: conversion, PhysicalStock: stock, ReorderLevel: reorder,
 		AverageUnitCostRial: input.AverageUnitCostRial,
@@ -218,6 +256,7 @@ func parseDraft(input MaterialInput) (domain.MaterialDraft, error) {
 func toView(material domain.Material) MaterialView {
 	return MaterialView{
 		ID: material.ID, Name: material.Name, SKU: material.SKU, Category: material.Category,
+		Kind: string(material.Kind), Attributes: append([]domain.MaterialAttributeValue(nil), material.Attributes...),
 		PurchaseUnit: material.PurchaseUnit, ConsumptionUnit: material.ConsumptionUnit,
 		ConversionFactor: material.ConversionFactor.String(), PhysicalStock: material.PhysicalStock.String(),
 		ReservedStock: material.ReservedStock.String(), AvailableStock: material.AvailableStock.String(),

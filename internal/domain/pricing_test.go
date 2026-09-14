@@ -208,3 +208,24 @@ func TestEvaluatePricingUsesMachineRateSelectedByChoice(t *testing.T) {
 		t.Fatalf("full color rate = %+v, want 250", result)
 	}
 }
+
+func TestEvaluatePricingRequiresMatchingPredefinedMachineSelector(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := NewService("SVC-machine-color-catalog", ServiceDraft{
+		Name:       "Catalog color print",
+		Parameters: []ServiceParameterDraft{{ID: "P-color", Key: "color", Label: "Color", Type: ParameterChoice, PredefinedKey: PredefinedParameterColor, Required: true}},
+		Components: []ServiceCostComponentDraft{{ID: "C-machine", Name: "Printer", Type: CostMachine, ReferenceID: "MAC-printer", UsageMode: UsageFixed, UsageQuantity: QuantityScale, Multiplier: QuantityScale, RateParameterKey: "color", Enabled: true}},
+	}, now)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	machine := Machine{ID: "MAC-printer", Name: "Printer", RateBasis: RatePerUnit, RateRial: 100, Active: true, Rates: []MachineRate{{ID: "color", Name: "Full color", SelectorValue: "full-color", SelectorPredefinedKey: PredefinedParameterColor, RateBasis: RatePerUnit, RateRial: 250, Active: true}}}
+	result, err := EvaluatePricing(PricingInput{Service: service, Parameters: map[string]ResolvedParameter{"color": {Key: "color", Type: ParameterChoice, Value: "full-color", PredefinedKey: PredefinedParameterColor}}, Machines: map[string]Machine{"MAC-printer": machine}})
+	if err != nil || result.Components[0].RateRial != 250 {
+		t.Fatalf("catalog color rate = %+v, err=%v", result, err)
+	}
+	_, err = EvaluatePricing(PricingInput{Service: service, Parameters: map[string]ResolvedParameter{"color": {Key: "color", Type: ParameterChoice, Value: "full-color"}}, Machines: map[string]Machine{"MAC-printer": machine}})
+	if err == nil {
+		t.Fatal("expected a predefined machine selector not to match an ordinary choice")
+	}
+}

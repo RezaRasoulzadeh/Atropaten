@@ -27,13 +27,12 @@ function normalize(value: string | undefined) {
 }
 
 function materialFor(component: ComponentForm, parameters: ParameterForm[], values: TestValues, materials: MaterialRecord[]) {
-  if (component.type !== 'material') return null
-  if (component.usageMode === 'parameter' && !component.referenceId) {
-    const parameter = parameters.find((item) => item.key === component.parameterKey)
-    const wanted = normalize(values[component.parameterKey] || parameter?.defaultValue)
-    return materials.find((material) => [material.id, material.name, material.sku].some((value) => normalize(value) === wanted))
-      || materials.find((material) => [material.name, material.sku].some((value) => normalize(value).includes(wanted) || wanted.includes(normalize(value))))
-      || null
+	if (component.type !== 'material') return null
+	if (component.usageMode === 'parameter' && !component.referenceId) {
+		const parameter = parameters.find((item) => item.key === component.parameterKey)
+		if (parameter?.type !== 'material-reference' && !parameter?.materialSource?.selectMaterial) return null
+		const selectedID = values[component.parameterKey] || parameter?.defaultValue
+		return materials.find((material) => material.id === selectedID && material.active) || null
   }
   return materials.find((material) => material.id === component.referenceId) || null
 }
@@ -42,21 +41,19 @@ function machineFor(component: ComponentForm, parameters: ParameterForm[], value
   if (component.type !== 'machine') return null
   if (component.usageMode === 'parameter' && !component.referenceId) {
     const parameter = parameters.find((item) => item.key === component.parameterKey)
-    const wanted = normalize(values[component.parameterKey] || parameter?.defaultValue)
-    return machines.find((machine) => [machine.id, machine.name, machine.code].some((value) => normalize(value) === wanted))
-      || machines.find((machine) => [machine.name, machine.code].some((value) => normalize(value).includes(wanted) || wanted.includes(normalize(value))))
-      || null
+    const selectedID = values[component.parameterKey] || parameter?.defaultValue
+    return machines.find((machine) => machine.id === selectedID && machine.active) || null
   }
-  return machines.find((machine) => machine.id === component.referenceId) || null
+  return machines.find((machine) => machine.id === component.referenceId && machine.active) || null
 }
 
 function machineRate(component: ComponentForm, machine: MachineRecord, parameters: ParameterForm[], values: TestValues) {
-  const rates = machine.rates?.length ? machine.rates : [{ id: 'default', name: 'Standard', selectorValue: '', rateBasis: machine.rateBasis, rateRial: machine.rateRial, setupCostRial: machine.setupCostRial, active: true }]
+  const rates = machine.rates?.length ? machine.rates : [{ id: 'default', name: 'Standard', selectorValue: '', selectorPredefinedKey: '', rateBasis: machine.rateBasis, rateRial: machine.rateRial, setupCostRial: machine.setupCostRial, active: true }]
   if (component.rateId) return rates.find((rate) => rate.id === component.rateId && rate.active) || null
   if (component.rateParameterKey) {
     const parameter = parameters.find((item) => item.key === component.rateParameterKey)
     const wanted = normalize(values[component.rateParameterKey] || parameter?.defaultValue)
-    return rates.find((rate) => rate.active && [rate.selectorValue, rate.name, rate.id].some((value) => normalize(value) === wanted)) || null
+    return rates.find((rate) => rate.active && (!rate.selectorPredefinedKey || rate.selectorPredefinedKey === parameter?.predefinedKey) && [rate.selectorValue, rate.name, rate.id].some((value) => normalize(value) === wanted)) || null
   }
   return rates.find((rate) => rate.active) || rates[0] || null
 }

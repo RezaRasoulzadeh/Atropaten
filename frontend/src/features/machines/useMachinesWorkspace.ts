@@ -1,5 +1,6 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { machinesApi, type MachinePayload, type MachineRatePayload, type MachineRecord } from '../../api/machines'
+import type { main as mainTypes } from '../../../wailsjs/go/models'
 import { useWorkspaceActions } from '../../composables/useWorkspaceActions'
 import { confirmAction, useToast } from '../../ui/feedback'
 import { formatMoneyInput, parseMoneyInput, type CurrencyUnit } from '../../utils/currency'
@@ -24,6 +25,7 @@ export function useMachinesWorkspace(props: MachinesProps, emit: MachinesEmit) {
   const { busy, runAction } = useWorkspaceActions()
   const toast = useToast()
   const machines = ref<MachineRecord[]>([])
+  const predefinedParameters = ref<mainTypes.PredefinedParameterDTO[]>([])
   const selectedId = ref<string | null>(null)
   const machineFilter = ref<MachineFilter>('All')
   const searchQuery = ref('')
@@ -59,17 +61,18 @@ export function useMachinesWorkspace(props: MachinesProps, emit: MachinesEmit) {
   }
 
   function emptyRate(index = 0): MachineRateForm {
-    return { id: `rate-${Date.now()}-${index}`, name: `Rate ${index + 2}`, selectorValue: '', rateBasis: 'hour', rate: '', setupCost: '', active: true }
+    return { id: `rate-${Date.now()}-${index}`, name: `Rate ${index + 2}`, selectorValue: '', selectorPredefinedKey: '', rateBasis: 'hour', rate: '', setupCost: '', active: true }
   }
 
   function rateForms(machine: MachineRecord): MachineRateForm[] {
     const rates = Array.isArray(machine.rates) && machine.rates.length
       ? machine.rates
-      : [{ id: 'default', name: 'Standard', selectorValue: '', rateBasis: machine.rateBasis, rateRial: machine.rateRial, setupCostRial: machine.setupCostRial, active: true }]
+      : [{ id: 'default', name: 'Standard', selectorValue: '', selectorPredefinedKey: '', rateBasis: machine.rateBasis, rateRial: machine.rateRial, setupCostRial: machine.setupCostRial, active: true }]
     return rates.slice(1).map((rate) => ({
       id: rate.id,
       name: rate.name,
       selectorValue: rate.selectorValue,
+      selectorPredefinedKey: rate.selectorPredefinedKey || '',
       rateBasis: rate.rateBasis,
       rate: formatMoneyInput(rate.rateRial, props.currencyUnit),
       setupCost: formatMoneyInput(rate.setupCostRial, props.currencyUnit),
@@ -80,7 +83,9 @@ export function useMachinesWorkspace(props: MachinesProps, emit: MachinesEmit) {
   async function loadMachines() {
     isLoading.value = true
     try {
-      machines.value = await machinesApi.list(true)
+      const [machineData, predefinedData] = await Promise.all([machinesApi.list(true), machinesApi.predefinedParameters()])
+      machines.value = machineData
+      predefinedParameters.value = predefinedData
       if (!selectedId.value) {
         const firstMachine = machines.value.find((machine) => machine.active) ?? machines.value[0]
         selectedId.value = firstMachine?.id ?? null
@@ -161,7 +166,7 @@ export function useMachinesWorkspace(props: MachinesProps, emit: MachinesEmit) {
         toast.error(`Enter whole ${props.currencyUnit.toLowerCase()} amounts.`, 'Machines')
         return
       }
-      const parsedRates: MachineRatePayload[] = [{ id: 'default', name: 'Standard', selectorValue: '', rateBasis: form.value.rateBasis, rateRial: parsedRate, setupCostRial: parsedSetup, active: true }]
+      const parsedRates: MachineRatePayload[] = [{ id: 'default', name: 'Standard', selectorValue: '', selectorPredefinedKey: '', rateBasis: form.value.rateBasis, rateRial: parsedRate, setupCostRial: parsedSetup, active: true }]
       for (const [index, item] of form.value.rates.entries()) {
         const itemRate = rate(item.rate)
         const itemSetup = item.setupCost.trim() === '' ? 0 : rate(item.setupCost)
@@ -169,7 +174,7 @@ export function useMachinesWorkspace(props: MachinesProps, emit: MachinesEmit) {
           toast.error(`Complete rate profile ${index + 2}.`, 'Machines')
           return
         }
-        parsedRates.push({ id: item.id, name: item.name.trim(), selectorValue: item.selectorValue.trim(), rateBasis: item.rateBasis, rateRial: itemRate, setupCostRial: itemSetup, active: item.active })
+        parsedRates.push({ id: item.id, name: item.name.trim(), selectorValue: item.selectorValue.trim(), selectorPredefinedKey: item.selectorPredefinedKey || '', rateBasis: item.rateBasis, rateRial: itemRate, setupCostRial: itemSetup, active: item.active })
       }
       isSaving.value = true
       const wasEditing = editorMode.value === 'edit'
@@ -241,5 +246,5 @@ export function useMachinesWorkspace(props: MachinesProps, emit: MachinesEmit) {
     return error instanceof Error && error.message ? error.message : typeof error === 'string' ? error : fallback
   }
 
-  return { busy, machines, selectedId, selectedMachine, machineFilter, searchQuery, editorMode, form, isLoading, isSaving, filteredMachines, emptyRate, selectMachine, startCreate, startEdit, cancelEditor, backToMachines, saveMachine, setActive, remove, basisLabel, dateLabel }
+  return { busy, machines, predefinedParameters, selectedId, selectedMachine, machineFilter, searchQuery, editorMode, form, isLoading, isSaving, filteredMachines, emptyRate, selectMachine, startCreate, startEdit, cancelEditor, backToMachines, saveMachine, setActive, remove, basisLabel, dateLabel }
 }

@@ -5,6 +5,7 @@ import {
   ListMachines,
   ReactivateMachine,
   UpdateMachine,
+  ListPredefinedParameters,
 } from '../../wailsjs/go/main/App'
 import type { main as mainTypes } from '../../wailsjs/go/models'
 
@@ -14,6 +15,7 @@ export type MachineRatePayload = {
   id: string
   name: string
   selectorValue: string
+  selectorPredefinedKey: string
   rateBasis: string
   rateRial: number
   setupCostRial: number
@@ -34,6 +36,9 @@ export type MachinePayload = {
 export const machinesApi = {
   list(includeArchived = true): Promise<MachineRecord[]> {
     return ListMachines(includeArchived)
+  },
+  predefinedParameters() {
+    return ListPredefinedParameters()
   },
   create(input: MachinePayload): Promise<MachineRecord> {
     return CreateMachine(input as unknown as mainTypes.MachineInput)

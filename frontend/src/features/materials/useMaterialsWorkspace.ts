@@ -1,5 +1,5 @@
 import { computed, onMounted, ref, watch } from 'vue';
-import { materialsApi, type MaterialPayload, type MaterialRecord } from '../../api/materials';
+import { materialsApi, type MaterialAttributeDefinitionRecord, type MaterialPayload, type MaterialRecord, type PredefinedParameterRecord } from '../../api/materials';
 import { purchasesApi } from '../../api/purchases';
 import { useWorkspaceActions } from '../../composables/useWorkspaceActions';
 import { confirmAction, useToast } from '../../ui/feedback';
@@ -12,8 +12,29 @@ import { formatDateTime } from '../../utils/date';
 
 export type MaterialFilter = 'Active' | 'Archived' | 'All';
 export type EditorMode = 'create' | 'edit' | null;
-export type MaterialForm = Omit<MaterialPayload, 'averageUnitCostRial'> & {
+export type MaterialForm = {
+  name: string;
+  sku: string;
+  category: string;
+  purchaseUnit: string;
+  consumptionUnit: string;
+  conversionFactor: string;
+  physicalStock: string;
+  reorderLevel: string;
+  preferredSupplier: string;
+  notes: string;
   averageUnitCostRial: number;
+  kind: string;
+  attributes: MaterialAttributeForm[];
+};
+export type MaterialAttributeForm = {
+  key: string;
+  valueType: string;
+  decimalValue: string;
+  integerValue: number;
+  enumCode: string;
+  textValue: string;
+  booleanValue: boolean;
 };
 
 type MaterialsProps = { currencyUnit: CurrencyUnit };
@@ -24,6 +45,8 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
   const toast = useToast();
 
   const materials = ref<MaterialRecord[]>([]);
+  const attributeDefinitions = ref<MaterialAttributeDefinitionRecord[]>([]);
+  const predefinedParameters = ref<PredefinedParameterRecord[]>([]);
   const selectedId = ref<string | null>(null);
   const searchQuery = ref('');
   const materialFilter = ref<MaterialFilter>('All');
@@ -95,6 +118,8 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
       name: '',
       sku: '',
       category: '',
+      kind: 'generic-consumable',
+      attributes: [],
       purchaseUnit: 'pack',
       consumptionUnit: 'sheet',
       conversionFactor: '500',
@@ -109,7 +134,14 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
   async function loadMaterials() {
     isLoading.value = true;
     try {
-      materials.value = await materialsApi.list(true);
+      const [loadedMaterials, loadedDefinitions, loadedPredefinedParameters] = await Promise.all([
+        materialsApi.list(true),
+        materialsApi.definitions(),
+        materialsApi.predefinedParameters(),
+      ]);
+      materials.value = loadedMaterials;
+      attributeDefinitions.value = loadedDefinitions;
+      predefinedParameters.value = loadedPredefinedParameters;
       if (!selectedId.value) {
         const firstMaterial = materials.value.find((material) => material.active) ?? materials.value[0];
         selectedId.value = firstMaterial?.id ?? null;
@@ -157,6 +189,8 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
       name: material.name,
       sku: material.sku,
       category: material.category,
+      kind: material.kind || 'generic-consumable',
+      attributes: (material.attributes || []).map((attribute: any) => ({ ...attribute })),
       purchaseUnit: material.purchaseUnit,
       consumptionUnit: material.consumptionUnit,
       conversionFactor: material.conversionFactor,
@@ -229,7 +263,14 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
   }
 
   function payload(): MaterialPayload {
-    return { ...form.value };
+    return { ...form.value, attributes: form.value.attributes.filter((attribute) => {
+      if (attribute.valueType === 'decimal') return Boolean(attribute.decimalValue?.trim());
+      if (attribute.valueType === 'integer') return Number.isInteger(attribute.integerValue) && attribute.integerValue > 0;
+      if (attribute.valueType === 'enum') return Boolean(attribute.enumCode?.trim());
+      if (attribute.valueType === 'text') return Boolean(attribute.textValue?.trim());
+      if (attribute.valueType === 'boolean') return true;
+      return false;
+    }) };
   }
 
   async function adjustStock() {
@@ -303,7 +344,7 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
         !(await confirmAction({
           title: 'Delete material',
           message:
-            'Delete this material permanently? Materials with inventory or production history must be archived instead.',
+            'Delete this material permanently? If it has active inventory or operational dependencies, it will be archived instead. Reversible inventory history will be removed.',
           confirmLabel: 'Delete material',
           danger: true,
         }))
@@ -316,7 +357,21 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
         backToMaterials();
         emit('notify', 'Material deleted.');
       } catch (error) {
-        toast.error(errorMessageFrom(error, 'Material could not be deleted.'), 'Materials');
+        const message = errorMessageFrom(error, 'Material could not be deleted.');
+        if (message.toLowerCase().includes('archive it instead')) {
+          try {
+            const archived = await materialsApi.archive(material.id);
+            const index = materials.value.findIndex((item) => item.id === archived.id);
+            if (index >= 0) materials.value.splice(index, 1, archived);
+            backToMaterials();
+            emit('notify', 'This material has active dependencies, so it was archived instead.');
+            return;
+          } catch (archiveError) {
+            toast.error(errorMessageFrom(archiveError, message), 'Materials');
+            return;
+          }
+        }
+        toast.error(message, 'Materials');
       }
     });
   }
@@ -344,6 +399,8 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
   return {
     busy,
     materials,
+    attributeDefinitions,
+    predefinedParameters,
     selectedId,
     selectedMaterial,
     searchQuery,

@@ -8,6 +8,7 @@ import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
 import type { ComponentForm, ComponentType, ParameterForm } from './types'
 import { formatMoney, formatMoneyInput, parseMoneyInput, type CurrencyUnit } from '../../utils/currency'
+import { ensureSuggestedCostComponents, isMachineParameter, isMaterialParameter, reconcileCostComponents } from './serviceComponentSync'
 
 const props = defineProps<{
   components: ComponentForm[]
@@ -112,31 +113,9 @@ function normalizeComponent(component: ComponentForm) {
   }
 }
 
-function costParameter(parameter: ParameterForm) {
-  if (parameter.type === 'machine-reference') return true
-  if (parameter.type !== 'choice' && parameter.type !== 'material-reference') return false
-  return /paper|stock|substrate|material|media|finish|lamination|ink|color|machine|printer|press|plotter|cutter|print.?method/i.test(`${parameter.key} ${parameter.label}`)
-}
-
-function suggestedComponentType(parameter: ParameterForm): ComponentType {
-  return parameter.type === 'machine-reference' || /machine|printer|press|plotter|cutter|print.?method/i.test(`${parameter.key} ${parameter.label}`) ? 'machine' : 'material'
-}
-
-function addSuggestedComponents() {
-  if (props.components.length) return
-  const candidates = props.parameters.filter(costParameter)
-  if (!candidates.length) return
-  for (const parameter of candidates) {
-    const type = suggestedComponentType(parameter)
-    props.components.push({
-      ...emptyComponent(type),
-      name: `${parameter.label || parameter.key} cost`,
-      usageMode: 'parameter',
-      parameterKey: parameter.key,
-    })
-  }
-  suggestedFromParameters.value = true
-  selectedIndex.value = 0
+function syncSuggestedComponents() {
+  suggestedFromParameters.value = ensureSuggestedCostComponents(props.components, props.parameters)
+  if (props.components.length && selectedIndex.value >= props.components.length) selectedIndex.value = props.components.length - 1
 }
 
 function addOtherComponent(type = otherType.value) {
@@ -199,6 +178,23 @@ function sourceLabel(component: ComponentForm) {
   return typeLabel(component.type)
 }
 
+function componentIsIncomplete(component: ComponentForm) {
+  if (!component.name.trim()) return true
+  if (component.type === 'material') {
+    return component.usageMode === 'parameter'
+      ? !isMaterialParameter(props.parameters.find((parameter) => parameter.key === component.parameterKey))
+      : !props.materials.some((material) => material.id === component.referenceId && material.active)
+  }
+  if (component.type === 'machine') {
+    return component.usageMode === 'parameter'
+      ? !isMachineParameter(props.parameters.find((parameter) => parameter.key === component.parameterKey))
+      : !props.machines.some((machine) => machine.id === component.referenceId && machine.active)
+  }
+  if (component.type === 'service') return !props.services.some((service) => service.id === component.referenceId && service.active && service.id !== props.currentServiceId)
+  if (component.type === 'overhead' || component.type === 'waste') return !component.percentage.trim()
+  return (component.type === 'labor' || component.type === 'outsourced' || component.type === 'fixed' || component.type === 'manual') && !component.rateInput.trim()
+}
+
 watch(
   () => props.components.length,
   (length) => {
@@ -207,12 +203,20 @@ watch(
   },
 )
 
-onMounted(addSuggestedComponents)
+onMounted(syncSuggestedComponents)
+watch(
+  () => props.parameters,
+  () => {
+    reconcileCostComponents(props.components, props.parameters)
+    syncSuggestedComponents()
+  },
+  { deep: true },
+)
 </script>
 
 <template>
   <section class="min-w-0 space-y-4" aria-label="Service cost components">
-    <div v-if="suggestedFromParameters" class="flex items-start gap-2 rounded-box border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs leading-5 text-base-content/70"><Sparkles class="mt-0.5 shrink-0 text-primary" :size="15" aria-hidden="true" /><span>We created material-based cost rows from your paper, finish, and material parameters. Review each row and add any machine, labor, or fixed cost separately.</span></div>
+    <div v-if="suggestedFromParameters" class="flex items-start gap-2 rounded-box border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs leading-5 text-base-content/70"><Sparkles class="mt-0.5 shrink-0 text-primary" :size="15" aria-hidden="true" /><span>We created cost rows from explicit inventory-backed material or machine inputs. Review each row and add any fixed, labor, finishing, or overhead costs separately.</span></div>
 
     <div class="grid min-w-0 gap-4 lg:grid-cols-[minmax(13rem,0.82fr)_minmax(0,1.18fr)]">
       <div class="min-w-0 space-y-2">
@@ -220,7 +224,7 @@ onMounted(addSuggestedComponents)
         <div v-if="components.length" class="space-y-2">
           <button v-for="(component, index) in components" :key="component.id" class="flex w-full min-w-0 items-center gap-2 rounded-box border p-3 text-start transition-colors" :class="index === selectedIndex ? 'border-primary bg-primary/10' : 'border-base-300 bg-base-100 hover:border-primary/45'" type="button" @click="selectedIndex = index">
             <span class="grid size-8 shrink-0 place-items-center rounded-box bg-base-200 text-base-content/65"><Calculator :size="16" aria-hidden="true" /></span>
-            <span class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ component.name || 'New cost' }}</strong><small class="mt-0.5 block truncate text-xs text-base-content/60">{{ typeLabel(component.type) }} · {{ sourceLabel(component) }}</small></span>
+            <span class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ component.name || 'New cost' }}</strong><small class="mt-0.5 block truncate text-xs text-base-content/60">{{ typeLabel(component.type) }} · {{ sourceLabel(component) }}</small><small v-if="componentIsIncomplete(component)" class="mt-1 block text-xs font-medium text-warning">Needs setup</small></span>
             <ChevronRight class="shrink-0 text-base-content/45" :size="16" aria-hidden="true" />
           </button>
         </div>

@@ -647,6 +647,140 @@ export namespace main {
 	        this.ownerIds = source["ownerIds"];
 	    }
 	}
+	export class FinishedSizeOptionDTO {
+	    id: string;
+	    code: string;
+	    label: string;
+	    widthMM: string;
+	    heightMM: string;
+	    position: number;
+	    active: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FinishedSizeOptionDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.code = source["code"];
+	        this.label = source["label"];
+	        this.widthMM = source["widthMM"];
+	        this.heightMM = source["heightMM"];
+	        this.position = source["position"];
+	        this.active = source["active"];
+	    }
+	}
+	export class FinishedSizeDTO {
+	    parameterKey: string;
+	    quantityParameterKey: string;
+	    widthParameterKey: string;
+	    heightParameterKey: string;
+	    allowCustom: boolean;
+	    allowRotation: boolean;
+	    options: FinishedSizeOptionDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new FinishedSizeDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.parameterKey = source["parameterKey"];
+	        this.quantityParameterKey = source["quantityParameterKey"];
+	        this.widthParameterKey = source["widthParameterKey"];
+	        this.heightParameterKey = source["heightParameterKey"];
+	        this.allowCustom = source["allowCustom"];
+	        this.allowRotation = source["allowRotation"];
+	        this.options = this.convertValues(source["options"], FinishedSizeOptionDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class FinishedSizeOptionInput {
+	    id: string;
+	    code: string;
+	    label: string;
+	    widthMM: string;
+	    heightMM: string;
+	    position: number;
+	    active: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FinishedSizeOptionInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.code = source["code"];
+	        this.label = source["label"];
+	        this.widthMM = source["widthMM"];
+	        this.heightMM = source["heightMM"];
+	        this.position = source["position"];
+	        this.active = source["active"];
+	    }
+	}
+	export class FinishedSizeInput {
+	    parameterKey: string;
+	    quantityParameterKey: string;
+	    widthParameterKey: string;
+	    heightParameterKey: string;
+	    allowCustom: boolean;
+	    allowRotation: boolean;
+	    options: FinishedSizeOptionInput[];
+	
+	    static createFrom(source: any = {}) {
+	        return new FinishedSizeInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.parameterKey = source["parameterKey"];
+	        this.quantityParameterKey = source["quantityParameterKey"];
+	        this.widthParameterKey = source["widthParameterKey"];
+	        this.heightParameterKey = source["heightParameterKey"];
+	        this.allowCustom = source["allowCustom"];
+	        this.allowRotation = source["allowRotation"];
+	        this.options = this.convertValues(source["options"], FinishedSizeOptionInput);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
 	export class ProfitAllocationDTO {
 	    id: string;
 	    periodId: string;
@@ -1333,6 +1467,7 @@ export namespace main {
 	    id: string;
 	    name: string;
 	    selectorValue: string;
+	    selectorPredefinedKey: string;
 	    rateBasis: string;
 	    rateRial: number;
 	    setupCostRial: number;
@@ -1347,6 +1482,7 @@ export namespace main {
 	        this.id = source["id"];
 	        this.name = source["name"];
 	        this.selectorValue = source["selectorValue"];
+	        this.selectorPredefinedKey = source["selectorPredefinedKey"];
 	        this.rateBasis = source["rateBasis"];
 	        this.rateRial = source["rateRial"];
 	        this.setupCostRial = source["setupCostRial"];
@@ -1411,6 +1547,7 @@ export namespace main {
 	    id: string;
 	    name: string;
 	    selectorValue: string;
+	    selectorPredefinedKey: string;
 	    rateBasis: string;
 	    rateRial: number;
 	    setupCostRial: number;
@@ -1425,6 +1562,7 @@ export namespace main {
 	        this.id = source["id"];
 	        this.name = source["name"];
 	        this.selectorValue = source["selectorValue"];
+	        this.selectorPredefinedKey = source["selectorPredefinedKey"];
 	        this.rateBasis = source["rateBasis"];
 	        this.rateRial = source["rateRial"];
 	        this.setupCostRial = source["setupCostRial"];
@@ -1479,11 +1617,189 @@ export namespace main {
 	}
 	
 	
+	export class MaterialAttributeDTO {
+	    key: string;
+	    valueType: string;
+	    decimalValue: string;
+	    integerValue: number;
+	    enumCode: string;
+	    textValue: string;
+	    booleanValue: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new MaterialAttributeDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.valueType = source["valueType"];
+	        this.decimalValue = source["decimalValue"];
+	        this.integerValue = source["integerValue"];
+	        this.enumCode = source["enumCode"];
+	        this.textValue = source["textValue"];
+	        this.booleanValue = source["booleanValue"];
+	    }
+	}
+	export class MaterialAttributeEnumOptionDTO {
+	    code: string;
+	    label: string;
+	    active: boolean;
+	    position: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new MaterialAttributeEnumOptionDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.code = source["code"];
+	        this.label = source["label"];
+	        this.active = source["active"];
+	        this.position = source["position"];
+	    }
+	}
+	export class MaterialAttributeDefinitionDTO {
+	    key: string;
+	    label: string;
+	    valueType: string;
+	    unit: string;
+	    applicableKinds: string[];
+	    enumOptions: MaterialAttributeEnumOptionDTO[];
+	    active: boolean;
+	    position: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new MaterialAttributeDefinitionDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.label = source["label"];
+	        this.valueType = source["valueType"];
+	        this.unit = source["unit"];
+	        this.applicableKinds = source["applicableKinds"];
+	        this.enumOptions = this.convertValues(source["enumOptions"], MaterialAttributeEnumOptionDTO);
+	        this.active = source["active"];
+	        this.position = source["position"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class MaterialAttributeFilterDTO {
+	    key: string;
+	    value: MaterialAttributeDTO;
+	
+	    static createFrom(source: any = {}) {
+	        return new MaterialAttributeFilterDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.value = this.convertValues(source["value"], MaterialAttributeDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class MaterialAttributeInput {
+	    key: string;
+	    valueType: string;
+	    decimalValue: string;
+	    integerValue: number;
+	    enumCode: string;
+	    textValue: string;
+	    booleanValue: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new MaterialAttributeInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.valueType = source["valueType"];
+	        this.decimalValue = source["decimalValue"];
+	        this.integerValue = source["integerValue"];
+	        this.enumCode = source["enumCode"];
+	        this.textValue = source["textValue"];
+	        this.booleanValue = source["booleanValue"];
+	    }
+	}
+	export class MaterialAttributeFilterInput {
+	    key: string;
+	    value: MaterialAttributeInput;
+	
+	    static createFrom(source: any = {}) {
+	        return new MaterialAttributeFilterInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.value = this.convertValues(source["value"], MaterialAttributeInput);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class MaterialDTO {
 	    id: string;
 	    name: string;
 	    sku: string;
 	    category: string;
+	    kind: string;
+	    attributes: MaterialAttributeDTO[];
 	    purchaseUnit: string;
 	    consumptionUnit: string;
 	    conversionFactor: string;
@@ -1511,6 +1827,8 @@ export namespace main {
 	        this.name = source["name"];
 	        this.sku = source["sku"];
 	        this.category = source["category"];
+	        this.kind = source["kind"];
+	        this.attributes = this.convertValues(source["attributes"], MaterialAttributeDTO);
 	        this.purchaseUnit = source["purchaseUnit"];
 	        this.consumptionUnit = source["consumptionUnit"];
 	        this.conversionFactor = source["conversionFactor"];
@@ -1528,11 +1846,31 @@ export namespace main {
 	        this.createdAt = source["createdAt"];
 	        this.updatedAt = source["updatedAt"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class MaterialInput {
 	    name: string;
 	    sku: string;
 	    category: string;
+	    kind: string;
+	    attributes: MaterialAttributeInput[];
 	    purchaseUnit: string;
 	    consumptionUnit: string;
 	    conversionFactor: string;
@@ -1551,6 +1889,8 @@ export namespace main {
 	        this.name = source["name"];
 	        this.sku = source["sku"];
 	        this.category = source["category"];
+	        this.kind = source["kind"];
+	        this.attributes = this.convertValues(source["attributes"], MaterialAttributeInput);
 	        this.purchaseUnit = source["purchaseUnit"];
 	        this.consumptionUnit = source["consumptionUnit"];
 	        this.conversionFactor = source["conversionFactor"];
@@ -1560,6 +1900,100 @@ export namespace main {
 	        this.preferredSupplier = source["preferredSupplier"];
 	        this.notes = source["notes"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class MaterialParameterSourceDTO {
+	    allowedKinds: string[];
+	    exposedAttributeKey: string;
+	    allowedValues: MaterialAttributeDTO[];
+	    selectMaterial: boolean;
+	    additionalFilters: MaterialAttributeFilterDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new MaterialParameterSourceDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.allowedKinds = source["allowedKinds"];
+	        this.exposedAttributeKey = source["exposedAttributeKey"];
+	        this.allowedValues = this.convertValues(source["allowedValues"], MaterialAttributeDTO);
+	        this.selectMaterial = source["selectMaterial"];
+	        this.additionalFilters = this.convertValues(source["additionalFilters"], MaterialAttributeFilterDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class MaterialParameterSourceInput {
+	    allowedKinds: string[];
+	    exposedAttributeKey: string;
+	    allowedValues: MaterialAttributeInput[];
+	    selectMaterial: boolean;
+	    additionalFilters: MaterialAttributeFilterInput[];
+	
+	    static createFrom(source: any = {}) {
+	        return new MaterialParameterSourceInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.allowedKinds = source["allowedKinds"];
+	        this.exposedAttributeKey = source["exposedAttributeKey"];
+	        this.allowedValues = this.convertValues(source["allowedValues"], MaterialAttributeInput);
+	        this.selectMaterial = source["selectMaterial"];
+	        this.additionalFilters = this.convertValues(source["additionalFilters"], MaterialAttributeFilterInput);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class OrderItemDTO {
 	    id: string;
@@ -2066,6 +2500,71 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class PredefinedParameterOptionDTO {
+	    code: string;
+	    label: string;
+	    widthMM?: string;
+	    heightMM?: string;
+	    active: boolean;
+	    position: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PredefinedParameterOptionDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.code = source["code"];
+	        this.label = source["label"];
+	        this.widthMM = source["widthMM"];
+	        this.heightMM = source["heightMM"];
+	        this.active = source["active"];
+	        this.position = source["position"];
+	    }
+	}
+	export class PredefinedParameterDTO {
+	    key: string;
+	    label: string;
+	    valueType: string;
+	    unit: string;
+	    active: boolean;
+	    position: number;
+	    options: PredefinedParameterOptionDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new PredefinedParameterDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.label = source["label"];
+	        this.valueType = source["valueType"];
+	        this.unit = source["unit"];
+	        this.active = source["active"];
+	        this.position = source["position"];
+	        this.options = this.convertValues(source["options"], PredefinedParameterOptionDTO);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class PricingComponentDTO {
 	    id: string;
 	    name: string;
@@ -2138,6 +2637,8 @@ export namespace main {
 	    warnings: string[];
 	    belowCost: boolean;
 	    roundingStepRial: number;
+	    finishedWidthMM: string;
+	    finishedHeightMM: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new PricingDTO(source);
@@ -2158,6 +2659,8 @@ export namespace main {
 	        this.warnings = source["warnings"];
 	        this.belowCost = source["belowCost"];
 	        this.roundingStepRial = source["roundingStepRial"];
+	        this.finishedWidthMM = source["finishedWidthMM"];
+	        this.finishedHeightMM = source["finishedHeightMM"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -3022,6 +3525,9 @@ export namespace main {
 	    minValue?: string;
 	    maxValue?: string;
 	    unit: string;
+	    predefinedKey: string;
+	    predefinedOptions: PredefinedParameterOptionDTO[];
+	    materialSource?: MaterialParameterSourceDTO;
 	    active: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -3041,8 +3547,29 @@ export namespace main {
 	        this.minValue = source["minValue"];
 	        this.maxValue = source["maxValue"];
 	        this.unit = source["unit"];
+	        this.predefinedKey = source["predefinedKey"];
+	        this.predefinedOptions = this.convertValues(source["predefinedOptions"], PredefinedParameterOptionDTO);
+	        this.materialSource = this.convertValues(source["materialSource"], MaterialParameterSourceDTO);
 	        this.active = source["active"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class ServiceDTO {
 	    id: string;
@@ -3059,6 +3586,7 @@ export namespace main {
 	    parameters: ServiceParameterDTO[];
 	    components: ServiceCostComponentDTO[];
 	    pricingRule?: PricingRuleDTO;
+	    finishedSize?: FinishedSizeDTO;
 	
 	    static createFrom(source: any = {}) {
 	        return new ServiceDTO(source);
@@ -3080,6 +3608,7 @@ export namespace main {
 	        this.parameters = this.convertValues(source["parameters"], ServiceParameterDTO);
 	        this.components = this.convertValues(source["components"], ServiceCostComponentDTO);
 	        this.pricingRule = this.convertValues(source["pricingRule"], PricingRuleDTO);
+	        this.finishedSize = this.convertValues(source["finishedSize"], FinishedSizeDTO);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -3111,6 +3640,8 @@ export namespace main {
 	    minValue?: string;
 	    maxValue?: string;
 	    unit: string;
+	    predefinedKey: string;
+	    materialSource?: MaterialParameterSourceInput;
 	
 	    static createFrom(source: any = {}) {
 	        return new ServiceParameterInput(source);
@@ -3128,7 +3659,27 @@ export namespace main {
 	        this.minValue = source["minValue"];
 	        this.maxValue = source["maxValue"];
 	        this.unit = source["unit"];
+	        this.predefinedKey = source["predefinedKey"];
+	        this.materialSource = this.convertValues(source["materialSource"], MaterialParameterSourceInput);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class ServiceInput {
 	    name: string;
@@ -3141,6 +3692,7 @@ export namespace main {
 	    parameters: ServiceParameterInput[];
 	    components: ServiceCostComponentInput[];
 	    pricingRule?: PricingRuleInput;
+	    finishedSize?: FinishedSizeInput;
 	
 	    static createFrom(source: any = {}) {
 	        return new ServiceInput(source);
@@ -3158,6 +3710,55 @@ export namespace main {
 	        this.parameters = this.convertValues(source["parameters"], ServiceParameterInput);
 	        this.components = this.convertValues(source["components"], ServiceCostComponentInput);
 	        this.pricingRule = this.convertValues(source["pricingRule"], PricingRuleInput);
+	        this.finishedSize = this.convertValues(source["finishedSize"], FinishedSizeInput);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ServiceMaterialOptionDTO {
+	    value: string;
+	    label: string;
+	    materialIds: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ServiceMaterialOptionDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.value = source["value"];
+	        this.label = source["label"];
+	        this.materialIds = source["materialIds"];
+	    }
+	}
+	export class ServiceMaterialOptionsDTO {
+	    parameterKey: string;
+	    options: ServiceMaterialOptionDTO[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ServiceMaterialOptionsDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.parameterKey = source["parameterKey"];
+	        this.options = this.convertValues(source["options"], ServiceMaterialOptionDTO);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

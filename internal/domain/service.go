@@ -45,6 +45,7 @@ type Service struct {
 	Parameters      []ServiceParameter
 	Components      []ServiceCostComponent
 	PricingRule     *ServicePricingRule
+	FinishedSize    *ServiceFinishedSizeDefinition
 }
 
 type ServiceDraft struct {
@@ -58,6 +59,27 @@ type ServiceDraft struct {
 	Parameters      []ServiceParameterDraft
 	Components      []ServiceCostComponentDraft
 	PricingRule     *ServicePricingRuleDraft
+	FinishedSize    *ServiceFinishedSizeDefinition
+}
+
+type FinishedSizeOption struct {
+	ID       string
+	Code     string
+	Label    string
+	WidthMM  Quantity
+	HeightMM Quantity
+	Position int
+	Active   bool
+}
+
+type ServiceFinishedSizeDefinition struct {
+	ParameterKey         string
+	QuantityParameterKey string
+	WidthParameterKey    string
+	HeightParameterKey   string
+	AllowCustom          bool
+	AllowRotation        bool
+	Options              []FinishedSizeOption
 }
 
 type CostComponentType string
@@ -124,21 +146,24 @@ type ServiceCostComponentDraft struct {
 }
 
 type ServiceParameter struct {
-	ID           string
-	ServiceID    string
-	Key          string
-	Label        string
-	Type         ParameterType
-	Required     bool
-	Position     int
-	DefaultValue string
-	Options      []string
-	MinValue     *Quantity
-	MaxValue     *Quantity
-	Unit         string
-	Active       bool
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID                string
+	ServiceID         string
+	Key               string
+	Label             string
+	Type              ParameterType
+	Required          bool
+	Position          int
+	DefaultValue      string
+	Options           []string
+	MinValue          *Quantity
+	MaxValue          *Quantity
+	Unit              string
+	PredefinedKey     string
+	PredefinedOptions []PredefinedParameterOption
+	MaterialSource    *MaterialParameterSource
+	Active            bool
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 type PricingRuleType string
@@ -190,16 +215,19 @@ type ServicePricingTierDraft struct {
 }
 
 type ServiceParameterDraft struct {
-	ID           string
-	Key          string
-	Label        string
-	Type         ParameterType
-	Required     bool
-	DefaultValue string
-	Options      []string
-	MinValue     *Quantity
-	MaxValue     *Quantity
-	Unit         string
+	ID                string
+	Key               string
+	Label             string
+	Type              ParameterType
+	Required          bool
+	DefaultValue      string
+	Options           []string
+	MinValue          *Quantity
+	MaxValue          *Quantity
+	Unit              string
+	PredefinedKey     string
+	PredefinedOptions []PredefinedParameterOption
+	MaterialSource    *MaterialParameterSource
 }
 
 func NewService(id string, draft ServiceDraft, now time.Time) (Service, error) {
@@ -233,6 +261,11 @@ func NewService(id string, draft ServiceDraft, now time.Time) (Service, error) {
 	if draft.PricingRule != nil {
 		rule := pricingRuleFromDraft(service.ID, *draft.PricingRule, now)
 		service.PricingRule = &rule
+	}
+	if draft.FinishedSize != nil {
+		finishedSize := *draft.FinishedSize
+		finishedSize.Options = append([]FinishedSizeOption(nil), draft.FinishedSize.Options...)
+		service.FinishedSize = &finishedSize
 	}
 	if err := service.Validate(); err != nil {
 		return Service{}, err
@@ -322,6 +355,66 @@ func (s Service) Validate() error {
 			return fmt.Errorf("component %q: %w", component.Name, err)
 		}
 	}
+	if s.FinishedSize != nil {
+		finished := s.FinishedSize
+		parameterTypes := make(map[string]ParameterType, len(s.Parameters))
+		for _, parameter := range s.Parameters {
+			parameterTypes[parameter.Key] = parameter.Type
+		}
+		if finished.ParameterKey != "" && parameterTypes[finished.ParameterKey] != ParameterChoice {
+			return validationError("finishedSize.parameterKey", "must reference a choice parameter")
+		}
+		if finished.QuantityParameterKey != "" && parameterTypes[finished.QuantityParameterKey] != ParameterInteger && parameterTypes[finished.QuantityParameterKey] != ParameterDecimal {
+			return validationError("finishedSize.quantityParameterKey", "must reference a numeric quantity parameter")
+		}
+		if finished.AllowCustom {
+			if finished.WidthParameterKey == "" || finished.HeightParameterKey == "" {
+				return validationError("finishedSize", "custom sizes require width and height parameter keys")
+			}
+			for _, key := range []string{finished.WidthParameterKey, finished.HeightParameterKey} {
+				if parameterTypes[key] != ParameterInteger && parameterTypes[key] != ParameterDecimal {
+					return validationError("finishedSize", "custom dimensions must reference numeric parameters")
+				}
+			}
+		}
+		if !finished.AllowCustom && len(finished.Options) == 0 {
+			return validationError("finishedSize.options", "requires at least one predefined size when custom sizes are disabled")
+		}
+		if len(finished.Options) > 0 {
+			if finished.ParameterKey == "" {
+				return validationError("finishedSize.parameterKey", "is required when predefined sizes are configured")
+			}
+			choiceValues := map[string]struct{}{}
+			for _, parameter := range s.Parameters {
+				if parameter.Key == finished.ParameterKey {
+					for _, option := range parameter.Options {
+						choiceValues[option] = struct{}{}
+					}
+				}
+			}
+			for _, option := range finished.Options {
+				if _, exists := choiceValues[option.Code]; !exists {
+					return validationError("finishedSize.options", "codes must belong to the referenced choice parameter")
+				}
+			}
+		}
+		seen := map[string]struct{}{}
+		for index, option := range finished.Options {
+			if option.Position != index {
+				return validationError("finishedSize.options.position", "must be deterministic")
+			}
+			if strings.TrimSpace(option.ID) == "" || strings.TrimSpace(option.Code) == "" || strings.TrimSpace(option.Label) == "" {
+				return validationError(fmt.Sprintf("finishedSize.options[%d]", index), "requires id, code, and label")
+			}
+			if option.WidthMM <= 0 || option.HeightMM <= 0 {
+				return validationError(fmt.Sprintf("finishedSize.options[%d]", index), "dimensions must be positive")
+			}
+			if _, exists := seen[option.Code]; exists {
+				return validationError("finishedSize.options", "codes must be unique")
+			}
+			seen[option.Code] = struct{}{}
+		}
+	}
 	if s.PricingRule != nil {
 		if s.PricingRule.ServiceID != s.ID {
 			return validationError("pricingRule.serviceId", "must match the service")
@@ -349,8 +442,17 @@ func (s Service) Validate() error {
 			return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference an existing service parameter")
 		}
 		if component.Type == CostMaterial {
-			if component.ReferenceID == "" && parameterType != ParameterMaterialReference && parameterType != ParameterChoice {
-				return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference a material or choice parameter")
+			if component.ReferenceID == "" && parameterType != ParameterMaterialReference {
+				materialParameter := false
+				for _, parameter := range s.Parameters {
+					if parameter.Key == component.ParameterKey && parameter.Type == ParameterChoice && parameter.MaterialSource != nil {
+						materialParameter = true
+						break
+					}
+				}
+				if !materialParameter {
+					return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference an explicit material parameter")
+				}
 			}
 			if component.ReferenceID != "" && parameterType != ParameterInteger && parameterType != ParameterDecimal {
 				return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference an integer or decimal parameter")
@@ -358,8 +460,8 @@ func (s Service) Validate() error {
 			continue
 		}
 		if component.Type == CostMachine {
-			if component.ReferenceID == "" && parameterType != ParameterMachineReference && parameterType != ParameterChoice {
-				return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference a machine or choice parameter")
+			if component.ReferenceID == "" && parameterType != ParameterMachineReference {
+				return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference an explicit machine parameter")
 			}
 			if component.ReferenceID != "" && parameterType != ParameterInteger && parameterType != ParameterDecimal {
 				return validationError(fmt.Sprintf("components[%d].parameterKey", index), "must reference an integer or decimal parameter")
@@ -547,6 +649,61 @@ func (p ServiceParameter) Validate() error {
 	if p.Type != ParameterChoice && len(p.Options) > 0 {
 		return validationError("options", "are only supported for choice parameters")
 	}
+	if p.PredefinedKey != "" {
+		if p.Type != ParameterChoice {
+			return validationError("predefinedKey", "is only supported for choice parameters")
+		}
+		if !IsSupportedPredefinedParameter(p.PredefinedKey) {
+			return validationError("predefinedKey", "is not supported")
+		}
+		if p.MaterialSource != nil {
+			return validationError("predefinedKey", "cannot be combined with a material source")
+		}
+		if p.DefaultValue != "" {
+			found := false
+			for _, option := range p.PredefinedOptions {
+				if option.Code == p.DefaultValue && option.Active {
+					found = true
+					break
+				}
+			}
+			if len(p.PredefinedOptions) > 0 && !found {
+				return validationError("defaultValue", "must belong to the predefined parameter options")
+			}
+		}
+	}
+	if p.MaterialSource != nil {
+		if p.Type != ParameterChoice {
+			return validationError("materialSource", "is only supported for choice parameters")
+		}
+		if len(p.MaterialSource.AllowedKinds) == 0 && p.MaterialSource.ExposedAttributeKey == "" && !p.MaterialSource.SelectMaterial {
+			return validationError("materialSource", "must expose an attribute or select materials explicitly")
+		}
+		for index, kind := range p.MaterialSource.AllowedKinds {
+			if !IsValidMaterialKind(kind) {
+				return validationError(fmt.Sprintf("materialSource.allowedKinds[%d]", index), "is not a supported material kind")
+			}
+		}
+		if p.MaterialSource.ExposedAttributeKey == "" && len(p.MaterialSource.AllowedValues) > 0 {
+			return validationError("materialSource.allowedValues", "require an exposed attribute")
+		}
+		for index, value := range p.MaterialSource.AllowedValues {
+			if err := value.Validate(); err != nil {
+				return validationError(fmt.Sprintf("materialSource.allowedValues[%d]", index), err.Error())
+			}
+			if p.MaterialSource.ExposedAttributeKey != "" && value.Key != p.MaterialSource.ExposedAttributeKey {
+				return validationError(fmt.Sprintf("materialSource.allowedValues[%d].key", index), "must match the exposed attribute")
+			}
+		}
+		for index, filter := range p.MaterialSource.AdditionalFilters {
+			if strings.TrimSpace(filter.Key) == "" {
+				return validationError(fmt.Sprintf("materialSource.additionalFilters[%d]", index), "requires an attribute key")
+			}
+			if err := filter.Value.Validate(); err != nil {
+				return validationError(fmt.Sprintf("materialSource.additionalFilters[%d]", index), err.Error())
+			}
+		}
+	}
 	if p.Type != ParameterInteger && p.Type != ParameterDecimal && (p.MinValue != nil || p.MaxValue != nil) {
 		return validationError("bounds", "are only supported for numeric parameters")
 	}
@@ -594,7 +751,7 @@ func (p ServiceParameter) Validate() error {
 			return validationError("defaultValue", "must be true or false")
 		}
 	case ParameterChoice:
-		if len(p.Options) == 0 {
+		if len(p.Options) == 0 && p.MaterialSource == nil && p.PredefinedKey == "" {
 			return validationError("options", "must contain at least one option")
 		}
 		options := make(map[string]struct{}, len(p.Options))
@@ -608,7 +765,7 @@ func (p ServiceParameter) Validate() error {
 			}
 			options[option] = struct{}{}
 		}
-		if p.DefaultValue != "" {
+		if p.DefaultValue != "" && p.MaterialSource == nil && p.PredefinedKey == "" {
 			if _, exists := options[p.DefaultValue]; !exists {
 				return validationError("defaultValue", "must belong to the choice options")
 			}
@@ -636,6 +793,7 @@ func parameterFromDraft(serviceID string, draft ServiceParameterDraft, position 
 		ID: draft.ID, ServiceID: serviceID, Key: strings.TrimSpace(draft.Key), Label: strings.TrimSpace(draft.Label),
 		Type: ParameterType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), Required: draft.Required,
 		Position: position, DefaultValue: strings.TrimSpace(draft.DefaultValue), Options: options,
+		PredefinedKey: strings.TrimSpace(draft.PredefinedKey), PredefinedOptions: append([]PredefinedParameterOption(nil), draft.PredefinedOptions...), MaterialSource: draft.MaterialSource,
 		MinValue: draft.MinValue, MaxValue: draft.MaxValue, Unit: strings.TrimSpace(draft.Unit), Active: true,
 		CreatedAt: now.UTC(), UpdatedAt: now.UTC(),
 	}

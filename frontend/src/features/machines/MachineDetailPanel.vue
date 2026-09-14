@@ -16,13 +16,18 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ edit: []; archive: []; reactivate: []; remove: [] }>()
 
-const { busy, selectedMachine, basisLabel } = props.workspace
+const { busy, selectedMachine, basisLabel, predefinedParameters } = props.workspace
 const activeTab = ref<MachineTab>('overview')
 watch(() => selectedMachine.value?.id, () => { activeTab.value = 'overview' })
 
 const rates = () => selectedMachine.value?.rates || []
 const standardRate = () => selectedMachine.value?.rateRial || 0
 const rateCount = () => rates().length || 1
+function selectorLabel(rate: { selectorValue: string; selectorPredefinedKey?: string }): string {
+  if (!rate.selectorPredefinedKey) return rate.selectorValue
+  const definition = predefinedParameters.value.find((item) => item.key === rate.selectorPredefinedKey)
+  return definition?.options?.find((option) => option.code === rate.selectorValue)?.label || rate.selectorValue
+}
 function dateLabel(value: string) {
   try { return formatDateTime(value) } catch { return 'Unknown date' }
 }
@@ -63,11 +68,11 @@ function dateLabel(value: string) {
     <div class="min-w-0 p-3 sm:p-4">
       <div v-if="activeTab === 'overview'" class="space-y-3">
         <div class="rounded-box border border-base-300 bg-base-200/20 p-4"><div class="flex items-start gap-3"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><Gauge :size="18" aria-hidden="true" /></span><div><h3 class="text-sm font-semibold">Rate definition</h3><p class="mt-1 text-xs leading-5 text-base-content/60">The standard rate is used when no matching profile is selected.</p></div></div><dl class="mt-4 divide-y divide-base-300/70 text-sm"><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Standard rate</dt><dd class="font-medium tabular-nums">{{ formatMoney(selectedMachine.rateRial, currencyUnit) }}</dd></div><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Setup / fixed cost</dt><dd class="font-medium tabular-nums">{{ formatMoney(selectedMachine.setupCostRial, currencyUnit) }}</dd></div><div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-base-content/60">Basis</dt><dd class="text-end">{{ basisLabel(selectedMachine.rateBasis) }}</dd></div></dl></div>
-        <div class="rounded-box border border-base-300 bg-base-200/20 p-4"><div class="flex items-start gap-3"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><Layers3 :size="18" aria-hidden="true" /></span><div><h3 class="text-sm font-semibold">Available profiles</h3><p class="mt-1 text-xs leading-5 text-base-content/60">Profiles can be linked to service parameters such as color or media mode.</p></div></div><div class="mt-4 space-y-2"><div v-for="rate in rates()" :key="rate.id" class="flex min-w-0 items-center justify-between gap-3 rounded-box border border-base-300 px-3 py-2.5"><div class="min-w-0"><strong class="block truncate text-sm">{{ rate.name }}</strong><span class="block truncate text-xs text-base-content/55">{{ rate.selectorValue || 'Default profile' }} · {{ basisLabel(rate.rateBasis) }}</span></div><span class="shrink-0 text-sm tabular-nums">{{ formatMoney(rate.rateRial, currencyUnit) }}</span></div><EmptyState v-if="!rates().length" compact title="No profiles configured" description="The standard rate will be used." /></div></div>
+        <div class="rounded-box border border-base-300 bg-base-200/20 p-4"><div class="flex items-start gap-3"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><Layers3 :size="18" aria-hidden="true" /></span><div><h3 class="text-sm font-semibold">Available profiles</h3><p class="mt-1 text-xs leading-5 text-base-content/60">Profiles can be linked to service parameters such as color or media mode.</p></div></div><div class="mt-4 space-y-2"><div v-for="rate in rates()" :key="rate.id" class="flex min-w-0 items-center justify-between gap-3 rounded-box border border-base-300 px-3 py-2.5"><div class="min-w-0"><strong class="block truncate text-sm">{{ rate.name }}</strong><span class="block truncate text-xs text-base-content/55">{{ selectorLabel(rate) || 'Default profile' }} · {{ basisLabel(rate.rateBasis) }}</span></div><span class="shrink-0 text-sm tabular-nums">{{ formatMoney(rate.rateRial, currencyUnit) }}</span></div><EmptyState v-if="!rates().length" compact title="No profiles configured" description="The standard rate will be used." /></div></div>
       </div>
 
       <div v-else-if="activeTab === 'rates'" class="space-y-2">
-        <div v-for="rate in rates()" :key="rate.id" class="flex min-w-0 items-center gap-3 rounded-box border border-base-300 bg-base-200/20 px-3 py-3"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-base-200 text-primary"><Layers3 :size="18" aria-hidden="true" /></span><div class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ rate.name }}</strong><span class="block truncate text-xs text-base-content/55">{{ rate.selectorValue || 'Matches any value' }} · {{ basisLabel(rate.rateBasis) }}</span></div><div class="shrink-0 text-end"><strong class="block text-sm tabular-nums">{{ formatMoney(rate.rateRial, currencyUnit) }}</strong><span class="block text-xs text-base-content/55">setup {{ formatMoney(rate.setupCostRial, currencyUnit) }}</span></div></div>
+        <div v-for="rate in rates()" :key="rate.id" class="flex min-w-0 items-center gap-3 rounded-box border border-base-300 bg-base-200/20 px-3 py-3"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-base-200 text-primary"><Layers3 :size="18" aria-hidden="true" /></span><div class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ rate.name }}</strong><span class="block truncate text-xs text-base-content/55">{{ selectorLabel(rate) || 'Matches any value' }} · {{ basisLabel(rate.rateBasis) }}</span></div><div class="shrink-0 text-end"><strong class="block text-sm tabular-nums">{{ formatMoney(rate.rateRial, currencyUnit) }}</strong><span class="block text-xs text-base-content/55">setup {{ formatMoney(rate.setupCostRial, currencyUnit) }}</span></div></div>
       </div>
 
       <div v-else class="space-y-3">

@@ -16,6 +16,14 @@ function formFromService(service: ServiceRecord): ServiceForm {
     minValue: parameter.minValue ?? null,
     maxValue: parameter.maxValue ?? null,
     unit: parameter.unit || '',
+    predefinedKey: parameter.predefinedKey || '',
+    materialSource: parameter.materialSource ? {
+      allowedKinds: [...(parameter.materialSource.allowedKinds || [])],
+      exposedAttributeKey: parameter.materialSource.exposedAttributeKey || '',
+      allowedValues: [...(parameter.materialSource.allowedValues || [])],
+      selectMaterial: parameter.materialSource.selectMaterial === true,
+      additionalFilters: [...(parameter.materialSource.additionalFilters || [])],
+    } : undefined,
   }))
 
   const components: ComponentForm[] = (service.components || []).map((component) => ({
@@ -82,6 +90,15 @@ function formFromService(service: ServiceRecord): ServiceForm {
     parameters,
     components,
     pricingRule,
+    finishedSize: service.parameters.some((parameter) => parameter.predefinedKey === 'print_size') ? null : service.finishedSize ? {
+      parameterKey: service.finishedSize.parameterKey || '',
+      quantityParameterKey: service.finishedSize.quantityParameterKey || '',
+      widthParameterKey: service.finishedSize.widthParameterKey || '',
+      heightParameterKey: service.finishedSize.heightParameterKey || '',
+      allowCustom: service.finishedSize.allowCustom === true,
+      allowRotation: service.finishedSize.allowRotation !== false,
+      options: (service.finishedSize.options || []).map((option) => ({ ...option })),
+    } : null,
   }
 }
 

@@ -34,6 +34,10 @@ function valueLabel(parameter: ParameterForm) {
     const machine = props.machines.find((item) => item.id === value)
     return machine ? `${machine.name}${machine.code ? ` · ${machine.code}` : ''}` : 'Not set'
   }
+  if (parameter.predefinedKey) {
+    const option = (parameter as any).predefinedOptions?.find((item: any) => item.code === value)
+    return option?.label || 'Not set'
+  }
   return value
 }
 

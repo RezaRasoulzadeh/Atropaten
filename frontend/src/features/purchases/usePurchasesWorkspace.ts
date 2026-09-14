@@ -460,7 +460,7 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
         !current.value ||
         !(await confirmAction({
           title: 'Delete purchase',
-          message: 'Delete this purchase permanently? If inventory, production, or payment history depends on it, deletion will be refused and you can archive it instead.',
+          message: 'Delete this purchase permanently? Its material stock will be returned and purchase-only payments will be removed. Purchases used by production, or with insufficient stock to return, must be archived instead.',
           confirmLabel: 'Delete purchase',
           danger: true,
         }))
@@ -473,7 +473,7 @@ export function usePurchasesWorkspace(props: PurchasesProps, emit: PurchasesEmit
         backToPurchases();
         emit('notify', 'Purchase deleted.');
       } catch (error) {
-        toast.error(errorMessageFrom(error, 'Purchase could not be deleted. Archive it instead.'), 'Purchases');
+        toast.error(errorMessageFrom(error, 'Purchase could not be deleted. If its material was used in production or cannot be returned safely, archive it instead.'), 'Purchases');
       }
     });
   }

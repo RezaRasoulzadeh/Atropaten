@@ -54,7 +54,7 @@ func TestMigrationUpgradeKeepsExistingMaterials(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read legacy material: %v", err)
 	}
-	if material.AverageUnitCostRial != 123456789 || material.PhysicalStock != domain.Quantity(1250000) {
+	if material.AverageUnitCostRial != 123456789 || material.PhysicalStock != domain.Quantity(1250000) || material.Kind != domain.MaterialKindGenericConsumable || len(material.Attributes) != 0 {
 		t.Fatalf("legacy material changed during migration: %+v", material)
 	}
 }
@@ -228,6 +228,117 @@ func TestServicePersistenceOrderingAndTransactionalRollback(t *testing.T) {
 		t.Fatalf("all services = %+v, err=%v", all, err)
 	}
 	_ = store.Close()
+}
+
+func TestFinishedSizeDefinitionRoundTrip(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "finished-size.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := domain.NewService("SVC-finished", domain.ServiceDraft{
+		Name: "Finished size service",
+		Parameters: []domain.ServiceParameterDraft{
+			{ID: "P-quantity", Key: "quantity", Label: "Quantity", Type: domain.ParameterInteger},
+			{ID: "P-size", Key: "size", Label: "Size", Type: domain.ParameterChoice, Options: []string{"a4"}},
+		},
+		FinishedSize: &domain.ServiceFinishedSizeDefinition{
+			ParameterKey: "size", QuantityParameterKey: "quantity", AllowRotation: true,
+			Options: []domain.FinishedSizeOption{{ID: "SIZE-a4", Code: "a4", Label: "A4", WidthMM: 210 * domain.QuantityScale, HeightMM: 297 * domain.QuantityScale, Position: 0, Active: true}},
+		},
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveServiceDefinition(context.Background(), service); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.GetService(context.Background(), service.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.FinishedSize == nil || got.FinishedSize.QuantityParameterKey != "quantity" || len(got.FinishedSize.Options) != 1 || got.FinishedSize.Options[0].WidthMM != 210*domain.QuantityScale {
+		t.Fatalf("finished size did not round-trip: %+v", got.FinishedSize)
+	}
+}
+
+func TestPredefinedPrintSizeCatalogAndServiceParameterRoundTrip(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "predefined-size.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	definitions, err := store.ListPredefinedParameters(context.Background())
+	if err != nil || len(definitions) < 3 || definitions[0].Key != domain.PredefinedParameterPrintSize || definitions[1].Key != domain.PredefinedParameterPaperType || definitions[2].Key != domain.PredefinedParameterColor {
+		t.Fatalf("predefined catalog = %+v, err=%v", definitions, err)
+	}
+	if len(definitions[1].Options) == 0 || definitions[1].Options[0].Code != "uncoated" || definitions[1].Options[0].WidthMM != nil {
+		t.Fatalf("paper type catalog = %+v", definitions[1])
+	}
+	if len(definitions[2].Options) == 0 || definitions[2].Options[0].Code != "black-and-white" || definitions[2].Options[0].Label != "Black & white" {
+		t.Fatalf("color catalog = %+v", definitions[2])
+	}
+	var a4 domain.PredefinedParameterOption
+	for _, option := range definitions[0].Options {
+		if option.Code == "a4" {
+			a4 = option
+		}
+	}
+	if a4.WidthMM == nil || a4.HeightMM == nil || *a4.WidthMM != 210*domain.QuantityScale {
+		t.Fatalf("A4 catalog option = %+v", a4)
+	}
+
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := domain.NewService("SVC-predefined", domain.ServiceDraft{
+		Name: "Predefined print size",
+		Parameters: []domain.ServiceParameterDraft{
+			{ID: "P-quantity", Key: "quantity", Label: "Quantity", Type: domain.ParameterInteger},
+			{ID: "P-size", Key: "print_size", Label: "Print size", Type: domain.ParameterChoice, PredefinedKey: domain.PredefinedParameterPrintSize},
+		},
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveServiceDefinition(context.Background(), service); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.GetService(context.Background(), service.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Parameters[1].PredefinedKey != domain.PredefinedParameterPrintSize || len(got.Parameters[1].PredefinedOptions) == 0 || got.FinishedSize == nil {
+		t.Fatalf("predefined service did not hydrate: %+v finished=%+v", got.Parameters[1], got.FinishedSize)
+	}
+	width, height, err := got.ResolveFinishedDimensions(map[string]string{"print_size": "a4"})
+	if err != nil || width != 210*domain.QuantityScale || height != 297*domain.QuantityScale {
+		t.Fatalf("resolved A4 dimensions = %v x %v, err=%v", width, height, err)
+	}
+}
+
+func TestMaterialBackedServiceParameterRoundTrip(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "material-backed-service.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := domain.NewService("SVC-material-backed", domain.ServiceDraft{Name: "Paper service", Parameters: []domain.ServiceParameterDraft{{ID: "P-grammage", Key: "grammage", Label: "Grammage", Type: domain.ParameterChoice, Required: true, MaterialSource: &domain.MaterialParameterSource{AllowedKinds: []domain.MaterialKind{domain.MaterialKindSheetStock}, ExposedAttributeKey: "grammage_gsm", AllowedValues: []domain.MaterialAttributeValue{{Key: "grammage_gsm", ValueType: domain.MaterialAttributeInteger, IntegerValue: 170}}, AdditionalFilters: []domain.MaterialAttributeFilter{{Key: "finish", Value: domain.MaterialAttributeValue{Key: "finish", ValueType: domain.MaterialAttributeEnum, EnumCode: "matte"}}}}}}}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveServiceDefinition(context.Background(), service); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.GetService(context.Background(), service.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := got.Parameters[0].MaterialSource
+	if source == nil || source.ExposedAttributeKey != "grammage_gsm" || len(source.AllowedKinds) != 1 || len(source.AllowedValues) != 1 || source.AllowedValues[0].IntegerValue != 170 || len(source.AdditionalFilters) != 1 || source.AdditionalFilters[0].Value.EnumCode != "matte" {
+		t.Fatalf("material source=%+v", source)
+	}
 }
 
 func TestPricingRuleAndUsageQuantityRoundTripAfterV4Migration(t *testing.T) {

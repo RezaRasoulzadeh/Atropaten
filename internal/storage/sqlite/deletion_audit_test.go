@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,6 +50,43 @@ func TestCatalogDeletionPurgesOnlyUnreferencedRecords(t *testing.T) {
 	}
 	if err = s.Delete(ctx, mat.ID); err != nil {
 		t.Fatal("safe material purge:", err)
+	}
+	historyOnly, _ := domain.NewMaterial("MAT-delete-history-only", domain.MaterialDraft{Name: "Reversed history", PurchaseUnit: "pack", ConsumptionUnit: "piece", ConversionFactor: domain.QuantityScale, PhysicalStock: 10 * domain.QuantityScale, AverageUnitCostRial: 25}, now)
+	if err = s.Create(ctx, historyOnly); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.AdjustInventory(ctx, historyOnly.ID, -10*domain.QuantityScale, 25, "return all stock"); err != nil {
+		t.Fatal("reverse history:", err)
+	}
+	if err = s.Delete(ctx, historyOnly.ID); err != nil {
+		t.Fatal("reversed history should not block material purge:", err)
+	}
+	var movementHistory, materialRows int
+	if err = s.db.QueryRow(`SELECT COUNT(*) FROM inventory_movements WHERE material_id=?`, historyOnly.ID).Scan(&movementHistory); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.db.QueryRow(`SELECT COUNT(*) FROM materials WHERE id=?`, historyOnly.ID).Scan(&materialRows); err != nil {
+		t.Fatal(err)
+	}
+	if movementHistory != 0 || materialRows != 0 {
+		t.Fatalf("material history purge left rows: movements=%d materials=%d", movementHistory, materialRows)
+	}
+	reservedOnly, _ := domain.NewMaterial("MAT-delete-released-reservation", domain.MaterialDraft{Name: "Released reservation", PurchaseUnit: "pack", ConsumptionUnit: "piece", ConversionFactor: domain.QuantityScale}, now)
+	if err = s.Create(ctx, reservedOnly); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.db.Exec(`INSERT INTO inventory_reservations(id,material_id,quantity_units,status,created_at,updated_at) VALUES(?,?,?,?,?,?)`, "RES-delete-released", reservedOnly.ID, 1, "released", now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)); err != nil {
+		t.Fatal("seed released reservation:", err)
+	}
+	if err = s.Delete(ctx, reservedOnly.ID); err != nil {
+		t.Fatal("released reservation should not block material purge:", err)
+	}
+	var reservations int
+	if err = s.db.QueryRow(`SELECT COUNT(*) FROM inventory_reservations WHERE id=?`, "RES-delete-released").Scan(&reservations); err != nil {
+		t.Fatal(err)
+	}
+	if reservations != 0 {
+		t.Fatalf("released reservation remains after material purge: %d", reservations)
 	}
 	protectedMat, _ := domain.NewMaterial("MAT-delete-protected", domain.MaterialDraft{Name: "Referenced material", PurchaseUnit: "pack", ConsumptionUnit: "piece", ConversionFactor: domain.QuantityScale}, now)
 	if err = s.Create(ctx, protectedMat); err != nil {
@@ -97,5 +135,28 @@ func TestCatalogDeletionPurgesOnlyUnreferencedRecords(t *testing.T) {
 	}
 	if err = s.DeleteService(ctx, protectedService.ID); !errors.Is(err, domain.ErrServiceDeleteProtected) {
 		t.Fatalf("referenced service delete error=%v", err)
+	}
+}
+
+func TestMaterialDeletionReportsProductionPlanDependency(t *testing.T) {
+	s, _, job := productionFlowFixture(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	planned, err := domain.NewMaterial("MAT-delete-planned", domain.MaterialDraft{Name: "Planned material", PurchaseUnit: "pack", ConsumptionUnit: "piece", ConversionFactor: domain.QuantityScale}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Create(ctx, planned); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.db.Exec(`INSERT INTO production_material_plans(production_job_id,material_id,required_units,adjustment_units,reservation_id) VALUES(?,?,?,?,?)`, job.ID, planned.ID, 0, 0, "RES-delete-planned"); err != nil {
+		t.Fatal("seed production plan:", err)
+	}
+	err = s.Delete(ctx, planned.ID)
+	if !errors.Is(err, domain.ErrMaterialDeleteProtected) {
+		t.Fatalf("production plan delete error=%v", err)
+	}
+	if strings.Contains(strings.ToLower(err.Error()), "foreign key") {
+		t.Fatalf("production plan leaked raw foreign-key error: %v", err)
 	}
 }

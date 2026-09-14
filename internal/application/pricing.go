@@ -56,6 +56,8 @@ type PricingView struct {
 	Warnings                  []string                `json:"warnings"`
 	BelowCost                 bool                    `json:"belowCost"`
 	RoundingStepRial          int64                   `json:"roundingStepRial"`
+	FinishedWidthMM           string                  `json:"finishedWidthMM"`
+	FinishedHeightMM          string                  `json:"finishedHeightMM"`
 }
 
 type PricingService struct {
@@ -101,7 +103,7 @@ func (s *PricingService) calculate(ctx context.Context, request PricingRequest, 
 			step = settings.MonetaryRoundingStepRial
 		}
 	}
-	resolved, err := s.resolveParameters(ctx, service.Parameters, request.Parameters)
+	resolved, err := s.resolveParameters(ctx, service, request.Parameters)
 	if err != nil {
 		return PricingView{}, err
 	}
@@ -172,10 +174,15 @@ func (s *PricingService) calculate(ctx context.Context, request PricingRequest, 
 	}
 	view := pricingView(service, result)
 	view.RoundingStepRial = step
+	if width, height, dimensionErr := service.ResolveFinishedDimensions(request.Parameters); dimensionErr == nil {
+		view.FinishedWidthMM = width.String()
+		view.FinishedHeightMM = height.String()
+	}
 	return view, nil
 }
 
-func (s *PricingService) resolveParameters(ctx context.Context, definitions []domain.ServiceParameter, submitted map[string]string) ([]domain.ResolvedParameter, error) {
+func (s *PricingService) resolveParameters(ctx context.Context, service domain.Service, submitted map[string]string) ([]domain.ResolvedParameter, error) {
+	definitions := service.Parameters
 	resolved := make([]domain.ResolvedParameter, 0, len(definitions))
 	for _, definition := range definitions {
 		value, exists := submitted[definition.Key]
@@ -187,10 +194,10 @@ func (s *PricingService) resolveParameters(ctx context.Context, definitions []do
 			if definition.Required {
 				return nil, fmt.Errorf("parameter %q is required", definition.Label)
 			}
-			resolved = append(resolved, domain.ResolvedParameter{Key: definition.Key, Type: definition.Type, Value: value})
+			resolved = append(resolved, domain.ResolvedParameter{Key: definition.Key, Type: definition.Type, Value: value, PredefinedKey: definition.PredefinedKey})
 			continue
 		}
-		item := domain.ResolvedParameter{Key: definition.Key, Type: definition.Type, Value: value}
+		item := domain.ResolvedParameter{Key: definition.Key, Type: definition.Type, Value: value, PredefinedKey: definition.PredefinedKey}
 		switch definition.Type {
 		case domain.ParameterInteger:
 			parsed, parseErr := strconv.ParseInt(value, 10, 64)
@@ -212,18 +219,18 @@ func (s *PricingService) resolveParameters(ctx context.Context, definitions []do
 				return nil, fmt.Errorf("parameter %q must be true or false", definition.Label)
 			}
 		case domain.ParameterChoice:
-			valid := false
-			for _, option := range definition.Options {
-				if option == value {
-					valid = true
-					break
+			if definition.MaterialSource == nil {
+				valid := false
+				for _, option := range definition.Options {
+					if option == value {
+						valid = true
+						break
+					}
+				}
+				if !valid {
+					return nil, fmt.Errorf("parameter %q must use one of its configured choices", definition.Label)
 				}
 			}
-			if !valid {
-				return nil, fmt.Errorf("parameter %q must use one of its configured choices", definition.Label)
-			}
-			item.MaterialID = s.materialIDForChoice(ctx, value)
-			item.MachineID = s.machineIDForChoice(ctx, value)
 		case domain.ParameterMaterialReference:
 			if s.material == nil {
 				return nil, fmt.Errorf("material lookup is not available")
@@ -261,107 +268,81 @@ func (s *PricingService) resolveParameters(ctx context.Context, definitions []do
 		}
 		resolved = append(resolved, item)
 	}
+	if err := s.resolveMaterialBackedParameters(ctx, service, submitted, resolved); err != nil {
+		return nil, err
+	}
 	return resolved, nil
 }
 
-func (s *PricingService) materialIDForChoice(ctx context.Context, value string) string {
+func (s *PricingService) resolveMaterialBackedParameters(ctx context.Context, service domain.Service, submitted map[string]string, resolved []domain.ResolvedParameter) error {
+	definitions := service.Parameters
+	hasSource := false
+	for _, definition := range definitions {
+		if definition.MaterialSource != nil {
+			hasSource = true
+			break
+		}
+	}
+	if !hasSource {
+		return nil
+	}
 	if s.material == nil {
-		return ""
+		return fmt.Errorf("material lookup is not available")
 	}
-	wanted := normalizeMaterialChoice(value)
-	if materials, ok := s.material.(interface {
+	materials, ok := s.material.(interface {
 		List(context.Context, bool) ([]domain.Material, error)
-	}); ok {
-		items, err := materials.List(ctx, false)
-		if err == nil {
-			var fuzzyID string
-			fuzzyAmbiguous := false
-			for _, material := range items {
-				if !material.Active {
-					continue
-				}
-				candidates := []string{material.ID, material.Name, material.SKU}
-				for _, candidate := range candidates {
-					if wanted != "" && wanted == normalizeMaterialChoice(candidate) {
-						return material.ID
-					}
-				}
-				if wanted == "" || len([]rune(wanted)) < 2 {
-					continue
-				}
-				for _, candidate := range candidates {
-					candidate = normalizeMaterialChoice(candidate)
-					if candidate != "" && (strings.Contains(candidate, wanted) || strings.Contains(wanted, candidate)) {
-						if fuzzyID == "" {
-							fuzzyID = material.ID
-						} else if fuzzyID != material.ID {
-							fuzzyAmbiguous = true
-						}
-						break
-					}
-				}
+	})
+	if !ok {
+		return fmt.Errorf("material list lookup is not available for material-backed parameters")
+	}
+	items, err := materials.List(ctx, false)
+	if err != nil {
+		return fmt.Errorf("list compatible materials: %w", err)
+	}
+	selected := make(map[string]string, len(resolved))
+	for _, parameter := range resolved {
+		selected[parameter.Key] = parameter.Value
+	}
+	candidates, err := domain.CompatibleMaterials(service, items, selected)
+	if err != nil {
+		return err
+	}
+	for index, definition := range definitions {
+		if definition.MaterialSource == nil {
+			continue
+		}
+		value := strings.TrimSpace(selected[definition.Key])
+		if value == "" {
+			continue
+		}
+		matches, matchErr := domain.CompatibleMaterials(service, items, selected)
+		if matchErr != nil {
+			return matchErr
+		}
+		if len(matches) == 0 {
+			return fmt.Errorf("parameter %q does not match any compatible active material", definition.Label)
+		}
+		if len(matches) == 1 {
+			resolved[index].MaterialID = matches[0].ID
+		}
+	}
+	if len(candidates) == 0 {
+		return fmt.Errorf("material-backed service configuration has no compatible active material")
+	}
+	if len(candidates) > 1 {
+		for _, definition := range definitions {
+			if definition.MaterialSource != nil && definition.Required && strings.TrimSpace(selected[definition.Key]) == "" {
+				return fmt.Errorf("parameter %q is required", definition.Label)
 			}
-			if fuzzyID != "" && !fuzzyAmbiguous {
-				return fuzzyID
+		}
+		// A material cost cannot safely price an unresolved interchangeable set.
+		for index, definition := range definitions {
+			if definition.MaterialSource != nil && resolved[index].MaterialID == "" {
+				return fmt.Errorf("parameter %q leaves %d compatible materials; select a material explicitly", definition.Label, len(candidates))
 			}
 		}
 	}
-	if material, err := s.material.Get(ctx, value); err == nil && material.Active {
-		return material.ID
-	}
-	return ""
-}
-
-func (s *PricingService) machineIDForChoice(ctx context.Context, value string) string {
-	if s.machine == nil {
-		return ""
-	}
-	wanted := normalizeMaterialChoice(value)
-	if machines, ok := s.machine.(interface {
-		ListMachines(context.Context, bool) ([]domain.Machine, error)
-	}); ok {
-		items, err := machines.ListMachines(ctx, false)
-		if err == nil {
-			var fuzzyID string
-			fuzzyAmbiguous := false
-			for _, machine := range items {
-				if !machine.Active {
-					continue
-				}
-				candidates := []string{machine.ID, machine.Name, machine.Code}
-				for _, candidate := range candidates {
-					if wanted != "" && wanted == normalizeMaterialChoice(candidate) {
-						return machine.ID
-					}
-				}
-				if wanted == "" || len([]rune(wanted)) < 2 {
-					continue
-				}
-				for _, candidate := range []string{machine.Name, machine.Code} {
-					candidate = normalizeMaterialChoice(candidate)
-					if candidate != "" && (strings.Contains(candidate, wanted) || strings.Contains(wanted, candidate)) {
-						if fuzzyID == "" {
-							fuzzyID = machine.ID
-						} else if fuzzyID != machine.ID {
-							fuzzyAmbiguous = true
-						}
-						break
-					}
-				}
-			}
-			if fuzzyID != "" && !fuzzyAmbiguous {
-				return fuzzyID
-			}
-		}
-	}
-	if machine, err := s.machine.GetMachine(ctx, value); err == nil && machine.Active {
-		return machine.ID
-	}
-	return ""
-}
-
-func normalizeMaterialChoice(value string) string {
-	return strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(value)), " "))
+	return nil
 }
 
 func pricingView(service domain.Service, result domain.PricingResult) PricingView {

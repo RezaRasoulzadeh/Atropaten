@@ -26,7 +26,7 @@ import FormField from '../../components/ui/FormField.vue'
 import SelectField from '../../components/ui/SelectField.vue'
 import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
-import type { ParameterForm, ParameterTemplateSeed, ParameterType } from './types'
+import type { MaterialParameterSourceForm, ParameterForm, ParameterTemplateSeed, ParameterType, PredefinedParameter } from './types'
 
 const props = defineProps<{
   parameters: ParameterForm[]
@@ -36,6 +36,7 @@ const props = defineProps<{
   machines: MachineRecord[]
   templateScope: string
   showErrors?: boolean
+  predefinedParameters?: PredefinedParameter[]
 }>()
 
 const selectedIndex = ref(0)
@@ -83,6 +84,14 @@ function cloneParameters(parameters: ParameterTemplateSeed[] | ParameterForm[]):
     minValue: parameter.minValue,
     maxValue: parameter.maxValue,
     unit: parameter.unit,
+    predefinedKey: parameter.predefinedKey,
+    materialSource: parameter.materialSource ? {
+      allowedKinds: [...parameter.materialSource.allowedKinds],
+      exposedAttributeKey: parameter.materialSource.exposedAttributeKey,
+      allowedValues: parameter.materialSource.allowedValues.map((value) => ({ ...value })),
+      selectMaterial: parameter.materialSource.selectMaterial,
+      additionalFilters: parameter.materialSource.additionalFilters.map((filter) => ({ ...filter })),
+    } : undefined,
   }))
 }
 
@@ -149,11 +158,27 @@ function blankParameter(type: ParameterType = 'choice'): ParameterForm {
     minValue: null,
     maxValue: null,
     unit: '',
+    predefinedKey: '',
   }
 }
 
 function addParameter() {
   props.parameters.push(blankParameter())
+  selectedIndex.value = props.parameters.length - 1
+}
+
+function addPredefinedParameter(key: string) {
+  const definition = (props.predefinedParameters || []).find((item) => item.key === key && item.active)
+  if (!definition || props.parameters.some((parameter) => parameter.predefinedKey === key)) return
+  props.parameters.push({
+    ...blankParameter('choice'),
+    key,
+    label: definition.label,
+    predefinedKey: definition.key,
+    options: [],
+    unit: definition.unit,
+    required: true,
+  })
   selectedIndex.value = props.parameters.length - 1
 }
 
@@ -171,12 +196,20 @@ function moveParameter(index: number, direction: -1 | 1) {
 }
 
 function normalizeParameter(parameter: ParameterForm) {
+  if (parameter.type !== 'choice') parameter.predefinedKey = ''
   if (parameter.type === 'choice') {
     parameter.minValue = null
     parameter.maxValue = null
-    parameter.defaultValue = parameter.options.includes(parameter.defaultValue) ? parameter.defaultValue : ''
+    if (parameter.materialSource) {
+      parameter.predefinedKey = ''
+      parameter.options = []
+      parameter.defaultValue = ''
+      return
+    }
+    parameter.defaultValue = parameter.predefinedKey || parameter.options.includes(parameter.defaultValue) ? parameter.defaultValue : ''
     return
   }
+  parameter.materialSource = undefined
   parameter.options = []
   if (parameter.type !== 'integer' && parameter.type !== 'decimal') {
     parameter.minValue = null
@@ -192,6 +225,26 @@ function normalizeParameter(parameter: ParameterForm) {
     const valid = parameter.type === 'integer' ? /^\d+$/.test(parameter.defaultValue) : /^\d+(?:\.\d{1,6})?$/.test(parameter.defaultValue)
     if (parameter.defaultValue && !valid) parameter.defaultValue = ''
   } else {
+    parameter.defaultValue = ''
+  }
+}
+
+function setMaterialBacked(parameter: ParameterForm, event: Event) {
+  const enabled = (event.target as HTMLInputElement).checked
+  if (enabled) {
+    const source: MaterialParameterSourceForm = {
+      allowedKinds: ['sheet-stock'],
+      exposedAttributeKey: 'grammage_gsm',
+      allowedValues: [],
+      selectMaterial: false,
+      additionalFilters: [],
+    }
+    parameter.materialSource = source
+    parameter.predefinedKey = ''
+    parameter.options = []
+    parameter.defaultValue = ''
+  } else {
+    parameter.materialSource = undefined
     parameter.defaultValue = ''
   }
 }
@@ -234,6 +287,10 @@ function parameterSummary(parameter: ParameterForm) {
   }
   if (parameter.type === 'material-reference') return `Material · ${activeMaterials.value.length} available`
   if (parameter.type === 'machine-reference') return `Machine · ${activeMachines.value.length} available`
+  if (parameter.predefinedKey) {
+    const definition = (props.predefinedParameters || []).find((item) => item.key === parameter.predefinedKey)
+    return `${definition?.label || 'Predefined'} · ${definition?.options.filter((option) => option.active).length || 0} catalog options`
+  }
   if (parameter.type === 'choice') return `Choice · ${parameter.options.length} option${parameter.options.length === 1 ? '' : 's'}`
   return `${typeLabel(parameter.type)} · ${parameter.required ? 'Required' : 'Optional'}`
 }
@@ -258,21 +315,19 @@ const templates = computed(() => {
 
   const paperPrintingParameters = (businessCard = false): ParameterTemplateSeed[] => [
     seed('Quantity', 'quantity', 'integer', { required: true, defaultValue: '100', minValue: '1', maxValue: '50000', unit: props.defaultUnit }),
+    seed('Paper material', 'paper_material', 'material-reference', { required: true }),
+    seed('Print machine', 'print_machine', 'machine-reference', { required: true }),
     seed('Paper type', 'paper_type', 'choice', {
       required: true,
-      defaultValue: businessCard ? '350gsm silk coated' : '120gsm uncoated',
-      options: businessCard
-        ? ['250gsm matte coated', '300gsm matte coated', '350gsm silk coated', '400gsm premium coated', '300gsm kraft', '300gsm recycled']
-        : ['80gsm uncoated', '120gsm uncoated', '170gsm matte coated', '250gsm matte coated', '300gsm matte coated', '350gsm silk coated', '300gsm kraft', '300gsm recycled'],
+      predefinedKey: 'paper_type',
+      defaultValue: businessCard ? 'silk-coated' : 'uncoated',
     }),
-    seed('Size', 'size', 'choice', {
+    seed('Print size', 'print_size', 'choice', {
       required: true,
-      defaultValue: businessCard ? '90 × 50 mm (Standard)' : 'A4 (210 × 297 mm)',
-      options: businessCard
-        ? ['90 × 50 mm (Standard)', '85 × 55 mm (Standard)', '90 × 55 mm (European)', 'Custom']
-        : ['A6 (105 × 148 mm)', 'A5 (148 × 210 mm)', 'A4 (210 × 297 mm)', 'A3 (297 × 420 mm)', 'A2 (420 × 594 mm)', 'Custom'],
+      predefinedKey: 'print_size',
+      defaultValue: businessCard ? 'business-card' : 'a4',
     }),
-    seed('Color', 'color', 'choice', { required: true, defaultValue: 'Full color (2 sides)', options: ['Full color (2 sides)', 'Full color (1 side)', 'Black & white (2 sides)', 'Black & white (1 side)', 'Spot color'] }),
+    seed('Color', 'color', 'choice', { required: true, predefinedKey: 'color', defaultValue: 'full-color' }),
     seed('Finishing', 'finishing', 'choice', { required: true, defaultValue: 'Standard trim', options: ['Standard trim', 'Crease', 'Fold', 'Die cut', 'UV coating', 'Foil stamping', 'Embossing'] }),
     seed('Corners', 'corners', 'choice', { defaultValue: 'Square', options: ['Square', 'Rounded 2 corners', 'Rounded 4 corners', 'Custom die cut'] }),
     seed('Lamination', 'lamination', 'choice', { defaultValue: 'None', options: ['None', 'Matte', 'Gloss', 'Soft touch', 'Anti-scratch'] }),
@@ -281,6 +336,8 @@ const templates = computed(() => {
 
   const largeFormatParameters = (banner = false): ParameterTemplateSeed[] => [
     seed('Quantity', 'quantity', 'integer', { required: true, defaultValue: '1', minValue: '1', maxValue: '1000', unit: props.defaultUnit }),
+    seed(banner ? 'Banner material' : 'Substrate material', 'substrate_material', 'material-reference', { required: true }),
+    seed('Print machine', 'print_machine', 'machine-reference', { required: true }),
     seed('Finished width', 'finished_width', 'decimal', { required: true, defaultValue: banner ? '200' : '100', minValue: '1', unit: banner ? 'cm' : 'cm' }),
     seed('Finished height', 'finished_height', 'decimal', { required: true, defaultValue: banner ? '100' : '140', minValue: '1', unit: banner ? 'cm' : 'cm' }),
     seed('Print unit', 'print_unit', 'choice', { required: true, defaultValue: 'cm', options: ['mm', 'cm', 'm', 'inch', 'ft'] }),
@@ -291,7 +348,7 @@ const templates = computed(() => {
         ? ['13oz matte vinyl', '15oz blockout vinyl', '18oz heavy-duty vinyl', 'Mesh vinyl', 'Fabric banner']
         : ['Self-adhesive vinyl', '5mm foam board', '3mm PVC board', 'Acrylic', 'Aluminum composite', 'Fabric', 'Canvas'],
     }),
-    seed('Color', 'color', 'choice', { required: true, defaultValue: 'Full color (1 side)', options: ['Full color (1 side)', 'Full color (2 sides)', 'Black & white (1 side)'] }),
+    seed('Color', 'color', 'choice', { required: true, predefinedKey: 'color', defaultValue: 'full-color' }),
     seed('Finishing', 'finishing', 'choice', { required: true, defaultValue: banner ? 'Hemmed edges' : 'Trim to size', options: banner ? ['Raw cut', 'Hemmed edges', 'Hemmed + grommets', 'Pole pockets', 'Reinforced corners'] : ['Trim to size', 'Contour cut', 'Mounted', 'Laminated', 'Folded'] }),
     ...(banner ? [
       seed('Grommets', 'grommets', 'choice', { defaultValue: 'Standard every 60 cm', options: ['None', 'Corners only', 'Standard every 60 cm', 'Every 30 cm', 'Custom placement'] }),
@@ -310,9 +367,11 @@ const templates = computed(() => {
 
   const labelParameters: ParameterTemplateSeed[] = [
     seed('Quantity', 'quantity', 'integer', { required: true, defaultValue: '100', minValue: '1', maxValue: '100000', unit: props.defaultUnit }),
+    seed('Stock material', 'stock_material', 'material-reference', { required: true }),
+    seed('Print machine', 'print_machine', 'machine-reference', { required: true }),
     seed('Size', 'size', 'choice', { required: true, defaultValue: '100 × 50 mm', options: ['50 × 30 mm', '100 × 50 mm', 'A6', 'A5', 'Custom'] }),
     seed('Stock', 'stock', 'choice', { required: true, defaultValue: 'White adhesive paper', options: ['White adhesive paper', 'Clear adhesive film', 'Kraft adhesive paper', 'White waterproof vinyl', 'Silver adhesive film'] }),
-    seed('Color', 'color', 'choice', { required: true, defaultValue: 'Full color', options: ['Full color', 'Black & white', 'Spot color'] }),
+    seed('Color', 'color', 'choice', { required: true, predefinedKey: 'color', defaultValue: 'full-color' }),
     seed('Shape', 'shape', 'choice', { required: true, defaultValue: 'Rectangle', options: ['Rectangle', 'Circle', 'Oval', 'Rounded rectangle', 'Custom die cut'] }),
     seed('Finish', 'finish', 'choice', { defaultValue: 'Matte', options: ['Matte', 'Gloss', 'Clear', 'Soft touch'] }),
     seed('Turnaround', 'turnaround', 'choice', { required: true, defaultValue: 'Standard (3–5 business days)', options: ['Standard (3–5 business days)', 'Express (1–2 business days)', 'Same day (subject to approval)'] }),
@@ -326,9 +385,11 @@ const templates = computed(() => {
 
   const envelopeParameters: ParameterTemplateSeed[] = [
     seed('Quantity', 'quantity', 'integer', { required: true, defaultValue: '100', minValue: '1', maxValue: '100000', unit: props.defaultUnit }),
+    seed('Paper material', 'paper_material', 'material-reference', { required: true }),
+    seed('Print machine', 'print_machine', 'machine-reference', { required: true }),
     seed('Envelope size', 'envelope_size', 'choice', { required: true, defaultValue: 'DL (110 × 220 mm)', options: ['C6 (114 × 162 mm)', 'DL (110 × 220 mm)', 'C5 (162 × 229 mm)', 'C4 (229 × 324 mm)', 'Custom'] }),
     seed('Paper stock', 'paper_stock', 'choice', { required: true, defaultValue: '120gsm white', options: ['90gsm white', '120gsm white', '120gsm recycled', 'Kraft', 'Color paper'] }),
-    seed('Color', 'color', 'choice', { required: true, defaultValue: 'Full color (1 side)', options: ['Full color (1 side)', 'Full color (2 sides)', 'Black & white (1 side)', 'No printing'] }),
+    seed('Color', 'color', 'choice', { required: true, predefinedKey: 'color', defaultValue: 'full-color' }),
     seed('Window', 'window', 'choice', { defaultValue: 'No window', options: ['No window', 'Left window', 'Right window', 'Custom window'] }),
     seed('Closure', 'closure', 'choice', { defaultValue: 'Gummed flap', options: ['Gummed flap', 'Self-adhesive strip', 'Peel and seal'] }),
     seed('Turnaround', 'turnaround', 'choice', { required: true, defaultValue: 'Standard (3–5 business days)', options: ['Standard (3–5 business days)', 'Express (1–2 business days)'] }),
@@ -336,10 +397,12 @@ const templates = computed(() => {
 
   const textileParameters: ParameterTemplateSeed[] = [
     seed('Quantity', 'quantity', 'integer', { required: true, defaultValue: '10', minValue: '1', maxValue: '10000', unit: props.defaultUnit }),
+    seed('Textile material', 'textile_material', 'material-reference', { required: true }),
+    seed('Print machine', 'print_machine', 'machine-reference', { required: true }),
     seed('Product', 'product', 'choice', { required: true, defaultValue: 'T-shirt', options: ['T-shirt', 'Hoodie', 'Polo shirt', 'Tote bag', 'Cap', 'Other garment'] }),
     seed('Print area', 'print_area', 'choice', { required: true, defaultValue: 'Front', options: ['Front', 'Back', 'Front and back', 'Sleeve', 'Custom'] }),
     seed('Print method', 'print_method', 'choice', { required: true, defaultValue: 'DTF', options: ['DTF', 'DTG', 'Screen printing', 'Sublimation', 'Heat transfer', 'Embroidery'] }),
-    seed('Color', 'color', 'choice', { required: true, defaultValue: 'Full color', options: ['Full color', 'Black & white', 'Spot colors'] }),
+    seed('Color', 'color', 'choice', { required: true, predefinedKey: 'color', defaultValue: 'full-color' }),
     seed('Finishing', 'finishing', 'choice', { defaultValue: 'Standard', options: ['Standard', 'Fold and pack', 'Individual packaging', 'Tag removal and replacement'] }),
     seed('Turnaround', 'turnaround', 'choice', { required: true, defaultValue: 'Standard (3–5 business days)', options: ['Standard (3–5 business days)', 'Express (1–2 business days)'] }),
   ]
@@ -429,6 +492,7 @@ const templates = computed(() => {
       icon: Layers3,
       parameters: [
         seed('Quantity', 'quantity', 'integer', { required: true, defaultValue: '1', minValue: '1', unit: props.defaultUnit }),
+        seed('Packaging material', 'packaging_material', 'material-reference', { required: true }),
         seed('Finish type', 'finish_type', 'choice', { required: true, defaultValue: 'Matte', options: ['Matte', 'Glossy', 'Soft touch', 'None'] }),
         seed('Turnaround', 'turnaround', 'choice', { required: true, defaultValue: 'Standard', options: ['Standard', 'Express'] }),
       ],
@@ -622,7 +686,10 @@ function applyTemplate(template: TemplateOption) {
           <button class="btn btn-primary btn-xs mt-3 self-start gap-1.5" type="button" @click="applyTemplate({ ...template, source: 'built-in' })"><Check :size="13" aria-hidden="true" />Use template</button>
         </article>
       </div>
-      <button class="btn btn-ghost btn-xs" type="button" @click="addParameter">Start with a blank parameter</button>
+      <div class="flex flex-wrap gap-2">
+        <button class="btn btn-ghost btn-xs" type="button" @click="addParameter">Start with a blank parameter</button>
+        <button v-for="definition in (predefinedParameters || []).filter((item) => item.active && !parameters.some((parameter) => parameter.predefinedKey === item.key))" :key="definition.key" class="btn btn-outline btn-xs" type="button" @click="addPredefinedParameter(definition.key)">Add {{ definition.label }}</button>
+      </div>
     </div>
 
     <div v-else class="grid min-w-0 gap-4 lg:grid-cols-[minmax(13rem,0.78fr)_minmax(0,1.3fr)]">
@@ -635,6 +702,7 @@ function applyTemplate(template: TemplateOption) {
         </button>
         <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
           <button class="flex w-full items-center justify-center gap-2 rounded-box border border-dashed border-base-300 px-3 py-3 text-sm text-base-content/65 transition-colors hover:border-primary hover:text-primary" type="button" @click="addParameter"><Plus :size="15" aria-hidden="true" />Add parameter</button>
+          <button v-for="definition in (predefinedParameters || []).filter((item) => item.active && !parameters.some((parameter) => parameter.predefinedKey === item.key))" :key="`predefined-${definition.key}`" class="flex w-full items-center justify-center gap-2 rounded-box border border-dashed border-primary/40 px-3 py-3 text-sm text-primary transition-colors hover:border-primary" type="button" @click="addPredefinedParameter(definition.key)"><Ruler :size="15" aria-hidden="true" />Add {{ definition.label }}</button>
           <button class="flex w-full items-center justify-center gap-2 rounded-box border border-dashed border-base-300 px-3 py-3 text-sm text-base-content/65 transition-colors hover:border-primary hover:text-primary" type="button" @click="openChooser"><FolderOpen :size="15" aria-hidden="true" />Choose template</button>
         </div>
       </div>
@@ -666,7 +734,35 @@ function applyTemplate(template: TemplateOption) {
         <div v-else-if="activeParameter.type === 'material-reference'" class="mt-4 rounded-box border border-base-300 bg-base-200/25 p-3"><SelectField v-model="activeParameter.defaultValue" label="Default material" :options="[{ label: 'No default material', value: '' }, ...activeMaterials.map((material) => ({ label: `${material.name}${material.sku ? ` · ${material.sku}` : ''}`, value: material.id }))]" /><p class="mt-2 text-xs leading-5 text-base-content/60">Customers will choose from active materials. Add materials in the Materials view to expand this list.</p></div>
         <div v-else-if="activeParameter.type === 'machine-reference'" class="mt-4 rounded-box border border-base-300 bg-base-200/25 p-3"><SelectField v-model="activeParameter.defaultValue" label="Default machine" :options="[{ label: 'No default machine', value: '' }, ...activeMachines.map((machine) => ({ label: `${machine.name}${machine.code ? ` · ${machine.code}` : ''}`, value: machine.id }))]" /><p class="mt-2 text-xs leading-5 text-base-content/60">Customers will choose from active machines. Add machines in the Machines view to expand this list.</p></div>
         <div v-else-if="activeParameter.type === 'boolean'" class="mt-4 rounded-box border border-base-300 bg-base-200/25 p-3"><SelectField v-model="activeParameter.defaultValue" label="Default answer" :options="[{ label: 'No default answer', value: '' }, { label: 'Yes', value: 'true' }, { label: 'No', value: 'false' }]" /></div>
-        <div v-else class="mt-4 rounded-box border border-base-300 bg-base-200/25 p-3"><div class="flex flex-wrap items-center justify-between gap-2"><div><h4 class="text-sm font-semibold">Options customers can choose</h4><p class="mt-1 text-xs text-base-content/60">Add values such as A4, A5, or Matte.</p></div><button class="btn btn-outline btn-sm gap-2" type="button" @click="addOption(activeParameter)"><Plus :size="14" aria-hidden="true" />Add option</button></div><div v-if="activeParameter.options.length" class="mt-3 grid min-w-0 gap-2 sm:grid-cols-2"><div v-for="(option, optionIndex) in activeParameter.options" :key="`${activeParameter.id}-${optionIndex}`" class="flex min-w-0 items-center gap-2"><AppInput v-model="activeParameter.options[optionIndex]" class="input w-full min-w-0" :class="{ 'input-error': showErrors && !activeParameter.options[optionIndex].trim() }" required :aria-label="`Option ${optionIndex + 1}`" placeholder="A4" /><button class="btn btn-outline btn-error btn-sm shrink-0" type="button" :aria-label="`Remove option ${optionIndex + 1}`" @click="removeOption(activeParameter, optionIndex)"><Trash2 :size="13" aria-hidden="true" /></button></div></div><p v-else class="mt-3 rounded-box border border-dashed border-base-300 p-3 text-sm text-base-content/60">No options yet.</p><SelectField v-if="activeParameter.options.length" v-model="activeParameter.defaultValue" class="mt-3" label="Default option" :options="[{ label: 'No default option', value: '' }, ...activeParameter.options.map((option) => ({ label: option, value: option }))]" /></div>
+        <div v-else-if="activeParameter.type === 'choice' && activeParameter.materialSource" class="mt-4 space-y-3">
+          <label class="flex items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2.5 text-sm"><input class="checkbox checkbox-sm" type="checkbox" checked @change="setMaterialBacked(activeParameter, $event)" />Derive choices from compatible inventory materials</label>
+          <div class="min-w-0 space-y-3 rounded-box border border-primary/25 bg-primary/5 p-3">
+            <div><h4 class="text-sm font-semibold">Inventory-backed options</h4><p class="mt-1 text-xs leading-5 text-base-content/60">Options come from active materials and resolve to an explicit material ID. They are recalculated when other material specifications change.</p></div>
+            <div class="grid min-w-0 gap-3 sm:grid-cols-2">
+              <SelectField :model-value="activeParameter.materialSource.allowedKinds[0] || ''" label="Allowed material kind" :options="[
+                { label: 'Choose kind…', value: '' },
+                { label: 'Sheet stock', value: 'sheet-stock' },
+                { label: 'Roll media', value: 'roll-media' },
+                { label: 'Board', value: 'board' },
+                { label: 'Fabric', value: 'fabric' },
+                { label: 'Packaging', value: 'packaging' },
+                { label: 'Generic consumable', value: 'generic-consumable' },
+              ]" @update:model-value="activeParameter.materialSource.allowedKinds = $event ? [$event] : []" />
+              <SelectField :model-value="activeParameter.materialSource.exposedAttributeKey" label="Exposed specification" :options="[
+                { label: 'Choose specification…', value: '' },
+                { label: 'Grammage (gsm)', value: 'grammage_gsm' },
+                { label: 'Material subtype', value: 'material_subtype' },
+                { label: 'Finish', value: 'finish' },
+                { label: 'Coating', value: 'coating' },
+                { label: 'Color', value: 'color' },
+              ]" @update:model-value="activeParameter.materialSource.exposedAttributeKey = $event" />
+            </div>
+            <label class="flex items-center gap-2 text-sm"><input v-model="activeParameter.materialSource.selectMaterial" class="checkbox checkbox-sm" type="checkbox" />Also require explicit material selection when multiple physical materials match</label>
+            <p class="text-xs leading-5 text-base-content/60">Allowed values are populated from real compatible inventory materials when the order is configured.</p>
+          </div>
+        </div>
+        <div v-else-if="activeParameter.predefinedKey" class="mt-4 rounded-box border border-primary/30 bg-primary/5 p-3"><label class="mb-3 flex items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2.5 text-sm"><input class="checkbox checkbox-sm" type="checkbox" :checked="Boolean(activeParameter.materialSource)" @change="setMaterialBacked(activeParameter, $event)" />Derive choices from compatible inventory materials</label><div><h4 class="text-sm font-semibold">{{ (predefinedParameters || []).find((item) => item.key === activeParameter.predefinedKey)?.label || 'Predefined parameter' }}</h4><p class="mt-1 text-xs leading-5 text-base-content/65">Options come from Atropaten’s shared catalog. The stored value is a stable code, and dimensions are optional catalog data.</p></div><div class="mt-3 flex flex-wrap gap-1.5"><span v-for="option in ((predefinedParameters || []).find((item) => item.key === activeParameter.predefinedKey)?.options || []).filter((item) => item.active)" :key="option.code" class="badge badge-ghost gap-1 px-2">{{ option.label }}<small v-if="option.widthMM && option.heightMM" class="opacity-60">{{ option.widthMM }} × {{ option.heightMM }} mm</small></span></div><SelectField v-if="(predefinedParameters || []).find((item) => item.key === activeParameter.predefinedKey)?.options.length" v-model="activeParameter.defaultValue" class="mt-3" label="Default option" :options="[{ label: 'No default option', value: '' }, ...((predefinedParameters || []).find((item) => item.key === activeParameter.predefinedKey)?.options || []).filter((item) => item.active).map((option) => ({ label: option.label, value: option.code }))]" /></div>
+        <div v-else class="mt-4 rounded-box border border-base-300 bg-base-200/25 p-3"><div class="flex flex-wrap items-center justify-between gap-2"><div><h4 class="text-sm font-semibold">Options customers can choose</h4><p class="mt-1 text-xs text-base-content/60">Add values such as Matte or Full color. These remain ordinary choices unless you choose a predefined source.</p></div><button class="btn btn-outline btn-sm gap-2" type="button" @click="addOption(activeParameter)"><Plus :size="14" aria-hidden="true" />Add option</button></div><div v-if="activeParameter.options.length" class="mt-3 grid min-w-0 gap-2 sm:grid-cols-2"><div v-for="(option, optionIndex) in activeParameter.options" :key="`${activeParameter.id}-${optionIndex}`" class="flex min-w-0 items-center gap-2"><AppInput v-model="activeParameter.options[optionIndex]" class="input w-full min-w-0" :class="{ 'input-error': showErrors && !activeParameter.options[optionIndex].trim() }" required :aria-label="`Option ${optionIndex + 1}`" placeholder="Matte" /><button class="btn btn-outline btn-error btn-sm shrink-0" type="button" :aria-label="`Remove option ${optionIndex + 1}`" @click="removeOption(activeParameter, optionIndex)"><Trash2 :size="13" aria-hidden="true" /></button></div></div><p v-else class="mt-3 rounded-box border border-dashed border-base-300 p-3 text-sm text-base-content/60">No options yet.</p><SelectField v-if="activeParameter.options.length" v-model="activeParameter.defaultValue" class="mt-3" label="Default option" :options="[{ label: 'No default option', value: '' }, ...activeParameter.options.map((option) => ({ label: option, value: option }))]" /></div>
         <details class="mt-4 rounded-box border border-base-300 px-3 py-2"><summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-base-content/70 [&::-webkit-details-marker]:hidden"><Settings2 :size="14" aria-hidden="true" />Advanced settings</summary><FormField class="mt-3 gap-1"><span>Internal key</span><AppInput v-model="activeParameter.key" class="input w-full min-w-0" placeholder="Generated from the label" /><small class="text-xs leading-5 text-base-content/60">Used internally by pricing. Leave it unchanged unless you know why it needs a custom key.</small></FormField></details>
       </div>
     </div>

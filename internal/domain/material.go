@@ -15,18 +15,146 @@ const QuantityScale = 1_000_000
 
 var (
 	ErrMaterialNotFound        = errors.New("material not found")
-	ErrMaterialDeleteProtected = errors.New("material has inventory or production history; archive it instead")
+	ErrMaterialDeleteProtected = errors.New("material has active inventory or operational dependencies; archive it instead")
 )
 
 // Quantity is a fixed-scale decimal quantity. Six fractional digits are
 // stored as an integer so inventory quantities never pass through float math.
 type Quantity int64
 
+// MaterialKind is a stable behavioral classification. Display categories remain
+// available for organization, but application decisions must use this code.
+type MaterialKind string
+
+const (
+	MaterialKindSheetStock        MaterialKind = "sheet-stock"
+	MaterialKindRollMedia         MaterialKind = "roll-media"
+	MaterialKindBoard             MaterialKind = "board"
+	MaterialKindInk               MaterialKind = "ink"
+	MaterialKindLaminationFilm    MaterialKind = "lamination-film"
+	MaterialKindAdhesive          MaterialKind = "adhesive"
+	MaterialKindFabric            MaterialKind = "fabric"
+	MaterialKindPackaging         MaterialKind = "packaging"
+	MaterialKindChemical          MaterialKind = "chemical"
+	MaterialKindGenericConsumable MaterialKind = "generic-consumable"
+)
+
+var materialKinds = []MaterialKind{
+	MaterialKindSheetStock, MaterialKindRollMedia, MaterialKindBoard,
+	MaterialKindInk, MaterialKindLaminationFilm, MaterialKindAdhesive,
+	MaterialKindFabric, MaterialKindPackaging, MaterialKindChemical,
+	MaterialKindGenericConsumable,
+}
+
+func ValidMaterialKinds() []MaterialKind { return append([]MaterialKind(nil), materialKinds...) }
+
+func IsValidMaterialKind(value MaterialKind) bool {
+	for _, kind := range materialKinds {
+		if value == kind {
+			return true
+		}
+	}
+	return false
+}
+
+type MaterialAttributeValueType string
+
+const (
+	MaterialAttributeDecimal MaterialAttributeValueType = "decimal"
+	MaterialAttributeInteger MaterialAttributeValueType = "integer"
+	MaterialAttributeEnum    MaterialAttributeValueType = "enum"
+	MaterialAttributeText    MaterialAttributeValueType = "text"
+	MaterialAttributeBoolean MaterialAttributeValueType = "boolean"
+)
+
+type MaterialAttributeEnumOption struct {
+	Code     string
+	Label    string
+	Active   bool
+	Position int
+}
+
+// MaterialAttributeDefinition describes a typed, reusable specification. The
+// definition is persisted independently from materials so new specifications do
+// not require another materials-table column.
+type MaterialAttributeDefinition struct {
+	Key             string
+	Label           string
+	ValueType       MaterialAttributeValueType
+	Unit            string
+	ApplicableKinds []MaterialKind
+	EnumOptions     []MaterialAttributeEnumOption
+	Active          bool
+	Position        int
+}
+
+type MaterialAttributeValue struct {
+	Key          string
+	ValueType    MaterialAttributeValueType
+	DecimalValue Quantity
+	IntegerValue int64
+	EnumCode     string
+	TextValue    string
+	BooleanValue bool
+}
+
+func (v MaterialAttributeValue) Canonical() string {
+	switch v.ValueType {
+	case MaterialAttributeDecimal:
+		return v.DecimalValue.String()
+	case MaterialAttributeInteger:
+		return strconv.FormatInt(v.IntegerValue, 10)
+	case MaterialAttributeEnum:
+		return strings.TrimSpace(v.EnumCode)
+	case MaterialAttributeBoolean:
+		if v.BooleanValue {
+			return "true"
+		}
+		return "false"
+	default:
+		return strings.TrimSpace(v.TextValue)
+	}
+}
+
+func (v MaterialAttributeValue) Validate() error {
+	if strings.TrimSpace(v.Key) == "" {
+		return validationError("attribute.key", "is required")
+	}
+	switch v.ValueType {
+	case MaterialAttributeDecimal, MaterialAttributeInteger, MaterialAttributeText, MaterialAttributeBoolean:
+	case MaterialAttributeEnum:
+		if strings.TrimSpace(v.EnumCode) == "" {
+			return validationError("attribute.enumCode", "is required")
+		}
+	default:
+		return validationError("attribute.valueType", "is not supported")
+	}
+	return nil
+}
+
+type MaterialAttributeFilter struct {
+	Key   string
+	Value MaterialAttributeValue
+}
+
+// MaterialParameterSource makes a service parameter explicitly material-backed.
+// ExposedAttributeKey derives customer options from actual material attributes;
+// SelectMaterial exposes explicit material IDs instead.
+type MaterialParameterSource struct {
+	AllowedKinds        []MaterialKind
+	ExposedAttributeKey string
+	AllowedValues       []MaterialAttributeValue
+	SelectMaterial      bool
+	AdditionalFilters   []MaterialAttributeFilter
+}
+
 type Material struct {
 	ID                          string
 	Name                        string
 	SKU                         string
 	Category                    string
+	Kind                        MaterialKind
+	Attributes                  []MaterialAttributeValue
 	PurchaseUnit                string
 	ConsumptionUnit             string
 	ConversionFactor            Quantity
@@ -47,6 +175,8 @@ type MaterialDraft struct {
 	Name                string
 	SKU                 string
 	Category            string
+	Kind                MaterialKind
+	Attributes          []MaterialAttributeValue
 	PurchaseUnit        string
 	ConsumptionUnit     string
 	ConversionFactor    Quantity
@@ -70,11 +200,17 @@ func NormalizeUnit(value string) string {
 }
 
 func NewMaterial(id string, draft MaterialDraft, now time.Time) (Material, error) {
+	kind := draft.Kind
+	if kind == "" {
+		kind = MaterialKindGenericConsumable
+	}
 	material := Material{
 		ID:                  strings.TrimSpace(id),
 		Name:                strings.TrimSpace(draft.Name),
 		SKU:                 strings.TrimSpace(draft.SKU),
 		Category:            strings.TrimSpace(draft.Category),
+		Kind:                kind,
+		Attributes:          append([]MaterialAttributeValue(nil), draft.Attributes...),
 		PurchaseUnit:        NormalizeUnit(draft.PurchaseUnit),
 		ConsumptionUnit:     NormalizeUnit(draft.ConsumptionUnit),
 		ConversionFactor:    draft.ConversionFactor,
@@ -108,6 +244,12 @@ func (m Material) Validate() error {
 	if m.ID == "" {
 		return validationError("id", "is required")
 	}
+	if m.Kind == "" {
+		return validationError("kind", "is required")
+	}
+	if !IsValidMaterialKind(m.Kind) {
+		return validationError("kind", "must be a supported material kind")
+	}
 	if m.Name == "" {
 		return validationError("name", "is required")
 	}
@@ -128,6 +270,26 @@ func (m Material) Validate() error {
 	}
 	if m.AverageUnitCostRial < 0 {
 		return validationError("averageUnitCostRial", "cannot be negative")
+	}
+	seenAttributes := make(map[string]struct{}, len(m.Attributes))
+	for index, attribute := range m.Attributes {
+		if err := attribute.Validate(); err != nil {
+			return validationError(fmt.Sprintf("attributes[%d]", index), err.Error())
+		}
+		if attribute.Key == "width_mm" || attribute.Key == "height_mm" || attribute.Key == "length_mm" {
+			if attribute.ValueType != MaterialAttributeDecimal || attribute.DecimalValue <= 0 {
+				return validationError(fmt.Sprintf("attributes[%d]", index), "physical dimensions must be positive decimal millimetres")
+			}
+		}
+		if attribute.Key == "grammage_gsm" || attribute.Key == "thickness_micron" {
+			if attribute.ValueType != MaterialAttributeInteger || attribute.IntegerValue <= 0 {
+				return validationError(fmt.Sprintf("attributes[%d]", index), "specification must be a positive integer")
+			}
+		}
+		if _, exists := seenAttributes[attribute.Key]; exists {
+			return validationError("attributes", "must not contain duplicate keys")
+		}
+		seenAttributes[attribute.Key] = struct{}{}
 	}
 	if m.CreatedAt.IsZero() || m.UpdatedAt.IsZero() {
 		return validationError("timestamps", "are required")
