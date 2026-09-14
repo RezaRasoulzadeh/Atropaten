@@ -57,14 +57,14 @@ export function ensureSuggestedCostComponents(components: ComponentForm[], param
     const groupedKeys = new Set(groupedMaterialParameters.map((parameter) => parameter.key))
     let primary = components.find((component) => component.type === 'material' && component.usageMode === 'parameter' && component.parameterKey === primaryGroupedMaterialKey)
     if (!primary) primary = components.find((component) => component.type === 'material' && component.usageMode === 'parameter' && groupedKeys.has(component.parameterKey))
-    if (!primary) primary = components.find((component) => component.type === 'material' && component.usageMode === 'parameter')
+    if (!primary) primary = components.find((component) => component.type === 'material')
     if (primary) {
       primary.referenceId = ''
       primary.usageMode = 'parameter'
       primary.parameterKey = primaryGroupedMaterialKey
       for (let index = components.length - 1; index >= 0; index -= 1) {
         const component = components[index]
-        if (component !== primary && component.type === 'material' && component.usageMode === 'parameter') components.splice(index, 1)
+        if (component !== primary && component.type === 'material') components.splice(index, 1)
       }
     }
   }
@@ -113,8 +113,8 @@ export function collapseGroupedMaterialComponents(components: ComponentForm[], p
   }
   if (keepIndex < 0) return components
   return components.filter((component, index) => {
-    const materialSelection = component.type === 'material' && component.usageMode === 'parameter'
-    return !materialSelection || index === keepIndex
+    const materialComponent = component.type === 'material'
+    return !materialComponent || index === keepIndex
   })
 }
 

@@ -257,7 +257,10 @@ func TestEvaluatePricingCountsOneMaterialForGroupedCombination(t *testing.T) {
 		},
 		Components: []ServiceCostComponentDraft{
 			{ID: "C-size", Name: "Paper size", Type: CostMaterial, UsageMode: UsageParameter, ParameterKey: "size", UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true},
-			{ID: "C-type", Name: "Paper type", Type: CostMaterial, UsageMode: UsageParameter, ParameterKey: "type", UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true},
+			// A previous service can retain a fixed material component from the old
+			// parameter flow. Grouped material options must still resolve to one
+			// inventory material and one material cost.
+			{ID: "C-type", Name: "Paper type", Type: CostMaterial, ReferenceID: "MAT-legacy-paper", UsageMode: UsageFixed, UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true},
 		},
 		MaterialVariants: []ServiceMaterialVariant{{ID: "VAR-a4-coated", MaterialID: "MAT-a4-coated", Values: map[string]string{"size": "210", "type": "coated"}, Position: 0, Active: true}},
 	}, now)

@@ -280,14 +280,20 @@ func collapseGroupedMaterialComponents(service Service) []ServiceCostComponent {
 		}
 	}
 	if keepIndex < 0 {
+		for index, component := range service.Components {
+			if component.Type == CostMaterial {
+				keepIndex = index
+				break
+			}
+		}
+	}
+	if keepIndex < 0 {
 		return service.Components
 	}
 	result := make([]ServiceCostComponent, 0, len(service.Components))
 	for index, component := range service.Components {
-		if component.Type == CostMaterial && component.UsageMode == UsageParameter {
-			if index != keepIndex {
-				continue
-			}
+		if component.Type == CostMaterial && index != keepIndex {
+			continue
 		}
 		result = append(result, component)
 	}
