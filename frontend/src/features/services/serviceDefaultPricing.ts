@@ -20,6 +20,7 @@ function formFromService(service: ServiceRecord): ServiceForm {
     materialSource: parameter.materialSource ? {
       allowedKinds: [...(parameter.materialSource.allowedKinds || [])],
       exposedAttributeKey: parameter.materialSource.exposedAttributeKey || '',
+      exposedAttributeKeys: [...(parameter.materialSource.exposedAttributeKeys || [])],
       allowedValues: [...(parameter.materialSource.allowedValues || [])],
       selectMaterial: parameter.materialSource.selectMaterial === true,
       additionalFilters: [...(parameter.materialSource.additionalFilters || [])],
@@ -99,6 +100,13 @@ function formFromService(service: ServiceRecord): ServiceForm {
       allowRotation: service.finishedSize.allowRotation !== false,
       options: (service.finishedSize.options || []).map((option) => ({ ...option })),
     } : null,
+    materialVariants: (service.materialVariants || []).map((variant) => ({
+      id: variant.id,
+      materialId: variant.materialId,
+      values: { ...(variant.values || {}) },
+      position: variant.position,
+      active: variant.active !== false,
+    })),
   }
 }
 

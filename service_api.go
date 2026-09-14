@@ -23,11 +23,12 @@ type ServiceParameterInput struct {
 }
 
 type MaterialParameterSourceInput struct {
-	AllowedKinds        []string                       `json:"allowedKinds"`
-	ExposedAttributeKey string                         `json:"exposedAttributeKey"`
-	AllowedValues       []MaterialAttributeInput       `json:"allowedValues"`
-	SelectMaterial      bool                           `json:"selectMaterial"`
-	AdditionalFilters   []MaterialAttributeFilterInput `json:"additionalFilters"`
+	AllowedKinds         []string                       `json:"allowedKinds"`
+	ExposedAttributeKey  string                         `json:"exposedAttributeKey"`
+	ExposedAttributeKeys []string                       `json:"exposedAttributeKeys"`
+	AllowedValues        []MaterialAttributeInput       `json:"allowedValues"`
+	SelectMaterial       bool                           `json:"selectMaterial"`
+	AdditionalFilters    []MaterialAttributeFilterInput `json:"additionalFilters"`
 }
 
 type MaterialAttributeFilterInput struct {
@@ -36,17 +37,26 @@ type MaterialAttributeFilterInput struct {
 }
 
 type ServiceInput struct {
-	Name            string                      `json:"name"`
-	Code            string                      `json:"code"`
-	Category        string                      `json:"category"`
-	Description     string                      `json:"description"`
-	ImagePath       string                      `json:"imagePath"`
-	DefaultUnit     string                      `json:"defaultUnit"`
-	DefaultPriority string                      `json:"defaultPriority"`
-	Parameters      []ServiceParameterInput     `json:"parameters"`
-	Components      []ServiceCostComponentInput `json:"components"`
-	PricingRule     *PricingRuleInput           `json:"pricingRule"`
-	FinishedSize    *FinishedSizeInput          `json:"finishedSize"`
+	Name             string                        `json:"name"`
+	Code             string                        `json:"code"`
+	Category         string                        `json:"category"`
+	Description      string                        `json:"description"`
+	ImagePath        string                        `json:"imagePath"`
+	DefaultUnit      string                        `json:"defaultUnit"`
+	DefaultPriority  string                        `json:"defaultPriority"`
+	Parameters       []ServiceParameterInput       `json:"parameters"`
+	Components       []ServiceCostComponentInput   `json:"components"`
+	PricingRule      *PricingRuleInput             `json:"pricingRule"`
+	FinishedSize     *FinishedSizeInput            `json:"finishedSize"`
+	MaterialVariants []ServiceMaterialVariantInput `json:"materialVariants"`
+}
+
+type ServiceMaterialVariantInput struct {
+	ID         string            `json:"id"`
+	MaterialID string            `json:"materialId"`
+	Values     map[string]string `json:"values"`
+	Position   int               `json:"position"`
+	Active     bool              `json:"active"`
 }
 
 type FinishedSizeInput struct {
@@ -142,11 +152,12 @@ type PredefinedParameterDTO struct {
 }
 
 type MaterialParameterSourceDTO struct {
-	AllowedKinds        []string                     `json:"allowedKinds"`
-	ExposedAttributeKey string                       `json:"exposedAttributeKey"`
-	AllowedValues       []MaterialAttributeDTO       `json:"allowedValues"`
-	SelectMaterial      bool                         `json:"selectMaterial"`
-	AdditionalFilters   []MaterialAttributeFilterDTO `json:"additionalFilters"`
+	AllowedKinds         []string                     `json:"allowedKinds"`
+	ExposedAttributeKey  string                       `json:"exposedAttributeKey"`
+	ExposedAttributeKeys []string                     `json:"exposedAttributeKeys"`
+	AllowedValues        []MaterialAttributeDTO       `json:"allowedValues"`
+	SelectMaterial       bool                         `json:"selectMaterial"`
+	AdditionalFilters    []MaterialAttributeFilterDTO `json:"additionalFilters"`
 }
 
 type MaterialAttributeFilterDTO struct {
@@ -155,21 +166,30 @@ type MaterialAttributeFilterDTO struct {
 }
 
 type ServiceDTO struct {
-	ID              string                    `json:"id"`
-	Name            string                    `json:"name"`
-	Code            string                    `json:"code"`
-	Category        string                    `json:"category"`
-	Description     string                    `json:"description"`
-	ImagePath       string                    `json:"imagePath"`
-	DefaultUnit     string                    `json:"defaultUnit"`
-	DefaultPriority string                    `json:"defaultPriority"`
-	Active          bool                      `json:"active"`
-	CreatedAt       string                    `json:"createdAt"`
-	UpdatedAt       string                    `json:"updatedAt"`
-	Parameters      []ServiceParameterDTO     `json:"parameters"`
-	Components      []ServiceCostComponentDTO `json:"components"`
-	PricingRule     *PricingRuleDTO           `json:"pricingRule"`
-	FinishedSize    *FinishedSizeDTO          `json:"finishedSize"`
+	ID               string                      `json:"id"`
+	Name             string                      `json:"name"`
+	Code             string                      `json:"code"`
+	Category         string                      `json:"category"`
+	Description      string                      `json:"description"`
+	ImagePath        string                      `json:"imagePath"`
+	DefaultUnit      string                      `json:"defaultUnit"`
+	DefaultPriority  string                      `json:"defaultPriority"`
+	Active           bool                        `json:"active"`
+	CreatedAt        string                      `json:"createdAt"`
+	UpdatedAt        string                      `json:"updatedAt"`
+	Parameters       []ServiceParameterDTO       `json:"parameters"`
+	Components       []ServiceCostComponentDTO   `json:"components"`
+	PricingRule      *PricingRuleDTO             `json:"pricingRule"`
+	FinishedSize     *FinishedSizeDTO            `json:"finishedSize"`
+	MaterialVariants []ServiceMaterialVariantDTO `json:"materialVariants"`
+}
+
+type ServiceMaterialVariantDTO struct {
+	ID         string            `json:"id"`
+	MaterialID string            `json:"materialId"`
+	Values     map[string]string `json:"values"`
+	Position   int               `json:"position"`
+	Active     bool              `json:"active"`
 }
 
 type FinishedSizeDTO struct {
@@ -201,6 +221,7 @@ type ServiceMaterialOptionDTO struct {
 type ServiceMaterialOptionsDTO struct {
 	ParameterKey string                     `json:"parameterKey"`
 	Options      []ServiceMaterialOptionDTO `json:"options"`
+	Message      string                     `json:"message"`
 }
 
 type ServiceCostComponentDTO struct {
@@ -288,7 +309,7 @@ func (a *App) GetServiceMaterialOptions(serviceID string, selected map[string]st
 	}
 	result := make([]ServiceMaterialOptionsDTO, 0, len(options))
 	for _, group := range options {
-		dto := ServiceMaterialOptionsDTO{ParameterKey: group.ParameterKey}
+		dto := ServiceMaterialOptionsDTO{ParameterKey: group.ParameterKey, Message: group.Message}
 		for _, option := range group.Options {
 			dto.Options = append(dto.Options, ServiceMaterialOptionDTO{Value: option.Value, Label: option.Label, MaterialIDs: option.MaterialIDs})
 		}
@@ -536,7 +557,15 @@ func applicationServiceInput(input ServiceInput) (application.ServiceInput, erro
 		}
 		finishedSize = converted
 	}
-	return application.ServiceInput{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, ImagePath: input.ImagePath, DefaultUnit: input.DefaultUnit, DefaultPriority: input.DefaultPriority, Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: finishedSize}, nil
+	variants := make([]domain.ServiceMaterialVariant, 0, len(input.MaterialVariants))
+	for index, variant := range input.MaterialVariants {
+		values := make(map[string]string, len(variant.Values))
+		for key, value := range variant.Values {
+			values[key] = value
+		}
+		variants = append(variants, domain.ServiceMaterialVariant{ID: variant.ID, MaterialID: variant.MaterialID, Values: values, Position: index, Active: variant.Active})
+	}
+	return application.ServiceInput{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, ImagePath: input.ImagePath, DefaultUnit: input.DefaultUnit, DefaultPriority: input.DefaultPriority, Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: finishedSize, MaterialVariants: variants}, nil
 }
 
 func applicationCostComponentInput(input ServiceCostComponentInput) application.CostComponentInput {
@@ -546,7 +575,7 @@ func applicationCostComponentInput(input ServiceCostComponentInput) application.
 func applicationParameterInput(input ServiceParameterInput) (application.ParameterInput, error) {
 	var source *domain.MaterialParameterSource
 	if input.MaterialSource != nil {
-		source = &domain.MaterialParameterSource{ExposedAttributeKey: input.MaterialSource.ExposedAttributeKey, SelectMaterial: input.MaterialSource.SelectMaterial}
+		source = &domain.MaterialParameterSource{ExposedAttributeKey: input.MaterialSource.ExposedAttributeKey, ExposedAttributeKeys: append([]string(nil), input.MaterialSource.ExposedAttributeKeys...), SelectMaterial: input.MaterialSource.SelectMaterial}
 		for _, kind := range input.MaterialSource.AllowedKinds {
 			source.AllowedKinds = append(source.AllowedKinds, domain.MaterialKind(kind))
 		}
@@ -617,14 +646,22 @@ func serviceDTO(view application.ServiceView) ServiceDTO {
 			finishedSize.Options = append(finishedSize.Options, FinishedSizeOptionDTO{ID: option.ID, Code: option.Code, Label: option.Label, WidthMM: option.WidthMM.String(), HeightMM: option.HeightMM.String(), Position: option.Position, Active: option.Active})
 		}
 	}
-	return ServiceDTO{ID: view.ID, Name: view.Name, Code: view.Code, Category: view.Category, Description: view.Description, ImagePath: view.ImagePath, DefaultUnit: view.DefaultUnit, DefaultPriority: view.DefaultPriority, Active: view.Active, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt, Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: finishedSize}
+	variants := make([]ServiceMaterialVariantDTO, 0, len(view.MaterialVariants))
+	for _, variant := range view.MaterialVariants {
+		values := make(map[string]string, len(variant.Values))
+		for key, value := range variant.Values {
+			values[key] = value
+		}
+		variants = append(variants, ServiceMaterialVariantDTO{ID: variant.ID, MaterialID: variant.MaterialID, Values: values, Position: variant.Position, Active: variant.Active})
+	}
+	return ServiceDTO{ID: view.ID, Name: view.Name, Code: view.Code, Category: view.Category, Description: view.Description, ImagePath: view.ImagePath, DefaultUnit: view.DefaultUnit, DefaultPriority: view.DefaultPriority, Active: view.Active, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt, Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: finishedSize, MaterialVariants: variants}
 }
 
 func materialParameterSourceDTO(source *domain.MaterialParameterSource) *MaterialParameterSourceDTO {
 	if source == nil {
 		return nil
 	}
-	dto := &MaterialParameterSourceDTO{ExposedAttributeKey: source.ExposedAttributeKey, SelectMaterial: source.SelectMaterial}
+	dto := &MaterialParameterSourceDTO{ExposedAttributeKey: source.ExposedAttributeKey, ExposedAttributeKeys: append([]string(nil), source.ExposedAttributeKeys...), SelectMaterial: source.SelectMaterial}
 	for _, kind := range source.AllowedKinds {
 		dto.AllowedKinds = append(dto.AllowedKinds, string(kind))
 	}

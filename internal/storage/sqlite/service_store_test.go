@@ -341,6 +341,29 @@ func TestMaterialBackedServiceParameterRoundTrip(t *testing.T) {
 	}
 }
 
+func TestServiceMaterialVariantRoundTrip(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "material-variant.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := domain.NewService("SVC-variant", domain.ServiceDraft{Name: "Variant service", Parameters: []domain.ServiceParameterDraft{{ID: "P-finish", Key: "finish", Label: "Finish", Type: domain.ParameterChoice, MaterialSource: &domain.MaterialParameterSource{ExposedAttributeKey: "finish"}}}, MaterialVariants: []domain.ServiceMaterialVariant{{ID: "VAR-1", MaterialID: "MAT-1", Values: map[string]string{"finish": "matte"}, Position: 0, Active: true}}}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveServiceDefinition(context.Background(), service); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.GetService(context.Background(), service.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.MaterialVariants) != 1 || got.MaterialVariants[0].MaterialID != "MAT-1" || got.MaterialVariants[0].Values["finish"] != "matte" {
+		t.Fatalf("material variants did not round-trip: %+v", got.MaterialVariants)
+	}
+}
+
 func TestPricingRuleAndUsageQuantityRoundTripAfterV4Migration(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "pricing.db")
 	store, err := Open(path)

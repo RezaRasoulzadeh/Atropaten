@@ -6,7 +6,7 @@ import AppTextarea from '../../components/ui/AppTextarea.vue'
 import FormField from '../../components/ui/FormField.vue'
 import SelectField from '../../components/ui/SelectField.vue'
 import WorkspaceBreadcrumb from '../../components/layout/WorkspaceBreadcrumb.vue'
-import ServiceParametersStep from './ServiceParametersStep.vue'
+import ServiceMaterialsStep from './ServiceMaterialsStep.vue'
 import ServiceOrderPreview from './ServiceOrderPreview.vue'
 import ServiceCostBreakdownPreview from './ServiceCostBreakdownPreview.vue'
 import ServicePricingStep from './ServicePricingStep.vue'
@@ -15,12 +15,12 @@ import ServiceTestStep from './ServiceTestStep.vue'
 import ServiceTestPreview from './ServiceTestPreview.vue'
 import ServiceOverviewIdentity from './ServiceOverviewIdentity.vue'
 import ServiceOverviewSection from './ServiceOverviewSection.vue'
-import type { MaterialRecord } from '../../api/materials'
+import type { MaterialAttributeDefinitionRecord, MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
 import type { CurrencyUnit } from '../../utils/currency'
 import ServiceCostComponentsStep from './ServiceCostComponentsStep.vue'
-import type { ParameterTemplateSeed, PredefinedParameter, ServiceForm } from './types'
+import type { PredefinedParameter, ServiceForm } from './types'
 import type { TestPricingResult, TestValues } from './serviceTestPricing'
 import { ensureSuggestedCostComponents, reconcileCostComponents } from './serviceComponentSync'
 
@@ -32,6 +32,7 @@ const props = defineProps<{
   validationAttempted: boolean
   active: boolean
   materials: MaterialRecord[]
+  attributeDefinitions: MaterialAttributeDefinitionRecord[]
   machines: MachineRecord[]
   services: ServiceRecord[]
   serviceId?: string
@@ -54,8 +55,8 @@ const testResult = ref<TestPricingResult | null>(null)
 const imagePreview = computed(() => props.form.imagePath || '')
 const steps = [
   { number: 1, title: 'Basic', description: 'Name, category, description' },
-  { number: 2, title: 'Parameters', description: 'Options customers can choose' },
-  { number: 3, title: 'Cost components', description: 'Material, machine, labor, etc.' },
+  { number: 2, title: 'Materials', description: 'Group stock choices by order options' },
+  { number: 3, title: 'Machines', description: 'Group machine rates and costs' },
   { number: 4, title: 'Pricing', description: 'How the price is calculated' },
   { number: 5, title: 'Test', description: 'Try it with real values' },
 ]
@@ -129,19 +130,18 @@ function stepClass(number: number) {
   return 'wizard-step-idle'
 }
 function stepDescription(number: number, fallback: string) {
-  if (number === 2) return `${props.form.parameters.length} parameter${props.form.parameters.length === 1 ? '' : 's'} configured`
-  if (number === 3) return `${props.form.components.length} cost component${props.form.components.length === 1 ? '' : 's'} configured`
+  if (number === 2) {
+    const materialGroups = props.form.parameters.filter((parameter) => parameter.type === 'choice' && parameter.materialSource).length
+    return `${materialGroups} material group${materialGroups === 1 ? '' : 's'} · ${props.form.parameters.length} order input${props.form.parameters.length === 1 ? '' : 's'}`
+  }
+  if (number === 3) {
+    const machineGroups = props.form.components.filter((component) => component.type === 'machine').length
+    const supportingCosts = props.form.components.length - machineGroups
+    return `${machineGroups} machine group${machineGroups === 1 ? '' : 's'} · ${supportingCosts} supporting cost${supportingCosts === 1 ? '' : 's'}`
+  }
   if (number === 4) return props.form.pricingRule?.type === 'manual' ? 'Manual price setup' : 'Selling price rules'
   if (number === 5) return testResult.value ? 'Test result available' : 'Try it with real values'
   return fallback
-}
-function applyParameterTemplate(parameters: ParameterTemplateSeed[]) {
-  props.form.parameters = parameters.map((parameter, index) => ({
-    ...parameter,
-    id: `draft-parameter-${Date.now()}-${index}-${Math.random().toString(16).slice(2)}`,
-  }))
-  reconcileCostComponents(props.form.components, props.form.parameters)
-  if (activeStep.value === 3) ensureSuggestedCostComponents(props.form.components, props.form.parameters)
 }
 function generateServiceCode(name: string) {
   const words = name
@@ -221,17 +221,14 @@ watch(
             </div>
           </section>
 
-          <ServiceParametersStep
+          <ServiceMaterialsStep
             v-else-if="activeStep === 2"
             :parameters="form.parameters"
-            :category="form.category"
-            :default-unit="form.defaultUnit"
             :materials="materials"
-            :machines="machines"
-            :template-scope="form.code || form.name || 'new-service'"
-            :predefined-parameters="predefinedParameters"
+            :attribute-definitions="attributeDefinitions"
+            :material-variants="form.materialVariants"
             :show-errors="validationAttempted"
-            @apply-template="applyParameterTemplate"
+            :currency-unit="currencyUnit"
           />
           <ServiceCostComponentsStep
             v-else-if="activeStep === 3"
@@ -292,7 +289,7 @@ watch(
             <p class="text-sm leading-6 text-base-content/70">{{ form.description }}</p>
           </ServiceOverviewSection>
         </div>
-        <div class="mt-4 flex gap-2 border-t border-base-300 pt-3 text-sm"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="17" aria-hidden="true" /><p class="leading-5 text-base-content/70">Configure parameters that customers can choose when adding this service to an order.</p></div>
+        <div class="mt-4 flex gap-2 border-t border-base-300 pt-3 text-sm"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="17" aria-hidden="true" /><p class="leading-5 text-base-content/70">Configure materials and order options that customers can choose when adding this service to an order.</p></div>
         </template>
         </aside>
       </div>

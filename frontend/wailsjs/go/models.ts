@@ -1922,6 +1922,7 @@ export namespace main {
 	export class MaterialParameterSourceDTO {
 	    allowedKinds: string[];
 	    exposedAttributeKey: string;
+	    exposedAttributeKeys: string[];
 	    allowedValues: MaterialAttributeDTO[];
 	    selectMaterial: boolean;
 	    additionalFilters: MaterialAttributeFilterDTO[];
@@ -1934,6 +1935,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.allowedKinds = source["allowedKinds"];
 	        this.exposedAttributeKey = source["exposedAttributeKey"];
+	        this.exposedAttributeKeys = source["exposedAttributeKeys"];
 	        this.allowedValues = this.convertValues(source["allowedValues"], MaterialAttributeDTO);
 	        this.selectMaterial = source["selectMaterial"];
 	        this.additionalFilters = this.convertValues(source["additionalFilters"], MaterialAttributeFilterDTO);
@@ -1960,6 +1962,7 @@ export namespace main {
 	export class MaterialParameterSourceInput {
 	    allowedKinds: string[];
 	    exposedAttributeKey: string;
+	    exposedAttributeKeys: string[];
 	    allowedValues: MaterialAttributeInput[];
 	    selectMaterial: boolean;
 	    additionalFilters: MaterialAttributeFilterInput[];
@@ -1972,6 +1975,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.allowedKinds = source["allowedKinds"];
 	        this.exposedAttributeKey = source["exposedAttributeKey"];
+	        this.exposedAttributeKeys = source["exposedAttributeKeys"];
 	        this.allowedValues = this.convertValues(source["allowedValues"], MaterialAttributeInput);
 	        this.selectMaterial = source["selectMaterial"];
 	        this.additionalFilters = this.convertValues(source["additionalFilters"], MaterialAttributeFilterInput);
@@ -3513,6 +3517,26 @@ export namespace main {
 	        this.notes = source["notes"];
 	    }
 	}
+	export class ServiceMaterialVariantDTO {
+	    id: string;
+	    materialId: string;
+	    values: Record<string, string>;
+	    position: number;
+	    active: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ServiceMaterialVariantDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.materialId = source["materialId"];
+	        this.values = source["values"];
+	        this.position = source["position"];
+	        this.active = source["active"];
+	    }
+	}
 	export class ServiceParameterDTO {
 	    id: string;
 	    key: string;
@@ -3587,6 +3611,7 @@ export namespace main {
 	    components: ServiceCostComponentDTO[];
 	    pricingRule?: PricingRuleDTO;
 	    finishedSize?: FinishedSizeDTO;
+	    materialVariants: ServiceMaterialVariantDTO[];
 	
 	    static createFrom(source: any = {}) {
 	        return new ServiceDTO(source);
@@ -3609,6 +3634,7 @@ export namespace main {
 	        this.components = this.convertValues(source["components"], ServiceCostComponentDTO);
 	        this.pricingRule = this.convertValues(source["pricingRule"], PricingRuleDTO);
 	        this.finishedSize = this.convertValues(source["finishedSize"], FinishedSizeDTO);
+	        this.materialVariants = this.convertValues(source["materialVariants"], ServiceMaterialVariantDTO);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -3628,6 +3654,26 @@ export namespace main {
 		    }
 		    return a;
 		}
+	}
+	export class ServiceMaterialVariantInput {
+	    id: string;
+	    materialId: string;
+	    values: Record<string, string>;
+	    position: number;
+	    active: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ServiceMaterialVariantInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.materialId = source["materialId"];
+	        this.values = source["values"];
+	        this.position = source["position"];
+	        this.active = source["active"];
+	    }
 	}
 	export class ServiceParameterInput {
 	    id: string;
@@ -3693,6 +3739,7 @@ export namespace main {
 	    components: ServiceCostComponentInput[];
 	    pricingRule?: PricingRuleInput;
 	    finishedSize?: FinishedSizeInput;
+	    materialVariants: ServiceMaterialVariantInput[];
 	
 	    static createFrom(source: any = {}) {
 	        return new ServiceInput(source);
@@ -3711,6 +3758,7 @@ export namespace main {
 	        this.components = this.convertValues(source["components"], ServiceCostComponentInput);
 	        this.pricingRule = this.convertValues(source["pricingRule"], PricingRuleInput);
 	        this.finishedSize = this.convertValues(source["finishedSize"], FinishedSizeInput);
+	        this.materialVariants = this.convertValues(source["materialVariants"], ServiceMaterialVariantInput);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -3750,6 +3798,7 @@ export namespace main {
 	export class ServiceMaterialOptionsDTO {
 	    parameterKey: string;
 	    options: ServiceMaterialOptionDTO[];
+	    message: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ServiceMaterialOptionsDTO(source);
@@ -3759,6 +3808,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.parameterKey = source["parameterKey"];
 	        this.options = this.convertValues(source["options"], ServiceMaterialOptionDTO);
+	        this.message = source["message"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -3779,6 +3829,8 @@ export namespace main {
 		    return a;
 		}
 	}
+	
+	
 	
 	
 	

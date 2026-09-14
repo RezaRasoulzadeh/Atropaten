@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -922,6 +923,14 @@ var migrations = []migration{{
 		sql:     `ALTER TABLE machine_rates ADD COLUMN selector_predefined_key TEXT NOT NULL DEFAULT '';`,
 		run:     seedColorPredefinedParameter,
 	},
+	{
+		version: 39,
+		sql:     `ALTER TABLE services ADD COLUMN material_variants_json TEXT NOT NULL DEFAULT '[]';`,
+	},
+	{
+		version: 40,
+		sql:     `ALTER TABLE service_parameter_material_sources ADD COLUMN exposed_attribute_keys_json TEXT NOT NULL DEFAULT '[]';`,
+	},
 }
 
 func seedPredefinedParameters(ctx context.Context, tx *sql.Tx) error {
@@ -1514,7 +1523,7 @@ func (s *Store) DeleteMachine(ctx context.Context, machineID string) error {
 }
 
 func (s *Store) ListServices(ctx context.Context, includeArchived bool) ([]domain.Service, error) {
-	query := `SELECT id, name, code, category, description, image_path, default_unit, default_priority, active, created_at, updated_at FROM services`
+	query := `SELECT id, name, code, category, description, image_path, default_unit, default_priority, active, created_at, updated_at, material_variants_json FROM services`
 	if !includeArchived {
 		query += ` WHERE active = 1`
 	}
@@ -1562,7 +1571,7 @@ func (s *Store) ListServices(ctx context.Context, includeArchived bool) ([]domai
 }
 
 func (s *Store) GetService(ctx context.Context, id string) (domain.Service, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, name, code, category, description, image_path, default_unit, default_priority, active, created_at, updated_at FROM services WHERE id = ?`, id)
+	row := s.db.QueryRowContext(ctx, `SELECT id, name, code, category, description, image_path, default_unit, default_priority, active, created_at, updated_at, material_variants_json FROM services WHERE id = ?`, id)
 	service, err := scanService(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return domain.Service{}, domain.ErrServiceNotFound
@@ -1809,8 +1818,9 @@ func (s *Store) loadFinishedSize(ctx context.Context, serviceID string) (*domain
 
 func (s *Store) loadMaterialParameterSource(ctx context.Context, parameterID string) (*domain.MaterialParameterSource, error) {
 	var exposed string
+	var exposedKeysJSON string
 	var selectMaterial int
-	err := s.db.QueryRowContext(ctx, `SELECT exposed_attribute_key,select_material FROM service_parameter_material_sources WHERE parameter_id=?`, parameterID).Scan(&exposed, &selectMaterial)
+	err := s.db.QueryRowContext(ctx, `SELECT exposed_attribute_key,exposed_attribute_keys_json,select_material FROM service_parameter_material_sources WHERE parameter_id=?`, parameterID).Scan(&exposed, &exposedKeysJSON, &selectMaterial)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -1818,6 +1828,11 @@ func (s *Store) loadMaterialParameterSource(ctx context.Context, parameterID str
 		return nil, fmt.Errorf("read material parameter source: %w", err)
 	}
 	source := &domain.MaterialParameterSource{ExposedAttributeKey: exposed, SelectMaterial: selectMaterial == 1}
+	if strings.TrimSpace(exposedKeysJSON) != "" && strings.TrimSpace(exposedKeysJSON) != "[]" {
+		if err := json.Unmarshal([]byte(exposedKeysJSON), &source.ExposedAttributeKeys); err != nil {
+			return nil, fmt.Errorf("parse material parameter attributes: %w", err)
+		}
+	}
 	kindRows, err := s.db.QueryContext(ctx, `SELECT kind_code FROM service_parameter_material_kinds WHERE parameter_id=? ORDER BY kind_code`, parameterID)
 	if err != nil {
 		return nil, fmt.Errorf("list material parameter kinds: %w", err)
@@ -1930,7 +1945,11 @@ func (s *Store) saveMaterialParameterSource(ctx context.Context, tx *sql.Tx, par
 	if source == nil {
 		return nil
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO service_parameter_material_sources(parameter_id,exposed_attribute_key,select_material) VALUES(?,?,?)`, parameter.ID, source.ExposedAttributeKey, boolToInt(source.SelectMaterial)); err != nil {
+	exposedKeysJSON, err := json.Marshal(source.ExposedAttributeKeys)
+	if err != nil {
+		return fmt.Errorf("encode material parameter attributes: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO service_parameter_material_sources(parameter_id,exposed_attribute_key,exposed_attribute_keys_json,select_material) VALUES(?,?,?,?)`, parameter.ID, source.ExposedAttributeKey, string(exposedKeysJSON), boolToInt(source.SelectMaterial)); err != nil {
 		return fmt.Errorf("save material parameter source: %w", err)
 	}
 	for _, kind := range source.AllowedKinds {
@@ -1968,8 +1987,12 @@ func (s *Store) SaveServiceDefinition(ctx context.Context, service domain.Servic
 		_ = tx.Rollback()
 		return writeErr
 	}
-	result, err := tx.ExecContext(ctx, `UPDATE services SET name = ?, code = ?, category = ?, description = ?, image_path = ?, default_unit = ?, default_priority = ?, active = ?, updated_at = ? WHERE id = ?`,
-		service.Name, service.Code, service.Category, service.Description, service.ImagePath, service.DefaultUnit, string(service.DefaultPriority), boolToInt(service.Active), service.UpdatedAt.UTC().Format(time.RFC3339Nano), service.ID)
+	variantsJSON, err := json.Marshal(service.MaterialVariants)
+	if err != nil {
+		return rollback(fmt.Errorf("encode service material variants: %w", err))
+	}
+	result, err := tx.ExecContext(ctx, `UPDATE services SET name = ?, code = ?, category = ?, description = ?, image_path = ?, default_unit = ?, default_priority = ?, active = ?, updated_at = ?, material_variants_json = ? WHERE id = ?`,
+		service.Name, service.Code, service.Category, service.Description, service.ImagePath, service.DefaultUnit, string(service.DefaultPriority), boolToInt(service.Active), service.UpdatedAt.UTC().Format(time.RFC3339Nano), string(variantsJSON), service.ID)
 	if err != nil {
 		return rollback(fmt.Errorf("update service: %w", err))
 	}
@@ -1978,8 +2001,8 @@ func (s *Store) SaveServiceDefinition(ctx context.Context, service domain.Servic
 		return rollback(fmt.Errorf("check service update: %w", err))
 	}
 	if updated == 0 {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO services (id, name, code, category, description, image_path, default_unit, default_priority, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			service.ID, service.Name, service.Code, service.Category, service.Description, service.ImagePath, service.DefaultUnit, string(service.DefaultPriority), boolToInt(service.Active), service.CreatedAt.UTC().Format(time.RFC3339Nano), service.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO services (id, name, code, category, description, image_path, default_unit, default_priority, active, created_at, updated_at, material_variants_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			service.ID, service.Name, service.Code, service.Category, service.Description, service.ImagePath, service.DefaultUnit, string(service.DefaultPriority), boolToInt(service.Active), service.CreatedAt.UTC().Format(time.RFC3339Nano), service.UpdatedAt.UTC().Format(time.RFC3339Nano), string(variantsJSON)); err != nil {
 			return rollback(fmt.Errorf("insert service: %w", err))
 		}
 	}
@@ -2236,8 +2259,14 @@ func scanService(row scanner) (domain.Service, error) {
 	var active int
 	var defaultPriority string
 	var created, updated string
-	if err := row.Scan(&service.ID, &service.Name, &service.Code, &service.Category, &service.Description, &service.ImagePath, &service.DefaultUnit, &defaultPriority, &active, &created, &updated); err != nil {
+	var variantsJSON string
+	if err := row.Scan(&service.ID, &service.Name, &service.Code, &service.Category, &service.Description, &service.ImagePath, &service.DefaultUnit, &defaultPriority, &active, &created, &updated, &variantsJSON); err != nil {
 		return domain.Service{}, err
+	}
+	if strings.TrimSpace(variantsJSON) != "" && strings.TrimSpace(variantsJSON) != "[]" {
+		if err := json.Unmarshal([]byte(variantsJSON), &service.MaterialVariants); err != nil {
+			return domain.Service{}, fmt.Errorf("parse service material variants: %w", err)
+		}
 	}
 	service.DefaultPriority = domain.Priority(defaultPriority)
 	if service.DefaultUnit == "" {

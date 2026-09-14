@@ -276,14 +276,14 @@ func (s *PricingService) resolveParameters(ctx context.Context, service domain.S
 
 func (s *PricingService) resolveMaterialBackedParameters(ctx context.Context, service domain.Service, submitted map[string]string, resolved []domain.ResolvedParameter) error {
 	definitions := service.Parameters
-	hasSource := false
+	hasMaterialRequirement := false
 	for _, definition := range definitions {
-		if definition.MaterialSource != nil {
-			hasSource = true
+		if definition.MaterialSource != nil || definition.Type == domain.ParameterMaterialReference {
+			hasMaterialRequirement = true
 			break
 		}
 	}
-	if !hasSource {
+	if !hasMaterialRequirement {
 		return nil
 	}
 	if s.material == nil {
@@ -302,6 +302,36 @@ func (s *PricingService) resolveMaterialBackedParameters(ctx context.Context, se
 	selected := make(map[string]string, len(resolved))
 	for _, parameter := range resolved {
 		selected[parameter.Key] = parameter.Value
+	}
+	if len(service.MaterialVariants) > 0 {
+		variant, ok := service.ResolveMaterialVariant(selected)
+		if !ok {
+			return fmt.Errorf("selected material combination is unavailable; choose a supported material option")
+		}
+		var selectedMaterial *domain.Material
+		for _, material := range items {
+			if material.Active && material.ID == variant.MaterialID {
+				materialCopy := material
+				selectedMaterial = &materialCopy
+				break
+			}
+		}
+		if selectedMaterial == nil {
+			return fmt.Errorf("configured material %q is unavailable", variant.MaterialID)
+		}
+		compatible, compatibilityErr := domain.CompatibleMaterials(service, []domain.Material{*selectedMaterial}, selected)
+		if compatibilityErr != nil {
+			return compatibilityErr
+		}
+		if len(compatible) == 0 {
+			return fmt.Errorf("configured material %q is incompatible with the selected service options", variant.MaterialID)
+		}
+		for index, definition := range definitions {
+			if definition.MaterialSource != nil || definition.Type == domain.ParameterMaterialReference {
+				resolved[index].MaterialID = variant.MaterialID
+			}
+		}
+		return nil
 	}
 	candidates, err := domain.CompatibleMaterials(service, items, selected)
 	if err != nil {

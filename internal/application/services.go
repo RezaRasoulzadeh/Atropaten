@@ -42,17 +42,18 @@ type ParameterInput struct {
 }
 
 type ServiceInput struct {
-	Name            string
-	Code            string
-	Category        string
-	Description     string
-	ImagePath       string
-	DefaultUnit     string
-	DefaultPriority string
-	Parameters      []ParameterInput
-	Components      []CostComponentInput
-	PricingRule     *PricingRuleInput
-	FinishedSize    *domain.ServiceFinishedSizeDefinition
+	Name             string
+	Code             string
+	Category         string
+	Description      string
+	ImagePath        string
+	DefaultUnit      string
+	DefaultPriority  string
+	Parameters       []ParameterInput
+	Components       []CostComponentInput
+	PricingRule      *PricingRuleInput
+	FinishedSize     *domain.ServiceFinishedSizeDefinition
+	MaterialVariants []domain.ServiceMaterialVariant
 }
 
 type CostComponentInput struct {
@@ -109,21 +110,22 @@ type ParameterView struct {
 }
 
 type ServiceView struct {
-	ID              string
-	Name            string
-	Code            string
-	Category        string
-	Description     string
-	ImagePath       string
-	DefaultUnit     string
-	DefaultPriority string
-	Active          bool
-	CreatedAt       string
-	UpdatedAt       string
-	Parameters      []ParameterView
-	Components      []CostComponentView
-	PricingRule     *PricingRuleView
-	FinishedSize    *domain.ServiceFinishedSizeDefinition
+	ID               string
+	Name             string
+	Code             string
+	Category         string
+	Description      string
+	ImagePath        string
+	DefaultUnit      string
+	DefaultPriority  string
+	Active           bool
+	CreatedAt        string
+	UpdatedAt        string
+	Parameters       []ParameterView
+	Components       []CostComponentView
+	PricingRule      *PricingRuleView
+	FinishedSize     *domain.ServiceFinishedSizeDefinition
+	MaterialVariants []domain.ServiceMaterialVariant
 }
 
 type CostComponentView struct {
@@ -172,6 +174,7 @@ type ServicesService struct {
 type ServiceMaterialOptions struct {
 	ParameterKey string
 	Options      []domain.MaterialOption
+	Message      string
 }
 
 func NewServicesService(repository ServiceRepository, material MaterialLookup, machine MachineLookup) *ServicesService {
@@ -222,7 +225,11 @@ func (s *ServicesService) MaterialOptions(ctx context.Context, serviceID string,
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, ServiceMaterialOptions{ParameterKey: parameter.Key, Options: options})
+		message := ""
+		if len(options) == 0 {
+			message = fmt.Sprintf("No active material matches the current selections for %q", parameter.Label)
+		}
+		result = append(result, ServiceMaterialOptions{ParameterKey: parameter.Key, Options: options, Message: message})
 	}
 	return result, nil
 }
@@ -509,7 +516,7 @@ func (s *ServicesService) validateReferences(ctx context.Context, service domain
 			break
 		}
 	}
-	if hasMaterialSource {
+	if hasMaterialSource || len(service.MaterialVariants) > 0 {
 		materials, ok := s.material.(interface {
 			List(context.Context, bool) ([]domain.Material, error)
 		})
@@ -524,12 +531,54 @@ func (s *ServicesService) validateReferences(ctx context.Context, service domain
 		for _, parameter := range service.Parameters {
 			defaults[parameter.Key] = parameter.DefaultValue
 		}
-		compatible, err := domain.CompatibleMaterials(service, items, defaults)
-		if err != nil {
-			return err
+		if hasMaterialSource {
+			compatible, err := domain.CompatibleMaterials(service, items, defaults)
+			if err != nil {
+				return err
+			}
+			if len(compatible) == 0 {
+				return fmt.Errorf("service material-backed setup has no compatible active material")
+			}
 		}
-		if len(compatible) == 0 {
-			return fmt.Errorf("service material-backed setup has no compatible active material")
+		if len(service.MaterialVariants) > 0 {
+			allMaterialDefaultsSet := true
+			for _, parameter := range service.Parameters {
+				if (parameter.MaterialSource != nil || parameter.Type == domain.ParameterMaterialReference) && strings.TrimSpace(parameter.DefaultValue) == "" {
+					allMaterialDefaultsSet = false
+					break
+				}
+			}
+			if allMaterialDefaultsSet {
+				if _, ok := service.ResolveMaterialVariant(defaults); !ok {
+					return fmt.Errorf("service material defaults do not resolve to a configured material combination")
+				}
+			}
+			for index, variant := range service.MaterialVariants {
+				var matched *domain.Material
+				for itemIndex := range items {
+					if items[itemIndex].ID == variant.MaterialID {
+						matched = &items[itemIndex]
+						break
+					}
+				}
+				if matched == nil || !matched.Active {
+					return fmt.Errorf("material variant %d references an unavailable material", index+1)
+				}
+				compatibleVariant, variantErr := domain.CompatibleMaterials(service, items, variant.Values)
+				if variantErr != nil {
+					return variantErr
+				}
+				found := false
+				for _, candidate := range compatibleVariant {
+					if candidate.ID == variant.MaterialID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					return fmt.Errorf("material variant %d does not match its configured material", index+1)
+				}
+			}
 		}
 	}
 	for _, parameter := range service.Parameters {
@@ -704,7 +753,26 @@ func (s *ServicesService) parseDraft(ctx context.Context, input ServiceInput, se
 	if err != nil {
 		return domain.ServiceDraft{}, err
 	}
-	return domain.ServiceDraft{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, ImagePath: input.ImagePath, DefaultUnit: input.DefaultUnit, DefaultPriority: domain.Priority(strings.TrimSpace(input.DefaultPriority)), Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: input.FinishedSize}, nil
+	parameterKeys := make(map[string]struct{}, len(parameters))
+	for _, parameter := range parameters {
+		parameterKeys[parameter.Key] = struct{}{}
+	}
+	variants := make([]domain.ServiceMaterialVariant, 0, len(input.MaterialVariants))
+	for _, variant := range input.MaterialVariants {
+		values := make(map[string]string, len(variant.Values))
+		for key, value := range variant.Values {
+			if _, exists := parameterKeys[key]; exists && strings.TrimSpace(value) != "" {
+				values[key] = strings.TrimSpace(value)
+			}
+		}
+		if len(values) == 0 {
+			continue
+		}
+		variant.Values = values
+		variant.Position = len(variants)
+		variants = append(variants, variant)
+	}
+	return domain.ServiceDraft{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, ImagePath: input.ImagePath, DefaultUnit: input.DefaultUnit, DefaultPriority: domain.Priority(strings.TrimSpace(input.DefaultPriority)), Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: input.FinishedSize, MaterialVariants: variants}, nil
 }
 
 func (s *ServicesService) parseComponent(input CostComponentInput) (domain.ServiceCostComponentDraft, error) {
@@ -934,7 +1002,16 @@ func serviceView(service domain.Service) ServiceView {
 			pricingRule.Tiers = append(pricingRule.Tiers, PricingTierView{Position: tier.Position, MinimumQuantity: tier.MinimumQuantity.String(), PriceRial: tier.PriceRial})
 		}
 	}
-	return ServiceView{ID: service.ID, Name: service.Name, Code: service.Code, Category: service.Category, Description: service.Description, ImagePath: service.ImagePath, DefaultUnit: service.DefaultUnit, DefaultPriority: string(service.DefaultPriority), Active: service.Active, CreatedAt: service.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: service.UpdatedAt.UTC().Format(time.RFC3339Nano), Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: service.FinishedSize}
+	variants := make([]domain.ServiceMaterialVariant, 0, len(service.MaterialVariants))
+	for _, variant := range service.MaterialVariants {
+		values := make(map[string]string, len(variant.Values))
+		for key, value := range variant.Values {
+			values[key] = value
+		}
+		variant.Values = values
+		variants = append(variants, variant)
+	}
+	return ServiceView{ID: service.ID, Name: service.Name, Code: service.Code, Category: service.Category, Description: service.Description, ImagePath: service.ImagePath, DefaultUnit: service.DefaultUnit, DefaultPriority: string(service.DefaultPriority), Active: service.Active, CreatedAt: service.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: service.UpdatedAt.UTC().Format(time.RFC3339Nano), Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: service.FinishedSize, MaterialVariants: variants}
 }
 
 func newID(prefix string) (string, error) {

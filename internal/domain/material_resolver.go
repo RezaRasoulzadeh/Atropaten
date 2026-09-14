@@ -54,13 +54,8 @@ func compatibleMaterials(service Service, materials []Material, selected map[str
 				compatible = false
 				break
 			}
-			if source.ExposedAttributeKey != "" {
-				attribute, ok := materialAttribute(material, source.ExposedAttributeKey)
-				if !ok {
-					compatible = false
-					break
-				}
-				if len(source.AllowedValues) > 0 && !containsAttributeValue(source.AllowedValues, attribute) {
+			if len(source.AttributeKeys()) > 0 {
+				if !sourceValueAllowed(material, *source) {
 					compatible = false
 					break
 				}
@@ -68,7 +63,7 @@ func compatibleMaterials(service Service, materials []Material, selected map[str
 				if parameter.Key == skipKey {
 					value = ""
 				}
-				if value != "" && !source.SelectMaterial && !attributeMatchesString(attribute, value) {
+				if value != "" && !source.SelectMaterial && !sourceValueMatches(material, *source, value) {
 					compatible = false
 					break
 				}
@@ -107,7 +102,14 @@ func finishedDimensionsFit(service Service, material Material, selected map[stri
 	}
 	width, height, err := service.ResolveFinishedDimensions(selected)
 	if err != nil {
-		return true
+		// An empty size is normal while an order is being configured. Once the
+		// operator has supplied a size value, malformed or unavailable
+		// dimensions must make the material unavailable instead of silently
+		// passing through to pricing.
+		if service.FinishedSize.AllowCustom {
+			return strings.TrimSpace(selected[service.FinishedSize.WidthParameterKey]) == "" && strings.TrimSpace(selected[service.FinishedSize.HeightParameterKey]) == ""
+		}
+		return strings.TrimSpace(selected[service.FinishedSize.ParameterKey]) == ""
 	}
 	switch material.Kind {
 	case MaterialKindSheetStock, MaterialKindBoard:
@@ -134,6 +136,18 @@ func finishedDimensionsFit(service Service, material Material, selected map[stri
 // constraints. A direct material selection may make the result unique; an
 // ambiguous configuration is rejected rather than guessed from labels.
 func ResolveMaterialSelection(service Service, materials []Material, selected map[string]string) (Material, error) {
+	if len(service.MaterialVariants) > 0 {
+		variant, ok := service.ResolveMaterialVariant(selected)
+		if !ok {
+			return Material{}, fmt.Errorf("selected material combination is unavailable")
+		}
+		for _, material := range materials {
+			if material.Active && material.ID == variant.MaterialID {
+				return material, nil
+			}
+		}
+		return Material{}, fmt.Errorf("configured material %q is unavailable", variant.MaterialID)
+	}
 	compatible, err := CompatibleMaterials(service, materials, selected)
 	if err != nil {
 		return Material{}, err
@@ -145,6 +159,29 @@ func ResolveMaterialSelection(service Service, materials []Material, selected ma
 		return Material{}, fmt.Errorf("material selection is ambiguous: %d compatible materials remain", len(compatible))
 	}
 	return compatible[0], nil
+}
+
+// ResolveMaterialVariant returns the exact service mapping for a complete
+// option selection. Matching is by stable parameter values and never by
+// display labels. A variant may contain a subset of parameters so services
+// can model optional groups, but every supplied value must match exactly.
+func (s Service) ResolveMaterialVariant(selected map[string]string) (ServiceMaterialVariant, bool) {
+	for _, variant := range s.MaterialVariants {
+		if !variant.Active {
+			continue
+		}
+		matches := true
+		for key, value := range variant.Values {
+			if strings.TrimSpace(selected[key]) != strings.TrimSpace(value) {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			return variant, true
+		}
+	}
+	return ServiceMaterialVariant{}, false
 }
 
 // MaterialOptionsForParameter derives values after applying all other
@@ -164,6 +201,70 @@ func MaterialOptionsForParameter(service Service, parameterKey string, materials
 	if parameter.MaterialSource == nil {
 		return nil, fmt.Errorf("parameter %q is not material-backed", parameterKey)
 	}
+	// Once a service has explicit mappings, derive the option list from those
+	// mappings rather than from every material that happens to share an
+	// attribute. This keeps the configurator and pricing resolver aligned: an
+	// option cannot be displayed unless the operator configured a material for
+	// the complete combination.
+	if len(service.MaterialVariants) > 0 {
+		options := make([]MaterialOption, 0)
+		seen := map[string]int{}
+		for _, variant := range service.MaterialVariants {
+			if !variant.Active {
+				continue
+			}
+			value, ok := variant.Values[parameterKey]
+			if !ok || strings.TrimSpace(value) == "" {
+				continue
+			}
+			matches := true
+			for key, selectedValue := range selected {
+				selectedValue = strings.TrimSpace(selectedValue)
+				if key == parameterKey || selectedValue == "" {
+					continue
+				}
+				variantValue, exists := variant.Values[key]
+				if !exists || strings.TrimSpace(variantValue) != selectedValue {
+					matches = false
+					break
+				}
+			}
+			if !matches {
+				continue
+			}
+			var material Material
+			found := false
+			for _, candidate := range materials {
+				if candidate.Active && candidate.ID == variant.MaterialID {
+					material, found = candidate, true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+			merged := make(map[string]string, len(selected)+1)
+			for key, selectedValue := range selected {
+				merged[key] = selectedValue
+			}
+			merged[parameterKey] = strings.TrimSpace(value)
+			if compatible, err := CompatibleMaterials(service, []Material{material}, merged); err != nil || len(compatible) == 0 {
+				continue
+			}
+			label := strings.TrimSpace(value)
+			if parameter.MaterialSource.SelectMaterial {
+				label = material.Name
+			}
+			if index, exists := seen[value]; exists {
+				options[index].MaterialIDs = append(options[index].MaterialIDs, material.ID)
+				continue
+			}
+			seen[value] = len(options)
+			options = append(options, MaterialOption{Value: strings.TrimSpace(value), Label: label, MaterialIDs: []string{material.ID}})
+		}
+		sort.SliceStable(options, func(i, j int) bool { return options[i].Value < options[j].Value })
+		return options, nil
+	}
 	withoutCurrent := make(map[string]string, len(selected))
 	for key, value := range selected {
 		if key != parameterKey {
@@ -179,12 +280,13 @@ func MaterialOptionsForParameter(service Service, parameterKey string, materials
 	for _, material := range compatible {
 		value := material.ID
 		label := material.Name
-		if parameter.MaterialSource.ExposedAttributeKey != "" && !parameter.MaterialSource.SelectMaterial {
-			attribute, ok := materialAttribute(material, parameter.MaterialSource.ExposedAttributeKey)
+		if len(parameter.MaterialSource.AttributeKeys()) > 0 && !parameter.MaterialSource.SelectMaterial {
+			derived, ok := sourceValue(material, *parameter.MaterialSource)
 			if !ok {
 				continue
 			}
-			value, label = attribute.Canonical(), attribute.Canonical()
+			value = derived
+			label = value
 		}
 		if index, ok := seen[value]; ok {
 			options[index].MaterialIDs = append(options[index].MaterialIDs, material.ID)
@@ -208,6 +310,63 @@ func materialAttribute(material Material, key string) (MaterialAttributeValue, b
 		}
 	}
 	return MaterialAttributeValue{}, false
+}
+
+func sourceValue(material Material, source MaterialParameterSource) (string, bool) {
+	keys := source.AttributeKeys()
+	if len(keys) == 0 {
+		return "", false
+	}
+	values := make([]string, 0, len(keys))
+	for _, key := range keys {
+		attribute, ok := materialAttribute(material, key)
+		if !ok {
+			return "", false
+		}
+		values = append(values, attribute.Canonical())
+	}
+	return strings.Join(values, "\x1f"), true
+}
+
+func sourceValueMatches(material Material, source MaterialParameterSource, selected string) bool {
+	value, ok := sourceValue(material, source)
+	return ok && strings.TrimSpace(value) == strings.TrimSpace(selected)
+}
+
+func sourceValueAllowed(material Material, source MaterialParameterSource) bool {
+	keys := source.AttributeKeys()
+	if len(keys) == 0 {
+		return true
+	}
+	for _, key := range keys {
+		if _, ok := materialAttribute(material, key); !ok {
+			return false
+		}
+	}
+	if len(source.AllowedValues) == 0 {
+		return true
+	}
+	for _, key := range keys {
+		matchedKey := false
+		for _, allowed := range source.AllowedValues {
+			if allowed.Key != key {
+				continue
+			}
+			attribute, ok := materialAttribute(material, key)
+			if ok && attributeValuesEqual(attribute, allowed) {
+				matchedKey = true
+				break
+			}
+		}
+		if !matchedKey {
+			for _, allowed := range source.AllowedValues {
+				if allowed.Key == key {
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
 
 func matchesFilters(material Material, filters []MaterialAttributeFilter) bool {

@@ -44,6 +44,62 @@ func TestMaterialResolverIntersectsStructuredSelections(t *testing.T) {
 	}
 }
 
+func TestConfiguredMaterialVariantResolvesExactInventoryMaterial(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	material, err := NewMaterial("MAT-exact", MaterialDraft{Name: "Exact", Kind: MaterialKindSheetStock, PurchaseUnit: "sheet", ConsumptionUnit: "sheet", ConversionFactor: QuantityScale, Attributes: []MaterialAttributeValue{{Key: "finish", ValueType: MaterialAttributeEnum, EnumCode: "matte"}}}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service, err := NewService("SVC-variant", ServiceDraft{Name: "Variant", Parameters: []ServiceParameterDraft{{ID: "P-finish", Key: "finish", Label: "Finish", Type: ParameterChoice, Required: true, MaterialSource: &MaterialParameterSource{AllowedKinds: []MaterialKind{MaterialKindSheetStock}, ExposedAttributeKey: "finish"}}}, MaterialVariants: []ServiceMaterialVariant{{ID: "VAR-1", MaterialID: material.ID, Values: map[string]string{"finish": "matte"}, Position: 0, Active: true}}}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ResolveMaterialSelection(service, []Material{material}, map[string]string{"finish": "matte"})
+	if err != nil || got.ID != material.ID {
+		t.Fatalf("exact variant=%+v err=%v", got, err)
+	}
+	if _, err := ResolveMaterialSelection(service, []Material{material}, map[string]string{"finish": "gloss"}); err == nil {
+		t.Fatal("unavailable variant was accepted")
+	}
+	options, err := MaterialOptionsForParameter(service, "finish", []Material{material}, nil)
+	if err != nil || len(options) != 1 || options[0].Value != "matte" || len(options[0].MaterialIDs) != 1 {
+		t.Fatalf("variant-derived options=%+v err=%v", options, err)
+	}
+}
+
+func TestCompositeMaterialGroupResolvesSizeAndTypeCombination(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	attrs := func(width, height int64, finish string) []MaterialAttributeValue {
+		return []MaterialAttributeValue{
+			{Key: "width_mm", ValueType: MaterialAttributeDecimal, DecimalValue: Quantity(width) * QuantityScale},
+			{Key: "height_mm", ValueType: MaterialAttributeDecimal, DecimalValue: Quantity(height) * QuantityScale},
+			{Key: "finish", ValueType: MaterialAttributeEnum, EnumCode: finish},
+		}
+	}
+	a4Matte := testMaterial(t, "MAT-a4-matte", MaterialKindSheetStock, attrs(210, 297, "matte")...)
+	a4Gloss := testMaterial(t, "MAT-a4-gloss", MaterialKindSheetStock, attrs(210, 297, "gloss")...)
+	a3Matte := testMaterial(t, "MAT-a3-matte", MaterialKindSheetStock, attrs(297, 420, "matte")...)
+	service, err := NewService("SVC-composite", ServiceDraft{Name: "Composite", Parameters: []ServiceParameterDraft{
+		{ID: "P-size", Key: "size", Label: "Paper size", Type: ParameterChoice, Required: true, MaterialSource: &MaterialParameterSource{AllowedKinds: []MaterialKind{MaterialKindSheetStock}, ExposedAttributeKeys: []string{"width_mm", "height_mm"}}},
+		{ID: "P-type", Key: "type", Label: "Paper type", Type: ParameterChoice, Required: true, MaterialSource: &MaterialParameterSource{AllowedKinds: []MaterialKind{MaterialKindSheetStock}, ExposedAttributeKey: "finish"}},
+	}, MaterialVariants: []ServiceMaterialVariant{
+		{ID: "VAR-a4-matte", MaterialID: a4Matte.ID, Values: map[string]string{"size": "210\x1f297", "type": "matte"}, Position: 0, Active: true},
+		{ID: "VAR-a4-gloss", MaterialID: a4Gloss.ID, Values: map[string]string{"size": "210\x1f297", "type": "gloss"}, Position: 1, Active: true},
+		{ID: "VAR-a3-matte", MaterialID: a3Matte.ID, Values: map[string]string{"size": "297\x1f420", "type": "matte"}, Position: 2, Active: true},
+	}}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ResolveMaterialSelection(service, []Material{a4Matte, a4Gloss, a3Matte}, map[string]string{"size": "210\x1f297", "type": "gloss"})
+	if err != nil || got.ID != a4Gloss.ID {
+		t.Fatalf("composite variant=%+v err=%v", got, err)
+	}
+	options, err := MaterialOptionsForParameter(service, "size", []Material{a4Matte, a4Gloss, a3Matte}, map[string]string{"type": "matte"})
+	if err != nil || len(options) != 2 {
+		t.Fatalf("composite options=%+v err=%v", options, err)
+	}
+}
+
 func TestMaterialResolverExcludesArchivedAndReportsEmpty(t *testing.T) {
 	m := testMaterial(t, "MAT-archived", MaterialKindSheetStock, MaterialAttributeValue{Key: "grammage_gsm", ValueType: MaterialAttributeInteger, IntegerValue: 170})
 	m.Active = false

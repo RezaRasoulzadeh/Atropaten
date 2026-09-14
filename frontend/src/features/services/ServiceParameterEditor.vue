@@ -53,6 +53,7 @@ function setMaterialBacked(event: Event) {
   props.parameter.materialSource = enabled ? {
     allowedKinds: ['sheet-stock'],
     exposedAttributeKey: 'grammage_gsm',
+    exposedAttributeKeys: ['grammage_gsm'],
     allowedValues: [],
     selectMaterial: false,
     additionalFilters: [],

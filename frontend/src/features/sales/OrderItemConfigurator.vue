@@ -49,6 +49,7 @@ const overrideText = ref('');
 const manualTexts = ref<Record<string, string>>({});
 const pricing = ref<PricingRecord | null>(null);
 const materialOptions = ref<Record<string, Array<{ label: string; value: string }>>>({});
+const materialMessages = ref<Record<string, string>>({});
 const toast = useToast();
 let lastWarningSignature = '';
 const calculating = ref(false);
@@ -169,19 +170,25 @@ function parameterOptions(parameter: any) {
 let materialOptionsToken = 0;
 async function refreshMaterialOptions() {
   const selected = serviceId.value;
-  if (!selected) { materialOptions.value = {}; return; }
+  if (!selected) { materialOptions.value = {}; materialMessages.value = {}; return; }
   const token = ++materialOptionsToken;
   try {
     const groups = await servicesApi.materialOptions(selected, values.value);
     if (token !== materialOptionsToken || selected !== serviceId.value) return;
     const next: Record<string, Array<{ label: string; value: string }>> = {};
-    for (const group of groups as any[]) next[group.parameterKey] = (group.options || []).map((option: any) => ({ label: option.label, value: option.value }));
+    const messages: Record<string, string> = {};
+    for (const group of groups as any[]) {
+      next[group.parameterKey] = (group.options || []).map((option: any) => ({ label: option.label, value: option.value }));
+      if (group.message) messages[group.parameterKey] = group.message;
+    }
     materialOptions.value = next;
+    materialMessages.value = messages;
     for (const parameter of activeParams.value) {
       if (parameter.materialSource && values.value[parameter.key] && !(next[parameter.key] || []).some((option) => option.value === values.value[parameter.key])) values.value[parameter.key] = '';
     }
   } catch {
     materialOptions.value = {};
+    materialMessages.value = {};
   }
 }
 
@@ -369,6 +376,7 @@ function save() {
                 :aria-label="parameter.label"
                 @update:model-value="setValue(parameter.key, $event)"
               />
+              <p v-if="parameter.materialSource && materialMessages[parameter.key]" class="text-xs leading-5 text-warning sm:col-span-2">{{ materialMessages[parameter.key] }}</p>
               <SelectField
                 v-else-if="parameter.type === 'machine-reference'"
                 :model-value="values[parameter.key] || ''"

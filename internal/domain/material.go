@@ -143,9 +143,23 @@ type MaterialAttributeFilter struct {
 type MaterialParameterSource struct {
 	AllowedKinds        []MaterialKind
 	ExposedAttributeKey string
-	AllowedValues       []MaterialAttributeValue
-	SelectMaterial      bool
-	AdditionalFilters   []MaterialAttributeFilter
+	// ExposedAttributeKeys supports grouped options made from a composite
+	// inventory value, such as paper size = width + height. The singular key
+	// remains supported for backwards compatibility.
+	ExposedAttributeKeys []string
+	AllowedValues        []MaterialAttributeValue
+	SelectMaterial       bool
+	AdditionalFilters    []MaterialAttributeFilter
+}
+
+func (s MaterialParameterSource) AttributeKeys() []string {
+	if len(s.ExposedAttributeKeys) > 0 {
+		return append([]string(nil), s.ExposedAttributeKeys...)
+	}
+	if strings.TrimSpace(s.ExposedAttributeKey) != "" {
+		return []string{s.ExposedAttributeKey}
+	}
+	return nil
 }
 
 type Material struct {

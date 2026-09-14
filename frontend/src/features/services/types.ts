@@ -4,9 +4,19 @@ export type ParameterType = 'integer' | 'decimal' | 'boolean' | 'choice' | 'mate
 export type MaterialParameterSourceForm = {
   allowedKinds: string[];
   exposedAttributeKey: string;
+  exposedAttributeKeys: string[];
   allowedValues: any[];
   selectMaterial: boolean;
   additionalFilters: any[];
+};
+export type MaterialAttributeDefinitionForm = {
+  key: string;
+  label: string;
+  valueType: string;
+  unit: string;
+  applicableKinds: string[];
+  active: boolean;
+  position: number;
 };
 export type ParameterForm = {
   id: string;
@@ -101,6 +111,15 @@ export type ServiceForm = {
   components: ComponentForm[];
   pricingRule: PricingRuleForm;
   finishedSize: FinishedSizeForm | null;
+  materialVariants: ServiceMaterialVariantForm[];
+};
+
+export type ServiceMaterialVariantForm = {
+  id: string;
+  materialId: string;
+  values: Record<string, string>;
+  position: number;
+  active: boolean;
 };
 
 export type PredefinedParameterOption = {

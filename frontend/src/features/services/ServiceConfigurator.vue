@@ -33,6 +33,7 @@ const manualCosts = ref<Record<string, number>>({});
 const manualTexts = ref<Record<string, string>>({});
 const result = ref<PricingRecord | null>(null);
 const materialOptions = ref<Record<string, Array<{ label: string; value: string }>>>({});
+const materialMessages = ref<Record<string, string>>({});
 const loading = ref(false);
 const toast = useToast();
 let lastWarningSignature = '';
@@ -57,7 +58,8 @@ watch(values, async () => {
   try {
     const groups = await servicesApi.materialOptions(props.service.id, values.value);
     materialOptions.value = Object.fromEntries((groups as any[]).map((group) => [group.parameterKey, (group.options || []).map((option: any) => ({ label: option.label, value: option.value }))]));
-  } catch { materialOptions.value = {}; }
+    materialMessages.value = Object.fromEntries((groups as any[]).filter((group) => group.message).map((group) => [group.parameterKey, group.message]));
+  } catch { materialOptions.value = {}; materialMessages.value = {}; }
 }, { deep: true });
 watch(
   values,
@@ -223,6 +225,7 @@ function typeLabel(type: string) {
                 }))),
               ]"
             />
+            <small v-if="parameter.materialSource && materialMessages[parameter.key]" class="block text-xs leading-5 text-warning">{{ materialMessages[parameter.key] }}</small>
             <SelectField
               v-else-if="parameter.type === 'machine-reference'"
               v-model="values[parameter.key]"

@@ -23,6 +23,7 @@ const {
   services,
   materials,
   machines,
+  attributeDefinitions,
   selectedId,
   searchQuery,
   serviceFilter,
@@ -95,6 +96,7 @@ watch(
       :active="editorMode === 'edit' ? (selectedService?.active ?? true) : true"
       :materials="materials"
       :machines="machines"
+      :attribute-definitions="attributeDefinitions"
       :services="services"
       :service-id="selectedService?.id || ''"
       :currency-unit="props.currencyUnit"

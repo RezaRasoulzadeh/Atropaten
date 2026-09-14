@@ -47,6 +47,13 @@ export type ServiceCostComponentPayload = {
   enabled: boolean
   notes: string
 }
+export type ServiceMaterialVariantPayload = {
+  id: string
+  materialId: string
+  values: Record<string, string>
+  position: number
+  active: boolean
+}
 export type PricingTierPayload = { position: number; minimumQuantity: string; priceRial: number }
 export type PricingRulePayload = {
   id: string
@@ -79,6 +86,7 @@ export type ServicePayload = {
   components: ServiceCostComponentPayload[]
   pricingRule: PricingRulePayload | null
   finishedSize: FinishedSizePayload | null
+  materialVariants?: ServiceMaterialVariantPayload[]
 }
 
 export const servicesApi = {

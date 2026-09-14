@@ -46,20 +46,37 @@ type Service struct {
 	Components      []ServiceCostComponent
 	PricingRule     *ServicePricingRule
 	FinishedSize    *ServiceFinishedSizeDefinition
+	// MaterialVariants contains explicit service-time mappings from a complete
+	// set of material-backed option values to one physical inventory material.
+	// It is optional so legacy services continue to resolve through their
+	// existing MaterialSource constraints.
+	MaterialVariants []ServiceMaterialVariant
 }
 
 type ServiceDraft struct {
-	Name            string
-	Code            string
-	Category        string
-	Description     string
-	ImagePath       string
-	DefaultUnit     string
-	DefaultPriority Priority
-	Parameters      []ServiceParameterDraft
-	Components      []ServiceCostComponentDraft
-	PricingRule     *ServicePricingRuleDraft
-	FinishedSize    *ServiceFinishedSizeDefinition
+	Name             string
+	Code             string
+	Category         string
+	Description      string
+	ImagePath        string
+	DefaultUnit      string
+	DefaultPriority  Priority
+	Parameters       []ServiceParameterDraft
+	Components       []ServiceCostComponentDraft
+	PricingRule      *ServicePricingRuleDraft
+	FinishedSize     *ServiceFinishedSizeDefinition
+	MaterialVariants []ServiceMaterialVariant
+}
+
+// ServiceMaterialVariant is the immutable selection rule used by new orders.
+// Values are keyed by service parameter key and contain canonical option
+// values (not display labels). A variant must resolve to exactly one material.
+type ServiceMaterialVariant struct {
+	ID         string
+	MaterialID string
+	Values     map[string]string
+	Position   int
+	Active     bool
 }
 
 type FinishedSizeOption struct {
@@ -267,6 +284,7 @@ func NewService(id string, draft ServiceDraft, now time.Time) (Service, error) {
 		finishedSize.Options = append([]FinishedSizeOption(nil), draft.FinishedSize.Options...)
 		service.FinishedSize = &finishedSize
 	}
+	service.MaterialVariants = cloneMaterialVariants(draft.MaterialVariants)
 	if err := service.Validate(); err != nil {
 		return Service{}, err
 	}
@@ -415,6 +433,49 @@ func (s Service) Validate() error {
 			seen[option.Code] = struct{}{}
 		}
 	}
+	variantIDs := make(map[string]struct{}, len(s.MaterialVariants))
+	variantKeys := make(map[string]struct{}, len(s.MaterialVariants))
+	variantParameterTypes := parameterTypesForService(s.Parameters)
+	materialParameterKeys := make(map[string]struct{})
+	for _, parameter := range s.Parameters {
+		if parameter.MaterialSource != nil || parameter.Type == ParameterMaterialReference {
+			materialParameterKeys[parameter.Key] = struct{}{}
+		}
+	}
+	for index, variant := range s.MaterialVariants {
+		if strings.TrimSpace(variant.ID) == "" || strings.TrimSpace(variant.MaterialID) == "" {
+			return validationError(fmt.Sprintf("materialVariants[%d]", index), "requires id and materialId")
+		}
+		if variant.Position != index {
+			return validationError("materialVariants.position", "must be deterministic")
+		}
+		if _, exists := variantIDs[variant.ID]; exists {
+			return validationError("materialVariants.id", "must be unique")
+		}
+		variantIDs[variant.ID] = struct{}{}
+		if len(variant.Values) == 0 {
+			return validationError(fmt.Sprintf("materialVariants[%d].values", index), "must contain at least one option value")
+		}
+		parts := make([]string, 0, len(variant.Values))
+		for key, value := range variant.Values {
+			if _, exists := variantParameterTypes[key]; !exists {
+				return validationError(fmt.Sprintf("materialVariants[%d].values", index), "must reference service parameters")
+			}
+			if _, exists := materialParameterKeys[key]; !exists {
+				return validationError(fmt.Sprintf("materialVariants[%d].values", index), "must reference material-backed parameters")
+			}
+			if strings.TrimSpace(value) == "" {
+				return validationError(fmt.Sprintf("materialVariants[%d].values", index), "cannot contain empty values")
+			}
+			parts = append(parts, key+"="+value)
+		}
+		sort.Strings(parts)
+		variantKey := strings.Join(parts, "\x1f")
+		if _, exists := variantKeys[variantKey]; exists {
+			return validationError("materialVariants", "must not contain duplicate option combinations")
+		}
+		variantKeys[variantKey] = struct{}{}
+	}
 	if s.PricingRule != nil {
 		if s.PricingRule.ServiceID != s.ID {
 			return validationError("pricingRule.serviceId", "must match the service")
@@ -473,6 +534,38 @@ func (s Service) Validate() error {
 		}
 	}
 	return nil
+}
+
+func parameterTypesForService(parameters []ServiceParameter) map[string]ParameterType {
+	result := make(map[string]ParameterType, len(parameters))
+	for _, parameter := range parameters {
+		result[parameter.Key] = parameter.Type
+	}
+	return result
+}
+
+func containsString(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func cloneMaterialVariants(variants []ServiceMaterialVariant) []ServiceMaterialVariant {
+	if len(variants) == 0 {
+		return nil
+	}
+	result := make([]ServiceMaterialVariant, len(variants))
+	for index, variant := range variants {
+		result[index] = variant
+		result[index].Values = make(map[string]string, len(variant.Values))
+		for key, value := range variant.Values {
+			result[index].Values[key] = value
+		}
+	}
+	return result
 }
 
 func (c ServiceCostComponent) Validate() error {
@@ -676,22 +769,34 @@ func (p ServiceParameter) Validate() error {
 		if p.Type != ParameterChoice {
 			return validationError("materialSource", "is only supported for choice parameters")
 		}
-		if len(p.MaterialSource.AllowedKinds) == 0 && p.MaterialSource.ExposedAttributeKey == "" && !p.MaterialSource.SelectMaterial {
+		attributeKeys := p.MaterialSource.AttributeKeys()
+		if len(p.MaterialSource.AllowedKinds) == 0 && len(attributeKeys) == 0 && !p.MaterialSource.SelectMaterial {
 			return validationError("materialSource", "must expose an attribute or select materials explicitly")
+		}
+		seenAttributeKeys := make(map[string]struct{}, len(attributeKeys))
+		for index, key := range attributeKeys {
+			key = strings.TrimSpace(key)
+			if key == "" {
+				return validationError(fmt.Sprintf("materialSource.exposedAttributeKeys[%d]", index), "is required")
+			}
+			if _, exists := seenAttributeKeys[key]; exists {
+				return validationError("materialSource.exposedAttributeKeys", "must be unique")
+			}
+			seenAttributeKeys[key] = struct{}{}
 		}
 		for index, kind := range p.MaterialSource.AllowedKinds {
 			if !IsValidMaterialKind(kind) {
 				return validationError(fmt.Sprintf("materialSource.allowedKinds[%d]", index), "is not a supported material kind")
 			}
 		}
-		if p.MaterialSource.ExposedAttributeKey == "" && len(p.MaterialSource.AllowedValues) > 0 {
+		if len(attributeKeys) == 0 && len(p.MaterialSource.AllowedValues) > 0 {
 			return validationError("materialSource.allowedValues", "require an exposed attribute")
 		}
 		for index, value := range p.MaterialSource.AllowedValues {
 			if err := value.Validate(); err != nil {
 				return validationError(fmt.Sprintf("materialSource.allowedValues[%d]", index), err.Error())
 			}
-			if p.MaterialSource.ExposedAttributeKey != "" && value.Key != p.MaterialSource.ExposedAttributeKey {
+			if len(attributeKeys) > 0 && !containsString(attributeKeys, value.Key) {
 				return validationError(fmt.Sprintf("materialSource.allowedValues[%d].key", index), "must match the exposed attribute")
 			}
 		}
