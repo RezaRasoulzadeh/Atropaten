@@ -18,6 +18,31 @@ export type TestPricingResult = {
   hasMissing: boolean
 }
 
+export function isMachineGroupParameter(form: ServiceForm, parameter: ParameterForm) {
+  return parameter.type === 'machine-reference' && form.components.some((component) => component.type === 'machine' && component.parameterKey === parameter.key)
+}
+
+export function isMachineRateParameter(form: ServiceForm, parameter: ParameterForm) {
+  return parameter.type === 'choice' && form.components.some((component) => component.type === 'machine' && component.rateParameterKey === parameter.key)
+}
+
+export function isAutomaticVariationParameter(form: ServiceForm, parameter: ParameterForm) {
+  return Boolean(parameter.materialSource && !parameter.materialSource.selectMaterial) || isMachineGroupParameter(form, parameter) || isMachineRateParameter(form, parameter)
+}
+
+export function isLegacyTestParameter(form: ServiceForm, parameter: ParameterForm) {
+  if (parameter.type === 'material-reference' || (parameter.type === 'choice' && parameter.materialSource?.selectMaterial)) return true
+  return parameter.type === 'machine-reference' && !isMachineGroupParameter(form, parameter)
+}
+
+export function visibleTestParameters(form: ServiceForm, parameters: ParameterForm[]) {
+  return parameters.filter((parameter) => {
+    if (isLegacyTestParameter(form, parameter)) return false
+    if (isAutomaticVariationParameter(form, parameter)) return true
+    return parameter.type === 'integer' || parameter.type === 'decimal'
+  })
+}
+
 function number(value: string | undefined, fallback = 0) {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback

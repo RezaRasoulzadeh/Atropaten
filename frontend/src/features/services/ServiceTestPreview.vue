@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Eye, Pencil } from 'lucide-vue-next'
 import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
@@ -7,7 +8,7 @@ import { formatMoney } from '../../utils/currency'
 import ServiceOverviewIdentity from './ServiceOverviewIdentity.vue'
 import ServiceOverviewSection from './ServiceOverviewSection.vue'
 import type { ParameterForm, ServiceForm } from './types'
-import type { TestPricingResult, TestValues } from './serviceTestPricing'
+import { visibleTestParameters, type TestPricingResult, type TestValues } from './serviceTestPricing'
 
 const props = defineProps<{
   form: ServiceForm
@@ -19,6 +20,8 @@ const props = defineProps<{
   result: TestPricingResult | null
   currencyUnit: CurrencyUnit
 }>()
+
+const displayedParameters = computed(() => visibleTestParameters(props.form, props.parameters))
 
 defineEmits<{ edit: [] }>()
 
@@ -34,6 +37,7 @@ function valueLabel(parameter: ParameterForm) {
     const machine = props.machines.find((item) => item.id === value)
     return machine ? `${machine.name}${machine.code ? ` · ${machine.code}` : ''}` : 'Not set'
   }
+  if (parameter.materialSource && !parameter.materialSource.selectMaterial) return value.split('\u001f').join(' × ')
   if (parameter.predefinedKey) {
     const option = (parameter as any).predefinedOptions?.find((item: any) => item.code === value)
     return option?.label || 'Not set'
@@ -59,10 +63,10 @@ function quantityLabel() {
       </div>
       <p v-else class="text-sm text-base-content/60">Enter test values to preview the price.</p>
     </ServiceOverviewSection>
-    <ServiceOverviewSection title="Selected order fields" description="Values used for this test calculation.">
+    <ServiceOverviewSection title="Test inputs" description="Dynamic pricing choices and quantity values used for this test.">
       <template #meta><button class="btn btn-ghost btn-xs gap-1" type="button" @click="$emit('edit')"><Pencil :size="13" aria-hidden="true" />Edit</button></template>
-      <div v-if="parameters.length" class="divide-y divide-base-300/70">
-        <div v-for="parameter in parameters" :key="parameter.id" class="flex min-w-0 items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0 text-sm"><span class="min-w-0 truncate">{{ parameter.label || 'Parameter' }}<em v-if="parameter.required" class="text-error"> *</em></span><span class="max-w-[58%] break-words text-end text-base-content/75">{{ valueLabel(parameter) }}</span></div>
+      <div v-if="displayedParameters.length" class="divide-y divide-base-300/70">
+        <div v-for="parameter in displayedParameters" :key="parameter.id" class="flex min-w-0 items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0 text-sm"><span class="min-w-0 truncate">{{ parameter.label || 'Parameter' }}<em v-if="parameter.required" class="text-error"> *</em></span><span class="max-w-[58%] break-words text-end text-base-content/75">{{ valueLabel(parameter) }}</span></div>
       </div>
       <p v-else class="text-sm text-base-content/60">No operator parameters configured.</p>
     </ServiceOverviewSection>

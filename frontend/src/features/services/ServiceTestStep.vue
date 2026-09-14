@@ -8,8 +8,8 @@ import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
-import { calculateServiceTest, type TestPricingResult, type TestValues } from './serviceTestPricing'
-import type { ParameterForm, ServiceForm } from './types'
+import { calculateServiceTest, isAutomaticVariationParameter, isMachineRateParameter, visibleTestParameters, type TestPricingResult, type TestValues } from './serviceTestPricing'
+import type { ComponentForm, ParameterForm, ServiceForm } from './types'
 
 const props = defineProps<{
   form: ServiceForm
@@ -32,20 +32,49 @@ function defaultValue(parameter: ParameterForm) {
 }
 
 function syncValues() {
-  const keys = new Set(props.parameters.map((parameter) => parameter.key).filter(Boolean))
-  for (const parameter of props.parameters) {
+  const parameters = visibleTestParameters(props.form, props.parameters)
+  const keys = new Set(parameters.map((parameter) => parameter.key).filter(Boolean))
+  for (const parameter of parameters) {
     if (parameter.key && props.values[parameter.key] === undefined) props.values[parameter.key] = defaultValue(parameter)
   }
   for (const key of Object.keys(props.values)) if (!keys.has(key)) delete props.values[key]
 }
 
+function activeMachineFor(component: ComponentForm) {
+  const selectedID = props.values[component.parameterKey] || props.parameters.find((parameter) => parameter.key === component.parameterKey)?.defaultValue
+  return props.machines.find((machine) => machine.id === selectedID && machine.active) || null
+}
+
+function machineRateOptions(parameter: ParameterForm) {
+  const components = props.form.components.filter((component) => component.type === 'machine' && component.rateParameterKey === parameter.key)
+  const selectedMachines = components.map(activeMachineFor).filter((machine): machine is MachineRecord => Boolean(machine))
+  const machines = selectedMachines.length ? selectedMachines : props.machines.filter((machine) => machine.active)
+  const options = new Map<string, { label: string; value: string }>()
+  for (const machine of machines) {
+    for (const rate of machine.rates?.filter((item: any) => item.active) || []) {
+      const value = String(rate.selectorValue || rate.name || rate.id || '').trim()
+      if (value && !options.has(value)) options.set(value, { label: rate.name || value, value })
+    }
+  }
+  return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...Array.from(options.values()).sort((left, right) => left.label.localeCompare(right.label))]
+}
+
+function syncDynamicSelections() {
+  for (const parameter of visibleTestParameters(props.form, props.parameters)) {
+    if (!isAutomaticVariationParameter(props.form, parameter)) continue
+    const options = valueOptions(parameter).filter((option) => option.value)
+    if (options.length && !options.some((option) => option.value === props.values[parameter.key])) props.values[parameter.key] = options[0].value
+  }
+}
+
 function recalculate() {
   syncValues()
+  syncDynamicSelections()
   emit('update:result', calculateServiceTest(props.form, props.values, props.materials, props.machines, props.services))
 }
 
 function reset() {
-  for (const parameter of props.parameters) if (parameter.key) props.values[parameter.key] = defaultValue(parameter)
+  for (const parameter of visibleTestParameters(props.form, props.parameters)) if (parameter.key) props.values[parameter.key] = defaultValue(parameter)
   recalculate()
 }
 
@@ -55,24 +84,19 @@ function updateBoolean(key: string, event: Event) {
 }
 
 function valueOptions(parameter: ParameterForm) {
+	if (isMachineRateParameter(props.form, parameter)) return machineRateOptions(parameter)
 	if (parameter.type === 'choice') {
-    if (parameter.materialSource?.selectMaterial) return [{ label: 'Select material', value: '' }, ...props.materials.filter((item) => item.active).map((item) => ({ label: `${item.name}${item.sku ? ` · ${item.sku}` : ''}`, value: item.id }))]
     if (parameter.materialSource) {
       const values = Array.from(new Set(props.form.materialVariants.filter((variant) => variant.active !== false).map((variant) => variant.values[parameter.key]).filter(Boolean)))
       return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...values.sort().map((value) => ({ label: value.split('\u001f').join(' × '), value }))]
     }
     return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...(parameter.predefinedKey ? ((parameter as any).predefinedOptions || []).filter((option: any) => option.active !== false).map((option: any) => ({ label: option.label, value: option.code })) : parameter.options.map((value) => ({ label: value, value })))]
   }
-  if (parameter.type === 'material-reference') return [{ label: 'Select material', value: '' }, ...props.materials.filter((item) => item.active).map((item) => ({ label: `${item.name}${item.sku ? ` · ${item.sku}` : ''}`, value: item.id }))]
   return [{ label: 'Select machine', value: '' }, ...props.machines.filter((item) => item.active).map((item) => ({ label: `${item.name}${item.code ? ` · ${item.code}` : ''}`, value: item.id }))]
 }
 
 function onValueChanged() {
   recalculate()
-}
-
-function isAutomaticVariationParameter(parameter: ParameterForm) {
-  return Boolean(parameter.materialSource) || parameter.type === 'machine-reference' || props.form.components.some((component) => component.type === 'machine' && component.rateParameterKey === parameter.key)
 }
 
 watch(
@@ -93,26 +117,26 @@ const result = computed<TestPricingResult>(() => calculateServiceTest(props.form
             <span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><FlaskConical :size="21" aria-hidden="true" /></span>
             <div class="min-w-0">
               <h2 class="text-lg font-semibold">Test service</h2>
-              <p class="mt-1 text-sm leading-5 text-base-content/60">Configure the service like a customer would. See the calculated cost and selling price.</p>
+              <p class="mt-1 text-sm leading-5 text-base-content/60">Choose dynamic material and machine options, then preview the calculated cost and selling price.</p>
             </div>
           </div>
           <button class="btn btn-outline btn-sm shrink-0 gap-2" type="button" @click="reset"><RotateCcw :size="14" aria-hidden="true" />Reset</button>
         </div>
 
-        <div v-if="parameters.length" class="mt-4 space-y-3">
-          <div v-for="parameter in parameters" :key="parameter.id" class="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] items-start gap-3">
+        <div v-if="visibleTestParameters(form, parameters).length" class="mt-4 space-y-3">
+          <div v-for="parameter in visibleTestParameters(form, parameters)" :key="parameter.id" class="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] items-start gap-3">
             <span class="grid size-8 place-items-center rounded-box bg-base-300/60 text-base-content/70"><span v-if="parameter.type === 'integer' || parameter.type === 'decimal'" class="text-lg">#</span><span v-else-if="parameter.type === 'boolean'" class="text-sm">✓</span><span v-else class="text-base">◈</span></span>
             <FormField class="min-w-0 gap-1">
               <span class="text-sm text-base-content">{{ parameter.label || 'Parameter' }}<em v-if="parameter.required" class="text-error"> *</em></span>
-              <small class="text-xs text-base-content/50">{{ isAutomaticVariationParameter(parameter) ? 'Affects automatic variation pricing' : 'Price can be entered on the order' }}</small>
+              <small class="text-xs text-base-content/50">{{ isAutomaticVariationParameter(form, parameter) ? 'Affects automatic variation pricing' : 'Price can be entered on the order' }}</small>
               <AppInput v-if="parameter.type === 'integer' || parameter.type === 'decimal'" v-model="values[parameter.key]" class="input w-full min-w-0" :type="parameter.type === 'integer' ? 'number' : 'text'" :step="parameter.type === 'integer' ? '1' : 'any'" :min="parameter.minValue || undefined" :max="parameter.maxValue || undefined" inputmode="decimal" @update:model-value="onValueChanged" />
-              <SelectField v-else-if="parameter.type === 'choice' || parameter.type === 'material-reference' || parameter.type === 'machine-reference'" v-model="values[parameter.key]" :aria-label="parameter.label" :options="valueOptions(parameter)" @update:model-value="onValueChanged" />
+              <SelectField v-else-if="parameter.type === 'choice' || parameter.type === 'machine-reference'" v-model="values[parameter.key]" :aria-label="parameter.label" :options="valueOptions(parameter)" @update:model-value="onValueChanged" />
               <label v-else class="flex h-10 items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 text-sm"><input class="checkbox checkbox-sm" type="checkbox" :checked="values[parameter.key] === 'true'" @change="updateBoolean(parameter.key, $event)" />Enabled</label>
               <small v-if="parameter.unit || parameter.minValue || parameter.maxValue" class="text-xs leading-5 text-base-content/55">{{ parameter.unit || form.defaultUnit }}<span v-if="parameter.minValue"> · min {{ parameter.minValue }}</span><span v-if="parameter.maxValue"> · max {{ parameter.maxValue }}</span></small>
             </FormField>
           </div>
         </div>
-        <div v-else class="mt-5 rounded-box border border-dashed border-base-300 p-6 text-center text-sm text-base-content/60">This service has no customer parameters. The test uses its configured cost and pricing rules.</div>
+        <div v-else class="mt-5 rounded-box border border-dashed border-base-300 p-6 text-center text-sm text-base-content/60">No automatic pricing inputs are configured. Grouped material and machine choices are tested here; other order-only fields are set when the order is created.</div>
       </div>
 
       <div class="min-w-0 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-5">
