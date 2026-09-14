@@ -118,7 +118,7 @@ func TestEvaluatePricingUsesGenericMaterialMachineVariation(t *testing.T) {
 	service, err := NewService("SVC-generic-variation", ServiceDraft{
 		Name: "Generic variation pricing",
 		Parameters: []ServiceParameterDraft{
-			{ID: "P-finish", Key: "finish", Label: "Finish", Type: ParameterChoice, Required: true, Options: []string{"matte", "gloss"}},
+			{ID: "P-finish", Key: "finish", Label: "Finish", Type: ParameterChoice, Required: true, MaterialSource: &MaterialParameterSource{ExposedAttributeKey: "finish"}},
 			{ID: "P-machine", Key: "machine", Label: "Machine", Type: ParameterMachineReference, Required: true},
 		},
 		Components:  []ServiceCostComponentDraft{{ID: "C", Name: "Cost", Type: CostFixed, RateRial: 100, UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true}},

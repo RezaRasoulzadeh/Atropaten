@@ -9,11 +9,12 @@ import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { CurrencyUnit } from '../../utils/currency'
 import { formatMoney, formatMoneyInput, parseMoneyInput } from '../../utils/currency'
-import type { ParameterForm, PricingRuleForm, PricingTierForm, PricingVariationForm, ServiceMaterialVariantForm } from './types'
+import type { ComponentForm, ParameterForm, PricingRuleForm, PricingTierForm, PricingVariationForm, ServiceMaterialVariantForm } from './types'
 
 const props = defineProps<{
   pricingRule: PricingRuleForm
   parameters: ParameterForm[]
+  components: ComponentForm[]
   materials: MaterialRecord[]
   machines: MachineRecord[]
   materialVariants: ServiceMaterialVariantForm[]
@@ -22,7 +23,8 @@ const props = defineProps<{
   showErrors?: boolean
 }>()
 const numericParameters = computed(() => props.parameters.filter((parameter) => parameter.type === 'integer' || parameter.type === 'decimal'))
-const variationParameters = computed(() => props.parameters.filter((parameter) => parameter.type === 'machine-reference' || parameter.type === 'material-reference' || (parameter.type === 'choice' && (parameter.options.length > 0 || parameter.materialSource))))
+const machineVariationKeys = computed(() => new Set(props.components.filter((component) => component.type === 'machine' && component.rateParameterKey).map((component) => component.rateParameterKey)))
+const variationParameters = computed(() => props.parameters.filter((parameter) => Boolean(parameter.materialSource) || parameter.type === 'machine-reference' || machineVariationKeys.value.has(parameter.key)))
 const methods = [
   { type: 'markup', title: 'Cost + markup', description: 'Add a percentage on top of the total cost.', icon: Percent },
   { type: 'fixed-margin', title: 'Cost + fixed margin', description: 'Add a fixed amount to the total cost.', icon: Calculator },

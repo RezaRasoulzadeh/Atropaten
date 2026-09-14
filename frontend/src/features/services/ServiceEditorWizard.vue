@@ -249,6 +249,7 @@ watch(
             v-else-if="activeStep === 4"
             :pricing-rule="form.pricingRule"
             :parameters="form.parameters"
+            :components="form.components"
             :materials="materials"
             :machines="machines"
             :material-variants="form.materialVariants"

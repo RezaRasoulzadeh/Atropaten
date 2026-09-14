@@ -512,6 +512,11 @@ func (s Service) Validate() error {
 		if err := s.PricingRule.Validate(s.Parameters); err != nil {
 			return fmt.Errorf("pricing rule: %w", err)
 		}
+		if len(s.PricingRule.Variations) > 0 {
+			if err := validatePricingVariationSources(*s.PricingRule, s.Parameters, s.Components); err != nil {
+				return fmt.Errorf("pricing rule: %w", err)
+			}
+		}
 		if s.PricingRule.Type == PricingVariation && len(s.PricingRule.Variations) == 0 {
 			if len(s.MaterialVariants) == 0 {
 				return validationError("pricingRule", "variation pricing requires pricing variations")
@@ -794,6 +799,28 @@ func validatePricingVariations(variations []ServicePricingVariation, parameterTy
 		if quantityTiers {
 			if err := validatePricingTiers(variation.Tiers, fmt.Sprintf("variations[%d].tiers", index)); err != nil {
 				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validatePricingVariationSources(rule ServicePricingRule, parameters []ServiceParameter, components []ServiceCostComponent) error {
+	allowed := make(map[string]struct{})
+	for _, parameter := range parameters {
+		if parameter.MaterialSource != nil || parameter.Type == ParameterMachineReference {
+			allowed[parameter.Key] = struct{}{}
+		}
+	}
+	for _, component := range components {
+		if component.Type == CostMachine && component.RateParameterKey != "" {
+			allowed[component.RateParameterKey] = struct{}{}
+		}
+	}
+	for index, variation := range rule.Variations {
+		for key := range variation.Values {
+			if _, ok := allowed[key]; !ok {
+				return validationError(fmt.Sprintf("variations[%d].values.%s", index, key), "must be configured in the Materials or Machines step")
 			}
 		}
 	}
