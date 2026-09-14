@@ -266,10 +266,16 @@ func collapseGroupedMaterialComponents(service Service) []ServiceCostComponent {
 	keepIndex := -1
 	for index, component := range service.Components {
 		if component.Type == CostMaterial && component.UsageMode == UsageParameter {
-			if _, grouped := groupedKeys[component.ParameterKey]; grouped {
-				if keepIndex < 0 || (!service.Components[keepIndex].Enabled && component.Enabled) {
-					keepIndex = index
-				}
+			if _, grouped := groupedKeys[component.ParameterKey]; grouped && (keepIndex < 0 || (!service.Components[keepIndex].Enabled && component.Enabled)) {
+				keepIndex = index
+			}
+		}
+	}
+	if keepIndex < 0 {
+		for index, component := range service.Components {
+			if component.Type == CostMaterial && component.UsageMode == UsageParameter {
+				keepIndex = index
+				break
 			}
 		}
 	}
@@ -279,7 +285,7 @@ func collapseGroupedMaterialComponents(service Service) []ServiceCostComponent {
 	result := make([]ServiceCostComponent, 0, len(service.Components))
 	for index, component := range service.Components {
 		if component.Type == CostMaterial && component.UsageMode == UsageParameter {
-			if _, grouped := groupedKeys[component.ParameterKey]; grouped && index != keepIndex {
+			if index != keepIndex {
 				continue
 			}
 		}

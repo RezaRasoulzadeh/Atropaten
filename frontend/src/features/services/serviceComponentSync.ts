@@ -57,11 +57,14 @@ export function ensureSuggestedCostComponents(components: ComponentForm[], param
     const groupedKeys = new Set(groupedMaterialParameters.map((parameter) => parameter.key))
     let primary = components.find((component) => component.type === 'material' && component.usageMode === 'parameter' && component.parameterKey === primaryGroupedMaterialKey)
     if (!primary) primary = components.find((component) => component.type === 'material' && component.usageMode === 'parameter' && groupedKeys.has(component.parameterKey))
+    if (!primary) primary = components.find((component) => component.type === 'material' && component.usageMode === 'parameter')
     if (primary) {
+      primary.referenceId = ''
+      primary.usageMode = 'parameter'
       primary.parameterKey = primaryGroupedMaterialKey
       for (let index = components.length - 1; index >= 0; index -= 1) {
         const component = components[index]
-        if (component !== primary && component.type === 'material' && component.usageMode === 'parameter' && groupedKeys.has(component.parameterKey)) components.splice(index, 1)
+        if (component !== primary && component.type === 'material' && component.usageMode === 'parameter') components.splice(index, 1)
       }
     }
   }
@@ -100,15 +103,18 @@ export function ensureSuggestedCostComponents(components: ComponentForm[], param
 export function collapseGroupedMaterialComponents(components: ComponentForm[], parameters: ParameterForm[]) {
   const groupedKeys = new Set(parameters.filter((parameter) => parameter.materialSource && !parameter.materialSource.selectMaterial).map((parameter) => parameter.key))
   if (!groupedKeys.size) return components
-  let keepIndex = -1
-  components.forEach((component, index) => {
-    const grouped = component.type === 'material' && component.usageMode === 'parameter' && groupedKeys.has(component.parameterKey)
-    if (grouped && (keepIndex < 0 || (!components[keepIndex].enabled && component.enabled))) keepIndex = index
-  })
+  let keepIndex = components.findIndex((component) => component.type === 'material' && component.usageMode === 'parameter' && groupedKeys.has(component.parameterKey))
+  if (keepIndex >= 0) {
+    components.forEach((component, index) => {
+      if (component.type === 'material' && component.usageMode === 'parameter' && groupedKeys.has(component.parameterKey) && !components[keepIndex].enabled && component.enabled) keepIndex = index
+    })
+  } else {
+    keepIndex = components.findIndex((component) => component.type === 'material' && component.usageMode === 'parameter')
+  }
   if (keepIndex < 0) return components
   return components.filter((component, index) => {
-    const grouped = component.type === 'material' && component.usageMode === 'parameter' && groupedKeys.has(component.parameterKey)
-    return !grouped || index === keepIndex
+    const materialSelection = component.type === 'material' && component.usageMode === 'parameter'
+    return !materialSelection || index === keepIndex
   })
 }
 
