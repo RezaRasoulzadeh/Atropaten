@@ -1,165 +1,72 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { BarChart3, Calculator, CircleHelp, Layers3, List, Percent, Plus, Tag, Trash2 } from 'lucide-vue-next'
 import AppInput from '../../components/ui/AppInput.vue'
 import FormField from '../../components/ui/FormField.vue'
 import FormGrid from '../../components/ui/FormGrid.vue'
 import SelectField from '../../components/ui/SelectField.vue'
 import type { MaterialRecord } from '../../api/materials'
+import type { MachineRecord } from '../../api/machines'
 import type { CurrencyUnit } from '../../utils/currency'
 import { formatMoney, formatMoneyInput, parseMoneyInput } from '../../utils/currency'
-import type { ParameterForm, PricingRuleForm, ServiceMaterialVariantForm } from './types'
+import type { ParameterForm, PricingRuleForm, PricingTierForm, PricingVariationForm, ServiceMaterialVariantForm } from './types'
 
 const props = defineProps<{
   pricingRule: PricingRuleForm
   parameters: ParameterForm[]
   materials: MaterialRecord[]
+  machines: MachineRecord[]
   materialVariants: ServiceMaterialVariantForm[]
   currencyUnit: CurrencyUnit
   estimatedCostRial: number
   showErrors?: boolean
 }>()
-
 const numericParameters = computed(() => props.parameters.filter((parameter) => parameter.type === 'integer' || parameter.type === 'decimal'))
+const variationParameters = computed(() => props.parameters.filter((parameter) => parameter.type === 'machine-reference' || parameter.type === 'material-reference' || (parameter.type === 'choice' && (parameter.options.length > 0 || parameter.materialSource))))
 const methods = [
   { type: 'markup', title: 'Cost + markup', description: 'Add a percentage on top of the total cost.', icon: Percent },
   { type: 'fixed-margin', title: 'Cost + fixed margin', description: 'Add a fixed amount to the total cost.', icon: Calculator },
   { type: 'fixed', title: 'Fixed price', description: 'Use the same price regardless of cost.', icon: Tag },
-  { type: 'quantity-tiers', title: 'Quantity tiers', description: 'Set different prices based on quantity.', icon: BarChart3 },
-  { type: 'variation', title: 'Variation prices', description: 'Assign a selling price to every material variation.', icon: Layers3 },
+  { type: 'quantity-tiers', title: 'Quantity tiers', description: 'Set a price curve for each variation.', icon: BarChart3 },
+  { type: 'variation', title: 'Variation prices', description: 'Assign a price to every material, machine, or option combination.', icon: Layers3 },
   { type: 'manual', title: 'Manual price', description: 'Set the price manually in each order.', icon: List },
 ]
-
-function setType(type: string) {
-  props.pricingRule.type = type
-  if (type !== 'quantity-tiers') props.pricingRule.parameterKey = ''
-  if (type !== 'quantity-tiers') props.pricingRule.tiers = []
+function setType(type: string) { props.pricingRule.type = type; if (type !== 'quantity-tiers') props.pricingRule.parameterKey = ''; if (type !== 'quantity-tiers') props.pricingRule.tiers = []; syncVariations() }
+function updateMoney(field: 'fixedPriceInput' | 'fixedMarginInput', value: string) { props.pricingRule[field] = value; const valueField = field === 'fixedPriceInput' ? 'fixedPriceRial' : 'fixedMarginRial'; const parsed = parseMoneyInput(value, props.currencyUnit); if (parsed !== null) { props.pricingRule[valueField] = parsed; props.pricingRule[field] = formatMoneyInput(parsed, props.currencyUnit) } }
+function optionsFor(parameter: ParameterForm) {
+  if (parameter.type === 'machine-reference') return props.machines.filter((item) => item.active).map((item) => ({ value: item.id, label: item.name }))
+  if (parameter.type === 'material-reference') return props.materials.filter((item) => item.active).map((item) => ({ value: item.id, label: item.name }))
+  if (parameter.materialSource && !parameter.materialSource.selectMaterial) { const values = new Set<string>(); for (const variant of props.materialVariants.filter((item) => item.active)) { const value = variant.values[parameter.key]; if (value) values.add(value) }; return [...values].sort().map((value) => ({ value, label: value.split('\u001f').join(' × ') })) }
+  return parameter.options.map((value) => ({ value, label: value }))
 }
-
-function updateMoney(field: 'fixedPriceInput' | 'fixedMarginInput', value: string) {
-  props.pricingRule[field] = value
-  const valueField = field === 'fixedPriceInput' ? 'fixedPriceRial' : 'fixedMarginRial'
-  const parsed = parseMoneyInput(value, props.currencyUnit)
-  if (parsed !== null) {
-    props.pricingRule[valueField] = parsed
-    props.pricingRule[field] = formatMoneyInput(parsed, props.currencyUnit)
-  }
+const variationCombinations = computed(() => { let combinations: Array<Record<string, string>> = [{}]; for (const parameter of variationParameters.value) { const options = optionsFor(parameter); if (!options.length) continue; combinations = combinations.flatMap((current) => options.map((option) => ({ ...current, [parameter.key]: option.value }))) }; return combinations.filter((combination) => Object.keys(combination).length > 0) })
+function variationKey(values: Record<string, string>) { return Object.entries(values).sort(([left], [right]) => left.localeCompare(right)).map(([key, value]) => `${key}=${value}`).join('\u001f') }
+function newTier(position: number, source?: PricingTierForm): PricingTierForm { return { position, minimumQuantity: source?.minimumQuantity || (position ? '10' : '0'), priceRial: source?.priceRial || 0, priceInput: source?.priceRial ? formatMoneyInput(source.priceRial, props.currencyUnit) : '' } }
+function syncVariations() {
+  if (props.pricingRule.type !== 'variation' && props.pricingRule.type !== 'quantity-tiers') return
+  const existing = new Map(props.pricingRule.variations.map((variation) => [variationKey(variation.values), variation]))
+  const next = variationCombinations.value.map((values, position) => { const old = existing.get(variationKey(values)); if (old) { old.position = position; return old }; return { id: `pricing-variation-${Date.now()}-${position}`, values: { ...values }, priceRial: 0, priceInput: '', position, active: true, tiers: props.pricingRule.tiers.map((tier, index) => newTier(index, tier)) } satisfies PricingVariationForm })
+  props.pricingRule.variations.splice(0, props.pricingRule.variations.length, ...next)
 }
-
-function variationLabel(variant: ServiceMaterialVariantForm) {
-  return Object.entries(variant.values).map(([key, value]) => `${props.parameters.find((parameter) => parameter.key === key)?.label || key}: ${value.split('\u001f').join(' × ')}`).join(' · ')
-}
-
-function variationMaterial(variant: ServiceMaterialVariantForm) {
-  return props.materials.find((material) => material.id === variant.materialId && material.active) || null
-}
-
-function updateVariationPrice(variant: ServiceMaterialVariantForm, value: string) {
-  variant.sellingPriceInput = value
-  if (!value.trim()) {
-    variant.sellingPriceRial = 0
-    return
-  }
-  const parsed = parseMoneyInput(value, props.currencyUnit)
-  if (parsed !== null) {
-    variant.sellingPriceRial = parsed
-    variant.sellingPriceInput = formatMoneyInput(parsed, props.currencyUnit)
-  }
-}
-
-function addTier() {
-  const last = props.pricingRule.tiers.at(-1)
-  props.pricingRule.tiers.push({
-    position: props.pricingRule.tiers.length,
-    minimumQuantity: last ? String(Math.max(1, Number(last.minimumQuantity) + 10)) : '0',
-    priceRial: 0,
-    priceInput: formatMoneyInput(0, props.currencyUnit),
-  })
-}
-
-function removeTier(index: number) {
-  props.pricingRule.tiers.splice(index, 1)
-  props.pricingRule.tiers.forEach((tier, position) => { tier.position = position })
-}
-
-function updateTierPrice(index: number, value: string) {
-  const tier = props.pricingRule.tiers[index]
-  if (!tier) return
-  tier.priceInput = value
-  const parsed = parseMoneyInput(value, props.currencyUnit)
-  if (parsed !== null) {
-    tier.priceRial = parsed
-    tier.priceInput = formatMoneyInput(parsed, props.currencyUnit)
-  }
-}
+watch(() => [props.parameters, props.materialVariants, props.machines, props.pricingRule.type], syncVariations, { deep: true, immediate: true })
+function labelFor(parameter: ParameterForm | undefined, value: string) { return parameter ? optionsFor(parameter).find((option) => option.value === value)?.label || value.split('\u001f').join(' × ') : value }
+function variationLabel(variation: PricingVariationForm) { return Object.entries(variation.values).map(([key, value]) => `${props.parameters.find((parameter) => parameter.key === key)?.label || key}: ${labelFor(props.parameters.find((parameter) => parameter.key === key), value)}`).join(' · ') }
+function updateVariationPrice(variation: PricingVariationForm, value: string) { variation.priceInput = value; const parsed = parseMoneyInput(value, props.currencyUnit); if (parsed !== null) { variation.priceRial = parsed; variation.priceInput = formatMoneyInput(parsed, props.currencyUnit) }; if (!value.trim()) variation.priceRial = 0 }
+function updateTierPrice(tier: PricingTierForm, value: string) { tier.priceInput = value; const parsed = parseMoneyInput(value, props.currencyUnit); if (parsed !== null) { tier.priceRial = parsed; tier.priceInput = formatMoneyInput(parsed, props.currencyUnit) }; if (!value.trim()) tier.priceRial = 0 }
+function addTier(tiers: PricingTierForm[]) { const last = tiers.at(-1); tiers.push(newTier(tiers.length, last)) }
+function removeTier(tiers: PricingTierForm[], index: number) { tiers.splice(index, 1); tiers.forEach((tier, position) => { tier.position = position }) }
 </script>
 
 <template>
   <section class="min-w-0 space-y-4" aria-label="Service pricing">
-    <div class="flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h2 class="text-lg font-semibold">Pricing method</h2>
-        <p class="mt-1 text-sm text-base-content/65">Choose how the selling price is calculated for this service.</p>
-      </div>
-      <div class="flex items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2 text-xs text-base-content/65">
-        <span>Estimated cost</span><strong class="text-sm text-base-content">{{ formatMoney(estimatedCostRial, currencyUnit) }}</strong>
-      </div>
-    </div>
-
-    <div class="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-6">
-      <button v-for="method in methods" :key="method.type" class="min-w-0 rounded-box border p-3 text-start transition-colors" :class="pricingRule.type === method.type ? 'border-primary bg-primary/10' : 'border-base-300 bg-base-100 hover:border-primary/50'" type="button" @click="setType(method.type)">
-        <div class="flex items-center justify-between gap-2"><span class="grid size-9 place-items-center rounded-box bg-base-200 text-primary"><component :is="method.icon" :size="20" aria-hidden="true" /></span><span class="size-4 rounded-full border-2" :class="pricingRule.type === method.type ? 'border-primary bg-primary' : 'border-base-content/40'"></span></div>
-        <strong class="mt-3 block text-sm">{{ method.title }}</strong>
-        <small class="mt-1 block text-xs leading-4 text-base-content/60">{{ method.description }}</small>
-      </button>
-    </div>
-
-    <div v-if="pricingRule.type === 'markup'" class="rounded-box border border-base-300 bg-base-100 p-4">
-      <h3 class="text-base font-semibold">Cost + markup settings</h3><p class="mt-1 text-sm text-base-content/65">The selling price is calculated by adding a percentage to the total cost.</p>
-      <FormGrid class="mt-4">
-        <FormField class="gap-1"><span>Markup percentage <em class="text-error">*</em></span><div class="join w-full"><AppInput v-model="pricingRule.markupPercentage" class="input join-item w-full min-w-0" :class="{ 'input-error': showErrors && !pricingRule.markupPercentage.trim() }" type="text" inputmode="decimal" placeholder="30" /><span class="join-item grid w-12 place-items-center border border-base-300 bg-base-200 text-sm">%</span></div><small class="text-xs leading-5 text-base-content/60">For example, 30% markup on 50,000 {{ currencyUnit }} adds 15,000 {{ currencyUnit }}.</small></FormField>
-        <div class="flex items-end text-sm text-base-content/70">Estimated selling price: <strong class="ml-1 text-primary">{{ formatMoney(Math.ceil(estimatedCostRial * (1 + (Number(pricingRule.markupPercentage) || 0) / 100)), currencyUnit) }}</strong></div>
-      </FormGrid>
-    </div>
-
-    <div v-else-if="pricingRule.type === 'fixed-margin'" class="rounded-box border border-base-300 bg-base-100 p-4">
-      <h3 class="text-base font-semibold">Fixed margin settings</h3><p class="mt-1 text-sm text-base-content/65">Add a fixed amount to the estimated cost for every service unit.</p>
-      <FormField class="mt-4 max-w-md gap-1"><span>Fixed margin ({{ currencyUnit }}) <em class="text-error">*</em></span><AppInput :model-value="pricingRule.fixedMarginInput" class="input w-full" :class="{ 'input-error': showErrors && !pricingRule.fixedMarginInput.trim() }" :money="currencyUnit" type="text" inputmode="numeric" placeholder="15,000" @update:model-value="updateMoney('fixedMarginInput', $event)" /></FormField>
-    </div>
-
-    <div v-else-if="pricingRule.type === 'fixed'" class="rounded-box border border-base-300 bg-base-100 p-4">
-      <h3 class="text-base font-semibold">Fixed price settings</h3><p class="mt-1 text-sm text-base-content/65">Set the selling price charged for one service unit. It is compared with the estimated cost, but it does not add to or replace the cost calculation.</p>
-      <FormField class="mt-4 max-w-md gap-1"><span>Selling price per service unit ({{ currencyUnit }}) <em class="text-error">*</em></span><AppInput :model-value="pricingRule.fixedPriceInput" class="input w-full" :class="{ 'input-error': showErrors && !pricingRule.fixedPriceInput.trim() }" :money="currencyUnit" type="text" inputmode="numeric" placeholder="87,800" @update:model-value="updateMoney('fixedPriceInput', $event)" /></FormField>
-    </div>
-
-    <div v-else-if="pricingRule.type === 'quantity-tiers'" class="rounded-box border border-base-300 bg-base-100 p-4">
-      <div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="text-base font-semibold">Quantity tier settings</h3><p class="mt-1 text-sm text-base-content/65">Select a quantity input and set the price that applies from each minimum quantity.</p></div><button class="btn btn-outline btn-sm gap-2" type="button" @click="addTier"><Plus :size="14" aria-hidden="true" />Add tier</button></div>
-      <SelectField v-model="pricingRule.parameterKey" class="mt-4 max-w-md" label="Quantity parameter" :invalid="showErrors && !pricingRule.parameterKey" :options="[{ label: 'Select a numeric parameter', value: '' }, ...numericParameters.map((parameter) => ({ label: `${parameter.label || parameter.key}${parameter.unit ? ` · ${parameter.unit}` : ''}`, value: parameter.key }))]" />
-      <div v-if="pricingRule.tiers.length" class="mt-4 space-y-2">
-        <div v-for="(tier, index) in pricingRule.tiers" :key="tier.position" class="grid min-w-0 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"><FormField class="gap-1"><span>From quantity</span><AppInput v-model="tier.minimumQuantity" class="input w-full" inputmode="numeric" placeholder="0" /></FormField><FormField class="gap-1"><span>Price ({{ currencyUnit }})</span><AppInput :model-value="tier.priceInput" class="input w-full" :money="currencyUnit" inputmode="numeric" placeholder="0" @update:model-value="updateTierPrice(index, $event)" /></FormField><button class="btn btn-outline btn-error btn-square" type="button" aria-label="Remove tier" @click="removeTier(index)"><Trash2 :size="14" aria-hidden="true" /></button></div>
-      </div>
-      <p v-else class="mt-4 rounded-box border border-dashed border-base-300 p-3 text-sm text-base-content/60">Add a zero-quantity tier before saving.</p>
-    </div>
-
-    <div v-else-if="pricingRule.type === 'variation'" class="rounded-box border border-base-300 bg-base-100 p-4">
-      <h3 class="text-base font-semibold">Variation price settings</h3><p class="mt-1 text-sm text-base-content/65">Assign the selling price for every material variation. The order will use the price matching the selected material options.</p>
-      <div v-if="materialVariants.length" class="mt-4 space-y-2">
-        <div v-for="variant in materialVariants.filter((item) => item.active)" :key="variant.id" class="grid min-w-0 items-end gap-3 rounded-box border border-base-300 bg-base-100 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,0.7fr)]">
-          <div class="min-w-0"><strong class="block truncate text-sm">{{ variationLabel(variant) || 'Material variation' }}</strong><small class="mt-1 block truncate text-xs text-base-content/55">{{ variationMaterial(variant)?.name || 'No inventory material mapped' }}<span v-if="variationMaterial(variant)"> · Cost {{ formatMoney(variationMaterial(variant)!.highestPurchaseUnitCostRial || variationMaterial(variant)!.averageUnitCostRial, currencyUnit) }}</span></small></div>
-          <FormField class="gap-1"><span>Selling price ({{ currencyUnit }}) <em class="text-error">*</em></span><AppInput :model-value="variant.sellingPriceInput" class="input w-full" :class="{ 'input-error': showErrors && (!variant.sellingPriceInput.trim() || variant.sellingPriceRial <= 0) }" :money="currencyUnit" type="text" inputmode="numeric" placeholder="87,800" @update:model-value="updateVariationPrice(variant, $event)" /></FormField>
-        </div>
-        <p v-if="materialVariants.some((item) => item.active && item.sellingPriceRial <= 0)" class="mt-3 rounded-box border border-warning/40 bg-warning/5 p-3 text-xs leading-5 text-warning">Every active material variation needs a positive selling price before this service can be saved.</p>
-      </div>
-      <p v-else class="mt-4 rounded-box border border-dashed border-warning/40 bg-warning/5 p-3 text-sm leading-5 text-warning">Create and map material combinations in the Materials step before assigning variation prices.</p>
-    </div>
-
+    <div class="flex flex-wrap items-end justify-between gap-3"><div><h2 class="text-lg font-semibold">Pricing method</h2><p class="mt-1 text-sm text-base-content/65">Choose how the selling price is calculated for this service.</p></div><div class="flex items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2 text-xs text-base-content/65"><span>Estimated cost</span><strong class="text-sm text-base-content">{{ formatMoney(estimatedCostRial, currencyUnit) }}</strong></div></div>
+    <div class="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-6"><button v-for="method in methods" :key="method.type" class="min-w-0 rounded-box border p-3 text-start transition-colors" :class="pricingRule.type === method.type ? 'border-primary bg-primary/10' : 'border-base-300 bg-base-100 hover:border-primary/50'" type="button" @click="setType(method.type)"><div class="flex items-center justify-between gap-2"><span class="grid size-9 place-items-center rounded-box bg-base-200 text-primary"><component :is="method.icon" :size="20" aria-hidden="true" /></span><span class="size-4 rounded-full border-2" :class="pricingRule.type === method.type ? 'border-primary bg-primary' : 'border-base-content/40'"></span></div><strong class="mt-3 block text-sm">{{ method.title }}</strong><small class="mt-1 block text-xs leading-4 text-base-content/60">{{ method.description }}</small></button></div>
+    <div v-if="pricingRule.type === 'markup'" class="rounded-box border border-base-300 bg-base-100 p-4"><h3 class="text-base font-semibold">Cost + markup settings</h3><p class="mt-1 text-sm text-base-content/65">The selling price is calculated by adding a percentage to the total cost.</p><FormGrid class="mt-4"><FormField class="gap-1"><span>Markup percentage <em class="text-error">*</em></span><div class="join w-full"><AppInput v-model="pricingRule.markupPercentage" class="input join-item w-full min-w-0" :class="{ 'input-error': showErrors && !pricingRule.markupPercentage.trim() }" type="text" inputmode="decimal" placeholder="30" /><span class="join-item grid w-12 place-items-center border border-base-300 bg-base-200 text-sm">%</span></div></FormField><div class="flex items-end text-sm text-base-content/70">Estimated selling price: <strong class="ml-1 text-primary">{{ formatMoney(Math.ceil(estimatedCostRial * (1 + (Number(pricingRule.markupPercentage) || 0) / 100)), currencyUnit) }}</strong></div></FormGrid></div>
+    <div v-else-if="pricingRule.type === 'fixed-margin'" class="rounded-box border border-base-300 bg-base-100 p-4"><h3 class="text-base font-semibold">Fixed margin settings</h3><p class="mt-1 text-sm text-base-content/65">Add a fixed amount to the estimated cost for every service unit.</p><FormField class="mt-4 max-w-md gap-1"><span>Fixed margin ({{ currencyUnit }}) <em class="text-error">*</em></span><AppInput :model-value="pricingRule.fixedMarginInput" class="input w-full" :class="{ 'input-error': showErrors && !pricingRule.fixedMarginInput.trim() }" :money="currencyUnit" type="text" inputmode="numeric" placeholder="15,000" @update:model-value="updateMoney('fixedMarginInput', $event)" /></FormField></div>
+    <div v-else-if="pricingRule.type === 'fixed'" class="rounded-box border border-base-300 bg-base-100 p-4"><h3 class="text-base font-semibold">Fixed price settings</h3><p class="mt-1 text-sm text-base-content/65">Set the selling price charged for one service unit. Use quantity tiers or variations when the price changes by order.</p><FormField class="mt-4 max-w-md gap-1"><span>Selling price per service unit ({{ currencyUnit }}) <em class="text-error">*</em></span><AppInput :model-value="pricingRule.fixedPriceInput" class="input w-full" :class="{ 'input-error': showErrors && !pricingRule.fixedPriceInput.trim() }" :money="currencyUnit" type="text" inputmode="numeric" placeholder="87,800" @update:model-value="updateMoney('fixedPriceInput', $event)" /></FormField></div>
+    <div v-else-if="pricingRule.type === 'quantity-tiers'" class="rounded-box border border-base-300 bg-base-100 p-4"><div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="text-base font-semibold">Quantity tier settings</h3><p class="mt-1 text-sm text-base-content/65">Set a separate quantity price curve for every material, machine, and grouped option combination.</p></div><button v-if="!variationCombinations.length" class="btn btn-outline btn-sm gap-2" type="button" @click="addTier(pricingRule.tiers)"><Plus :size="14" aria-hidden="true" />Add tier</button></div><SelectField v-model="pricingRule.parameterKey" class="mt-4 max-w-md" label="Quantity parameter" :invalid="showErrors && !pricingRule.parameterKey" :options="[{ label: 'Select a numeric parameter', value: '' }, ...numericParameters.map((parameter) => ({ label: `${parameter.label || parameter.key}${parameter.unit ? ` · ${parameter.unit}` : ''}`, value: parameter.key }))]" /><div v-if="variationCombinations.length" class="mt-4 space-y-3"><div v-for="variation in pricingRule.variations.filter((item) => item.active)" :key="variation.id" class="rounded-box border border-base-300 p-3"><div class="flex flex-wrap items-center justify-between gap-2"><strong class="text-sm">{{ variationLabel(variation) }}</strong><button class="btn btn-outline btn-sm gap-2" type="button" @click="addTier(variation.tiers)"><Plus :size="14" aria-hidden="true" />Add tier</button></div><div v-if="variation.tiers.length" class="mt-3 space-y-2"><div v-for="(tier, index) in variation.tiers" :key="tier.position" class="grid min-w-0 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"><FormField class="gap-1"><span>From quantity</span><AppInput v-model="tier.minimumQuantity" class="input w-full" inputmode="numeric" placeholder="0" /></FormField><FormField class="gap-1"><span>Price ({{ currencyUnit }})</span><AppInput :model-value="tier.priceInput" class="input w-full" :money="currencyUnit" inputmode="numeric" placeholder="0" @update:model-value="updateTierPrice(tier, $event)" /></FormField><button class="btn btn-outline btn-error btn-square" type="button" aria-label="Remove tier" @click="removeTier(variation.tiers, index)"><Trash2 :size="14" aria-hidden="true" /></button></div></div><p v-else class="mt-3 text-sm text-warning">Add a zero-quantity tier.</p></div></div><div v-else-if="pricingRule.tiers.length" class="mt-4 space-y-2"><div v-for="(tier, index) in pricingRule.tiers" :key="tier.position" class="grid min-w-0 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"><FormField class="gap-1"><span>From quantity</span><AppInput v-model="tier.minimumQuantity" class="input w-full" inputmode="numeric" placeholder="0" /></FormField><FormField class="gap-1"><span>Price ({{ currencyUnit }})</span><AppInput :model-value="tier.priceInput" class="input w-full" :money="currencyUnit" inputmode="numeric" placeholder="0" @update:model-value="updateTierPrice(tier, $event)" /></FormField><button class="btn btn-outline btn-error btn-square" type="button" aria-label="Remove tier" @click="removeTier(pricingRule.tiers, index)"><Trash2 :size="14" aria-hidden="true" /></button></div></div><p v-else class="mt-4 rounded-box border border-dashed border-base-300 p-3 text-sm text-base-content/60">Add a zero-quantity tier before saving.</p></div>
+    <div v-else-if="pricingRule.type === 'variation'" class="rounded-box border border-base-300 bg-base-100 p-4"><h3 class="text-base font-semibold">Variation price settings</h3><p class="mt-1 text-sm text-base-content/65">Assign a selling price to every active combination. Materials and machine selections can both change the final price.</p><div v-if="pricingRule.variations.length" class="mt-4 space-y-2"><div v-for="variation in pricingRule.variations.filter((item) => item.active)" :key="variation.id" class="grid min-w-0 items-end gap-3 rounded-box border border-base-300 bg-base-100 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,0.7fr)]"><div class="min-w-0"><strong class="block truncate text-sm">{{ variationLabel(variation) }}</strong><small class="mt-1 block text-xs text-base-content/55">Price for this material / machine combination</small></div><FormField class="gap-1"><span>Selling price ({{ currencyUnit }}) <em class="text-error">*</em></span><AppInput :model-value="variation.priceInput" class="input w-full" :class="{ 'input-error': showErrors && variation.priceRial <= 0 }" :money="currencyUnit" type="text" inputmode="numeric" placeholder="87,800" @update:model-value="updateVariationPrice(variation, $event)" /></FormField></div><p v-if="pricingRule.variations.some((item) => item.active && item.priceRial <= 0)" class="mt-3 rounded-box border border-warning/40 bg-warning/5 p-3 text-xs leading-5 text-warning">Every active variation needs a positive selling price before this service can be saved.</p></div><p v-else class="mt-4 rounded-box border border-dashed border-warning/40 bg-warning/5 p-3 text-sm leading-5 text-warning">Add selectable material, machine, or grouped options before assigning variation prices.</p></div>
     <div v-else class="rounded-box border border-base-300 bg-base-100 p-4"><h3 class="text-base font-semibold">Manual price</h3><p class="mt-1 text-sm leading-6 text-base-content/65">The operator will enter the selling price when adding this service to an order. The estimated cost remains available for comparison.</p></div>
-
-    <details class="rounded-box border border-base-300 bg-base-100 px-4 py-3">
-      <summary class="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold [&::-webkit-details-marker]:hidden"><CircleHelp :size="17" class="text-primary" aria-hidden="true" />Advanced settings</summary>
-      <p class="mt-3 text-sm leading-6 text-base-content/65">Minimum price, maximum price, and custom rounding rules can be added here as the pricing model grows. The selected pricing method and its values are saved now.</p>
-    </details>
-
-    <div class="flex items-start gap-2 rounded-box border border-info/20 bg-info/5 p-3 text-sm leading-6"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="17" aria-hidden="true" /><p><strong class="font-semibold text-info">How it works</strong><br />The total cost from your cost components is calculated first, then the selected pricing method is applied to suggest a selling price.</p></div>
+    <details class="rounded-box border border-base-300 bg-base-100 px-4 py-3"><summary class="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold [&::-webkit-details-marker]:hidden"><CircleHelp :size="17" class="text-primary" aria-hidden="true" />Advanced settings</summary><p class="mt-3 text-sm leading-6 text-base-content/65">Prices are matched against selected material, machine, and grouped options. Quantity-tier variations use the matching row and then the selected quantity tier.</p></details>
   </section>
 </template>

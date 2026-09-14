@@ -56,6 +56,7 @@ export type ServiceMaterialVariantPayload = {
   active: boolean
 }
 export type PricingTierPayload = { position: number; minimumQuantity: string; priceRial: number }
+export type PricingVariationPayload = { id: string; values: Record<string, string>; priceRial: number; tiers: PricingTierPayload[]; position: number; active: boolean }
 export type PricingRulePayload = {
   id: string
   type: string
@@ -65,6 +66,7 @@ export type PricingRulePayload = {
   perUnitRateRial: number
   parameterKey: string
   tiers: PricingTierPayload[]
+  variations: PricingVariationPayload[]
 }
 export type FinishedSizePayload = {
   parameterKey: string

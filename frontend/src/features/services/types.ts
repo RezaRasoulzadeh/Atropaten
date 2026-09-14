@@ -68,6 +68,15 @@ export type PricingTierForm = {
   priceRial: number;
   priceInput: string;
 };
+export type PricingVariationForm = {
+  id: string;
+  values: Record<string, string>;
+  priceRial: number;
+  priceInput: string;
+  tiers: PricingTierForm[];
+  position: number;
+  active: boolean;
+};
 export type PricingRuleForm = {
   id: string;
   type: string;
@@ -80,6 +89,7 @@ export type PricingRuleForm = {
   perUnitRateInput: string;
   parameterKey: string;
   tiers: PricingTierForm[];
+  variations: PricingVariationForm[];
 };
 export type FinishedSizeOptionForm = {
   id: string;

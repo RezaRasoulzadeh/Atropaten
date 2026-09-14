@@ -60,6 +60,11 @@ watch(
       rule.perUnitRateInput = formatMoneyInput(rule.perUnitRateRial, props.currencyUnit);
       for (const tier of rule.tiers)
         tier.priceInput = formatMoneyInput(tier.priceRial, props.currencyUnit);
+      for (const variation of rule.variations) {
+        variation.priceInput = variation.priceRial > 0 ? formatMoneyInput(variation.priceRial, props.currencyUnit) : '';
+        for (const tier of variation.tiers)
+          tier.priceInput = formatMoneyInput(tier.priceRial, props.currencyUnit);
+      }
       for (const variant of form.value.materialVariants)
         variant.sellingPriceInput = variant.sellingPriceRial > 0 ? formatMoneyInput(variant.sellingPriceRial, props.currencyUnit) : '';
     }
@@ -88,6 +93,7 @@ function emptyForm(): ServiceForm {
       perUnitRateInput: '',
       parameterKey: '',
       tiers: [],
+      variations: [],
     },
     finishedSize: null,
     materialVariants: [],
@@ -236,6 +242,20 @@ function startEdit() {
             priceRial: tier.priceRial,
             priceInput: formatMoneyInput(tier.priceRial, props.currencyUnit),
           })),
+          variations: (Array.isArray(service.pricingRule.variations) ? service.pricingRule.variations : []).map((variation) => ({
+            id: variation.id,
+            values: { ...(variation.values || {}) },
+            priceRial: variation.priceRial || 0,
+            priceInput: formatMoneyInput(variation.priceRial || 0, props.currencyUnit),
+            position: variation.position,
+            active: variation.active !== false,
+            tiers: (variation.tiers || []).map((tier) => ({
+              position: tier.position,
+              minimumQuantity: tier.minimumQuantity || '0',
+              priceRial: tier.priceRial || 0,
+              priceInput: formatMoneyInput(tier.priceRial || 0, props.currencyUnit),
+            })),
+          })),
         }
       : emptyForm().pricingRule,
     finishedSize: service.parameters.some((parameter) => parameter.predefinedKey === 'print_size') ? null : service.finishedSize ? {
@@ -377,6 +397,7 @@ function normalizePricingRule() {
   if (rule.type === 'per-unit') rule.type = 'manual';
   if (rule.type !== 'quantity-tiers') rule.parameterKey = '';
   if (rule.type !== 'quantity-tiers') rule.tiers = [];
+  if (rule.type !== 'variation' && rule.type !== 'quantity-tiers') rule.variations = [];
 }
 function addPricingTier() {
   const rule = form.value.pricingRule;
@@ -570,6 +591,14 @@ return runAction(async () => {
               position: tier.position,
               minimumQuantity: tier.minimumQuantity,
               priceRial: tier.priceRial,
+            })),
+            variations: form.value.pricingRule.variations.map((variation) => ({
+              id: variation.id,
+              values: { ...variation.values },
+              priceRial: variation.priceRial,
+              position: variation.position,
+              active: variation.active,
+              tiers: variation.tiers.map((tier) => ({ position: tier.position, minimumQuantity: tier.minimumQuantity, priceRial: tier.priceRial })),
             })),
           }
         : null,

@@ -99,20 +99,30 @@ type ServiceCostComponentInput struct {
 }
 
 type PricingRuleInput struct {
-	ID               string             `json:"id"`
-	Type             string             `json:"type"`
-	FixedPriceRial   int64              `json:"fixedPriceRial"`
-	MarkupPercentage string             `json:"markupPercentage"`
-	FixedMarginRial  int64              `json:"fixedMarginRial"`
-	PerUnitRateRial  int64              `json:"perUnitRateRial"`
-	ParameterKey     string             `json:"parameterKey"`
-	Tiers            []PricingTierInput `json:"tiers"`
+	ID               string                  `json:"id"`
+	Type             string                  `json:"type"`
+	FixedPriceRial   int64                   `json:"fixedPriceRial"`
+	MarkupPercentage string                  `json:"markupPercentage"`
+	FixedMarginRial  int64                   `json:"fixedMarginRial"`
+	PerUnitRateRial  int64                   `json:"perUnitRateRial"`
+	ParameterKey     string                  `json:"parameterKey"`
+	Tiers            []PricingTierInput      `json:"tiers"`
+	Variations       []PricingVariationInput `json:"variations"`
 }
 
 type PricingTierInput struct {
 	Position        int    `json:"position"`
 	MinimumQuantity string `json:"minimumQuantity"`
 	PriceRial       int64  `json:"priceRial"`
+}
+
+type PricingVariationInput struct {
+	ID        string             `json:"id"`
+	Values    map[string]string  `json:"values"`
+	PriceRial int64              `json:"priceRial"`
+	Tiers     []PricingTierInput `json:"tiers"`
+	Position  int                `json:"position"`
+	Active    bool               `json:"active"`
 }
 
 type ServiceParameterDTO struct {
@@ -246,20 +256,30 @@ type ServiceCostComponentDTO struct {
 }
 
 type PricingRuleDTO struct {
-	ID               string           `json:"id"`
-	Type             string           `json:"type"`
-	FixedPriceRial   int64            `json:"fixedPriceRial"`
-	MarkupPercentage string           `json:"markupPercentage"`
-	FixedMarginRial  int64            `json:"fixedMarginRial"`
-	PerUnitRateRial  int64            `json:"perUnitRateRial"`
-	ParameterKey     string           `json:"parameterKey"`
-	Tiers            []PricingTierDTO `json:"tiers"`
+	ID               string                `json:"id"`
+	Type             string                `json:"type"`
+	FixedPriceRial   int64                 `json:"fixedPriceRial"`
+	MarkupPercentage string                `json:"markupPercentage"`
+	FixedMarginRial  int64                 `json:"fixedMarginRial"`
+	PerUnitRateRial  int64                 `json:"perUnitRateRial"`
+	ParameterKey     string                `json:"parameterKey"`
+	Tiers            []PricingTierDTO      `json:"tiers"`
+	Variations       []PricingVariationDTO `json:"variations"`
 }
 
 type PricingTierDTO struct {
 	Position        int    `json:"position"`
 	MinimumQuantity string `json:"minimumQuantity"`
 	PriceRial       int64  `json:"priceRial"`
+}
+
+type PricingVariationDTO struct {
+	ID        string            `json:"id"`
+	Values    map[string]string `json:"values"`
+	PriceRial int64             `json:"priceRial"`
+	Tiers     []PricingTierDTO  `json:"tiers"`
+	Position  int               `json:"position"`
+	Active    bool              `json:"active"`
 }
 
 func (a *App) serviceService() (*application.ServicesService, error) {
@@ -538,6 +558,13 @@ func applicationServiceInput(input ServiceInput) (application.ServiceInput, erro
 		for _, tier := range input.PricingRule.Tiers {
 			pricingRule.Tiers = append(pricingRule.Tiers, application.PricingTierInput{Position: tier.Position, MinimumQuantity: tier.MinimumQuantity, PriceRial: tier.PriceRial})
 		}
+		for _, variation := range input.PricingRule.Variations {
+			item := application.PricingVariationInput{ID: variation.ID, Values: variation.Values, PriceRial: variation.PriceRial, Position: variation.Position, Active: variation.Active}
+			for _, tier := range variation.Tiers {
+				item.Tiers = append(item.Tiers, application.PricingTierInput{Position: tier.Position, MinimumQuantity: tier.MinimumQuantity, PriceRial: tier.PriceRial})
+			}
+			pricingRule.Variations = append(pricingRule.Variations, item)
+		}
 	}
 	var finishedSize *domain.ServiceFinishedSizeDefinition
 	if input.FinishedSize != nil {
@@ -639,6 +666,13 @@ func serviceDTO(view application.ServiceView) ServiceDTO {
 		pricingRule = &PricingRuleDTO{ID: view.PricingRule.ID, Type: view.PricingRule.Type, FixedPriceRial: view.PricingRule.FixedPriceRial, MarkupPercentage: view.PricingRule.MarkupPercentage, FixedMarginRial: view.PricingRule.FixedMarginRial, PerUnitRateRial: view.PricingRule.PerUnitRateRial, ParameterKey: view.PricingRule.ParameterKey}
 		for _, tier := range view.PricingRule.Tiers {
 			pricingRule.Tiers = append(pricingRule.Tiers, PricingTierDTO{Position: tier.Position, MinimumQuantity: tier.MinimumQuantity, PriceRial: tier.PriceRial})
+		}
+		for _, variation := range view.PricingRule.Variations {
+			item := PricingVariationDTO{ID: variation.ID, Values: variation.Values, PriceRial: variation.PriceRial, Position: variation.Position, Active: variation.Active}
+			for _, tier := range variation.Tiers {
+				item.Tiers = append(item.Tiers, PricingTierDTO{Position: tier.Position, MinimumQuantity: tier.MinimumQuantity, PriceRial: tier.PriceRial})
+			}
+			pricingRule.Variations = append(pricingRule.Variations, item)
 		}
 	}
 	var finishedSize *FinishedSizeDTO

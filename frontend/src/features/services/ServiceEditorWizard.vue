@@ -250,6 +250,7 @@ watch(
             :pricing-rule="form.pricingRule"
             :parameters="form.parameters"
             :materials="materials"
+            :machines="machines"
             :material-variants="form.materialVariants"
             :currency-unit="currencyUnit"
             :estimated-cost-rial="pricingCostEstimate"

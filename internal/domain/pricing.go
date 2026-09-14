@@ -353,15 +353,22 @@ func suggestedPrice(rule *ServicePricingRule, service Service, parameters map[st
 		total, err := addMoney(cost, rule.FixedMarginRial)
 		return total, nil, err
 	case PricingVariation:
-		selected := make(map[string]string, len(parameters))
-		for key, parameter := range parameters {
-			selected[key] = parameter.Value
+		if len(rule.Variations) == 0 {
+			selected := make(map[string]string, len(parameters))
+			for key, parameter := range parameters {
+				selected[key] = parameter.Value
+			}
+			variant, ok := service.ResolveMaterialVariant(selected)
+			if !ok {
+				return 0, nil, fmt.Errorf("selected pricing variation is not configured")
+			}
+			return variant.SellingPriceRial, nil, nil
 		}
-		variant, ok := service.ResolveMaterialVariant(selected)
-		if !ok {
-			return 0, nil, fmt.Errorf("selected material variation is not configured")
+		variation, ok := resolvePricingVariation(rule.Variations, parameters)
+		if !ok || !variation.Active {
+			return 0, nil, fmt.Errorf("selected pricing variation is not configured")
 		}
-		return variant.SellingPriceRial, nil, nil
+		return variation.PriceRial, nil, nil
 	case PricingPerUnit:
 		parameter, exists := parameters[rule.ParameterKey]
 		if !exists {
@@ -374,10 +381,18 @@ func suggestedPrice(rule *ServicePricingRule, service Service, parameters map[st
 		if !exists {
 			return 0, nil, fmt.Errorf("pricing tier parameter %q is not resolved", rule.ParameterKey)
 		}
+		tiers := rule.Tiers
+		if len(rule.Variations) > 0 {
+			variation, ok := resolvePricingVariation(rule.Variations, parameters)
+			if !ok || !variation.Active {
+				return 0, nil, fmt.Errorf("selected pricing variation is not configured")
+			}
+			tiers = variation.Tiers
+		}
 		var selected *ServicePricingTier
-		for index := range rule.Tiers {
-			if parameter.Quantity >= rule.Tiers[index].MinimumQuantity {
-				selected = &rule.Tiers[index]
+		for index := range tiers {
+			if parameter.Quantity >= tiers[index].MinimumQuantity {
+				selected = &tiers[index]
 			}
 		}
 		if selected == nil {
@@ -387,6 +402,24 @@ func suggestedPrice(rule *ServicePricingRule, service Service, parameters map[st
 	default:
 		return 0, nil, fmt.Errorf("unsupported pricing rule %q", rule.Type)
 	}
+}
+
+func resolvePricingVariation(variations []ServicePricingVariation, parameters map[string]ResolvedParameter) (*ServicePricingVariation, bool) {
+	for index := range variations {
+		variation := &variations[index]
+		matched := true
+		for key, wanted := range variation.Values {
+			parameter, exists := parameters[key]
+			if !exists || parameter.Value != wanted {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return variation, true
+		}
+	}
+	return nil, false
 }
 
 func ratioQuantity(numerator, denominator int64, multiplier int64) (Quantity, error) {

@@ -35,21 +35,26 @@ const selectedTier = computed(() => {
   for (const tier of props.pricingRule.tiers) if (Number(tier.minimumQuantity) <= selectedQuantity.value) selected = tier
   return selected
 })
-const selectedVariationPrice = computed(() => {
-  if (props.pricingRule.type !== 'variation') return 0
-  const groups = props.form.parameters.filter((item) => item.type === 'choice' && item.materialSource && !item.materialSource.selectMaterial)
-  const selected = Object.fromEntries(groups.map((group) => [group.key, group.defaultValue]))
-  if (!groups.length || groups.some((group) => !selected[group.key])) return 0
-  const variant = props.form.materialVariants.find((item) => item.active !== false && Object.keys(selected).length === Object.keys(item.values).length && Object.keys(selected).every((key) => item.values[key] === selected[key]))
-  return variant?.sellingPriceRial || 0
+const selectedVariation = computed(() => {
+  const selected = Object.fromEntries(props.form.parameters.map((parameter) => [parameter.key, parameter.defaultValue || '']))
+  return props.pricingRule.variations.find((variation) => variation.active !== false && Object.entries(variation.values).every(([key, value]) => selected[key] === value))
 })
-const selectedSellingPriceReady = computed(() => props.pricingRule.type !== 'variation' || selectedVariationPrice.value > 0)
+const selectedVariationPrice = computed(() => {
+	if (props.pricingRule.type === 'variation') return selectedVariation.value?.priceRial || 0
+	if (props.pricingRule.type === 'quantity-tiers' && selectedVariation.value) {
+		let selected = selectedVariation.value.tiers[0]
+		for (const tier of selectedVariation.value.tiers) if (Number(tier.minimumQuantity) <= selectedQuantity.value) selected = tier
+		return selected?.priceRial || 0
+	}
+	return 0
+})
+const selectedSellingPriceReady = computed(() => (props.pricingRule.type !== 'variation' && !(props.pricingRule.type === 'quantity-tiers' && props.pricingRule.variations.length > 0)) || selectedVariationPrice.value > 0)
 const sellingPrice = computed(() => {
   switch (props.pricingRule.type) {
     case 'markup': return props.estimatedCostRial + markupAmount.value
     case 'fixed-margin': return props.estimatedCostRial + props.pricingRule.fixedMarginRial
     case 'fixed': return props.pricingRule.fixedPriceRial
-    case 'quantity-tiers': return selectedTier.value?.priceRial || 0
+    case 'quantity-tiers': return props.pricingRule.variations.length ? selectedVariationPrice.value : selectedTier.value?.priceRial || 0
     case 'variation': return selectedVariationPrice.value
     case 'per-unit': return Math.ceil(selectedQuantity.value * props.pricingRule.perUnitRateRial)
     default: return 0

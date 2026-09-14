@@ -402,3 +402,31 @@ func TestPricingRuleAndUsageQuantityRoundTripAfterV4Migration(t *testing.T) {
 		t.Fatalf("usage quantities lost: %+v", got.Components[0])
 	}
 }
+
+func TestPricingVariationsRoundTrip(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "pricing-variations.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := domain.NewService("SVC-pricing-variations", domain.ServiceDraft{
+		Name:        "Variation pricing",
+		Parameters:  []domain.ServiceParameterDraft{{ID: "P-quantity", Key: "quantity", Label: "Quantity", Type: domain.ParameterInteger}, {ID: "P-machine", Key: "machine", Label: "Machine", Type: domain.ParameterMachineReference}},
+		PricingRule: &domain.ServicePricingRuleDraft{Type: domain.PricingTiers, ParameterKey: "quantity", Variations: []domain.ServicePricingVariationDraft{{ID: "VAR-1", Values: map[string]string{"machine": "M-1"}, Position: 0, Active: true, Tiers: []domain.ServicePricingTierDraft{{MinimumQuantity: 0, PriceRial: 100}, {MinimumQuantity: 10 * domain.QuantityScale, PriceRial: 80}}}}},
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveServiceDefinition(context.Background(), service); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.GetService(context.Background(), service.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	variations := got.PricingRule.Variations
+	if len(variations) != 1 || variations[0].Values["machine"] != "M-1" || len(variations[0].Tiers) != 2 || variations[0].Tiers[1].PriceRial != 80 {
+		t.Fatalf("pricing variations did not round-trip: %+v", variations)
+	}
+}

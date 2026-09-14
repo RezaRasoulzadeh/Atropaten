@@ -2703,6 +2703,46 @@ export namespace main {
 	        this.sellingPriceOverrideRial = source["sellingPriceOverrideRial"];
 	    }
 	}
+	export class PricingVariationDTO {
+	    id: string;
+	    values: Record<string, string>;
+	    priceRial: number;
+	    tiers: PricingTierDTO[];
+	    position: number;
+	    active: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new PricingVariationDTO(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.values = source["values"];
+	        this.priceRial = source["priceRial"];
+	        this.tiers = this.convertValues(source["tiers"], PricingTierDTO);
+	        this.position = source["position"];
+	        this.active = source["active"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class PricingTierDTO {
 	    position: number;
 	    minimumQuantity: string;
@@ -2728,6 +2768,7 @@ export namespace main {
 	    perUnitRateRial: number;
 	    parameterKey: string;
 	    tiers: PricingTierDTO[];
+	    variations: PricingVariationDTO[];
 	
 	    static createFrom(source: any = {}) {
 	        return new PricingRuleDTO(source);
@@ -2743,6 +2784,47 @@ export namespace main {
 	        this.perUnitRateRial = source["perUnitRateRial"];
 	        this.parameterKey = source["parameterKey"];
 	        this.tiers = this.convertValues(source["tiers"], PricingTierDTO);
+	        this.variations = this.convertValues(source["variations"], PricingVariationDTO);
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class PricingVariationInput {
+	    id: string;
+	    values: Record<string, string>;
+	    priceRial: number;
+	    tiers: PricingTierInput[];
+	    position: number;
+	    active: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new PricingVariationInput(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.values = source["values"];
+	        this.priceRial = source["priceRial"];
+	        this.tiers = this.convertValues(source["tiers"], PricingTierInput);
+	        this.position = source["position"];
+	        this.active = source["active"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -2788,6 +2870,7 @@ export namespace main {
 	    perUnitRateRial: number;
 	    parameterKey: string;
 	    tiers: PricingTierInput[];
+	    variations: PricingVariationInput[];
 	
 	    static createFrom(source: any = {}) {
 	        return new PricingRuleInput(source);
@@ -2803,6 +2886,7 @@ export namespace main {
 	        this.perUnitRateRial = source["perUnitRateRial"];
 	        this.parameterKey = source["parameterKey"];
 	        this.tiers = this.convertValues(source["tiers"], PricingTierInput);
+	        this.variations = this.convertValues(source["variations"], PricingVariationInput);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -2825,6 +2909,8 @@ export namespace main {
 	}
 	
 	
+
+
 	export class PrintAllocationDTO {
 	    reference: string;
 	    targetType: string;

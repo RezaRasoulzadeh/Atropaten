@@ -931,6 +931,37 @@ var migrations = []migration{{
 		version: 40,
 		sql:     `ALTER TABLE service_parameter_material_sources ADD COLUMN exposed_attribute_keys_json TEXT NOT NULL DEFAULT '[]';`,
 	},
+	{
+		version: 41,
+		sql: `CREATE TABLE service_pricing_rules_backup AS SELECT id, service_id, rule_type, fixed_price_rial, markup_percentage_units, fixed_margin_rial, per_unit_rate_rial, parameter_key, created_at, updated_at FROM service_pricing_rules;
+		CREATE TABLE service_pricing_tiers_backup AS SELECT rule_id, display_order, minimum_quantity_units, price_rial FROM service_pricing_tiers;
+		DROP TABLE service_pricing_tiers;
+		DROP TABLE service_pricing_rules;
+		CREATE TABLE service_pricing_rules (
+			id TEXT PRIMARY KEY,
+			service_id TEXT NOT NULL UNIQUE REFERENCES services(id) ON DELETE CASCADE,
+			rule_type TEXT NOT NULL CHECK(rule_type IN ('fixed', 'markup', 'fixed-margin', 'per-unit', 'quantity-tiers', 'variation', 'manual')),
+			fixed_price_rial INTEGER NOT NULL DEFAULT 0 CHECK(fixed_price_rial >= 0),
+			markup_percentage_units INTEGER NOT NULL DEFAULT 0 CHECK(markup_percentage_units >= 0),
+			fixed_margin_rial INTEGER NOT NULL DEFAULT 0 CHECK(fixed_margin_rial >= 0),
+			per_unit_rate_rial INTEGER NOT NULL DEFAULT 0 CHECK(per_unit_rate_rial >= 0),
+			parameter_key TEXT NOT NULL DEFAULT '',
+			variations_json TEXT NOT NULL DEFAULT '[]',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		);
+		INSERT INTO service_pricing_rules SELECT id, service_id, rule_type, fixed_price_rial, markup_percentage_units, fixed_margin_rial, per_unit_rate_rial, parameter_key, '[]', created_at, updated_at FROM service_pricing_rules_backup;
+		CREATE TABLE service_pricing_tiers (
+			rule_id TEXT NOT NULL REFERENCES service_pricing_rules(id) ON DELETE CASCADE,
+			display_order INTEGER NOT NULL CHECK(display_order >= 0),
+			minimum_quantity_units INTEGER NOT NULL CHECK(minimum_quantity_units >= 0),
+			price_rial INTEGER NOT NULL CHECK(price_rial >= 0),
+			PRIMARY KEY(rule_id, display_order)
+		);
+		INSERT INTO service_pricing_tiers SELECT rule_id, display_order, minimum_quantity_units, price_rial FROM service_pricing_tiers_backup;
+		DROP TABLE service_pricing_tiers_backup;
+		DROP TABLE service_pricing_rules_backup;`,
+	},
 }
 
 func seedPredefinedParameters(ctx context.Context, tx *sql.Tx) error {
@@ -2048,7 +2079,11 @@ func (s *Store) SaveServiceDefinition(ctx context.Context, service domain.Servic
 	}
 	if service.PricingRule != nil {
 		rule := service.PricingRule
-		if _, err := tx.ExecContext(ctx, `INSERT INTO service_pricing_rules (id, service_id, rule_type, fixed_price_rial, markup_percentage_units, fixed_margin_rial, per_unit_rate_rial, parameter_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, rule.ID, service.ID, string(rule.Type), rule.FixedPriceRial, int64(rule.MarkupPercentage), rule.FixedMarginRial, rule.PerUnitRateRial, rule.ParameterKey, rule.CreatedAt.UTC().Format(time.RFC3339Nano), rule.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+		variationsJSON, err := json.Marshal(rule.Variations)
+		if err != nil {
+			return rollback(fmt.Errorf("encode service pricing variations: %w", err))
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO service_pricing_rules (id, service_id, rule_type, fixed_price_rial, markup_percentage_units, fixed_margin_rial, per_unit_rate_rial, parameter_key, variations_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, rule.ID, service.ID, string(rule.Type), rule.FixedPriceRial, int64(rule.MarkupPercentage), rule.FixedMarginRial, rule.PerUnitRateRial, rule.ParameterKey, string(variationsJSON), rule.CreatedAt.UTC().Format(time.RFC3339Nano), rule.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
 			return rollback(fmt.Errorf("insert service pricing rule: %w", err))
 		}
 		for _, tier := range rule.Tiers {
@@ -2424,8 +2459,9 @@ func scanComponent(row scanner) (domain.ServiceCostComponent, error) {
 func (s *Store) loadPricingRule(ctx context.Context, serviceID string) (*domain.ServicePricingRule, error) {
 	var rule domain.ServicePricingRule
 	var ruleType, created, updated string
+	var variationsJSON string
 	var markup int64
-	err := s.db.QueryRowContext(ctx, `SELECT id, service_id, rule_type, fixed_price_rial, markup_percentage_units, fixed_margin_rial, per_unit_rate_rial, parameter_key, created_at, updated_at FROM service_pricing_rules WHERE service_id = ?`, serviceID).Scan(&rule.ID, &rule.ServiceID, &ruleType, &rule.FixedPriceRial, &markup, &rule.FixedMarginRial, &rule.PerUnitRateRial, &rule.ParameterKey, &created, &updated)
+	err := s.db.QueryRowContext(ctx, `SELECT id, service_id, rule_type, fixed_price_rial, markup_percentage_units, fixed_margin_rial, per_unit_rate_rial, parameter_key, variations_json, created_at, updated_at FROM service_pricing_rules WHERE service_id = ?`, serviceID).Scan(&rule.ID, &rule.ServiceID, &ruleType, &rule.FixedPriceRial, &markup, &rule.FixedMarginRial, &rule.PerUnitRateRial, &rule.ParameterKey, &variationsJSON, &created, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -2434,6 +2470,11 @@ func (s *Store) loadPricingRule(ctx context.Context, serviceID string) (*domain.
 	}
 	rule.Type = domain.PricingRuleType(ruleType)
 	rule.MarkupPercentage = domain.Quantity(markup)
+	if strings.TrimSpace(variationsJSON) != "" {
+		if err := json.Unmarshal([]byte(variationsJSON), &rule.Variations); err != nil {
+			return nil, fmt.Errorf("decode pricing variations: %w", err)
+		}
+	}
 	rule.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
 	if err != nil {
 		return nil, fmt.Errorf("parse pricing rule created timestamp: %w", err)

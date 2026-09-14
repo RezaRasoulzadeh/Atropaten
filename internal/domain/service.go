@@ -206,6 +206,7 @@ type ServicePricingRule struct {
 	PerUnitRateRial  int64
 	ParameterKey     string
 	Tiers            []ServicePricingTier
+	Variations       []ServicePricingVariation
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }
@@ -219,6 +220,7 @@ type ServicePricingRuleDraft struct {
 	PerUnitRateRial  int64
 	ParameterKey     string
 	Tiers            []ServicePricingTierDraft
+	Variations       []ServicePricingVariationDraft
 }
 
 type ServicePricingTier struct {
@@ -231,6 +233,28 @@ type ServicePricingTierDraft struct {
 	Position        int
 	MinimumQuantity Quantity
 	PriceRial       int64
+}
+
+// ServicePricingVariation is a selling-price row for one combination of
+// customer-facing options (for example paper size + paper type + machine).
+// Quantity-tier rules keep their tier prices inside the row so every
+// combination can have its own quantity curve.
+type ServicePricingVariation struct {
+	ID        string
+	Values    map[string]string
+	PriceRial int64
+	Tiers     []ServicePricingTier
+	Position  int
+	Active    bool
+}
+
+type ServicePricingVariationDraft struct {
+	ID        string
+	Values    map[string]string
+	PriceRial int64
+	Tiers     []ServicePricingTierDraft
+	Position  int
+	Active    bool
 }
 
 type ServiceParameterDraft struct {
@@ -488,13 +512,13 @@ func (s Service) Validate() error {
 		if err := s.PricingRule.Validate(s.Parameters); err != nil {
 			return fmt.Errorf("pricing rule: %w", err)
 		}
-		if s.PricingRule.Type == PricingVariation {
+		if s.PricingRule.Type == PricingVariation && len(s.PricingRule.Variations) == 0 {
 			if len(s.MaterialVariants) == 0 {
-				return validationError("pricingRule", "variation pricing requires material variations")
+				return validationError("pricingRule", "variation pricing requires pricing variations")
 			}
 			for index, variant := range s.MaterialVariants {
 				if variant.Active && variant.SellingPriceRial <= 0 {
-					return validationError(fmt.Sprintf("materialVariants[%d].sellingPriceRial", index), "must be greater than zero for variation pricing")
+					return validationError(fmt.Sprintf("materialVariants[%d].sellingPriceRial", index), "must be greater than zero for legacy variation pricing")
 				}
 			}
 		}
@@ -697,32 +721,102 @@ func (r ServicePricingRule) Validate(parameters []ServiceParameter) error {
 		parameterTypes[parameter.Key] = parameter.Type
 	}
 	switch r.Type {
-	case PricingFixed, PricingMarkup, PricingFixedMargin, PricingVariation, PricingManual:
+	case PricingFixed, PricingMarkup, PricingFixedMargin, PricingManual:
+	case PricingVariation:
+		if len(r.Variations) > 0 {
+			if err := validatePricingVariations(r.Variations, parameterTypes, false); err != nil {
+				return err
+			}
+		}
 	case PricingPerUnit:
 		return validateNumericPricingParameter(r.ParameterKey, parameterTypes)
 	case PricingTiers:
 		if err := validateNumericPricingParameter(r.ParameterKey, parameterTypes); err != nil {
 			return err
 		}
-		if len(r.Tiers) == 0 {
-			return validationError("tiers", "must contain at least one tier")
-		}
-		for index, tier := range r.Tiers {
-			if tier.Position != index {
-				return validationError("tiers.position", "must be deterministic")
+		if len(r.Variations) > 0 {
+			if err := validatePricingVariations(r.Variations, parameterTypes, true); err != nil {
+				return err
 			}
-			if tier.MinimumQuantity < 0 || tier.PriceRial < 0 {
-				return validationError("tiers", "cannot contain negative values")
+		} else {
+			if err := validatePricingTiers(r.Tiers, "tiers"); err != nil {
+				return err
 			}
-			if index > 0 && tier.MinimumQuantity <= r.Tiers[index-1].MinimumQuantity {
-				return validationError("tiers", "must be ordered by increasing minimum quantity")
-			}
-		}
-		if r.Tiers[0].MinimumQuantity != 0 {
-			return validationError("tiers[0].minimumQuantity", "must be zero")
 		}
 	default:
 		return validationError("type", "is not supported")
+	}
+	return nil
+}
+
+func validatePricingVariations(variations []ServicePricingVariation, parameterTypes map[string]ParameterType, quantityTiers bool) error {
+	if len(variations) == 0 {
+		return validationError("variations", "must contain at least one variation")
+	}
+	seenIDs := make(map[string]struct{}, len(variations))
+	seenValues := make(map[string]struct{}, len(variations))
+	for index, variation := range variations {
+		if strings.TrimSpace(variation.ID) == "" {
+			return validationError(fmt.Sprintf("variations[%d].id", index), "is required")
+		}
+		if variation.Position != index {
+			return validationError("variations.position", "must be deterministic")
+		}
+		if _, exists := seenIDs[variation.ID]; exists {
+			return validationError("variations.id", "must be unique")
+		}
+		seenIDs[variation.ID] = struct{}{}
+		if len(variation.Values) == 0 {
+			return validationError(fmt.Sprintf("variations[%d].values", index), "must contain at least one option")
+		}
+		parts := make([]string, 0, len(variation.Values))
+		for key, value := range variation.Values {
+			if _, exists := parameterTypes[key]; !exists {
+				return validationError(fmt.Sprintf("variations[%d].values", index), "must reference service parameters")
+			}
+			if strings.TrimSpace(value) == "" {
+				return validationError(fmt.Sprintf("variations[%d].values", index), "cannot contain empty values")
+			}
+			parts = append(parts, key+"="+value)
+		}
+		sort.Strings(parts)
+		key := strings.Join(parts, "\x1f")
+		if _, exists := seenValues[key]; exists {
+			return validationError("variations", "must not contain duplicate option combinations")
+		}
+		seenValues[key] = struct{}{}
+		if !quantityTiers && variation.PriceRial <= 0 {
+			return validationError(fmt.Sprintf("variations[%d].priceRial", index), "must be greater than zero")
+		}
+		if variation.PriceRial < 0 {
+			return validationError(fmt.Sprintf("variations[%d].priceRial", index), "cannot be negative")
+		}
+		if quantityTiers {
+			if err := validatePricingTiers(variation.Tiers, fmt.Sprintf("variations[%d].tiers", index)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validatePricingTiers(tiers []ServicePricingTier, field string) error {
+	if len(tiers) == 0 {
+		return validationError(field, "must contain at least one tier")
+	}
+	for index, tier := range tiers {
+		if tier.Position != index {
+			return validationError(field+".position", "must be deterministic")
+		}
+		if tier.MinimumQuantity < 0 || tier.PriceRial < 0 {
+			return validationError(field, "cannot contain negative values")
+		}
+		if index > 0 && tier.MinimumQuantity <= tiers[index-1].MinimumQuantity {
+			return validationError(field, "must be ordered by increasing minimum quantity")
+		}
+	}
+	if tiers[0].MinimumQuantity != 0 {
+		return validationError(field+"[0].minimumQuantity", "must be zero")
 	}
 	return nil
 }
@@ -940,7 +1034,19 @@ func pricingRuleFromDraft(serviceID string, draft ServicePricingRuleDraft, now t
 	if id == "" {
 		id = "pricing-" + serviceID
 	}
-	return ServicePricingRule{ID: id, ServiceID: serviceID, Type: PricingRuleType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), FixedPriceRial: draft.FixedPriceRial, MarkupPercentage: draft.MarkupPercentage, FixedMarginRial: draft.FixedMarginRial, PerUnitRateRial: draft.PerUnitRateRial, ParameterKey: strings.TrimSpace(draft.ParameterKey), Tiers: tiers, CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
+	variations := make([]ServicePricingVariation, len(draft.Variations))
+	for index, variation := range draft.Variations {
+		variationTiers := make([]ServicePricingTier, len(variation.Tiers))
+		for tierIndex, tier := range variation.Tiers {
+			variationTiers[tierIndex] = ServicePricingTier{Position: tierIndex, MinimumQuantity: tier.MinimumQuantity, PriceRial: tier.PriceRial}
+		}
+		values := make(map[string]string, len(variation.Values))
+		for key, value := range variation.Values {
+			values[key] = value
+		}
+		variations[index] = ServicePricingVariation{ID: variation.ID, Values: values, PriceRial: variation.PriceRial, Tiers: variationTiers, Position: index, Active: variation.Active}
+	}
+	return ServicePricingRule{ID: id, ServiceID: serviceID, Type: PricingRuleType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), FixedPriceRial: draft.FixedPriceRial, MarkupPercentage: draft.MarkupPercentage, FixedMarginRial: draft.FixedMarginRial, PerUnitRateRial: draft.PerUnitRateRial, ParameterKey: strings.TrimSpace(draft.ParameterKey), Tiers: tiers, Variations: variations, CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
 }
 
 func validateNumericBounds(minimum, maximum *Quantity) error {

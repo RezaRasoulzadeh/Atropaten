@@ -59,12 +59,21 @@ function formFromService(service: ServiceRecord): ServiceForm {
         perUnitRateRial: sourceRule.perUnitRateRial || 0,
         perUnitRateInput: '',
         parameterKey: sourceRule.parameterKey || '',
-        tiers: (sourceRule.tiers || []).map((tier) => ({
+          tiers: (sourceRule.tiers || []).map((tier) => ({
           position: tier.position,
           minimumQuantity: tier.minimumQuantity || '0',
           priceRial: tier.priceRial || 0,
-          priceInput: '',
-        })),
+            priceInput: '',
+          })),
+          variations: (sourceRule.variations || []).map((variation) => ({
+            id: variation.id,
+            values: { ...(variation.values || {}) },
+            priceRial: variation.priceRial || 0,
+            priceInput: variation.priceRial ? String(variation.priceRial) : '',
+            position: variation.position,
+            active: variation.active !== false,
+            tiers: (variation.tiers || []).map((tier) => ({ position: tier.position, minimumQuantity: tier.minimumQuantity || '0', priceRial: tier.priceRial || 0, priceInput: String(tier.priceRial || '') })),
+          })),
       }
     : {
         id: '',
@@ -78,6 +87,7 @@ function formFromService(service: ServiceRecord): ServiceForm {
         perUnitRateInput: '',
         parameterKey: '',
         tiers: [],
+        variations: [],
       }
 
   return {

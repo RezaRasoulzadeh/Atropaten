@@ -83,12 +83,22 @@ type PricingRuleInput struct {
 	PerUnitRateRial  int64
 	ParameterKey     string
 	Tiers            []PricingTierInput
+	Variations       []PricingVariationInput
 }
 
 type PricingTierInput struct {
 	Position        int
 	MinimumQuantity string
 	PriceRial       int64
+}
+
+type PricingVariationInput struct {
+	ID        string
+	Values    map[string]string
+	PriceRial int64
+	Tiers     []PricingTierInput
+	Position  int
+	Active    bool
 }
 
 type ParameterView struct {
@@ -156,12 +166,22 @@ type PricingRuleView struct {
 	PerUnitRateRial  int64
 	ParameterKey     string
 	Tiers            []PricingTierView
+	Variations       []PricingVariationView
 }
 
 type PricingTierView struct {
 	Position        int
 	MinimumQuantity string
 	PriceRial       int64
+}
+
+type PricingVariationView struct {
+	ID        string
+	Values    map[string]string
+	PriceRial int64
+	Tiers     []PricingTierView
+	Position  int
+	Active    bool
 }
 
 type ServicesService struct {
@@ -842,7 +862,23 @@ func (s *ServicesService) parsePricingRule(input *PricingRuleInput, serviceID st
 		}
 		tiers = append(tiers, domain.ServicePricingTierDraft{Position: index, MinimumQuantity: minimum, PriceRial: tier.PriceRial})
 	}
-	return &domain.ServicePricingRuleDraft{ID: id, Type: domain.PricingRuleType(strings.ToLower(strings.TrimSpace(input.Type))), FixedPriceRial: input.FixedPriceRial, MarkupPercentage: markup, FixedMarginRial: input.FixedMarginRial, PerUnitRateRial: input.PerUnitRateRial, ParameterKey: input.ParameterKey, Tiers: tiers}, nil
+	variations := make([]domain.ServicePricingVariationDraft, 0, len(input.Variations))
+	for index, variation := range input.Variations {
+		variationTiers := make([]domain.ServicePricingTierDraft, 0, len(variation.Tiers))
+		for tierIndex, tier := range variation.Tiers {
+			minimum, err := domain.ParseQuantity(strings.TrimSpace(tier.MinimumQuantity))
+			if err != nil {
+				return nil, domain.ValidationError{Field: fmt.Sprintf("variations[%d].tiers[%d].minimumQuantity", index, tierIndex), Message: "must be a non-negative fixed-scale quantity"}
+			}
+			variationTiers = append(variationTiers, domain.ServicePricingTierDraft{Position: tierIndex, MinimumQuantity: minimum, PriceRial: tier.PriceRial})
+		}
+		values := make(map[string]string, len(variation.Values))
+		for key, value := range variation.Values {
+			values[key] = value
+		}
+		variations = append(variations, domain.ServicePricingVariationDraft{ID: variation.ID, Values: values, PriceRial: variation.PriceRial, Tiers: variationTiers, Position: index, Active: variation.Active})
+	}
+	return &domain.ServicePricingRuleDraft{ID: id, Type: domain.PricingRuleType(strings.ToLower(strings.TrimSpace(input.Type))), FixedPriceRial: input.FixedPriceRial, MarkupPercentage: markup, FixedMarginRial: input.FixedMarginRial, PerUnitRateRial: input.PerUnitRateRial, ParameterKey: input.ParameterKey, Tiers: tiers, Variations: variations}, nil
 }
 
 func componentFromDraft(serviceID string, draft domain.ServiceCostComponentDraft, position int, now time.Time) domain.ServiceCostComponent {
@@ -1000,6 +1036,13 @@ func serviceView(service domain.Service) ServiceView {
 		pricingRule = &PricingRuleView{ID: rule.ID, Type: string(rule.Type), FixedPriceRial: rule.FixedPriceRial, MarkupPercentage: rule.MarkupPercentage.String(), FixedMarginRial: rule.FixedMarginRial, PerUnitRateRial: rule.PerUnitRateRial, ParameterKey: rule.ParameterKey}
 		for _, tier := range rule.Tiers {
 			pricingRule.Tiers = append(pricingRule.Tiers, PricingTierView{Position: tier.Position, MinimumQuantity: tier.MinimumQuantity.String(), PriceRial: tier.PriceRial})
+		}
+		for _, variation := range rule.Variations {
+			item := PricingVariationView{ID: variation.ID, Values: variation.Values, PriceRial: variation.PriceRial, Position: variation.Position, Active: variation.Active}
+			for _, tier := range variation.Tiers {
+				item.Tiers = append(item.Tiers, PricingTierView{Position: tier.Position, MinimumQuantity: tier.MinimumQuantity.String(), PriceRial: tier.PriceRial})
+			}
+			pricingRule.Variations = append(pricingRule.Variations, item)
 		}
 	}
 	variants := make([]domain.ServiceMaterialVariant, 0, len(service.MaterialVariants))

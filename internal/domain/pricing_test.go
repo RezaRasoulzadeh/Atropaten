@@ -113,6 +113,55 @@ func TestEvaluatePricingUsesSelectedMaterialVariationPrice(t *testing.T) {
 	}
 }
 
+func TestEvaluatePricingUsesGenericMaterialMachineVariation(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := NewService("SVC-generic-variation", ServiceDraft{
+		Name: "Generic variation pricing",
+		Parameters: []ServiceParameterDraft{
+			{ID: "P-finish", Key: "finish", Label: "Finish", Type: ParameterChoice, Required: true, Options: []string{"matte", "gloss"}},
+			{ID: "P-machine", Key: "machine", Label: "Machine", Type: ParameterMachineReference, Required: true},
+		},
+		Components:  []ServiceCostComponentDraft{{ID: "C", Name: "Cost", Type: CostFixed, RateRial: 100, UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true}},
+		PricingRule: &ServicePricingRuleDraft{Type: PricingVariation, Variations: []ServicePricingVariationDraft{{ID: "VAR-gloss-press", Values: map[string]string{"finish": "gloss", "machine": "PRESS-2"}, PriceRial: 4321, Position: 0, Active: true}}},
+	}, now)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	result, err := EvaluatePricing(PricingInput{Service: service, Parameters: map[string]ResolvedParameter{
+		"finish":  {Key: "finish", Type: ParameterChoice, Value: "gloss"},
+		"machine": {Key: "machine", Type: ParameterMachineReference, Value: "PRESS-2", MachineID: "PRESS-2"},
+	}})
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if result.SuggestedSellingPriceRial != 5000 {
+		t.Fatalf("variation selling price = %d, want 5000 after rounding", result.SuggestedSellingPriceRial)
+	}
+}
+
+func TestEvaluatePricingUsesQuantityTierForSelectedVariation(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := NewService("SVC-tier-variation", ServiceDraft{
+		Name:        "Tier variation pricing",
+		Parameters:  []ServiceParameterDraft{{ID: "P-qty", Key: "quantity", Label: "Quantity", Type: ParameterInteger}, {ID: "P-machine", Key: "machine", Label: "Machine", Type: ParameterMachineReference}},
+		Components:  []ServiceCostComponentDraft{{ID: "C", Name: "Cost", Type: CostFixed, RateRial: 100, UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true}},
+		PricingRule: &ServicePricingRuleDraft{Type: PricingTiers, ParameterKey: "quantity", Variations: []ServicePricingVariationDraft{{ID: "VAR-press", Values: map[string]string{"machine": "PRESS-1"}, Position: 0, Active: true, Tiers: []ServicePricingTierDraft{{MinimumQuantity: 0, PriceRial: 120}, {MinimumQuantity: 10 * QuantityScale, PriceRial: 90}}}}},
+	}, now)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	result, err := EvaluatePricing(PricingInput{Service: service, Parameters: map[string]ResolvedParameter{
+		"quantity": {Key: "quantity", Type: ParameterInteger, Value: "12", Quantity: 12 * QuantityScale},
+		"machine":  {Key: "machine", Type: ParameterMachineReference, Value: "PRESS-1", MachineID: "PRESS-1"},
+	}})
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if result.SuggestedSellingPriceRial != 1000 {
+		t.Fatalf("tier variation selling price = %d, want 1000 after rounding", result.SuggestedSellingPriceRial)
+	}
+}
+
 func TestEvaluatePricingRoundsAutomaticSellingPriceUp(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	service, err := NewService("SVC-ceil", ServiceDraft{
