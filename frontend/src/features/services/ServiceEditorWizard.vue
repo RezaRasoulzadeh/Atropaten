@@ -265,7 +265,7 @@ watch(
         </section>
 
         <aside class="service-wizard-preview-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/35 p-4 xl:overflow-y-auto">
-        <ServiceOrderPreview v-if="activeStep === 2" :form="form" :materials="materials" :machines="machines" :active="active" />
+        <ServiceOrderPreview v-if="activeStep === 2" :form="form" :materials="materials" :machines="machines" :currency-unit="currencyUnit" :active="active" />
         <ServiceCostBreakdownPreview v-show="activeStep === 3" :form="form" :active="active" :components="form.components" :parameters="form.parameters" :materials="materials" :machines="machines" :services="services" :currency-unit="currencyUnit" @update:total="pricingCostEstimate = $event" @update:breakdown="pricingBreakdown = $event" />
         <ServicePricingPreview v-if="activeStep === 4" :form="form" :active="active" :pricing-rule="form.pricingRule" :parameters="form.parameters" :estimated-cost-rial="pricingCostEstimate" :breakdown="pricingBreakdown" :currency-unit="currencyUnit" />
         <ServiceTestPreview v-if="activeStep === 5" :form="form" :active="active" :parameters="form.parameters" :values="testValues" :materials="materials" :machines="machines" :result="testResult" :currency-unit="currencyUnit" @edit="goToStep(2)" />
