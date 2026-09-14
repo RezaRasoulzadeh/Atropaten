@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Calculator, CircleHelp, Percent } from 'lucide-vue-next'
+import type { MaterialRecord } from '../../api/materials'
+import type { MachineRecord } from '../../api/machines'
 import type { CurrencyUnit } from '../../utils/currency'
 import { formatMoney } from '../../utils/currency'
 import type { ParameterForm, PricingRuleForm, ServiceForm } from './types'
 import ServiceOverviewIdentity from './ServiceOverviewIdentity.vue'
 import ServiceOverviewSection from './ServiceOverviewSection.vue'
+import ServiceOrderPreview from './ServiceOrderPreview.vue'
 
 type BreakdownItem = { name: string; amount: number; detail: string; missing: boolean }
 
 const props = defineProps<{
   pricingRule: PricingRuleForm
   parameters: ParameterForm[]
+  materials: MaterialRecord[]
+  machines: MachineRecord[]
   estimatedCostRial: number
   breakdown: BreakdownItem[]
   currencyUnit: CurrencyUnit
@@ -63,6 +68,7 @@ const methodLabel = computed(() => ({ markup: 'Markup', 'fixed-margin': 'Fixed m
     <ServiceOverviewSection title="Pricing method" description="How the selling price is calculated.">
       <div class="flex items-start gap-3 text-sm"><span class="grid size-8 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><Percent :size="16" aria-hidden="true" /></span><p class="text-xs leading-5 text-base-content/60">{{ pricingRule.type === 'manual' ? 'Operators choose the final price for each order.' : `The ${methodLabel.toLowerCase()} is applied after the estimated cost is calculated.` }}</p></div>
     </ServiceOverviewSection>
+    <ServiceOrderPreview :form="form" :materials="materials" :machines="machines" :currency-unit="currencyUnit" :show-identity="false" :show-material-estimate="false" :active="active" />
     <div class="flex items-start gap-2 border-t border-base-300 pt-3 text-xs leading-5 text-base-content/65"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="15" aria-hidden="true" /><span>Try different parameter values in the Test step to see how the price changes.</span></div>
   </section>
 </template>

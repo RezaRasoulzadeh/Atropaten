@@ -13,6 +13,8 @@ const props = defineProps<{
   materials: MaterialRecord[]
   machines: MachineRecord[]
   currencyUnit?: CurrencyUnit
+  showIdentity?: boolean
+  showMaterialEstimate?: boolean
   active: boolean
 }>()
 
@@ -47,7 +49,7 @@ function valueLabel(parameter: ParameterForm) {
 
 <template>
   <div class="min-w-0 space-y-4">
-    <ServiceOverviewIdentity :form="form" :active="active" />
+    <ServiceOverviewIdentity v-if="showIdentity !== false" :form="form" :active="active" />
     <ServiceOverviewSection title="Order fields" description="Values customers will see when ordering this service.">
       <div v-if="form.parameters.length" class="divide-y divide-base-300/70">
         <div v-for="parameter in form.parameters" :key="parameter.id" class="flex min-w-0 items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
@@ -60,7 +62,7 @@ function valueLabel(parameter: ParameterForm) {
       </div>
       <p v-else class="text-sm leading-5 text-base-content/60">Choose a parameter template to preview the order form.</p>
     </ServiceOverviewSection>
-    <ServiceOverviewSection v-if="materialGroups.length" title="Estimated material cost" description="Based on the selected default in each material group.">
+    <ServiceOverviewSection v-if="showMaterialEstimate !== false && materialGroups.length" title="Estimated material cost" description="Based on the selected default in each material group.">
       <div v-if="selectedDefaultMaterial" class="flex min-w-0 items-center justify-between gap-3">
         <div class="min-w-0"><strong class="block truncate text-sm">{{ selectedDefaultMaterial.name }}</strong><small class="mt-1 block truncate text-xs text-base-content/55">Default material{{ selectedDefaultMaterial.sku ? ` · ${selectedDefaultMaterial.sku}` : '' }}</small></div>
         <strong class="shrink-0 text-sm tabular-nums">{{ formatMoney(selectedDefaultMaterialCost, currencyUnit || 'Rial') }}</strong>

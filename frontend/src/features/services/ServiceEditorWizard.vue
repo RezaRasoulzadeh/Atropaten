@@ -69,7 +69,7 @@ function submit() {
 
 function goToStep(number: number) {
   reconcileCostComponents(props.form.components, props.form.parameters)
-  if (number === 3) ensureSuggestedCostComponents(props.form.components, props.form.parameters)
+  if (number === 2 || number === 3) ensureSuggestedCostComponents(props.form.components, props.form.parameters)
   activeStep.value = number
 }
 function requestSave() {
@@ -166,6 +166,15 @@ watch(
     }
   },
   { immediate: true },
+)
+watch(
+  () => props.form.parameters,
+  () => {
+    if (activeStep.value < 2) return
+    const hasCostParameter = props.form.parameters.some((parameter) => parameter.type === 'material-reference' || parameter.type === 'machine-reference' || (parameter.type === 'choice' && Boolean(parameter.materialSource)))
+    if (hasCostParameter) ensureSuggestedCostComponents(props.form.components, props.form.parameters)
+  },
+  { deep: true },
 )
 </script>
 
@@ -265,9 +274,9 @@ watch(
         </section>
 
         <aside class="service-wizard-preview-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/35 p-4 xl:overflow-y-auto">
-        <ServiceOrderPreview v-if="activeStep === 2" :form="form" :materials="materials" :machines="machines" :currency-unit="currencyUnit" :active="active" />
-        <ServiceCostBreakdownPreview v-show="activeStep === 3" :form="form" :active="active" :components="form.components" :parameters="form.parameters" :materials="materials" :machines="machines" :services="services" :currency-unit="currencyUnit" @update:total="pricingCostEstimate = $event" @update:breakdown="pricingBreakdown = $event" />
-        <ServicePricingPreview v-if="activeStep === 4" :form="form" :active="active" :pricing-rule="form.pricingRule" :parameters="form.parameters" :estimated-cost-rial="pricingCostEstimate" :breakdown="pricingBreakdown" :currency-unit="currencyUnit" />
+        <ServiceCostBreakdownPreview v-if="activeStep === 2 || activeStep === 3" :form="form" :active="active" :components="form.components" :parameters="form.parameters" :materials="materials" :machines="machines" :services="services" :currency-unit="currencyUnit" @update:total="pricingCostEstimate = $event" @update:breakdown="pricingBreakdown = $event" />
+        <ServiceOrderPreview v-if="activeStep === 2 || activeStep === 3" :form="form" :materials="materials" :machines="machines" :currency-unit="currencyUnit" :show-identity="false" :show-material-estimate="false" :active="active" />
+        <ServicePricingPreview v-if="activeStep === 4" :form="form" :active="active" :pricing-rule="form.pricingRule" :parameters="form.parameters" :materials="materials" :machines="machines" :estimated-cost-rial="pricingCostEstimate" :breakdown="pricingBreakdown" :currency-unit="currencyUnit" />
         <ServiceTestPreview v-if="activeStep === 5" :form="form" :active="active" :parameters="form.parameters" :values="testValues" :materials="materials" :machines="machines" :result="testResult" :currency-unit="currencyUnit" @edit="goToStep(2)" />
         <template v-if="activeStep === 1">
         <div class="space-y-4">
