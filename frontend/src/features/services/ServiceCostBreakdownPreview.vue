@@ -44,8 +44,17 @@ function materialFor(component: ComponentForm, parameters = props.parameters) {
   if (component.type !== 'material') return null
 	if (component.usageMode === 'parameter') {
 		const parameter = parameters.find((item) => item.key === component.parameterKey)
-		if (parameter?.type !== 'material-reference' && !parameter?.materialSource?.selectMaterial) return null
-		return props.materials.find((material) => material.id === parameter.defaultValue && material.active) || null
+		if (parameter?.type === 'material-reference' || parameter?.materialSource?.selectMaterial) {
+			return props.materials.find((material) => material.id === parameter.defaultValue && material.active) || null
+		}
+		if (parameter?.materialSource) {
+			const groups = parameters.filter((item) => item.type === 'choice' && item.materialSource)
+			const values = Object.fromEntries(groups.map((group) => [group.key, group.defaultValue]))
+			if (groups.some((group) => !group.defaultValue)) return null
+			const variant = props.form.materialVariants.find((item) => Object.keys(values).length === Object.keys(item.values).length && Object.keys(values).every((key) => item.values[key] === values[key] && item.active !== false))
+			return props.materials.find((material) => material.id === variant?.materialId && material.active) || null
+		}
+		return null
   }
   return props.materials.find((material) => material.id === component.referenceId) || null
 }
@@ -63,7 +72,7 @@ function machineFor(component: ComponentForm, parameters = props.parameters) {
 function machineRateFor(component: ComponentForm, parameters = props.parameters) {
   const machine = machineFor(component, parameters)
   if (!machine) return null
-  const rates = machine.rates || []
+  const rates = machine.rates?.length ? machine.rates : [{ id: 'default', name: 'Standard', selectorValue: '', selectorPredefinedKey: '', rateRial: machine.rateRial, active: true }]
   if (component.rateId) return rates.find((rate) => rate.id === component.rateId && rate.active) || null
   if (component.rateParameterKey) {
     const parameter = parameters.find((item) => item.key === component.rateParameterKey)
@@ -136,6 +145,13 @@ const rows = computed<BreakdownRow[]>(() => {
 
 const subtotal = computed(() => rows.value.filter((row) => row.component.type !== 'overhead' && row.component.type !== 'waste').reduce((total, row) => total + row.amount, 0))
 const total = computed(() => rows.value.reduce((sum, row) => sum + row.amount, 0))
+const defaultMachineSummary = computed(() => props.components
+  .filter((component) => component.enabled && component.type === 'machine')
+  .map((component) => {
+    const machine = machineFor(component)
+    const rate = machine ? machineRateFor(component) : null
+    return `${machine?.name || 'Machine not set'}${rate?.name ? ` · ${rate.name}` : ''}`
+  }))
 watch(total, (value) => emit('update:total', Math.round(value)), { immediate: true })
 watch(rows, (value) => emit('update:breakdown', value.map((row) => ({ name: row.component.name || 'Cost component', amount: Math.round(row.amount), detail: row.detail, missing: row.missing }))), { immediate: true })
 </script>
@@ -144,7 +160,8 @@ watch(rows, (value) => emit('update:breakdown', value.map((row) => ({ name: row.
   <section class="min-w-0 space-y-4" aria-label="Cost breakdown preview">
     <ServiceOverviewIdentity :form="form" :active="active" />
 
-    <ServiceOverviewSection title="Cost estimate" description="Current cost per service unit from the configured components.">
+    <ServiceOverviewSection title="Cost estimate" description="Current cost per service unit from the configured components and their selected defaults.">
+      <div v-if="defaultMachineSummary.length" class="mb-3 rounded-box border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs leading-5 text-base-content/70"><strong class="font-medium text-primary">Defaults used for machine estimate:</strong> {{ defaultMachineSummary.join(' · ') }}</div>
       <div v-if="rows.length" class="space-y-2">
         <div class="divide-y divide-base-300/70">
           <div v-for="row in rows" :key="row.component.id" class="flex min-w-0 items-center gap-2 py-2.5 first:pt-0 last:pb-0">

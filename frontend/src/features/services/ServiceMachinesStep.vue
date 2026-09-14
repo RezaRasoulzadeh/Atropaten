@@ -3,35 +3,25 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { AlertTriangle, Check, ChevronRight, CircleHelp, Factory, Gauge, Plus, Settings2, Trash2 } from 'lucide-vue-next'
 import AppInput from '../../components/ui/AppInput.vue'
 import FormField from '../../components/ui/FormField.vue'
-import SelectField from '../../components/ui/SelectField.vue'
 import type { MachineRecord } from '../../api/machines'
-import type { MaterialRecord } from '../../api/materials'
-import type { ServiceRecord } from '../../api/services'
 import type { ComponentForm, ParameterForm } from './types'
-import { formatMoney, type CurrencyUnit } from '../../utils/currency'
-import ServiceCostEditor from './ServiceCostEditor.vue'
 
 const props = defineProps<{
   components: ComponentForm[]
   parameters: ParameterForm[]
   machines: MachineRecord[]
-  materials: MaterialRecord[]
-  services: ServiceRecord[]
-  currencyUnit: CurrencyUnit
   showErrors?: boolean
-  currentServiceId?: string
 }>()
 
 const selectedIndex = ref(0)
-const selectedSupportingIndex = ref(0)
 
 const activeMachines = computed(() => props.machines.filter((machine) => machine.active))
 const machineComponents = computed(() => props.components.filter((component) => component.type === 'machine'))
-const supportingComponents = computed(() => props.components.filter((component) => component.type !== 'machine'))
 const activeMachineComponent = computed(() => machineComponents.value[selectedIndex.value] || null)
 const activeMachineParameter = computed(() => activeMachineComponent.value ? props.parameters.find((parameter) => parameter.key === activeMachineComponent.value?.parameterKey) || null : null)
 const activeRateParameter = computed(() => activeMachineComponent.value?.rateParameterKey ? props.parameters.find((parameter) => parameter.key === activeMachineComponent.value?.rateParameterKey) || null : null)
-const activeSupportingComponent = computed(() => supportingComponents.value[selectedSupportingIndex.value] || null)
+const machineDefaultReady = computed(() => Boolean(activeMachineParameter.value && activeMachines.value.some((machine) => machine.id === activeMachineParameter.value?.defaultValue)))
+const rateDefaultReady = computed(() => !activeRateParameter.value || (Boolean(activeRateParameter.value.defaultValue) && activeRateParameter.value.options.includes(activeRateParameter.value.defaultValue)))
 
 type RateOption = { value: string; label: string; machineCount: number; rates: number }
 
@@ -75,7 +65,9 @@ const allRateOptions = computed(() => rateOptionsForMachines(activeMachines.valu
 function componentIncomplete(component: ComponentForm) {
   const machineParameter = machineParam(component)
   const rateParameter = component.rateParameterKey ? props.parameters.find((parameter) => parameter.key === component.rateParameterKey) : null
-  return !component.name.trim() || (component.usageMode === 'parameter' ? !machineParameter || machineParameter.type !== 'machine-reference' : !activeMachines.value.some((machine) => machine.id === component.referenceId)) || Boolean(component.rateParameterKey && (!rateParameter || rateParameter.type !== 'choice' || !rateParameter.options.length))
+  const machineDefaultReady = component.usageMode !== 'parameter' || Boolean(machineParameter && activeMachines.value.some((machine) => machine.id === machineParameter.defaultValue))
+  const rateDefaultReady = !rateParameter || (rateParameter.type === 'choice' && rateParameter.options.length > 0 && rateParameter.options.includes(rateParameter.defaultValue))
+  return !component.name.trim() || (component.usageMode === 'parameter' ? !machineParameter || machineParameter.type !== 'machine-reference' || !machineDefaultReady : !activeMachines.value.some((machine) => machine.id === component.referenceId)) || Boolean(component.rateParameterKey && (!rateParameter || !rateDefaultReady))
 }
 
 function groupTitle(component: ComponentForm) {
@@ -167,38 +159,16 @@ function updateRateOptions(parameter: ParameterForm, values: string[]) {
   if (!values.includes(parameter.defaultValue)) parameter.defaultValue = values[0] || ''
 }
 
+function updateRateDefault(parameter: ParameterForm, value: string) {
+  if (parameter.options.includes(value)) parameter.defaultValue = value
+}
+
 function selectMachine(index: number) {
   selectedIndex.value = index
 }
 
-function selectSupporting(index: number) {
-  selectedSupportingIndex.value = index
-}
-
-function addSupportingCost() {
-  props.components.push({ id: id('component'), name: '', type: 'fixed', referenceId: '', usageMode: 'fixed', parameterKey: '', rateId: '', rateParameterKey: '', usageQuantity: '1', multiplier: '1', rateRial: 0, rateInput: '', percentage: '', rateBasis: '', enabled: true, notes: '' })
-  selectedSupportingIndex.value = supportingComponents.value.length - 1
-}
-
-function removeSupportingCost() {
-  const component = activeSupportingComponent.value
-  if (!component) return
-  const index = props.components.indexOf(component)
-  if (index >= 0) props.components.splice(index, 1)
-  selectedSupportingIndex.value = Math.max(0, Math.min(selectedSupportingIndex.value, supportingComponents.value.length - 1))
-}
-
-function moveComponent(component: ComponentForm, direction: -1 | 1) {
-  const index = props.components.indexOf(component)
-  const target = index + direction
-  if (index < 0 || target < 0 || target >= props.components.length) return
-  props.components.splice(index, 1)
-  props.components.splice(target, 0, component)
-}
-
 watch(() => props.components.length, () => {
   if (selectedIndex.value >= machineComponents.value.length) selectedIndex.value = Math.max(0, machineComponents.value.length - 1)
-  if (selectedSupportingIndex.value >= supportingComponents.value.length) selectedSupportingIndex.value = Math.max(0, supportingComponents.value.length - 1)
 })
 
 normalizeMachineGroups()
@@ -221,14 +191,13 @@ watch(() => props.components, normalizeMachineGroups, { deep: true })
 
       <div v-if="activeMachineComponent && activeMachineParameter" class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-100 p-4 sm:p-5"><div class="flex flex-wrap items-start justify-between gap-3 border-b border-base-300 pb-4"><div class="min-w-0"><p class="text-xs font-semibold uppercase tracking-wide text-primary">Machine group</p><h3 class="mt-1 text-xl font-semibold">{{ activeMachineParameter.label || 'Untitled machine group' }}</h3><p class="mt-1 text-sm text-base-content/65">Set the order-facing machine choice and the rate behavior for this group.</p></div><button class="btn btn-outline btn-error btn-sm gap-2" type="button" @click="removeMachineGroup"><Trash2 :size="14" aria-hidden="true" />Remove group</button></div>
         <FormField class="gap-1"><span>Group title <em class="text-error">*</em></span><AppInput :model-value="activeMachineParameter.label" :data-machine-group-title="activeMachineParameter.id" class="input w-full min-w-0" :class="{ 'input-error': showErrors && !activeMachineParameter.label.trim() }" placeholder="Digital printer" @update:model-value="updateTitle(activeMachineComponent, $event)" /></FormField>
-        <div class="grid min-w-0 gap-4 sm:grid-cols-2"><FormField class="gap-1"><span>Default machine</span><SelectField :model-value="activeMachineParameter.defaultValue" label="" :options="[{ label: 'Choose a machine…', value: '' }, ...activeMachines.map((machine) => ({ label: machineLabel(machine), value: machine.id }))]" @update:model-value="updateMachineDefault(activeMachineParameter, $event)" /><small class="text-xs leading-5 text-base-content/60">Customers can choose any active machine in the order. This is the default suggestion.</small></FormField><div class="rounded-box border border-base-300 bg-base-200/25 p-3"><div class="flex items-start gap-2"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="16" aria-hidden="true" /><div><h4 class="text-sm font-semibold">Rate profiles</h4><p class="mt-1 text-xs leading-5 text-base-content/65">Rates are read from each machine. Add profiles like Black &amp; white or Full color in the Machines workspace.</p></div></div></div></div>
+        <div class="grid min-w-0 gap-4 sm:grid-cols-2"><FormField class="gap-1"><span>Machine options</span><div class="space-y-2 rounded-box border border-base-300 bg-base-200/25 p-3"><label v-for="machine in activeMachines" :key="machine.id" class="flex min-w-0 items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2.5 text-sm"><input class="radio radio-primary radio-sm" type="radio" :name="`default-machine-${activeMachineParameter.id}`" :checked="activeMachineParameter.defaultValue === machine.id" @change="updateMachineDefault(activeMachineParameter, machine.id)" /><span class="min-w-0 flex-1 truncate">{{ machineLabel(machine) }}</span><small v-if="activeMachineParameter.defaultValue === machine.id" class="shrink-0 text-xs font-medium text-primary">Default</small></label><p class="text-xs leading-5 text-base-content/60">Customers can choose any active machine. The marked option is used for the cost estimate.</p></div></FormField><div class="rounded-box border border-base-300 bg-base-200/25 p-3"><div class="flex items-start gap-2"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="16" aria-hidden="true" /><div><h4 class="text-sm font-semibold">Rate profiles</h4><p class="mt-1 text-xs leading-5 text-base-content/65">Rates are read from each machine. Add profiles like Black &amp; white or Full color in the Machines workspace.</p></div></div></div></div>
 
-        <div v-if="activeRateParameter" class="rounded-box border border-base-300"><div class="border-b border-base-300 px-4 py-3"><h4 class="text-sm font-semibold">Rate option</h4><p class="mt-1 text-xs text-base-content/60">Customers can choose one configured rate profile for this machine group.</p></div><div class="p-4"><FormField class="gap-1"><span>Rate choice title</span><AppInput v-model="activeRateParameter.label" class="input w-full min-w-0" placeholder="Machine rate" /></FormField><div class="mt-3 grid gap-2 sm:grid-cols-2"><label v-for="option in allRateOptions" :key="option.value" class="flex min-w-0 items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2 text-sm"><input class="checkbox checkbox-sm" type="checkbox" :checked="activeRateParameter.options.includes(option.value)" @change="updateRateOptions(activeRateParameter, ($event.target as HTMLInputElement).checked ? [...activeRateParameter.options, option.value] : activeRateParameter.options.filter((value) => value !== option.value))" /><span class="min-w-0 flex-1 truncate">{{ option.label }}</span><small class="text-xs text-base-content/50">{{ option.machineCount }} machine{{ option.machineCount === 1 ? '' : 's' }}</small></label></div></div></div>
+        <div v-if="activeRateParameter" class="rounded-box border border-base-300"><div class="border-b border-base-300 px-4 py-3"><h4 class="text-sm font-semibold">Rate options</h4><p class="mt-1 text-xs text-base-content/60">Include the profiles customers may choose, then mark one included profile as the default for estimation.</p></div><div class="p-4"><FormField class="gap-1"><span>Rate choice title</span><AppInput v-model="activeRateParameter.label" class="input w-full min-w-0" placeholder="Machine rate" /></FormField><div class="mt-3 grid gap-2 sm:grid-cols-2"><div v-for="option in allRateOptions" :key="option.value" class="flex min-w-0 items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2 text-sm"><label class="flex min-w-0 flex-1 items-center gap-2"><input class="checkbox checkbox-sm" type="checkbox" :checked="activeRateParameter.options.includes(option.value)" @change="updateRateOptions(activeRateParameter, ($event.target as HTMLInputElement).checked ? [...activeRateParameter.options, option.value] : activeRateParameter.options.filter((value) => value !== option.value))" /><span class="min-w-0 truncate">{{ option.label }}</span></label><label class="flex shrink-0 items-center gap-1.5 text-xs" :class="activeRateParameter.options.includes(option.value) ? 'text-primary' : 'text-base-content/35'"><input class="radio radio-primary radio-xs" type="radio" :name="`default-rate-${activeRateParameter.id}`" :checked="activeRateParameter.defaultValue === option.value" :disabled="!activeRateParameter.options.includes(option.value)" @change="updateRateDefault(activeRateParameter, option.value)" />Default</label></div></div></div></div>
         <div class="rounded-box border border-base-300 bg-base-200/25 p-4"><div class="flex items-start gap-2"><Settings2 class="mt-0.5 shrink-0 text-primary" :size="16" aria-hidden="true" /><div><h4 class="text-sm font-semibold">Usage and cost basis</h4><p class="mt-1 text-xs leading-5 text-base-content/65">Set how much machine time or output is used for one service unit. Machine rates come from the selected machine profile.</p></div></div><div class="mt-3 grid min-w-0 gap-4 sm:grid-cols-2"><FormField class="gap-1"><span>Amount per service</span><AppInput v-model="activeMachineComponent.usageQuantity" class="input w-full min-w-0" inputmode="decimal" placeholder="1" /></FormField><FormField class="gap-1"><span>Multiply by</span><AppInput v-model="activeMachineComponent.multiplier" class="input w-full min-w-0" inputmode="decimal" placeholder="1" /></FormField></div><label class="mt-3 flex items-center gap-2 text-sm"><input v-model="activeMachineComponent.enabled" class="checkbox checkbox-sm" type="checkbox" />Include this machine cost in pricing</label></div>
-        <div v-if="activeMachineParameter.defaultValue && activeRateParameter?.defaultValue" class="rounded-box border border-success/25 bg-success/5 p-3 text-xs text-base-content/70"><strong class="font-medium text-success">Ready for pricing.</strong> The default machine and rate option are configured.</div><div v-else class="rounded-box border border-warning/25 bg-warning/5 p-3 text-xs text-base-content/70"><strong class="font-medium text-warning">Finish the group setup.</strong> Choose a default machine{{ activeRateParameter ? ' and rate option' : '' }} before saving.</div>
+        <div v-if="machineDefaultReady && rateDefaultReady" class="rounded-box border border-success/25 bg-success/5 p-3 text-xs text-base-content/70"><strong class="font-medium text-success">Ready for pricing.</strong> The selected defaults will be used in the overview estimate.</div><div v-else class="rounded-box border border-warning/25 bg-warning/5 p-3 text-xs text-base-content/70"><strong class="font-medium text-warning">Finish the group setup.</strong> Choose a default machine{{ activeRateParameter ? ' and rate option' : '' }} before saving.</div>
       </div>
     </div>
 
-    <section v-if="supportingComponents.length" class="rounded-box border border-base-300 bg-base-100"><div class="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 px-4 py-3"><div><h3 class="text-sm font-semibold">Supporting costs</h3><p class="mt-1 text-xs text-base-content/60">Optional labor, fixed, overhead, or other costs for this service.</p></div><button class="btn btn-outline btn-sm gap-2" type="button" @click="addSupportingCost"><Plus :size="14" aria-hidden="true" />Add supporting cost</button></div><div class="grid min-w-0 gap-4 p-4 lg:grid-cols-[minmax(13rem,0.72fr)_minmax(0,1.28fr)]"><div class="min-w-0 space-y-2"><button v-for="(component, index) in supportingComponents" :key="component.id" class="flex w-full min-w-0 items-center gap-2 rounded-box border p-3 text-start" :class="index === selectedSupportingIndex ? 'border-primary bg-primary/10' : 'border-base-300 hover:border-primary/45'" type="button" @click="selectSupporting(index)"><span class="min-w-0 flex-1 truncate text-sm">{{ component.name || 'Supporting cost' }}</span><ChevronRight :size="16" class="shrink-0 text-base-content/45" aria-hidden="true" /></button><button class="flex w-full items-center justify-center gap-2 rounded-box border border-dashed border-base-300 px-3 py-2.5 text-xs text-base-content/65 hover:border-primary hover:text-primary" type="button" @click="addSupportingCost"><Plus :size="14" aria-hidden="true" />Add supporting cost</button></div><div v-if="activeSupportingComponent" class="min-w-0 rounded-box border border-base-300"><div class="flex items-center justify-between border-b border-base-300 px-4 py-3"><h4 class="text-sm font-semibold">Edit supporting cost</h4><button class="btn btn-outline btn-error btn-xs gap-1" type="button" @click="removeSupportingCost"><Trash2 :size="13" aria-hidden="true" />Remove</button></div><ServiceCostEditor class="border-0" hide-summary :component="activeSupportingComponent" :index="selectedSupportingIndex" :count="supportingComponents.length" :materials="materials" :machines="machines" :services="services" :current-service-id="currentServiceId" :parameters="parameters" :currency-unit="currencyUnit" :show-errors="showErrors" /></div></div></section><button v-else class="flex w-full items-center justify-center gap-2 rounded-box border border-dashed border-base-300 px-3 py-3 text-sm text-base-content/65 hover:border-primary hover:text-primary" type="button" @click="addSupportingCost"><Plus :size="15" aria-hidden="true" />Add supporting cost</button>
   </section>
 </template>

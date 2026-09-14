@@ -234,11 +234,7 @@ watch(
             v-else-if="activeStep === 3"
             :components="form.components"
             :parameters="form.parameters"
-            :materials="materials"
             :machines="machines"
-            :services="services"
-            :current-service-id="serviceId"
-            :currency-unit="currencyUnit"
             :show-errors="validationAttempted"
           />
           <ServicePricingStep
