@@ -65,7 +65,7 @@ function rateOptionsForMachines(machines: MachineRecord[]): RateOption[] {
   return Array.from(result.values()).sort((left, right) => left.label.localeCompare(right.label))
 }
 
-const allRateOptions = computed(() => rateOptionsForMachines(activeMachines.value))
+const allRateOptions = computed(() => rateOptionsForMachines(machineOptions(activeMachineParameter.value)))
 
 function componentIncomplete(component: ComponentForm) {
   const machineParameter = machineParam(component)

@@ -8,7 +8,7 @@ import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
-import { calculateServiceTest, isAutomaticVariationParameter, machineGroupOptions, testParameterLabel, visibleTestParameters, type TestPricingResult, type TestValues } from './serviceTestPricing'
+import { calculateServiceTest, isAutomaticVariationParameter, isMachineRateParameter, machineGroupOptions, machineRateOptions, testParameterLabel, visibleTestParameters, type TestPricingResult, type TestValues } from './serviceTestPricing'
 import type { ParameterForm, ServiceForm } from './types'
 
 const props = defineProps<{
@@ -65,6 +65,7 @@ function updateBoolean(key: string, event: Event) {
 }
 
 function valueOptions(parameter: ParameterForm) {
+	if (isMachineRateParameter(props.form, parameter)) return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...machineRateOptions(props.form, parameter, props.parameters, props.machines, props.values)]
 	if (parameter.type === 'choice') {
     if (parameter.materialSource) {
       const values = Array.from(new Set(props.form.materialVariants.filter((variant) => variant.active !== false).map((variant) => variant.values[parameter.key]).filter(Boolean)))

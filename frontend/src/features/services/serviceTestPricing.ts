@@ -27,6 +27,25 @@ export function machineGroupOptions(parameter: ParameterForm, machines: MachineR
   return machines.filter((machine) => machine.active && (!configured.size || configured.has(machine.id)))
 }
 
+export function machineRateOptions(form: ServiceForm, parameter: ParameterForm, parameters: ParameterForm[], machines: MachineRecord[], values: TestValues) {
+  const components = form.components.filter((component) => component.type === 'machine' && component.rateParameterKey === parameter.key)
+  const selectedMachines = components.map((component) => {
+    const machineParameter = parameters.find((item) => item.key === component.parameterKey)
+    const selectedID = values[component.parameterKey] || machineParameter?.defaultValue
+    return machines.find((machine) => machine.id === selectedID && machine.active) || null
+  }).filter((machine): machine is MachineRecord => Boolean(machine))
+  const candidates = selectedMachines.length ? selectedMachines : machines.filter((machine) => machine.active)
+  const configured = new Set(parameter.options)
+  const options = new Map<string, { value: string; label: string }>()
+  for (const machine of candidates) {
+    for (const rate of machine.rates?.filter((item: any) => item.active) || []) {
+      const value = String(rate.selectorValue || rate.name || rate.id || '').trim()
+      if (value && (!configured.size || configured.has(value)) && !options.has(value)) options.set(value, { value, label: rate.name || value })
+    }
+  }
+  return Array.from(options.values()).sort((left, right) => left.label.localeCompare(right.label))
+}
+
 export function isMachineRateParameter(form: ServiceForm, parameter: ParameterForm) {
   return parameter.type === 'choice' && form.components.some((component) => component.type === 'machine' && component.rateParameterKey === parameter.key)
 }
@@ -43,7 +62,6 @@ export function isLegacyTestParameter(form: ServiceForm, parameter: ParameterFor
 export function visibleTestParameters(form: ServiceForm, parameters: ParameterForm[]) {
   return parameters.filter((parameter) => {
     if (isLegacyTestParameter(form, parameter)) return false
-    if (isMachineRateParameter(form, parameter)) return false
     if (isAutomaticVariationParameter(form, parameter)) return true
     return parameter.type === 'integer' || parameter.type === 'decimal'
   })
