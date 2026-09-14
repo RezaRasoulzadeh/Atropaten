@@ -53,7 +53,7 @@ function quantityLabel() {
     <ServiceOverviewIdentity :form="form" :active="active" />
     <ServiceOverviewSection title="Estimated price" description="The result for the current test values.">
       <div v-if="result" class="space-y-3">
-        <div class="flex items-center justify-between gap-3"><strong class="text-xl text-success tabular-nums">{{ formatMoney(result.sellingPriceRial, currencyUnit) }}</strong><span class="badge badge-ghost text-xs">{{ result.pricingLabel }}</span></div>
+        <div class="flex items-center justify-between gap-3"><strong class="text-xl tabular-nums" :class="result.hasMissing ? 'text-warning' : 'text-success'">{{ form.pricingRule.type === 'manual' ? 'Set in order' : result.hasMissing ? 'Needs setup' : formatMoney(result.sellingPriceRial, currencyUnit) }}</strong><span class="badge badge-ghost text-xs">{{ result.pricingLabel }}</span></div>
         <p class="text-sm text-base-content/65">for {{ quantityLabel() }}</p>
         <div class="flex items-center justify-between gap-3 border-t border-base-300 pt-3 text-sm"><span>Total cost</span><span class="tabular-nums">{{ formatMoney(result.totalCostRial, currencyUnit) }}</span></div>
       </div>

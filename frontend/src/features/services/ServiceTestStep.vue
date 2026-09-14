@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { Calculator, CheckCircle2, FlaskConical, RotateCcw, TriangleAlert } from 'lucide-vue-next'
+import { Calculator, CheckCircle2, Eye, FlaskConical, RotateCcw, TriangleAlert } from 'lucide-vue-next'
 import AppInput from '../../components/ui/AppInput.vue'
 import FormField from '../../components/ui/FormField.vue'
 import SelectField from '../../components/ui/SelectField.vue'
@@ -55,13 +55,24 @@ function updateBoolean(key: string, event: Event) {
 }
 
 function valueOptions(parameter: ParameterForm) {
-	if (parameter.type === 'choice') return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...(parameter.predefinedKey ? ((parameter as any).predefinedOptions || []).filter((option: any) => option.active !== false).map((option: any) => ({ label: option.label, value: option.code })) : parameter.options.map((value) => ({ label: value, value })))]
+	if (parameter.type === 'choice') {
+    if (parameter.materialSource?.selectMaterial) return [{ label: 'Select material', value: '' }, ...props.materials.filter((item) => item.active).map((item) => ({ label: `${item.name}${item.sku ? ` · ${item.sku}` : ''}`, value: item.id }))]
+    if (parameter.materialSource) {
+      const values = Array.from(new Set(props.form.materialVariants.filter((variant) => variant.active !== false).map((variant) => variant.values[parameter.key]).filter(Boolean)))
+      return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...values.sort().map((value) => ({ label: value.split('\u001f').join(' × '), value }))]
+    }
+    return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...(parameter.predefinedKey ? ((parameter as any).predefinedOptions || []).filter((option: any) => option.active !== false).map((option: any) => ({ label: option.label, value: option.code })) : parameter.options.map((value) => ({ label: value, value })))]
+  }
   if (parameter.type === 'material-reference') return [{ label: 'Select material', value: '' }, ...props.materials.filter((item) => item.active).map((item) => ({ label: `${item.name}${item.sku ? ` · ${item.sku}` : ''}`, value: item.id }))]
   return [{ label: 'Select machine', value: '' }, ...props.machines.filter((item) => item.active).map((item) => ({ label: `${item.name}${item.code ? ` · ${item.code}` : ''}`, value: item.id }))]
 }
 
 function onValueChanged() {
   recalculate()
+}
+
+function isAutomaticVariationParameter(parameter: ParameterForm) {
+  return Boolean(parameter.materialSource) || parameter.type === 'machine-reference' || props.form.components.some((component) => component.type === 'machine' && component.rateParameterKey === parameter.key)
 }
 
 watch(
@@ -93,6 +104,7 @@ const result = computed<TestPricingResult>(() => calculateServiceTest(props.form
             <span class="grid size-8 place-items-center rounded-box bg-base-300/60 text-base-content/70"><span v-if="parameter.type === 'integer' || parameter.type === 'decimal'" class="text-lg">#</span><span v-else-if="parameter.type === 'boolean'" class="text-sm">✓</span><span v-else class="text-base">◈</span></span>
             <FormField class="min-w-0 gap-1">
               <span class="text-sm text-base-content">{{ parameter.label || 'Parameter' }}<em v-if="parameter.required" class="text-error"> *</em></span>
+              <small class="text-xs text-base-content/50">{{ isAutomaticVariationParameter(parameter) ? 'Affects automatic variation pricing' : 'Price can be entered on the order' }}</small>
               <AppInput v-if="parameter.type === 'integer' || parameter.type === 'decimal'" v-model="values[parameter.key]" class="input w-full min-w-0" :type="parameter.type === 'integer' ? 'number' : 'text'" :step="parameter.type === 'integer' ? '1' : 'any'" :min="parameter.minValue || undefined" :max="parameter.maxValue || undefined" inputmode="decimal" @update:model-value="onValueChanged" />
               <SelectField v-else-if="parameter.type === 'choice' || parameter.type === 'material-reference' || parameter.type === 'machine-reference'" v-model="values[parameter.key]" :aria-label="parameter.label" :options="valueOptions(parameter)" @update:model-value="onValueChanged" />
               <label v-else class="flex h-10 items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 text-sm"><input class="checkbox checkbox-sm" type="checkbox" :checked="values[parameter.key] === 'true'" @change="updateBoolean(parameter.key, $event)" />Enabled</label>
@@ -119,9 +131,9 @@ const result = computed<TestPricingResult>(() => calculateServiceTest(props.form
           </div>
           <div class="rounded-box border border-base-300 bg-base-100/30 p-3">
             <div class="flex items-center justify-between gap-3 text-sm"><span>{{ result.pricingLabel }}</span><span v-if="form.pricingRule.type === 'markup'" class="tabular-nums">+ {{ formatMoney(result.markupRial, currencyUnit) }}</span><span v-else-if="form.pricingRule.type === 'fixed-margin'" class="tabular-nums">+ {{ formatMoney(form.pricingRule.fixedMarginRial, currencyUnit) }}</span><span v-else-if="form.pricingRule.type === 'fixed'" class="text-base-content/60">Direct price</span></div>
-            <div class="mt-3 flex items-center justify-between gap-3 rounded-box border border-success/25 px-3 py-3"><span class="font-semibold">{{ form.pricingRule.type === 'fixed' ? 'Fixed selling price' : 'Selling price' }}</span><strong class="text-lg text-success tabular-nums">{{ formatMoney(result.sellingPriceRial, currencyUnit) }}</strong></div>
+            <div class="mt-3 flex items-center justify-between gap-3 rounded-box border border-success/25 px-3 py-3"><span class="font-semibold">{{ form.pricingRule.type === 'fixed' ? 'Fixed selling price' : 'Selling price' }}</span><strong class="text-lg tabular-nums" :class="result.hasMissing ? 'text-warning' : 'text-success'">{{ form.pricingRule.type === 'manual' ? 'Set in order' : result.hasMissing ? 'Needs setup' : formatMoney(result.sellingPriceRial, currencyUnit) }}</strong></div>
           </div>
-          <div class="flex items-start gap-3 rounded-box border p-3 text-sm" :class="result.belowCost ? 'border-warning/30 text-warning' : 'border-success/30 text-success'"><TriangleAlert v-if="result.belowCost" :size="18" class="mt-0.5 shrink-0" aria-hidden="true" /><CheckCircle2 v-else :size="18" class="mt-0.5 shrink-0" aria-hidden="true" /><div><strong>{{ result.belowCost ? 'Price is below cost' : 'Price is above cost' }}</strong><p class="mt-1 text-xs leading-5 text-base-content/60">{{ result.belowCost ? 'Review the pricing rule before saving this service.' : `Estimated margin: ${result.marginPercentage.toFixed(1)}%.` }}</p></div></div>
+          <div class="flex items-start gap-3 rounded-box border p-3 text-sm" :class="result.hasMissing ? 'border-warning/30 text-warning' : form.pricingRule.type === 'manual' ? 'border-info/30 text-info' : result.belowCost ? 'border-warning/30 text-warning' : 'border-success/30 text-success'"><TriangleAlert v-if="result.hasMissing || result.belowCost" :size="18" class="mt-0.5 shrink-0" aria-hidden="true" /><Eye v-else-if="form.pricingRule.type === 'manual'" :size="18" class="mt-0.5 shrink-0" aria-hidden="true" /><CheckCircle2 v-else :size="18" class="mt-0.5 shrink-0" aria-hidden="true" /><div><strong>{{ result.hasMissing ? 'Pricing setup is incomplete' : form.pricingRule.type === 'manual' ? 'Price is entered on the order' : result.belowCost ? 'Price is below cost' : 'Price is above cost' }}</strong><p class="mt-1 text-xs leading-5 text-base-content/60">{{ result.hasMissing ? 'Configure the selected material or machine variation in the Pricing step.' : form.pricingRule.type === 'manual' ? 'This test shows the estimated cost; the operator sets the final selling price for each order.' : result.belowCost ? 'Review the pricing rule before saving this service.' : `Estimated margin: ${result.marginPercentage.toFixed(1)}%.` }}</p></div></div>
           <div class="rounded-box border border-info/25 bg-info/5 p-3 text-xs leading-5 text-base-content/70">This is a test calculation. The final amount may vary with order conditions, discounts, or customer-specific rules.</div>
         </div>
       </div>
