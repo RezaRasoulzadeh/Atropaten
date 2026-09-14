@@ -19,7 +19,7 @@ import type { MaterialAttributeDefinitionRecord, MaterialRecord } from '../../ap
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
 import type { CurrencyUnit } from '../../utils/currency'
-import ServiceCostComponentsStep from './ServiceCostComponentsStep.vue'
+import ServiceMachinesStep from './ServiceMachinesStep.vue'
 import type { PredefinedParameter, ServiceForm } from './types'
 import type { TestPricingResult, TestValues } from './serviceTestPricing'
 import { ensureSuggestedCostComponents, reconcileCostComponents } from './serviceComponentSync'
@@ -230,7 +230,7 @@ watch(
             :show-errors="validationAttempted"
             :currency-unit="currencyUnit"
           />
-          <ServiceCostComponentsStep
+          <ServiceMachinesStep
             v-else-if="activeStep === 3"
             :components="form.components"
             :parameters="form.parameters"
