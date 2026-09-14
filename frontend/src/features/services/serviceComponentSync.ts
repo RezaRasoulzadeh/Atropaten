@@ -94,6 +94,24 @@ export function ensureSuggestedCostComponents(components: ComponentForm[], param
   return candidates.length > 0
 }
 
+// Material groups describe one selection matrix. Keep only one cost
+// component for that matrix even when an older service still has one
+// component per group parameter.
+export function collapseGroupedMaterialComponents(components: ComponentForm[], parameters: ParameterForm[]) {
+  const groupedKeys = new Set(parameters.filter((parameter) => parameter.materialSource && !parameter.materialSource.selectMaterial).map((parameter) => parameter.key))
+  if (!groupedKeys.size) return components
+  let keepIndex = -1
+  components.forEach((component, index) => {
+    const grouped = component.type === 'material' && component.usageMode === 'parameter' && groupedKeys.has(component.parameterKey)
+    if (grouped && (keepIndex < 0 || (!components[keepIndex].enabled && component.enabled))) keepIndex = index
+  })
+  if (keepIndex < 0) return components
+  return components.filter((component, index) => {
+    const grouped = component.type === 'material' && component.usageMode === 'parameter' && groupedKeys.has(component.parameterKey)
+    return !grouped || index === keepIndex
+  })
+}
+
 export function reconcileCostComponents(components: ComponentForm[], parameters: ParameterForm[]) {
   const byKey = new Map(parameters.filter((parameter) => parameter.key.trim()).map((parameter) => [parameter.key, parameter]))
   for (const component of components) {

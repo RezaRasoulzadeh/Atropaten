@@ -74,6 +74,7 @@ function goToStep(number: number) {
 }
 function requestSave() {
   reconcileCostComponents(props.form.components, props.form.parameters)
+  ensureSuggestedCostComponents(props.form.components, props.form.parameters)
   emit('save')
 }
 

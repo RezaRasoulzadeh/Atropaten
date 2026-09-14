@@ -74,7 +74,8 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 	sort.SliceStable(parameters, func(left, right int) bool { return parameters[left].Key < parameters[right].Key })
 	result := PricingResult{ServiceID: input.Service.ID, ServiceName: input.Service.Name, Parameters: parameters, Warnings: []string{}}
 	manualComponents := make(map[string]bool)
-	for _, component := range input.Service.Components {
+	components := collapseGroupedMaterialComponents(input.Service)
+	for _, component := range components {
 		if component.Type == CostManual {
 			manualComponents[component.ID] = true
 		}
@@ -88,7 +89,7 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 		}
 	}
 	var total int64
-	for _, component := range input.Service.Components {
+	for _, component := range components {
 		item := PricingComponentResult{ID: component.ID, Name: component.Name, Type: component.Type, ReferenceID: component.ReferenceID, ParameterKey: component.ParameterKey, Enabled: component.Enabled, UsageQuantity: component.UsageQuantity, RateRial: component.RateRial, Percentage: component.Percentage}
 		if !component.Enabled {
 			item.Explanation = "Disabled component"
@@ -250,6 +251,41 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 		result.Warnings = append(result.Warnings, "Selling price is below estimated cost")
 	}
 	return result, nil
+}
+
+func collapseGroupedMaterialComponents(service Service) []ServiceCostComponent {
+	groupedKeys := make(map[string]struct{})
+	for _, parameter := range service.Parameters {
+		if parameter.MaterialSource != nil && !parameter.MaterialSource.SelectMaterial {
+			groupedKeys[parameter.Key] = struct{}{}
+		}
+	}
+	if len(groupedKeys) == 0 {
+		return service.Components
+	}
+	keepIndex := -1
+	for index, component := range service.Components {
+		if component.Type == CostMaterial && component.UsageMode == UsageParameter {
+			if _, grouped := groupedKeys[component.ParameterKey]; grouped {
+				if keepIndex < 0 || (!service.Components[keepIndex].Enabled && component.Enabled) {
+					keepIndex = index
+				}
+			}
+		}
+	}
+	if keepIndex < 0 {
+		return service.Components
+	}
+	result := make([]ServiceCostComponent, 0, len(service.Components))
+	for index, component := range service.Components {
+		if component.Type == CostMaterial && component.UsageMode == UsageParameter {
+			if _, grouped := groupedKeys[component.ParameterKey]; grouped && index != keepIndex {
+				continue
+			}
+		}
+		result = append(result, component)
+	}
+	return result
 }
 
 func machineRateFor(machine Machine, component ServiceCostComponent, parameters map[string]ResolvedParameter) (MachineRate, bool) {

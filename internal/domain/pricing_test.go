@@ -247,6 +247,39 @@ func TestEvaluatePricingUsesSelectedMaterialParameter(t *testing.T) {
 	}
 }
 
+func TestEvaluatePricingCountsOneMaterialForGroupedCombination(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := NewService("SVC-grouped-material-cost", ServiceDraft{
+		Name: "Grouped material cost",
+		Parameters: []ServiceParameterDraft{
+			{ID: "P-size", Key: "size", Label: "Paper size", Type: ParameterChoice, MaterialSource: &MaterialParameterSource{ExposedAttributeKey: "width_mm"}},
+			{ID: "P-type", Key: "type", Label: "Paper type", Type: ParameterChoice, MaterialSource: &MaterialParameterSource{ExposedAttributeKey: "finish"}},
+		},
+		Components: []ServiceCostComponentDraft{
+			{ID: "C-size", Name: "Paper size", Type: CostMaterial, UsageMode: UsageParameter, ParameterKey: "size", UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true},
+			{ID: "C-type", Name: "Paper type", Type: CostMaterial, UsageMode: UsageParameter, ParameterKey: "type", UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true},
+		},
+		MaterialVariants: []ServiceMaterialVariant{{ID: "VAR-a4-coated", MaterialID: "MAT-a4-coated", Values: map[string]string{"size": "210", "type": "coated"}, Position: 0, Active: true}},
+	}, now)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	result, err := EvaluatePricing(PricingInput{
+		Service: service,
+		Parameters: map[string]ResolvedParameter{
+			"size": {Key: "size", Type: ParameterChoice, Value: "210", MaterialID: "MAT-a4-coated"},
+			"type": {Key: "type", Type: ParameterChoice, Value: "coated", MaterialID: "MAT-a4-coated"},
+		},
+		Materials: map[string]Material{"MAT-a4-coated": {ID: "MAT-a4-coated", HighestPurchaseUnitCostRial: 175}},
+	})
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if result.EstimatedCostRial != 175 || len(result.Components) != 1 {
+		t.Fatalf("grouped material cost = %+v, want one 175-Rial component", result)
+	}
+}
+
 func TestEvaluatePricingUsesMachineRateSelectedByChoice(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	service, err := NewService("SVC-machine-rates", ServiceDraft{

@@ -8,6 +8,7 @@ import type { ComponentForm, ParameterForm, ServiceForm } from './types'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
 import ServiceOverviewIdentity from './ServiceOverviewIdentity.vue'
 import ServiceOverviewSection from './ServiceOverviewSection.vue'
+import { collapseGroupedMaterialComponents } from './serviceComponentSync'
 
 const props = defineProps<{
   components: ComponentForm[]
@@ -100,7 +101,7 @@ function serviceCost(service: ServiceRecord, visited = new Set<string>()) {
     maxValue: parameter.maxValue ?? null,
   })) as ParameterForm[]
   let running = 0
-  for (const component of service.components.filter((item) => item.enabled)) {
+  for (const component of collapseGroupedMaterialComponents(service.components as unknown as ComponentForm[], parameters).filter((item) => item.enabled)) {
     if (component.type === 'overhead' || component.type === 'waste') {
       running += running * Math.max(0, numeric(component.percentage, 0)) / 100
       continue
@@ -110,6 +111,8 @@ function serviceCost(service: ServiceRecord, visited = new Set<string>()) {
   }
   return running
 }
+
+const effectiveComponents = computed(() => collapseGroupedMaterialComponents(props.components, props.parameters))
 
 function baseAmount(component: ComponentForm, parameters = props.parameters, visited = new Set<string>()) {
   if (component.type === 'material') {
@@ -127,7 +130,7 @@ function baseAmount(component: ComponentForm, parameters = props.parameters, vis
 
 const rows = computed<BreakdownRow[]>(() => {
   let running = 0
-  return props.components.filter((component) => component.enabled).map((component) => {
+  return effectiveComponents.value.filter((component) => component.enabled).map((component) => {
     if (component.type === 'overhead' || component.type === 'waste') {
       const percentage = Math.max(0, numeric(component.percentage, 0))
       const amount = running * percentage / 100
@@ -145,7 +148,7 @@ const rows = computed<BreakdownRow[]>(() => {
 
 const subtotal = computed(() => rows.value.filter((row) => row.component.type !== 'overhead' && row.component.type !== 'waste').reduce((total, row) => total + row.amount, 0))
 const total = computed(() => rows.value.reduce((sum, row) => sum + row.amount, 0))
-const defaultEstimateSummary = computed(() => props.components
+const defaultEstimateSummary = computed(() => effectiveComponents.value
   .filter((component) => component.enabled && (component.type === 'material' || component.type === 'machine'))
   .map((component) => {
     if (component.type === 'material') return `Material: ${materialFor(component)?.name || 'not set'}`

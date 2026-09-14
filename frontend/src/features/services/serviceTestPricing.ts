@@ -2,6 +2,7 @@ import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
 import type { ComponentForm, ParameterForm, ServiceForm } from './types'
+import { collapseGroupedMaterialComponents } from './serviceComponentSync'
 
 export type TestValues = Record<string, string>
 export type TestPricingLine = { name: string; detail: string; amount: number; missing: boolean }
@@ -101,7 +102,7 @@ function nestedServiceCost(service: ServiceRecord, materials: MaterialRecord[], 
 function calculateComponents(components: ComponentForm[], parameters: ParameterForm[], values: TestValues, materials: MaterialRecord[], machines: MachineRecord[], services: ServiceRecord[], materialVariants: MaterialVariantForPricing[] = [], visited = new Set<string>()) {
   let running = 0
   const lines: TestPricingLine[] = []
-  for (const component of components.filter((item) => item.enabled)) {
+  for (const component of collapseGroupedMaterialComponents(components, parameters).filter((item) => item.enabled)) {
     if (component.type === 'overhead' || component.type === 'waste') {
       const amount = Math.round(running * Math.max(0, number(component.percentage)) / 100)
       running += amount
