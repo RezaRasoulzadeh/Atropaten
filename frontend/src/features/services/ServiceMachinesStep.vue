@@ -20,7 +20,7 @@ const machineComponents = computed(() => props.components.filter((component) => 
 const activeMachineComponent = computed(() => machineComponents.value[selectedIndex.value] || null)
 const activeMachineParameter = computed(() => activeMachineComponent.value ? props.parameters.find((parameter) => parameter.key === activeMachineComponent.value?.parameterKey) || null : null)
 const activeRateParameter = computed(() => activeMachineComponent.value?.rateParameterKey ? props.parameters.find((parameter) => parameter.key === activeMachineComponent.value?.rateParameterKey) || null : null)
-const machineDefaultReady = computed(() => Boolean(activeMachineParameter.value && activeMachines.value.some((machine) => machine.id === activeMachineParameter.value?.defaultValue)))
+const machineDefaultReady = computed(() => Boolean(activeMachineParameter.value && machineOptions(activeMachineParameter.value).some((machine) => machine.id === activeMachineParameter.value?.defaultValue)))
 const rateDefaultReady = computed(() => !activeRateParameter.value || (Boolean(activeRateParameter.value.defaultValue) && activeRateParameter.value.options.includes(activeRateParameter.value.defaultValue)))
 
 type RateOption = { value: string; label: string; machineCount: number; rates: number }
@@ -35,6 +35,11 @@ function machineParam(component: ComponentForm | null) {
 
 function machineLabel(machine: MachineRecord) {
   return `${machine.name}${machine.code ? ` · ${machine.code}` : ''}`
+}
+
+function machineOptions(parameter: ParameterForm | null) {
+  const configured = new Set(parameter?.options || [])
+  return activeMachines.value.filter((machine) => !configured.size || configured.has(machine.id))
 }
 
 function rateValue(rate: any) {
@@ -65,7 +70,7 @@ const allRateOptions = computed(() => rateOptionsForMachines(activeMachines.valu
 function componentIncomplete(component: ComponentForm) {
   const machineParameter = machineParam(component)
   const rateParameter = component.rateParameterKey ? props.parameters.find((parameter) => parameter.key === component.rateParameterKey) : null
-  const machineDefaultReady = component.usageMode !== 'parameter' || Boolean(machineParameter && activeMachines.value.some((machine) => machine.id === machineParameter.defaultValue))
+  const machineDefaultReady = component.usageMode !== 'parameter' || Boolean(machineParameter && machineOptions(machineParameter).some((machine) => machine.id === machineParameter.defaultValue))
   const rateDefaultReady = !rateParameter || (rateParameter.type === 'choice' && rateParameter.options.length > 0 && rateParameter.options.includes(rateParameter.defaultValue))
   return !component.name.trim() || (component.usageMode === 'parameter' ? !machineParameter || machineParameter.type !== 'machine-reference' || !machineDefaultReady : !activeMachines.value.some((machine) => machine.id === component.referenceId)) || Boolean(component.rateParameterKey && (!rateParameter || !rateDefaultReady))
 }
@@ -88,7 +93,7 @@ function createMachineGroup() {
   while (props.parameters.some((parameter) => parameter.key === machineKey)) machineKey = `${baseKey}_${suffix++}`
   const machineParameter: ParameterForm = {
     id: id('parameter'), key: machineKey, label: 'Machine', type: 'machine-reference', required: true,
-    defaultValue: activeMachines.value[0]?.id || '', options: [], minValue: null, maxValue: null, unit: '',
+    defaultValue: activeMachines.value[0]?.id || '', options: activeMachines.value.map((machine) => machine.id), minValue: null, maxValue: null, unit: '',
   }
   props.parameters.push(machineParameter)
 
@@ -116,12 +121,18 @@ function createMachineGroup() {
 
 function normalizeMachineGroups() {
   for (const component of props.components.filter((item) => item.type === 'machine')) {
-    if (component.usageMode === 'parameter' && component.parameterKey && machineParam(component)) continue
+    if (component.usageMode === 'parameter' && component.parameterKey && machineParam(component)) {
+      const parameter = machineParam(component)
+      const configured = parameter?.options.filter((value) => activeMachines.value.some((machine) => machine.id === value)) || []
+      if (parameter && !configured.length) parameter.options = activeMachines.value.map((machine) => machine.id)
+      if (parameter && !machineOptions(parameter).some((machine) => machine.id === parameter.defaultValue)) parameter.defaultValue = machineOptions(parameter)[0]?.id || ''
+      continue
+    }
     const base = (component.name || 'machine').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'machine'
     let key = base
     let suffix = 2
     while (props.parameters.some((parameter) => parameter.key === key)) key = `${base}_${suffix++}`
-    props.parameters.push({ id: id('parameter'), key, label: component.name.replace(/\s+cost$/i, '') || 'Machine', type: 'machine-reference', required: true, defaultValue: component.referenceId || '', options: [], minValue: null, maxValue: null, unit: '' })
+    props.parameters.push({ id: id('parameter'), key, label: component.name.replace(/\s+cost$/i, '') || 'Machine', type: 'machine-reference', required: true, defaultValue: component.referenceId || activeMachines.value[0]?.id || '', options: activeMachines.value.map((machine) => machine.id), minValue: null, maxValue: null, unit: '' })
     component.usageMode = 'parameter'
     component.parameterKey = key
     component.referenceId = ''
@@ -191,7 +202,7 @@ watch(() => props.components, normalizeMachineGroups, { deep: true })
 
       <div v-if="activeMachineComponent && activeMachineParameter" class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-100 p-4 sm:p-5"><div class="flex flex-wrap items-start justify-between gap-3 border-b border-base-300 pb-4"><div class="min-w-0"><p class="text-xs font-semibold uppercase tracking-wide text-primary">Machine group</p><h3 class="mt-1 text-xl font-semibold">{{ activeMachineParameter.label || 'Untitled machine group' }}</h3><p class="mt-1 text-sm text-base-content/65">Set the order-facing machine choice and the rate behavior for this group.</p></div><button class="btn btn-outline btn-error btn-sm gap-2" type="button" @click="removeMachineGroup"><Trash2 :size="14" aria-hidden="true" />Remove group</button></div>
         <FormField class="gap-1"><span>Group title <em class="text-error">*</em></span><AppInput :model-value="activeMachineParameter.label" :data-machine-group-title="activeMachineParameter.id" class="input w-full min-w-0" :class="{ 'input-error': showErrors && !activeMachineParameter.label.trim() }" placeholder="Digital printer" @update:model-value="updateTitle(activeMachineComponent, $event)" /></FormField>
-        <div class="grid min-w-0 gap-4 sm:grid-cols-2"><FormField class="gap-1"><span>Machine options</span><div class="space-y-2 rounded-box border border-base-300 bg-base-200/25 p-3"><label v-for="machine in activeMachines" :key="machine.id" class="flex min-w-0 items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2.5 text-sm"><input class="radio radio-primary radio-sm" type="radio" :name="`default-machine-${activeMachineParameter.id}`" :checked="activeMachineParameter.defaultValue === machine.id" @change="updateMachineDefault(activeMachineParameter, machine.id)" /><span class="min-w-0 flex-1 truncate">{{ machineLabel(machine) }}</span><small v-if="activeMachineParameter.defaultValue === machine.id" class="shrink-0 text-xs font-medium text-primary">Default</small></label><p class="text-xs leading-5 text-base-content/60">Customers can choose any active machine. The marked option is used for the cost estimate.</p></div></FormField><div class="rounded-box border border-base-300 bg-base-200/25 p-3"><div class="flex items-start gap-2"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="16" aria-hidden="true" /><div><h4 class="text-sm font-semibold">Rate profiles</h4><p class="mt-1 text-xs leading-5 text-base-content/65">Rates are read from each machine. Add profiles like Black &amp; white or Full color in the Machines workspace.</p></div></div></div></div>
+        <div class="grid min-w-0 gap-4 sm:grid-cols-2"><FormField class="gap-1"><span>Machine options</span><div class="space-y-2 rounded-box border border-base-300 bg-base-200/25 p-3"><label v-for="machine in machineOptions(activeMachineParameter)" :key="machine.id" class="flex min-w-0 items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2.5 text-sm"><input class="radio radio-primary radio-sm" type="radio" :name="`default-machine-${activeMachineParameter.id}`" :checked="activeMachineParameter.defaultValue === machine.id" @change="updateMachineDefault(activeMachineParameter, machine.id)" /><span class="min-w-0 flex-1 truncate">{{ machineLabel(machine) }}</span><small v-if="activeMachineParameter.defaultValue === machine.id" class="shrink-0 text-xs font-medium text-primary">Default</small></label><p class="text-xs leading-5 text-base-content/60">Customers can choose any configured machine option. The marked option is used for the cost estimate.</p></div></FormField><div class="rounded-box border border-base-300 bg-base-200/25 p-3"><div class="flex items-start gap-2"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="16" aria-hidden="true" /><div><h4 class="text-sm font-semibold">Rate profiles</h4><p class="mt-1 text-xs leading-5 text-base-content/65">Rates are read from each machine. Add profiles like Black &amp; white or Full color in the Machines workspace.</p></div></div></div></div>
 
         <div v-if="activeRateParameter" class="rounded-box border border-base-300"><div class="border-b border-base-300 px-4 py-3"><h4 class="text-sm font-semibold">Rate options</h4><p class="mt-1 text-xs text-base-content/60">Include the profiles customers may choose, then mark one included profile as the default for estimation.</p></div><div class="p-4"><FormField class="gap-1"><span>Rate choice title</span><AppInput v-model="activeRateParameter.label" class="input w-full min-w-0" placeholder="Machine rate" /></FormField><div class="mt-3 grid gap-2 sm:grid-cols-2"><div v-for="option in allRateOptions" :key="option.value" class="flex min-w-0 items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2 text-sm"><label class="flex min-w-0 flex-1 items-center gap-2"><input class="checkbox checkbox-sm" type="checkbox" :checked="activeRateParameter.options.includes(option.value)" @change="updateRateOptions(activeRateParameter, ($event.target as HTMLInputElement).checked ? [...activeRateParameter.options, option.value] : activeRateParameter.options.filter((value) => value !== option.value))" /><span class="min-w-0 truncate">{{ option.label }}</span></label><label class="flex shrink-0 items-center gap-1.5 text-xs" :class="activeRateParameter.options.includes(option.value) ? 'text-primary' : 'text-base-content/35'"><input class="radio radio-primary radio-xs" type="radio" :name="`default-rate-${activeRateParameter.id}`" :checked="activeRateParameter.defaultValue === option.value" :disabled="!activeRateParameter.options.includes(option.value)" @change="updateRateDefault(activeRateParameter, option.value)" />Default</label></div></div></div></div>
         <div class="rounded-box border border-base-300 bg-base-200/25 p-4"><div class="flex items-start gap-2"><Settings2 class="mt-0.5 shrink-0 text-primary" :size="16" aria-hidden="true" /><div><h4 class="text-sm font-semibold">Usage and cost basis</h4><p class="mt-1 text-xs leading-5 text-base-content/65">Set how much machine time or output is used for one service unit. Machine rates come from the selected machine profile.</p></div></div><div class="mt-3 grid min-w-0 gap-4 sm:grid-cols-2"><FormField class="gap-1"><span>Amount per service</span><AppInput v-model="activeMachineComponent.usageQuantity" class="input w-full min-w-0" inputmode="decimal" placeholder="1" /></FormField><FormField class="gap-1"><span>Multiply by</span><AppInput v-model="activeMachineComponent.multiplier" class="input w-full min-w-0" inputmode="decimal" placeholder="1" /></FormField></div><label class="mt-3 flex items-center gap-2 text-sm"><input v-model="activeMachineComponent.enabled" class="checkbox checkbox-sm" type="checkbox" />Include this machine cost in pricing</label></div>

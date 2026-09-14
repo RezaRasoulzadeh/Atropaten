@@ -22,6 +22,11 @@ export function isMachineGroupParameter(form: ServiceForm, parameter: ParameterF
   return parameter.type === 'machine-reference' && form.components.some((component) => component.type === 'machine' && component.parameterKey === parameter.key)
 }
 
+export function machineGroupOptions(parameter: ParameterForm, machines: MachineRecord[]) {
+  const configured = new Set(parameter.options)
+  return machines.filter((machine) => machine.active && (!configured.size || configured.has(machine.id)))
+}
+
 export function isMachineRateParameter(form: ServiceForm, parameter: ParameterForm) {
   return parameter.type === 'choice' && form.components.some((component) => component.type === 'machine' && component.rateParameterKey === parameter.key)
 }

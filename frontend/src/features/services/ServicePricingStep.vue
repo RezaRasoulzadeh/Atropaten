@@ -10,6 +10,7 @@ import type { MachineRecord } from '../../api/machines'
 import type { CurrencyUnit } from '../../utils/currency'
 import { formatMoney, formatMoneyInput, parseMoneyInput } from '../../utils/currency'
 import type { ComponentForm, ParameterForm, PricingRuleForm, PricingTierForm, PricingVariationForm, ServiceMaterialVariantForm } from './types'
+import { machineGroupOptions } from './serviceTestPricing'
 
 const props = defineProps<{
   pricingRule: PricingRuleForm
@@ -36,7 +37,7 @@ const methods = [
 function setType(type: string) { props.pricingRule.type = type; if (type !== 'quantity-tiers') props.pricingRule.parameterKey = ''; if (type !== 'quantity-tiers') props.pricingRule.tiers = []; syncVariations() }
 function updateMoney(field: 'fixedPriceInput' | 'fixedMarginInput', value: string) { props.pricingRule[field] = value; const valueField = field === 'fixedPriceInput' ? 'fixedPriceRial' : 'fixedMarginRial'; const parsed = parseMoneyInput(value, props.currencyUnit); if (parsed !== null) { props.pricingRule[valueField] = parsed; props.pricingRule[field] = formatMoneyInput(parsed, props.currencyUnit) } }
 function optionsFor(parameter: ParameterForm) {
-  if (parameter.type === 'machine-reference') return props.machines.filter((item) => item.active).map((item) => ({ value: item.id, label: item.name }))
+  if (parameter.type === 'machine-reference') return machineGroupOptions(parameter, props.machines).map((item) => ({ value: item.id, label: item.name }))
   if (parameter.type === 'material-reference') return props.materials.filter((item) => item.active).map((item) => ({ value: item.id, label: item.name }))
   if (parameter.materialSource && !parameter.materialSource.selectMaterial) { const values = new Set<string>(); for (const variant of props.materialVariants.filter((item) => item.active)) { const value = variant.values[parameter.key]; if (value) values.add(value) }; return [...values].sort().map((value) => ({ value, label: value.split('\u001f').join(' × ') })) }
   return parameter.options.map((value) => ({ value, label: value }))

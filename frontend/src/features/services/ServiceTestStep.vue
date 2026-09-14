@@ -8,7 +8,7 @@ import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
-import { calculateServiceTest, isAutomaticVariationParameter, testParameterLabel, visibleTestParameters, type TestPricingResult, type TestValues } from './serviceTestPricing'
+import { calculateServiceTest, isAutomaticVariationParameter, machineGroupOptions, testParameterLabel, visibleTestParameters, type TestPricingResult, type TestValues } from './serviceTestPricing'
 import type { ParameterForm, ServiceForm } from './types'
 
 const props = defineProps<{
@@ -72,7 +72,7 @@ function valueOptions(parameter: ParameterForm) {
     }
     return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...(parameter.predefinedKey ? ((parameter as any).predefinedOptions || []).filter((option: any) => option.active !== false).map((option: any) => ({ label: option.label, value: option.code })) : parameter.options.map((value) => ({ label: value, value })))]
   }
-  return [{ label: 'Select machine', value: '' }, ...props.machines.filter((item) => item.active).map((item) => ({ label: `${item.name}${item.code ? ` · ${item.code}` : ''}`, value: item.id }))]
+  return [{ label: 'Select machine', value: '' }, ...machineGroupOptions(parameter, props.machines).map((item) => ({ label: `${item.name}${item.code ? ` · ${item.code}` : ''}`, value: item.id }))]
 }
 
 function onValueChanged() {
