@@ -1,7 +1,7 @@
 import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
-import type { ComponentForm, ParameterForm, ServiceForm } from './types'
+import type { ComponentForm, ParameterForm, ServiceForm, ServiceMaterialVariantForm } from './types'
 
 export type TestValues = Record<string, string>
 export type TestPricingLine = { name: string; detail: string; amount: number; missing: boolean }
@@ -26,13 +26,22 @@ function normalize(value: string | undefined) {
   return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '')
 }
 
-function materialFor(component: ComponentForm, parameters: ParameterForm[], values: TestValues, materials: MaterialRecord[]) {
+function materialFor(component: ComponentForm, parameters: ParameterForm[], values: TestValues, materials: MaterialRecord[], materialVariants: ServiceMaterialVariantForm[] = []) {
 	if (component.type !== 'material') return null
 	if (component.usageMode === 'parameter' && !component.referenceId) {
 		const parameter = parameters.find((item) => item.key === component.parameterKey)
-		if (parameter?.type !== 'material-reference' && !parameter?.materialSource?.selectMaterial) return null
-		const selectedID = values[component.parameterKey] || parameter?.defaultValue
-		return materials.find((material) => material.id === selectedID && material.active) || null
+		if (parameter?.type === 'material-reference' || parameter?.materialSource?.selectMaterial) {
+			const selectedID = values[component.parameterKey] || parameter?.defaultValue
+			return materials.find((material) => material.id === selectedID && material.active) || null
+		}
+		if (parameter?.materialSource) {
+			const groups = parameters.filter((item) => item.type === 'choice' && item.materialSource && !item.materialSource.selectMaterial)
+			const selectedValues = Object.fromEntries(groups.map((group) => [group.key, values[group.key] || group.defaultValue]))
+			if (groups.some((group) => !selectedValues[group.key])) return null
+			const variant = materialVariants.find((item) => item.active !== false && Object.keys(selectedValues).length === Object.keys(item.values).length && Object.keys(selectedValues).every((key) => item.values[key] === selectedValues[key]))
+			return materials.find((material) => material.id === variant?.materialId && material.active) || null
+		}
+		return null
   }
   return materials.find((material) => material.id === component.referenceId) || null
 }
@@ -70,10 +79,10 @@ function nestedServiceCost(service: ServiceRecord, materials: MaterialRecord[], 
   const next = new Set(visited).add(service.id)
   const parameters = service.parameters.map((parameter) => ({ ...parameter, type: parameter.type as ParameterForm['type'], minValue: parameter.minValue ?? null, maxValue: parameter.maxValue ?? null })) as ParameterForm[]
   const values: TestValues = Object.fromEntries(parameters.map((parameter) => [parameter.key, parameter.defaultValue || '']))
-  return calculateComponents(service.components as unknown as ComponentForm[], parameters, values, materials, machines, services, next).totalCostRial
+  return calculateComponents(service.components as unknown as ComponentForm[], parameters, values, materials, machines, services, service.materialVariants || [], next).totalCostRial
 }
 
-function calculateComponents(components: ComponentForm[], parameters: ParameterForm[], values: TestValues, materials: MaterialRecord[], machines: MachineRecord[], services: ServiceRecord[], visited = new Set<string>()) {
+function calculateComponents(components: ComponentForm[], parameters: ParameterForm[], values: TestValues, materials: MaterialRecord[], machines: MachineRecord[], services: ServiceRecord[], materialVariants: ServiceMaterialVariantForm[] = [], visited = new Set<string>()) {
   let running = 0
   const lines: TestPricingLine[] = []
   for (const component of components.filter((item) => item.enabled)) {
@@ -83,7 +92,7 @@ function calculateComponents(components: ComponentForm[], parameters: ParameterF
       lines.push({ name: component.name || 'Cost component', detail: `${component.percentage || 0}% of previous costs`, amount, missing: false })
       continue
     }
-    const material = materialFor(component, parameters, values, materials)
+    const material = materialFor(component, parameters, values, materials, materialVariants)
     const machine = machineFor(component, parameters, values, machines)
     const service = component.type === 'service' ? services.find((item) => item.id === component.referenceId && item.active) : null
     const rate = machine ? machineRate(component, machine, parameters, values) : null
@@ -100,7 +109,7 @@ function calculateComponents(components: ComponentForm[], parameters: ParameterF
 }
 
 export function calculateServiceTest(form: ServiceForm, values: TestValues, materials: MaterialRecord[], machines: MachineRecord[], services: ServiceRecord[]): TestPricingResult {
-  const costs = calculateComponents(form.components, form.parameters, values, materials, machines, services)
+  const costs = calculateComponents(form.components, form.parameters, values, materials, machines, services, form.materialVariants)
   const rule = form.pricingRule
   const quantity = number(values[rule.parameterKey] || form.parameters.find((parameter) => parameter.key === rule.parameterKey)?.defaultValue)
   const markupRial = rule.type === 'markup' ? Math.ceil(costs.totalCostRial * number(rule.markupPercentage) / 100) : 0

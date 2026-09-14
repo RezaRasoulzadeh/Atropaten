@@ -47,7 +47,30 @@ export function ensureSuggestedCostComponents(components: ComponentForm[], param
     const component = components[index]
     if (component.suggested && component.usageMode === 'parameter' && !component.parameterKey) components.splice(index, 1)
   }
-  const candidates = parameters.filter((parameter) => isMaterialParameter(parameter) || isMachineParameter(parameter))
+  const materialParameters = parameters.filter(isMaterialParameter)
+  const groupedMaterialParameters = materialParameters.filter((parameter) => parameter.materialSource && !parameter.materialSource.selectMaterial)
+  const primaryGroupedMaterialKey = groupedMaterialParameters[0]?.key
+
+  // A material group combination resolves to one inventory record, so it needs
+  // one cost component even when the combination is described by several groups.
+  if (primaryGroupedMaterialKey) {
+    const groupedKeys = new Set(groupedMaterialParameters.map((parameter) => parameter.key))
+    let primary = components.find((component) => component.type === 'material' && component.usageMode === 'parameter' && component.parameterKey === primaryGroupedMaterialKey)
+    if (!primary) primary = components.find((component) => component.type === 'material' && component.usageMode === 'parameter' && groupedKeys.has(component.parameterKey))
+    if (primary) {
+      primary.parameterKey = primaryGroupedMaterialKey
+      for (let index = components.length - 1; index >= 0; index -= 1) {
+        const component = components[index]
+        if (component !== primary && component.type === 'material' && component.usageMode === 'parameter' && groupedKeys.has(component.parameterKey)) components.splice(index, 1)
+      }
+    }
+  }
+
+  const candidates = [
+    ...(groupedMaterialParameters[0] ? [groupedMaterialParameters[0]] : []),
+    ...materialParameters.filter((parameter) => !groupedMaterialParameters.includes(parameter)),
+    ...parameters.filter(isMachineParameter),
+  ]
   if (!components.length && !candidates.length) {
     components.push(suggestedComponent('material', 'Material cost'))
     return false

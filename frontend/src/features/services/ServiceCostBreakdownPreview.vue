@@ -48,7 +48,7 @@ function materialFor(component: ComponentForm, parameters = props.parameters) {
 			return props.materials.find((material) => material.id === parameter.defaultValue && material.active) || null
 		}
 		if (parameter?.materialSource) {
-			const groups = parameters.filter((item) => item.type === 'choice' && item.materialSource)
+			const groups = parameters.filter((item) => item.type === 'choice' && item.materialSource && !item.materialSource.selectMaterial)
 			const values = Object.fromEntries(groups.map((group) => [group.key, group.defaultValue]))
 			if (groups.some((group) => !group.defaultValue)) return null
 			const variant = props.form.materialVariants.find((item) => Object.keys(values).length === Object.keys(item.values).length && Object.keys(values).every((key) => item.values[key] === values[key] && item.active !== false))
@@ -145,12 +145,13 @@ const rows = computed<BreakdownRow[]>(() => {
 
 const subtotal = computed(() => rows.value.filter((row) => row.component.type !== 'overhead' && row.component.type !== 'waste').reduce((total, row) => total + row.amount, 0))
 const total = computed(() => rows.value.reduce((sum, row) => sum + row.amount, 0))
-const defaultMachineSummary = computed(() => props.components
-  .filter((component) => component.enabled && component.type === 'machine')
+const defaultEstimateSummary = computed(() => props.components
+  .filter((component) => component.enabled && (component.type === 'material' || component.type === 'machine'))
   .map((component) => {
+    if (component.type === 'material') return `Material: ${materialFor(component)?.name || 'not set'}`
     const machine = machineFor(component)
     const rate = machine ? machineRateFor(component) : null
-    return `${machine?.name || 'Machine not set'}${rate?.name ? ` · ${rate.name}` : ''}`
+    return `Machine: ${machine?.name || 'not set'}${rate?.name ? ` · ${rate.name}` : ''}`
   }))
 watch(total, (value) => emit('update:total', Math.round(value)), { immediate: true })
 watch(rows, (value) => emit('update:breakdown', value.map((row) => ({ name: row.component.name || 'Cost component', amount: Math.round(row.amount), detail: row.detail, missing: row.missing }))), { immediate: true })
@@ -161,7 +162,7 @@ watch(rows, (value) => emit('update:breakdown', value.map((row) => ({ name: row.
     <ServiceOverviewIdentity :form="form" :active="active" />
 
     <ServiceOverviewSection title="Cost estimate" description="Current cost per service unit from the configured components and their selected defaults.">
-      <div v-if="defaultMachineSummary.length" class="mb-3 rounded-box border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs leading-5 text-base-content/70"><strong class="font-medium text-primary">Defaults used for machine estimate:</strong> {{ defaultMachineSummary.join(' · ') }}</div>
+      <div v-if="defaultEstimateSummary.length" class="mb-3 rounded-box border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs leading-5 text-base-content/70"><strong class="font-medium text-primary">Defaults used for estimate:</strong> {{ defaultEstimateSummary.join(' · ') }}</div>
       <div v-if="rows.length" class="space-y-2">
         <div class="divide-y divide-base-300/70">
           <div v-for="row in rows" :key="row.component.id" class="flex min-w-0 items-center gap-2 py-2.5 first:pt-0 last:pb-0">

@@ -136,8 +136,7 @@ function stepDescription(number: number, fallback: string) {
   }
   if (number === 3) {
     const machineGroups = props.form.components.filter((component) => component.type === 'machine').length
-    const supportingCosts = props.form.components.length - machineGroups
-    return `${machineGroups} machine group${machineGroups === 1 ? '' : 's'} · ${supportingCosts} supporting cost${supportingCosts === 1 ? '' : 's'}`
+    return `${machineGroups} machine group${machineGroups === 1 ? '' : 's'} · defaults drive estimate`
   }
   if (number === 4) return props.form.pricingRule?.type === 'manual' ? 'Manual price setup' : 'Selling price rules'
   if (number === 5) return testResult.value ? 'Test result available' : 'Try it with real values'
