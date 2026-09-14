@@ -118,6 +118,8 @@ export type ServiceMaterialVariantForm = {
   id: string;
   materialId: string;
   values: Record<string, string>;
+  sellingPriceRial: number;
+  sellingPriceInput: string;
   position: number;
   active: boolean;
 };

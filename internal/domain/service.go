@@ -72,11 +72,12 @@ type ServiceDraft struct {
 // Values are keyed by service parameter key and contain canonical option
 // values (not display labels). A variant must resolve to exactly one material.
 type ServiceMaterialVariant struct {
-	ID         string
-	MaterialID string
-	Values     map[string]string
-	Position   int
-	Active     bool
+	ID               string
+	MaterialID       string
+	Values           map[string]string
+	SellingPriceRial int64
+	Position         int
+	Active           bool
 }
 
 type FinishedSizeOption struct {
@@ -191,6 +192,7 @@ const (
 	PricingFixedMargin PricingRuleType = "fixed-margin"
 	PricingPerUnit     PricingRuleType = "per-unit"
 	PricingTiers       PricingRuleType = "quantity-tiers"
+	PricingVariation   PricingRuleType = "variation"
 	PricingManual      PricingRuleType = "manual"
 )
 
@@ -453,6 +455,9 @@ func (s Service) Validate() error {
 			return validationError("materialVariants.id", "must be unique")
 		}
 		variantIDs[variant.ID] = struct{}{}
+		if variant.SellingPriceRial < 0 {
+			return validationError(fmt.Sprintf("materialVariants[%d].sellingPriceRial", index), "cannot be negative")
+		}
 		if len(variant.Values) == 0 {
 			return validationError(fmt.Sprintf("materialVariants[%d].values", index), "must contain at least one option value")
 		}
@@ -482,6 +487,16 @@ func (s Service) Validate() error {
 		}
 		if err := s.PricingRule.Validate(s.Parameters); err != nil {
 			return fmt.Errorf("pricing rule: %w", err)
+		}
+		if s.PricingRule.Type == PricingVariation {
+			if len(s.MaterialVariants) == 0 {
+				return validationError("pricingRule", "variation pricing requires material variations")
+			}
+			for index, variant := range s.MaterialVariants {
+				if variant.Active && variant.SellingPriceRial <= 0 {
+					return validationError(fmt.Sprintf("materialVariants[%d].sellingPriceRial", index), "must be greater than zero for variation pricing")
+				}
+			}
 		}
 	}
 	parameterTypes := make(map[string]ParameterType, len(s.Parameters))
@@ -682,7 +697,7 @@ func (r ServicePricingRule) Validate(parameters []ServiceParameter) error {
 		parameterTypes[parameter.Key] = parameter.Type
 	}
 	switch r.Type {
-	case PricingFixed, PricingMarkup, PricingFixedMargin, PricingManual:
+	case PricingFixed, PricingMarkup, PricingFixedMargin, PricingVariation, PricingManual:
 	case PricingPerUnit:
 		return validateNumericPricingParameter(r.ParameterKey, parameterTypes)
 	case PricingTiers:

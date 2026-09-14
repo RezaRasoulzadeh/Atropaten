@@ -60,6 +60,8 @@ watch(
       rule.perUnitRateInput = formatMoneyInput(rule.perUnitRateRial, props.currencyUnit);
       for (const tier of rule.tiers)
         tier.priceInput = formatMoneyInput(tier.priceRial, props.currencyUnit);
+      for (const variant of form.value.materialVariants)
+        variant.sellingPriceInput = variant.sellingPriceRial > 0 ? formatMoneyInput(variant.sellingPriceRial, props.currencyUnit) : '';
     }
   },
 );
@@ -257,10 +259,13 @@ function startEdit() {
       id: variant.id,
       materialId: variant.materialId,
       values: { ...(variant.values || {}) },
+      sellingPriceRial: variant.sellingPriceRial || 0,
+      sellingPriceInput: variant.sellingPriceRial ? formatMoneyInput(variant.sellingPriceRial, props.currencyUnit) : '',
       position: variant.position,
       active: variant.active !== false,
     })),
   };
+  normalizePricingRule();
   validationAttempted.value = false;
   editorMode.value = 'edit';
 }
@@ -369,7 +374,8 @@ function updateGroupedMoney(target: any, textKey: string, valueKey: string, valu
 function normalizePricingRule() {
   const rule = form.value.pricingRule;
   if (!rule) return;
-  if (rule.type !== 'per-unit' && rule.type !== 'quantity-tiers') rule.parameterKey = '';
+  if (rule.type === 'per-unit') rule.type = 'manual';
+  if (rule.type !== 'quantity-tiers') rule.parameterKey = '';
   if (rule.type !== 'quantity-tiers') rule.tiers = [];
 }
 function addPricingTier() {
@@ -575,6 +581,7 @@ return runAction(async () => {
         id: variant.id,
         materialId: variant.materialId,
         values: { ...variant.values },
+        sellingPriceRial: variant.sellingPriceRial,
         position: variant.position,
         active: variant.active,
       })),

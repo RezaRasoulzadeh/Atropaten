@@ -169,7 +169,7 @@ function syncVariants() {
     const materialId = existing && candidates.some((material) => material.id === existing.materialId)
       ? existing.materialId
       : candidates.length === 1 ? candidates[0].id : existing?.materialId || ''
-    next.push(existing || { id: newID('variant'), materialId, values: { ...row.values }, position: next.length, active: true })
+    next.push(existing || { id: newID('variant'), materialId, values: { ...row.values }, sellingPriceRial: 0, sellingPriceInput: '', position: next.length, active: true })
     next[next.length - 1].values = { ...row.values }
     next[next.length - 1].materialId = materialId
     next[next.length - 1].position = next.length - 1

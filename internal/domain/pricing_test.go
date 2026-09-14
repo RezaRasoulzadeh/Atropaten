@@ -92,6 +92,27 @@ func TestEvaluatePricingSupportsGenericRules(t *testing.T) {
 	}
 }
 
+func TestEvaluatePricingUsesSelectedMaterialVariationPrice(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := NewService("SVC-variation", ServiceDraft{
+		Name:             "Variation pricing",
+		Parameters:       []ServiceParameterDraft{{ID: "P-finish", Key: "finish", Label: "Finish", Type: ParameterChoice, Required: true, DefaultValue: "matte", MaterialSource: &MaterialParameterSource{ExposedAttributeKey: "finish"}}},
+		Components:       []ServiceCostComponentDraft{{ID: "C", Name: "Cost", Type: CostFixed, RateRial: 100, UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true}},
+		PricingRule:      &ServicePricingRuleDraft{Type: PricingVariation},
+		MaterialVariants: []ServiceMaterialVariant{{ID: "VAR-matte", MaterialID: "MAT-matte", Values: map[string]string{"finish": "matte"}, SellingPriceRial: 4321, Position: 0, Active: true}},
+	}, now)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	result, err := EvaluatePricing(PricingInput{Service: service, Parameters: map[string]ResolvedParameter{"finish": {Key: "finish", Type: ParameterChoice, Value: "matte"}}})
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if result.SuggestedSellingPriceRial != 5000 {
+		t.Fatalf("variation selling price = %d, want 5000 after rounding", result.SuggestedSellingPriceRial)
+	}
+}
+
 func TestEvaluatePricingRoundsAutomaticSellingPriceUp(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	service, err := NewService("SVC-ceil", ServiceDraft{

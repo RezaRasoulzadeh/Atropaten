@@ -52,11 +52,12 @@ type ServiceInput struct {
 }
 
 type ServiceMaterialVariantInput struct {
-	ID         string            `json:"id"`
-	MaterialID string            `json:"materialId"`
-	Values     map[string]string `json:"values"`
-	Position   int               `json:"position"`
-	Active     bool              `json:"active"`
+	ID               string            `json:"id"`
+	MaterialID       string            `json:"materialId"`
+	Values           map[string]string `json:"values"`
+	SellingPriceRial int64             `json:"sellingPriceRial"`
+	Position         int               `json:"position"`
+	Active           bool              `json:"active"`
 }
 
 type FinishedSizeInput struct {
@@ -185,11 +186,12 @@ type ServiceDTO struct {
 }
 
 type ServiceMaterialVariantDTO struct {
-	ID         string            `json:"id"`
-	MaterialID string            `json:"materialId"`
-	Values     map[string]string `json:"values"`
-	Position   int               `json:"position"`
-	Active     bool              `json:"active"`
+	ID               string            `json:"id"`
+	MaterialID       string            `json:"materialId"`
+	Values           map[string]string `json:"values"`
+	SellingPriceRial int64             `json:"sellingPriceRial"`
+	Position         int               `json:"position"`
+	Active           bool              `json:"active"`
 }
 
 type FinishedSizeDTO struct {
@@ -563,7 +565,7 @@ func applicationServiceInput(input ServiceInput) (application.ServiceInput, erro
 		for key, value := range variant.Values {
 			values[key] = value
 		}
-		variants = append(variants, domain.ServiceMaterialVariant{ID: variant.ID, MaterialID: variant.MaterialID, Values: values, Position: index, Active: variant.Active})
+		variants = append(variants, domain.ServiceMaterialVariant{ID: variant.ID, MaterialID: variant.MaterialID, Values: values, SellingPriceRial: variant.SellingPriceRial, Position: index, Active: variant.Active})
 	}
 	return application.ServiceInput{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, ImagePath: input.ImagePath, DefaultUnit: input.DefaultUnit, DefaultPriority: input.DefaultPriority, Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: finishedSize, MaterialVariants: variants}, nil
 }
@@ -652,7 +654,7 @@ func serviceDTO(view application.ServiceView) ServiceDTO {
 		for key, value := range variant.Values {
 			values[key] = value
 		}
-		variants = append(variants, ServiceMaterialVariantDTO{ID: variant.ID, MaterialID: variant.MaterialID, Values: values, Position: variant.Position, Active: variant.Active})
+		variants = append(variants, ServiceMaterialVariantDTO{ID: variant.ID, MaterialID: variant.MaterialID, Values: values, SellingPriceRial: variant.SellingPriceRial, Position: variant.Position, Active: variant.Active})
 	}
 	return ServiceDTO{ID: view.ID, Name: view.Name, Code: view.Code, Category: view.Category, Description: view.Description, ImagePath: view.ImagePath, DefaultUnit: view.DefaultUnit, DefaultPriority: view.DefaultPriority, Active: view.Active, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt, Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: finishedSize, MaterialVariants: variants}
 }

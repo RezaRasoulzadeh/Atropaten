@@ -249,6 +249,8 @@ watch(
             v-else-if="activeStep === 4"
             :pricing-rule="form.pricingRule"
             :parameters="form.parameters"
+            :materials="materials"
+            :material-variants="form.materialVariants"
             :currency-unit="currencyUnit"
             :estimated-cost-rial="pricingCostEstimate"
             :show-errors="validationAttempted"

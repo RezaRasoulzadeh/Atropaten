@@ -348,7 +348,7 @@ func TestServiceMaterialVariantRoundTrip(t *testing.T) {
 	}
 	defer store.Close()
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	service, err := domain.NewService("SVC-variant", domain.ServiceDraft{Name: "Variant service", Parameters: []domain.ServiceParameterDraft{{ID: "P-finish", Key: "finish", Label: "Finish", Type: domain.ParameterChoice, MaterialSource: &domain.MaterialParameterSource{ExposedAttributeKey: "finish"}}}, MaterialVariants: []domain.ServiceMaterialVariant{{ID: "VAR-1", MaterialID: "MAT-1", Values: map[string]string{"finish": "matte"}, Position: 0, Active: true}}}, now)
+	service, err := domain.NewService("SVC-variant", domain.ServiceDraft{Name: "Variant service", Parameters: []domain.ServiceParameterDraft{{ID: "P-finish", Key: "finish", Label: "Finish", Type: domain.ParameterChoice, MaterialSource: &domain.MaterialParameterSource{ExposedAttributeKey: "finish"}}}, MaterialVariants: []domain.ServiceMaterialVariant{{ID: "VAR-1", MaterialID: "MAT-1", Values: map[string]string{"finish": "matte"}, SellingPriceRial: 1234, Position: 0, Active: true}}}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -359,7 +359,7 @@ func TestServiceMaterialVariantRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.MaterialVariants) != 1 || got.MaterialVariants[0].MaterialID != "MAT-1" || got.MaterialVariants[0].Values["finish"] != "matte" {
+	if len(got.MaterialVariants) != 1 || got.MaterialVariants[0].MaterialID != "MAT-1" || got.MaterialVariants[0].Values["finish"] != "matte" || got.MaterialVariants[0].SellingPriceRial != 1234 {
 		t.Fatalf("material variants did not round-trip: %+v", got.MaterialVariants)
 	}
 }

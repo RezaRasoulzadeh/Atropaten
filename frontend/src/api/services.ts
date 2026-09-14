@@ -51,6 +51,7 @@ export type ServiceMaterialVariantPayload = {
   id: string
   materialId: string
   values: Record<string, string>
+  sellingPriceRial: number
   position: number
   active: boolean
 }

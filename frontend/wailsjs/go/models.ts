@@ -3521,6 +3521,7 @@ export namespace main {
 	    id: string;
 	    materialId: string;
 	    values: Record<string, string>;
+	    sellingPriceRial: number;
 	    position: number;
 	    active: boolean;
 	
@@ -3533,6 +3534,7 @@ export namespace main {
 	        this.id = source["id"];
 	        this.materialId = source["materialId"];
 	        this.values = source["values"];
+	        this.sellingPriceRial = source["sellingPriceRial"];
 	        this.position = source["position"];
 	        this.active = source["active"];
 	    }
@@ -3659,6 +3661,7 @@ export namespace main {
 	    id: string;
 	    materialId: string;
 	    values: Record<string, string>;
+	    sellingPriceRial: number;
 	    position: number;
 	    active: boolean;
 	
@@ -3671,6 +3674,7 @@ export namespace main {
 	        this.id = source["id"];
 	        this.materialId = source["materialId"];
 	        this.values = source["values"];
+	        this.sellingPriceRial = source["sellingPriceRial"];
 	        this.position = source["position"];
 	        this.active = source["active"];
 	    }

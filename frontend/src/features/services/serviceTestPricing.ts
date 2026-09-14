@@ -1,7 +1,7 @@
 import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
-import type { ComponentForm, ParameterForm, ServiceForm, ServiceMaterialVariantForm } from './types'
+import type { ComponentForm, ParameterForm, ServiceForm } from './types'
 
 export type TestValues = Record<string, string>
 export type TestPricingLine = { name: string; detail: string; amount: number; missing: boolean }
@@ -26,7 +26,9 @@ function normalize(value: string | undefined) {
   return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '')
 }
 
-function materialFor(component: ComponentForm, parameters: ParameterForm[], values: TestValues, materials: MaterialRecord[], materialVariants: ServiceMaterialVariantForm[] = []) {
+type MaterialVariantForPricing = { active: boolean; materialId: string; values: Record<string, string>; sellingPriceRial: number }
+
+function materialFor(component: ComponentForm, parameters: ParameterForm[], values: TestValues, materials: MaterialRecord[], materialVariants: MaterialVariantForPricing[] = []) {
 	if (component.type !== 'material') return null
 	if (component.usageMode === 'parameter' && !component.referenceId) {
 		const parameter = parameters.find((item) => item.key === component.parameterKey)
@@ -74,6 +76,14 @@ function usageFor(component: ComponentForm, parameters: ParameterForm[], values:
   return Math.max(0, number(component.usageQuantity, 1))
 }
 
+function variationPrice(form: ServiceForm, values: TestValues) {
+  const groups = form.parameters.filter((item) => item.type === 'choice' && item.materialSource && !item.materialSource.selectMaterial)
+  const selected = Object.fromEntries(groups.map((group) => [group.key, values[group.key] || group.defaultValue]))
+  if (!groups.length || groups.some((group) => !selected[group.key])) return 0
+  const variant = form.materialVariants.find((item) => item.active !== false && Object.keys(selected).length === Object.keys(item.values).length && Object.keys(selected).every((key) => item.values[key] === selected[key]))
+  return variant?.sellingPriceRial || 0
+}
+
 function nestedServiceCost(service: ServiceRecord, materials: MaterialRecord[], machines: MachineRecord[], services: ServiceRecord[], visited = new Set<string>()) {
   if (visited.has(service.id)) return 0
   const next = new Set(visited).add(service.id)
@@ -82,7 +92,7 @@ function nestedServiceCost(service: ServiceRecord, materials: MaterialRecord[], 
   return calculateComponents(service.components as unknown as ComponentForm[], parameters, values, materials, machines, services, service.materialVariants || [], next).totalCostRial
 }
 
-function calculateComponents(components: ComponentForm[], parameters: ParameterForm[], values: TestValues, materials: MaterialRecord[], machines: MachineRecord[], services: ServiceRecord[], materialVariants: ServiceMaterialVariantForm[] = [], visited = new Set<string>()) {
+function calculateComponents(components: ComponentForm[], parameters: ParameterForm[], values: TestValues, materials: MaterialRecord[], machines: MachineRecord[], services: ServiceRecord[], materialVariants: MaterialVariantForPricing[] = [], visited = new Set<string>()) {
   let running = 0
   const lines: TestPricingLine[] = []
   for (const component of components.filter((item) => item.enabled)) {
@@ -118,6 +128,7 @@ export function calculateServiceTest(form: ServiceForm, values: TestValues, mate
   if (rule.type === 'markup') { sellingPriceRial = costs.totalCostRial + markupRial; pricingLabel = `Cost + markup (${rule.markupPercentage || 0}%)` }
   else if (rule.type === 'fixed-margin') { sellingPriceRial = costs.totalCostRial + rule.fixedMarginRial; pricingLabel = 'Cost + fixed margin' }
   else if (rule.type === 'fixed') { sellingPriceRial = rule.fixedPriceRial; pricingLabel = 'Fixed price' }
+  else if (rule.type === 'variation') { sellingPriceRial = variationPrice(form, values); pricingLabel = 'Variation price' }
   else if (rule.type === 'per-unit') { sellingPriceRial = Math.ceil(quantity * rule.perUnitRateRial); pricingLabel = 'Per-unit parameter' }
   else if (rule.type === 'quantity-tiers') {
     const tier = [...rule.tiers].sort((a, b) => Number(a.minimumQuantity) - Number(b.minimumQuantity)).filter((item) => Number(item.minimumQuantity) <= quantity).at(-1)
@@ -125,5 +136,5 @@ export function calculateServiceTest(form: ServiceForm, values: TestValues, mate
     pricingLabel = 'Quantity tiers'
   }
   const profitRial = sellingPriceRial - costs.totalCostRial
-  return { ...costs, markupRial, sellingPriceRial, pricingLabel, profitRial, marginPercentage: sellingPriceRial ? profitRial / sellingPriceRial * 100 : 0, belowCost: rule.type !== 'manual' && sellingPriceRial < costs.totalCostRial, hasMissing: costs.lines.some((line) => line.missing) }
+  return { ...costs, markupRial, sellingPriceRial, pricingLabel, profitRial, marginPercentage: sellingPriceRial ? profitRial / sellingPriceRial * 100 : 0, belowCost: rule.type !== 'manual' && sellingPriceRial < costs.totalCostRial, hasMissing: costs.lines.some((line) => line.missing) || (rule.type === 'variation' && sellingPriceRial <= 0) }
 }

@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { BarChart3, Calculator, CircleHelp, List, Percent, Plus, Tag, Trash2 } from 'lucide-vue-next'
+import { BarChart3, Calculator, CircleHelp, Layers3, List, Percent, Plus, Tag, Trash2 } from 'lucide-vue-next'
 import AppInput from '../../components/ui/AppInput.vue'
 import FormField from '../../components/ui/FormField.vue'
 import FormGrid from '../../components/ui/FormGrid.vue'
 import SelectField from '../../components/ui/SelectField.vue'
+import type { MaterialRecord } from '../../api/materials'
 import type { CurrencyUnit } from '../../utils/currency'
 import { formatMoney, formatMoneyInput, parseMoneyInput } from '../../utils/currency'
-import type { ParameterForm, PricingRuleForm } from './types'
+import type { ParameterForm, PricingRuleForm, ServiceMaterialVariantForm } from './types'
 
 const props = defineProps<{
   pricingRule: PricingRuleForm
   parameters: ParameterForm[]
+  materials: MaterialRecord[]
+  materialVariants: ServiceMaterialVariantForm[]
   currencyUnit: CurrencyUnit
   estimatedCostRial: number
   showErrors?: boolean
@@ -23,23 +26,44 @@ const methods = [
   { type: 'fixed-margin', title: 'Cost + fixed margin', description: 'Add a fixed amount to the total cost.', icon: Calculator },
   { type: 'fixed', title: 'Fixed price', description: 'Use the same price regardless of cost.', icon: Tag },
   { type: 'quantity-tiers', title: 'Quantity tiers', description: 'Set different prices based on quantity.', icon: BarChart3 },
-  { type: 'per-unit', title: 'Per-unit parameter', description: 'Multiply a rate by a numeric parameter.', icon: Calculator },
+  { type: 'variation', title: 'Variation prices', description: 'Assign a selling price to every material variation.', icon: Layers3 },
   { type: 'manual', title: 'Manual price', description: 'Set the price manually in each order.', icon: List },
 ]
 
 function setType(type: string) {
   props.pricingRule.type = type
-  if (type !== 'per-unit' && type !== 'quantity-tiers') props.pricingRule.parameterKey = ''
+  if (type !== 'quantity-tiers') props.pricingRule.parameterKey = ''
   if (type !== 'quantity-tiers') props.pricingRule.tiers = []
 }
 
-function updateMoney(field: 'fixedPriceInput' | 'fixedMarginInput' | 'perUnitRateInput', value: string) {
+function updateMoney(field: 'fixedPriceInput' | 'fixedMarginInput', value: string) {
   props.pricingRule[field] = value
-  const valueField = field === 'fixedPriceInput' ? 'fixedPriceRial' : field === 'fixedMarginInput' ? 'fixedMarginRial' : 'perUnitRateRial'
+  const valueField = field === 'fixedPriceInput' ? 'fixedPriceRial' : 'fixedMarginRial'
   const parsed = parseMoneyInput(value, props.currencyUnit)
   if (parsed !== null) {
     props.pricingRule[valueField] = parsed
     props.pricingRule[field] = formatMoneyInput(parsed, props.currencyUnit)
+  }
+}
+
+function variationLabel(variant: ServiceMaterialVariantForm) {
+  return Object.entries(variant.values).map(([key, value]) => `${props.parameters.find((parameter) => parameter.key === key)?.label || key}: ${value.split('\u001f').join(' × ')}`).join(' · ')
+}
+
+function variationMaterial(variant: ServiceMaterialVariantForm) {
+  return props.materials.find((material) => material.id === variant.materialId && material.active) || null
+}
+
+function updateVariationPrice(variant: ServiceMaterialVariantForm, value: string) {
+  variant.sellingPriceInput = value
+  if (!value.trim()) {
+    variant.sellingPriceRial = 0
+    return
+  }
+  const parsed = parseMoneyInput(value, props.currencyUnit)
+  if (parsed !== null) {
+    variant.sellingPriceRial = parsed
+    variant.sellingPriceInput = formatMoneyInput(parsed, props.currencyUnit)
   }
 }
 
@@ -82,7 +106,7 @@ function updateTierPrice(index: number, value: string) {
       </div>
     </div>
 
-    <div class="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+    <div class="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-6">
       <button v-for="method in methods" :key="method.type" class="min-w-0 rounded-box border p-3 text-start transition-colors" :class="pricingRule.type === method.type ? 'border-primary bg-primary/10' : 'border-base-300 bg-base-100 hover:border-primary/50'" type="button" @click="setType(method.type)">
         <div class="flex items-center justify-between gap-2"><span class="grid size-9 place-items-center rounded-box bg-base-200 text-primary"><component :is="method.icon" :size="20" aria-hidden="true" /></span><span class="size-4 rounded-full border-2" :class="pricingRule.type === method.type ? 'border-primary bg-primary' : 'border-base-content/40'"></span></div>
         <strong class="mt-3 block text-sm">{{ method.title }}</strong>
@@ -117,9 +141,16 @@ function updateTierPrice(index: number, value: string) {
       <p v-else class="mt-4 rounded-box border border-dashed border-base-300 p-3 text-sm text-base-content/60">Add a zero-quantity tier before saving.</p>
     </div>
 
-    <div v-else-if="pricingRule.type === 'per-unit'" class="rounded-box border border-base-300 bg-base-100 p-4">
-      <h3 class="text-base font-semibold">Per-unit parameter settings</h3><p class="mt-1 text-sm text-base-content/65">Multiply a price rate by a numeric parameter such as quantity, hours, or finished area.</p>
-      <FormGrid class="mt-4"><SelectField v-model="pricingRule.parameterKey" label="Numeric parameter" :invalid="showErrors && !pricingRule.parameterKey" :options="[{ label: 'Select a numeric parameter', value: '' }, ...numericParameters.map((parameter) => ({ label: `${parameter.label || parameter.key}${parameter.unit ? ` · ${parameter.unit}` : ''}`, value: parameter.key }))]" /><FormField class="gap-1"><span>Rate per unit ({{ currencyUnit }}) <em class="text-error">*</em></span><AppInput :model-value="pricingRule.perUnitRateInput" class="input w-full" :class="{ 'input-error': showErrors && !pricingRule.perUnitRateInput.trim() }" :money="currencyUnit" type="text" inputmode="numeric" placeholder="1,000" @update:model-value="updateMoney('perUnitRateInput', $event)" /></FormField></FormGrid>
+    <div v-else-if="pricingRule.type === 'variation'" class="rounded-box border border-base-300 bg-base-100 p-4">
+      <h3 class="text-base font-semibold">Variation price settings</h3><p class="mt-1 text-sm text-base-content/65">Assign the selling price for every material variation. The order will use the price matching the selected material options.</p>
+      <div v-if="materialVariants.length" class="mt-4 space-y-2">
+        <div v-for="variant in materialVariants.filter((item) => item.active)" :key="variant.id" class="grid min-w-0 items-end gap-3 rounded-box border border-base-300 bg-base-100 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,0.7fr)]">
+          <div class="min-w-0"><strong class="block truncate text-sm">{{ variationLabel(variant) || 'Material variation' }}</strong><small class="mt-1 block truncate text-xs text-base-content/55">{{ variationMaterial(variant)?.name || 'No inventory material mapped' }}<span v-if="variationMaterial(variant)"> · Cost {{ formatMoney(variationMaterial(variant)!.highestPurchaseUnitCostRial || variationMaterial(variant)!.averageUnitCostRial, currencyUnit) }}</span></small></div>
+          <FormField class="gap-1"><span>Selling price ({{ currencyUnit }}) <em class="text-error">*</em></span><AppInput :model-value="variant.sellingPriceInput" class="input w-full" :class="{ 'input-error': showErrors && (!variant.sellingPriceInput.trim() || variant.sellingPriceRial <= 0) }" :money="currencyUnit" type="text" inputmode="numeric" placeholder="87,800" @update:model-value="updateVariationPrice(variant, $event)" /></FormField>
+        </div>
+        <p v-if="materialVariants.some((item) => item.active && item.sellingPriceRial <= 0)" class="mt-3 rounded-box border border-warning/40 bg-warning/5 p-3 text-xs leading-5 text-warning">Every active material variation needs a positive selling price before this service can be saved.</p>
+      </div>
+      <p v-else class="mt-4 rounded-box border border-dashed border-warning/40 bg-warning/5 p-3 text-sm leading-5 text-warning">Create and map material combinations in the Materials step before assigning variation prices.</p>
     </div>
 
     <div v-else class="rounded-box border border-base-300 bg-base-100 p-4"><h3 class="text-base font-semibold">Manual price</h3><p class="mt-1 text-sm leading-6 text-base-content/65">The operator will enter the selling price when adding this service to an order. The estimated cost remains available for comparison.</p></div>

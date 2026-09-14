@@ -209,7 +209,7 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 		total = roundedCost
 	}
 	result.EstimatedCostRial = total
-	suggested, warnings, err := suggestedPrice(input.Service.PricingRule, input.Parameters, calculatedCost)
+	suggested, warnings, err := suggestedPrice(input.Service.PricingRule, input.Service, input.Parameters, calculatedCost)
 	if err != nil {
 		return PricingResult{}, err
 	}
@@ -335,7 +335,7 @@ func percentageAmountCeil(base int64, percentage Quantity) (int64, error) {
 	return ceilBig(new(big.Int).Mul(big.NewInt(base), big.NewInt(int64(percentage))), denominator)
 }
 
-func suggestedPrice(rule *ServicePricingRule, parameters map[string]ResolvedParameter, cost int64) (int64, []string, error) {
+func suggestedPrice(rule *ServicePricingRule, service Service, parameters map[string]ResolvedParameter, cost int64) (int64, []string, error) {
 	if rule == nil || rule.Type == PricingManual {
 		return 0, []string{"No automatic selling-price rule is configured"}, nil
 	}
@@ -352,6 +352,16 @@ func suggestedPrice(rule *ServicePricingRule, parameters map[string]ResolvedPara
 	case PricingFixedMargin:
 		total, err := addMoney(cost, rule.FixedMarginRial)
 		return total, nil, err
+	case PricingVariation:
+		selected := make(map[string]string, len(parameters))
+		for key, parameter := range parameters {
+			selected[key] = parameter.Value
+		}
+		variant, ok := service.ResolveMaterialVariant(selected)
+		if !ok {
+			return 0, nil, fmt.Errorf("selected material variation is not configured")
+		}
+		return variant.SellingPriceRial, nil, nil
 	case PricingPerUnit:
 		parameter, exists := parameters[rule.ParameterKey]
 		if !exists {

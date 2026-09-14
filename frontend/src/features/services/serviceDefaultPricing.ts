@@ -104,6 +104,8 @@ function formFromService(service: ServiceRecord): ServiceForm {
       id: variant.id,
       materialId: variant.materialId,
       values: { ...(variant.values || {}) },
+      sellingPriceRial: variant.sellingPriceRial || 0,
+      sellingPriceInput: variant.sellingPriceRial ? String(variant.sellingPriceRial) : '',
       position: variant.position,
       active: variant.active !== false,
     })),
