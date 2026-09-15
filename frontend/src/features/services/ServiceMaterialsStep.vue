@@ -191,11 +191,16 @@ const combinationRows = computed<CombinationRow[]>(() => combinations(materialGr
 })))
 
 function syncVariants() {
-  for (const group of materialGroups.value) {
-    const options = groupOptions(group)
+	// Do not erase persisted mappings while inventory is still loading or when
+	// a temporary source edit produces no rows. The server validates mappings;
+	// this editor should not silently turn a valid service into a source-only one.
+	if (!props.materials.length) return
+	for (const group of materialGroups.value) {
+		const options = groupOptions(group)
     if (!options.some((option) => option.value === group.defaultValue)) group.defaultValue = options[0]?.value || ''
   }
-  const rows = combinations(materialGroups.value)
+	const rows = combinations(materialGroups.value)
+	if (materialGroups.value.length && !rows.length) return
   const current = new Map(props.materialVariants.map((variant) => [variantKey(variant.values), variant]))
   const next: ServiceMaterialVariantForm[] = []
   for (const row of rows) {

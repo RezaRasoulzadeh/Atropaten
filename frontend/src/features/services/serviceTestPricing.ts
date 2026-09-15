@@ -4,6 +4,7 @@ import type { ServiceRecord } from '../../api/services'
 import type { ComponentForm, ParameterForm, ServiceForm } from './types'
 import { collapseGroupedMaterialComponents } from './serviceComponentSync'
 import { serviceCategoryRequirements } from './serviceCategory'
+import { findMaterialVariant } from './serviceMaterialResolution'
 
 export type TestValues = Record<string, string>
 export type TestPricingLine = { name: string; detail: string; amount: number; missing: boolean }
@@ -103,7 +104,7 @@ function materialFor(component: ComponentForm, parameters: ParameterForm[], valu
 			const groups = parameters.filter((item) => item.type === 'choice' && item.materialSource && !item.materialSource.selectMaterial)
 			const selectedValues = Object.fromEntries(groups.map((group) => [group.key, values[group.key] || group.defaultValue]))
 			if (groups.some((group) => !selectedValues[group.key])) return null
-			const variant = materialVariants.find((item) => item.active !== false && Object.keys(selectedValues).length === Object.keys(item.values).length && Object.keys(selectedValues).every((key) => item.values[key] === selectedValues[key]))
+			const variant = findMaterialVariant(materialVariants, selectedValues)
 			return materials.find((material) => material.id === variant?.materialId && material.active) || null
 		}
 		return null
@@ -127,7 +128,7 @@ function machineRate(component: ComponentForm, machine: MachineRecord, parameter
   if (component.rateParameterKey) {
     const parameter = parameters.find((item) => item.key === component.rateParameterKey)
     const wanted = normalize(values[component.rateParameterKey] || parameter?.defaultValue)
-    return rates.find((rate) => rate.active && (!rate.selectorPredefinedKey || rate.selectorPredefinedKey === parameter?.predefinedKey) && [rate.selectorValue, rate.name, rate.id].some((value) => normalize(value) === wanted)) || null
+    return rates.find((rate) => rate.active && [rate.selectorValue, rate.name, rate.id].some((value) => normalize(value) === wanted)) || null
   }
   return rates.find((rate) => rate.active) || rates[0] || null
 }

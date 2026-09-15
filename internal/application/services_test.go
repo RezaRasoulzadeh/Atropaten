@@ -112,3 +112,32 @@ func TestServicePreservesConfiguredMachineOptions(t *testing.T) {
 		t.Fatalf("machine options = %+v, want [%s]", created.Parameters, machine.ID)
 	}
 }
+
+func TestServiceMaterialVariantsAreAuthoritativeWhenDefaultIsStale(t *testing.T) {
+	repository := &serviceRepositoryStub{}
+	material := domain.Material{
+		ID: "MAT-A4", Name: "A4 Paper", Kind: domain.MaterialKindSheetStock, Active: true,
+		Attributes: []domain.MaterialAttributeValue{
+			{Key: "width_mm", ValueType: domain.MaterialAttributeInteger, IntegerValue: 210},
+		},
+	}
+	service := NewServicesService(repository, materialLookupStub{items: []domain.Material{material}}, machineLookupStub{})
+	created, err := service.Create(context.Background(), ServiceInput{
+		Name: "Mapped paper",
+		Parameters: []ParameterInput{{
+			ID: "P-size", Key: "size", Label: "Paper size", Type: string(domain.ParameterChoice), Required: true,
+			DefaultValue: "stale-value", MaterialSource: &domain.MaterialParameterSource{
+				AllowedKinds: []domain.MaterialKind{domain.MaterialKindSheetStock}, ExposedAttributeKey: "width_mm",
+			},
+		}},
+		MaterialVariants: []domain.ServiceMaterialVariant{{
+			ID: "VAR-A4", MaterialID: material.ID, Values: map[string]string{"size": "210"}, Position: 0, Active: true,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("stale default rejected a valid mapped service: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatalf("service was not persisted: %+v", created)
+	}
+}

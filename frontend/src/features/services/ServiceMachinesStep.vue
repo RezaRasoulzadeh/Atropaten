@@ -71,8 +71,11 @@ function rateOptionsForMachines(machines: MachineRecord[]): RateOption[] {
 }
 
 function selectorKeyForRateOptions(options: RateOption[]) {
-  const keys = Array.from(new Set(options.map((option) => option.selectorPredefinedKey).filter(Boolean)))
-  return keys.length === 1 && options.every((option) => !option.selectorPredefinedKey || option.selectorPredefinedKey === keys[0]) ? keys[0] : ''
+  // Machine-rate values are generated from machine profiles. They are not a
+  // static predefined parameter, even when a profile happens to use the color
+  // catalog as its selector source.
+  void options
+  return ''
 }
 
 function syncRateParameter(parameter: ParameterForm, machines: MachineRecord[]) {

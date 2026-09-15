@@ -247,8 +247,20 @@ func (s *PricingService) calculateDefinition(ctx context.Context, request Pricin
 
 func (s *PricingService) resolveParameters(ctx context.Context, service domain.Service, submitted map[string]string) ([]domain.ResolvedParameter, error) {
 	definitions := service.Parameters
+	machineRateParameters := make(map[string]struct{})
+	for _, component := range service.Components {
+		if component.Type == domain.CostMachine && strings.TrimSpace(component.RateParameterKey) != "" {
+			machineRateParameters[component.RateParameterKey] = struct{}{}
+		}
+	}
 	resolved := make([]domain.ResolvedParameter, 0, len(definitions))
 	for _, definition := range definitions {
+		predefinedKey := definition.PredefinedKey
+		if _, dynamic := machineRateParameters[definition.Key]; dynamic {
+			// Machine-rate choices are generated from the selected machine's
+			// active profiles, not from the static predefined catalog.
+			predefinedKey = ""
+		}
 		value, exists := submitted[definition.Key]
 		if !exists || strings.TrimSpace(value) == "" {
 			value = definition.DefaultValue
@@ -258,10 +270,12 @@ func (s *PricingService) resolveParameters(ctx context.Context, service domain.S
 			if definition.Required {
 				return nil, fmt.Errorf("parameter %q is required", definition.Label)
 			}
-			resolved = append(resolved, domain.ResolvedParameter{Key: definition.Key, Type: definition.Type, Value: value, PredefinedKey: definition.PredefinedKey})
+			_, dynamicMachineRate := machineRateParameters[definition.Key]
+			resolved = append(resolved, domain.ResolvedParameter{Key: definition.Key, Type: definition.Type, Value: value, PredefinedKey: predefinedKey, DynamicMachineRate: dynamicMachineRate})
 			continue
 		}
-		item := domain.ResolvedParameter{Key: definition.Key, Type: definition.Type, Value: value, PredefinedKey: definition.PredefinedKey}
+		_, dynamicMachineRate := machineRateParameters[definition.Key]
+		item := domain.ResolvedParameter{Key: definition.Key, Type: definition.Type, Value: value, PredefinedKey: predefinedKey, DynamicMachineRate: dynamicMachineRate}
 		switch definition.Type {
 		case domain.ParameterInteger:
 			parsed, parseErr := strconv.ParseInt(value, 10, 64)
@@ -283,12 +297,24 @@ func (s *PricingService) resolveParameters(ctx context.Context, service domain.S
 				return nil, fmt.Errorf("parameter %q must be true or false", definition.Label)
 			}
 		case domain.ParameterChoice:
+			if _, dynamic := machineRateParameters[definition.Key]; dynamic {
+				break
+			}
 			if definition.MaterialSource == nil {
 				valid := false
-				for _, option := range definition.Options {
-					if option == value {
-						valid = true
-						break
+				if definition.PredefinedKey != "" {
+					for _, option := range definition.PredefinedOptions {
+						if option.Active && option.Code == value {
+							valid = true
+							break
+						}
+					}
+				} else {
+					for _, option := range definition.Options {
+						if option == value {
+							valid = true
+							break
+						}
 					}
 				}
 				if !valid {

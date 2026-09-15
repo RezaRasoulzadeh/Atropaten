@@ -54,6 +54,21 @@ func TestServiceParameterValidation(t *testing.T) {
 	}
 }
 
+func TestServiceValidationAllowsDynamicMachineRateParameter(t *testing.T) {
+	now := time.Date(2026, 9, 15, 0, 0, 0, 0, time.UTC)
+	_, err := NewService("SVC-machine-rate", ServiceDraft{
+		Name: "Machine rate service",
+		Parameters: []ServiceParameterDraft{
+			{ID: "P-machine", Key: "machine", Label: "Machine", Type: ParameterMachineReference, Required: true, DefaultValue: "MAC-banner"},
+			{ID: "P-rate", Key: "machine_rate", Label: "Machine rate", Type: ParameterChoice, Required: true, DefaultValue: "Full color", PredefinedKey: PredefinedParameterColor},
+		},
+		Components: []ServiceCostComponentDraft{{ID: "C-machine", Name: "Machine", Type: CostMachine, UsageMode: UsageParameter, ParameterKey: "machine", RateParameterKey: "machine_rate", UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true}},
+	}, now)
+	if err != nil {
+		t.Fatalf("dynamic machine rate parameter rejected: %v", err)
+	}
+}
+
 func TestServiceCostComponentValidationIsGeneric(t *testing.T) {
 	now := time.Date(2024, time.August, 12, 0, 0, 0, 0, time.UTC)
 	service, err := NewService("SVC-costs", ServiceDraft{

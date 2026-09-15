@@ -261,7 +261,6 @@ function machineRateOptions(parameter: any) {
     for (const rate of rates) {
       const value = String(rate.selectorValue || rate.name || rate.id || '').trim();
       if (!value || (allowed.size && !allowed.has(value))) continue;
-      if (rate.selectorPredefinedKey && parameter.predefinedKey && rate.selectorPredefinedKey !== parameter.predefinedKey) continue;
       if (!options.has(value)) options.set(value, { value, label: rate.name || value });
     }
   }

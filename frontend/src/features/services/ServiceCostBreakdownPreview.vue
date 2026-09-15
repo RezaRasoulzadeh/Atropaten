@@ -11,6 +11,8 @@ import ServiceOverviewIdentity from './ServiceOverviewIdentity.vue'
 import ServiceOverviewSection from './ServiceOverviewSection.vue'
 import { collapseGroupedMaterialComponents } from './serviceComponentSync'
 import { serviceCategoryRequirements } from './serviceCategory'
+import { findMaterialVariant } from './serviceMaterialResolution'
+import { ensureRollSizeInputs, rollWidthValue, selectedRollMaterial, usesMaterialRollWidth } from './rollSizeInputs'
 
 const props = defineProps<{
   components: ComponentForm[]
@@ -54,7 +56,7 @@ function materialFor(component: ComponentForm, parameters = props.parameters) {
 			const groups = parameters.filter((item) => item.type === 'choice' && item.materialSource && !item.materialSource.selectMaterial)
 			const values = Object.fromEntries(groups.map((group) => [group.key, group.defaultValue]))
 			if (groups.some((group) => !group.defaultValue)) return null
-			const variant = props.form.materialVariants.find((item) => Object.keys(values).length === Object.keys(item.values).length && Object.keys(values).every((key) => item.values[key] === values[key] && item.active !== false))
+			const variant = findMaterialVariant(props.form.materialVariants, values)
 			return props.materials.find((material) => material.id === variant?.materialId && material.active) || null
 		}
 		return null
@@ -80,7 +82,7 @@ function machineRateFor(component: ComponentForm, parameters = props.parameters)
   if (component.rateParameterKey) {
     const parameter = parameters.find((item) => item.key === component.rateParameterKey)
     const wanted = normalize(parameter?.defaultValue || '')
-    return rates.find((rate) => rate.active && (!rate.selectorPredefinedKey || rate.selectorPredefinedKey === parameter?.predefinedKey) && [rate.selectorValue, rate.name, rate.id].some((value) => normalize(value) === wanted)) || null
+    return rates.find((rate) => rate.active && [rate.selectorValue, rate.name, rate.id].some((value) => normalize(value) === wanted)) || null
   }
   return rates.find((rate) => rate.active) || (rates.length ? rates[0] : { rateRial: machine.rateRial, name: 'Standard' })
 }
@@ -141,13 +143,32 @@ watch(() => props.form, () => {
   clearTimeout(previewTimer)
   layoutPrice.value = null
   if (!props.form.finishedSize?.quantityParameterKey) return
+  ensureRollSizeInputs(props.form)
   layoutMessage.value = 'Calculating batch layout…'
   previewTimer = setTimeout(async () => {
-    const values = Object.fromEntries(props.form.parameters.map(p => [p.key,p.defaultValue]))
+    const values = Object.fromEntries(props.form.parameters.map(p => [p.key, p.defaultValue]))
+    if (usesMaterialRollWidth(props.form)) {
+      const materialComponent = effectiveComponents.value.find((component) => component.type === 'material' && component.enabled)
+      const selectedMaterial = (materialComponent ? materialFor(materialComponent, props.parameters) : null) || selectedRollMaterial(props.form, props.materials, values)
+      const widthKey = props.form.finishedSize?.widthParameterKey
+      const width = rollWidthValue(selectedMaterial, values.layout_margin_mm || '0')
+      if (widthKey && width) values[widthKey] = width
+    }
+    const heightKey = props.form.finishedSize?.heightParameterKey
+    if (heightKey && !values[heightKey]) {
+      if (token === previewToken) layoutMessage.value = 'Set a default custom height / length to preview layout pricing.'
+      return
+    }
     try {
-      const price = await pricingApi.draft(props.form,values,values[props.form.finishedSize!.quantityParameterKey] || '1')
+      const price = await pricingApi.draft(props.form, values, values[props.form.finishedSize!.quantityParameterKey] || '1')
       if (token === previewToken) { layoutPrice.value = price; layoutMessage.value = '' }
-    } catch(e) { if (token === previewToken) layoutMessage.value = String(e) }
+    } catch(e) {
+      if (token !== previewToken) return
+      const message = String(e)
+      layoutMessage.value = message.includes('Finished width') || message.includes('Finished height')
+        ? 'Set valid default finished dimensions to preview layout pricing.'
+        : message
+    }
   },250)
 },{deep:true,immediate:true})
 const rows = computed<BreakdownRow[]>(() => {

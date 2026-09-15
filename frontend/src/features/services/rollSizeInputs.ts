@@ -102,7 +102,9 @@ export function selectedRollMaterial(service: any, materials: any[], values: Rec
 }
 
 export function rollWidthValue(material: any, margin: string): string {
-  const rawWidth = Number(material?.attributes?.find((a: any) => a.key === 'width_mm')?.decimalValue)
+  const attribute = material?.attributes?.find((a: any) => a.key === 'width_mm')
+  const rawValue = attribute?.valueType === 'integer' ? attribute.integerValue : attribute?.decimalValue
+  const rawWidth = Number(rawValue)
   const edge = Number(margin || '0')
   if (!Number.isFinite(rawWidth) || !Number.isFinite(edge) || edge < 0 || rawWidth <= 2 * edge) return ''
   return String(Math.round((rawWidth - 2 * edge) * 1e6) / 1e6)

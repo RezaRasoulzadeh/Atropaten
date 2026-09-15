@@ -363,6 +363,12 @@ func (s Service) Validate() error {
 	if s.CreatedAt.IsZero() || s.UpdatedAt.IsZero() {
 		return validationError("timestamps", "are required")
 	}
+	machineRateParameters := make(map[string]struct{})
+	for _, component := range s.Components {
+		if component.Type == CostMachine && strings.TrimSpace(component.RateParameterKey) != "" {
+			machineRateParameters[component.RateParameterKey] = struct{}{}
+		}
+	}
 	keys := make(map[string]struct{}, len(s.Parameters))
 	ids := make(map[string]struct{}, len(s.Parameters))
 	for index, parameter := range s.Parameters {
@@ -380,8 +386,14 @@ func (s Service) Validate() error {
 		}
 		keys[parameter.Key] = struct{}{}
 		ids[parameter.ID] = struct{}{}
-		if err := parameter.Validate(); err != nil {
-			return fmt.Errorf("parameter %q: %w", parameter.Key, err)
+		var parameterErr error
+		if _, dynamic := machineRateParameters[parameter.Key]; dynamic {
+			parameterErr = parameter.validateMachineRate()
+		} else {
+			parameterErr = parameter.Validate()
+		}
+		if parameterErr != nil {
+			return fmt.Errorf("parameter %q: %w", parameter.Key, parameterErr)
 		}
 	}
 	componentIDs := make(map[string]struct{}, len(s.Components))
@@ -861,6 +873,18 @@ func validateNumericPricingParameter(key string, parameterTypes map[string]Param
 }
 
 func (p ServiceParameter) Validate() error {
+	return p.validate(false)
+}
+
+// validateMachineRate allows the generated machine-rate choice to be resolved
+// from the selected machine's profiles. Its options are dynamic and therefore
+// must not be validated as a static/predefined choice during a draft preview.
+func (p ServiceParameter) validateMachineRate() error {
+	p.PredefinedKey = ""
+	return p.validate(true)
+}
+
+func (p ServiceParameter) validate(dynamicMachineRate bool) error {
 	if strings.TrimSpace(p.ID) == "" {
 		return validationError("id", "is required")
 	}
@@ -993,7 +1017,7 @@ func (p ServiceParameter) Validate() error {
 			return validationError("defaultValue", "must be true or false")
 		}
 	case ParameterChoice:
-		if len(p.Options) == 0 && p.MaterialSource == nil && p.PredefinedKey == "" {
+		if len(p.Options) == 0 && p.MaterialSource == nil && p.PredefinedKey == "" && !dynamicMachineRate {
 			return validationError("options", "must contain at least one option")
 		}
 		options := make(map[string]struct{}, len(p.Options))
@@ -1007,7 +1031,7 @@ func (p ServiceParameter) Validate() error {
 			}
 			options[option] = struct{}{}
 		}
-		if p.DefaultValue != "" && p.MaterialSource == nil && p.PredefinedKey == "" {
+		if p.DefaultValue != "" && p.MaterialSource == nil && p.PredefinedKey == "" && !dynamicMachineRate {
 			if _, exists := options[p.DefaultValue]; !exists {
 				return validationError("defaultValue", "must belong to the choice options")
 			}

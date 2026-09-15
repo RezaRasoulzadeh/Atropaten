@@ -555,28 +555,7 @@ func (s *ServicesService) validateReferences(ctx context.Context, service domain
 		for _, parameter := range service.Parameters {
 			defaults[parameter.Key] = parameter.DefaultValue
 		}
-		if hasMaterialSource {
-			compatible, err := domain.CompatibleMaterials(service, items, defaults)
-			if err != nil {
-				return err
-			}
-			if len(compatible) == 0 {
-				return fmt.Errorf("service material-backed setup has no compatible active material")
-			}
-		}
 		if len(service.MaterialVariants) > 0 {
-			allMaterialDefaultsSet := true
-			for _, parameter := range service.Parameters {
-				if (parameter.MaterialSource != nil || parameter.Type == domain.ParameterMaterialReference) && strings.TrimSpace(parameter.DefaultValue) == "" {
-					allMaterialDefaultsSet = false
-					break
-				}
-			}
-			if allMaterialDefaultsSet {
-				if _, ok := service.ResolveMaterialVariant(defaults); !ok {
-					return fmt.Errorf("service material defaults do not resolve to a configured material combination")
-				}
-			}
 			for index, variant := range service.MaterialVariants {
 				var matched *domain.Material
 				for itemIndex := range items {
@@ -601,6 +580,33 @@ func (s *ServicesService) validateReferences(ctx context.Context, service domain
 				}
 				if !found {
 					return fmt.Errorf("material variant %d does not match its configured material", index+1)
+				}
+			}
+			// Explicit mappings are authoritative. The editor may briefly carry
+			// an old or incomplete default while a grouped option is being edited;
+			// that must not invalidate otherwise-correct material combinations.
+		} else if hasMaterialSource {
+			compatible, err := domain.CompatibleMaterials(service, items, defaults)
+			if err != nil {
+				return err
+			}
+			if len(compatible) == 0 {
+				// Legacy source-only services have no explicit mapping to repair a
+				// stale default. Confirm that the source itself still has an active
+				// candidate before rejecting the definition; option values can be
+				// normalized the next time the editor opens.
+				withoutDefaults := make(map[string]string, len(defaults))
+				for _, parameter := range service.Parameters {
+					if parameter.MaterialSource == nil && parameter.Type != domain.ParameterMaterialReference {
+						withoutDefaults[parameter.Key] = defaults[parameter.Key]
+					}
+				}
+				compatible, err = domain.CompatibleMaterials(service, items, withoutDefaults)
+				if err != nil {
+					return err
+				}
+				if len(compatible) == 0 {
+					return fmt.Errorf("service material-backed setup has no compatible active material")
 				}
 			}
 		}
@@ -771,8 +777,19 @@ func (s *ServicesService) parseDraft(ctx context.Context, input ServiceInput, se
 	for _, parameter := range existing {
 		existingIDs[parameter.ID] = struct{}{}
 	}
+	machineRateParameters := make(map[string]struct{})
+	for _, component := range input.Components {
+		if strings.TrimSpace(component.Type) == string(domain.CostMachine) && strings.TrimSpace(component.RateParameterKey) != "" {
+			machineRateParameters[strings.TrimSpace(component.RateParameterKey)] = struct{}{}
+		}
+	}
 	parameters := make([]domain.ServiceParameterDraft, 0, len(input.Parameters))
 	for _, parameterInput := range input.Parameters {
+		if _, dynamic := machineRateParameters[strings.TrimSpace(parameterInput.Key)]; dynamic {
+			// Machine-rate choices are generated from the selected machine's
+			// profiles and must not inherit a stale predefined catalog key.
+			parameterInput.PredefinedKey = ""
+		}
 		if parameterInput.ID != "" {
 			if _, exists := existingIDs[parameterInput.ID]; !exists && len(existing) > 0 {
 				// A client-side draft parameter has no persisted identity yet.

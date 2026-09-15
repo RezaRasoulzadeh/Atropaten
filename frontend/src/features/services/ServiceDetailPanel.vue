@@ -10,6 +10,7 @@ import { formatDateTime } from '../../utils/date'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import { serviceEstimatedSellingPrice } from './serviceDefaultPricing'
 import { serviceCategoryRequirements } from './serviceCategory'
+import { findMaterialVariant, mappedMaterialOptionValues } from './serviceMaterialResolution'
 
 type DetailTab = 'parameters' | 'components' | 'pricing' | 'info'
 
@@ -87,9 +88,11 @@ function attributeValue(attribute: any) {
 }
 
 function materialOptionCount(parameter: ServiceRecord['parameters'][number]) {
-  const source = parameter.materialSource
-  if (!source) return parameter.options?.length || 0
-  const candidates = props.materials.filter((material) => material.active && (!source.allowedKinds?.length || source.allowedKinds.includes(material.kind)))
+	const source = parameter.materialSource
+	if (!source) return parameter.options?.length || 0
+	const mappedValues = mappedMaterialOptionValues(props.service.materialVariants, parameter.key)
+	if (mappedValues.size) return mappedValues.size
+	const candidates = props.materials.filter((material) => material.active && (!source.allowedKinds?.length || source.allowedKinds.includes(material.kind)))
   if (source.selectMaterial) return candidates.length
   const keys = sourceKeys(parameter)
   const values = new Set(candidates.map((material) => {
@@ -100,8 +103,22 @@ function materialOptionCount(parameter: ServiceRecord['parameters'][number]) {
 }
 
 function machineOptionCount(parameter: ServiceRecord['parameters'][number]) {
-  const configured = new Set(parameter.options || [])
-  return props.machines.filter((machine) => machine.active && (!configured.size || configured.has(machine.id))).length
+	const configured = new Set(parameter.options || [])
+	return props.machines.filter((machine) => machine.active && (!configured.size || configured.has(machine.id))).length
+}
+
+function machineRateOptionCount(parameter: ServiceRecord['parameters'][number]) {
+	const machineParameters = components.value
+		.filter((component) => component.type === 'machine' && component.rateParameterKey === parameter.key)
+		.map((component) => components.value.find((candidate) => candidate.type === 'machine' && candidate.parameterKey === component.parameterKey))
+	const machineIDs = new Set(machineParameters.map((component) => {
+		if (!component) return ''
+		if (component.referenceId) return component.referenceId
+		return parameters.value.find((item) => item.key === component.parameterKey)?.defaultValue || ''
+	}).filter(Boolean))
+	const candidates = props.machines.filter((machine) => machine.active && (!machineIDs.size || machineIDs.has(machine.id)))
+	const rates = new Set(candidates.flatMap((machine) => machine.rates?.filter((rate) => rate.active).map((rate) => rate.id) || (machine.rateRial > 0 ? [`${machine.id}:standard`] : [])))
+	return rates.size
 }
 
 function materialFor(component: ServiceRecord['components'][number]) {
@@ -115,7 +132,7 @@ function materialFor(component: ServiceRecord['components'][number]) {
       const groups = parameters.value.filter((item) => item.type === 'choice' && item.materialSource && !item.materialSource.selectMaterial)
       const values = Object.fromEntries(groups.map((group) => [group.key, group.defaultValue]))
       if (groups.some((group) => !group.defaultValue)) return null
-      const variant = (props.service.materialVariants || []).find((item) => item.active !== false && Object.keys(values).length === Object.keys(item.values).length && Object.keys(values).every((key) => item.values[key] === values[key]))
+		const variant = findMaterialVariant(props.service.materialVariants, values)
       return props.materials.find((material) => material.id === variant?.materialId && material.active) || null
     }
     return null
@@ -156,7 +173,7 @@ function machineRateFor(component: ServiceRecord['components'][number]) {
   if (component.rateParameterKey) {
     const parameter = parameters.value.find((item) => item.key === component.rateParameterKey)
     const wanted = normalizeRate(parameter?.defaultValue || '')
-    return rates.find((rate) => rate.active && (!rate.selectorPredefinedKey || rate.selectorPredefinedKey === parameter?.predefinedKey) && [rate.selectorValue, rate.name, rate.id].some((value) => normalizeRate(value) === wanted)) || null
+    return rates.find((rate) => rate.active && [rate.selectorValue, rate.name, rate.id].some((value) => normalizeRate(value) === wanted)) || null
   }
   return rates[0] || null
 }
@@ -173,10 +190,10 @@ function parameterSummary(parameter: ServiceRecord['parameters'][number]) {
     const count = machineOptionCount(parameter)
     return `${count} machine${count === 1 ? '' : 's'} available`
   }
-  if (parameter.type === 'choice' && components.value.some((component) => component.type === 'machine' && component.rateParameterKey === parameter.key)) {
-    const count = parameter.options?.length || 0
-    return `${count} rate profile${count === 1 ? '' : 's'}`
-  }
+	if (parameter.type === 'choice' && components.value.some((component) => component.type === 'machine' && component.rateParameterKey === parameter.key)) {
+		const count = machineRateOptionCount(parameter)
+		return `${count} machine rate${count === 1 ? '' : 's'} available`
+	}
   if (parameter.type === 'choice') return `${parameter.options?.length || 0} options`
   if (parameter.unit) return parameter.unit
   return parameter.minValue || parameter.maxValue ? `${parameter.minValue || '—'} – ${parameter.maxValue || '∞'}` : parameterTypeLabel(parameter.type)

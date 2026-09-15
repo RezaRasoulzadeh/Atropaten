@@ -170,8 +170,47 @@ func TestPricingServiceCalculatesMachineSelectedByParameter(t *testing.T) {
 	}
 }
 
+func TestPricingServiceAcceptsLegacyDynamicMachineRateDefaults(t *testing.T) {
+	pricing := NewPricingService(
+		&predefinedServiceRepository{},
+		materialLookupStub{},
+		machineLookupStub{machine: domain.Machine{
+			ID:     "MAC-banner",
+			Name:   "Banner printer",
+			Active: true,
+			Rates: []domain.MachineRate{{
+				ID:                    "full-color",
+				Name:                  "Full color",
+				SelectorPredefinedKey: domain.PredefinedParameterColor,
+				RateRial:              250,
+				Active:                true,
+			}},
+		}},
+	)
+	result, err := pricing.CalculateDraft(context.Background(), ServiceInput{
+		Name: "Banner printing",
+		Parameters: []ParameterInput{
+			{ID: "P-machine", Key: "machine", Label: "Machine", Type: string(domain.ParameterMachineReference), Required: true, DefaultValue: "MAC-banner"},
+			{ID: "P-rate", Key: "machine_rate", Label: "Machine rate", Type: string(domain.ParameterChoice), Required: true, DefaultValue: "Full color", PredefinedKey: domain.PredefinedParameterColor},
+		},
+		Components: []CostComponentInput{{ID: "C-machine", Name: "Machine", Type: string(domain.CostMachine), UsageMode: string(domain.UsageParameter), ParameterKey: "machine", RateParameterKey: "machine_rate", UsageQuantity: "1", Multiplier: "1", Enabled: true}},
+	}, PricingRequest{})
+	if err != nil {
+		t.Fatalf("legacy dynamic machine rate was rejected: %v", err)
+	}
+	if result.EstimatedCostRial != 250 {
+		t.Fatalf("legacy dynamic machine rate cost=%d, want 250", result.EstimatedCostRial)
+	}
+}
+
 type serviceMapRepository struct {
 	services map[string]domain.Service
+}
+
+type predefinedServiceRepository struct{ serviceRepositoryStub }
+
+func (predefinedServiceRepository) ListPredefinedParameters(context.Context) ([]domain.PredefinedParameterDefinition, error) {
+	return []domain.PredefinedParameterDefinition{domain.ColorPredefinedParameter([]domain.PredefinedParameterOption{{Code: "full-color", Label: "Full color", Active: true, Position: 0}})}, nil
 }
 
 func (r *serviceMapRepository) ListServices(_ context.Context, _ bool) ([]domain.Service, error) {

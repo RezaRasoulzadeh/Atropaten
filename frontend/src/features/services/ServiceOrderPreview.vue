@@ -7,6 +7,7 @@ import type { ParameterForm, ServiceForm } from './types'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
 import ServiceOverviewIdentity from './ServiceOverviewIdentity.vue'
 import ServiceOverviewSection from './ServiceOverviewSection.vue'
+import { findMaterialVariant } from './serviceMaterialResolution'
 
 const props = defineProps<{
   form: ServiceForm
@@ -22,7 +23,7 @@ const materialGroups = computed(() => props.form.parameters.filter((parameter) =
 const selectedDefaultMaterial = computed(() => {
   if (!materialGroups.value.length || materialGroups.value.some((group) => !group.defaultValue)) return null
   const values = Object.fromEntries(materialGroups.value.map((group) => [group.key, group.defaultValue]))
-  const variant = props.form.materialVariants.find((item) => item.active !== false && Object.keys(values).length === Object.keys(item.values).length && Object.keys(values).every((key) => item.values[key] === values[key]))
+	  const variant = findMaterialVariant(props.form.materialVariants, values)
   return props.materials.find((material) => material.id === variant?.materialId && material.active) || null
 })
 const selectedDefaultMaterialCost = computed(() => selectedDefaultMaterial.value ? selectedDefaultMaterial.value.highestPurchaseUnitCostRial || selectedDefaultMaterial.value.averageUnitCostRial : 0)
