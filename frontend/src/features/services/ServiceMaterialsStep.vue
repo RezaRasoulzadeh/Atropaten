@@ -15,6 +15,7 @@ const props = defineProps<{
   materialVariants: ServiceMaterialVariantForm[]
   currencyUnit?: CurrencyUnit
   showErrors?: boolean
+  required?: boolean
 }>()
 
 const selectedIndex = ref(0)
@@ -267,12 +268,14 @@ syncVariants()
     <div class="flex min-w-0 flex-wrap items-start justify-between gap-3 rounded-box border border-primary/25 bg-primary/5 p-4">
       <div class="flex min-w-0 items-start gap-3">
         <span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><Package :size="20" aria-hidden="true" /></span>
-        <div class="min-w-0"><h2 class="text-base font-semibold">Material option groups</h2><p class="mt-1 max-w-3xl text-sm leading-5 text-base-content/65">Create the choices customers will see—such as Paper size or Paper type—and map every combination to the exact inventory material and cost used for pricing.</p></div>
+        <div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><h2 class="text-base font-semibold">Material option groups</h2><span class="badge badge-sm" :class="required ? 'badge-primary' : 'badge-ghost'">{{ required ? 'Required for this category' : 'Optional for this category' }}</span></div><p class="mt-1 max-w-3xl text-sm leading-5 text-base-content/65">Create the choices customers will see—such as Paper size or Paper type—and map every combination to the exact inventory material and cost used for pricing.</p></div>
       </div>
       <button class="btn btn-primary btn-sm shrink-0 gap-2" type="button" :disabled="!activeMaterials.length" @click="createGroup"><Plus :size="15" aria-hidden="true" />Add grouped option</button>
     </div>
 
-    <div v-if="!activeMaterials.length" class="flex items-start gap-3 rounded-box border border-warning/30 bg-warning/10 p-4 text-sm"><AlertTriangle class="mt-0.5 shrink-0 text-warning" :size="18" aria-hidden="true" /><div><strong class="font-semibold">Add active materials first</strong><p class="mt-1 text-xs leading-5 text-base-content/65">Material groups are built from inventory records. Add sizes, types, and costs in Materials, then return here to group them.</p></div></div>
+    <div v-if="!activeMaterials.length && (required || materialGroups.length)" class="flex items-start gap-3 rounded-box border border-warning/30 bg-warning/10 p-4 text-sm"><AlertTriangle class="mt-0.5 shrink-0 text-warning" :size="18" aria-hidden="true" /><div><strong class="font-semibold">Add active materials first</strong><p class="mt-1 text-xs leading-5 text-base-content/65">Material groups are built from inventory records. Add sizes, types, and costs in Materials, then return here to group them.</p></div></div>
+
+    <div v-if="!materialGroups.length && !required" class="rounded-box border border-info/25 bg-info/5 p-4 text-sm leading-6 text-base-content/70">This category does not need inventory material setup. You can continue without adding a material group, or add one if the service consumes stock.</div>
 
     <div v-if="!materialGroups.length" class="rounded-box border border-dashed border-primary/35 bg-base-100 p-8 text-center">
       <Layers3 class="mx-auto text-primary" :size="28" aria-hidden="true" /><h3 class="mt-3 text-base font-semibold">Start with your first material group</h3><p class="mx-auto mt-1 max-w-lg text-sm leading-5 text-base-content/60">For example, add “Paper size”, choose Width and Height, and the available sizes will be created from your active inventory. Add “Paper type” the same way.</p>

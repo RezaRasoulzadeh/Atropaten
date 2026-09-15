@@ -11,6 +11,7 @@ const props = defineProps<{
   parameters: ParameterForm[]
   machines: MachineRecord[]
   showErrors?: boolean
+  required?: boolean
 }>()
 
 const selectedIndex = ref(0)
@@ -23,7 +24,7 @@ const activeRateParameter = computed(() => activeMachineComponent.value?.ratePar
 const machineDefaultReady = computed(() => Boolean(activeMachineParameter.value && machineOptions(activeMachineParameter.value).some((machine) => machine.id === activeMachineParameter.value?.defaultValue)))
 const rateDefaultReady = computed(() => !activeRateParameter.value || (Boolean(activeRateParameter.value.defaultValue) && activeRateParameter.value.options.includes(activeRateParameter.value.defaultValue)))
 
-type RateOption = { value: string; label: string; machineCount: number; rates: number }
+type RateOption = { value: string; label: string; machineCount: number; rates: number; selectorPredefinedKey: string }
 
 function id(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -49,20 +50,41 @@ function rateValue(rate: any) {
 function rateOptionsForMachines(machines: MachineRecord[]): RateOption[] {
   const result = new Map<string, RateOption>()
   for (const machine of machines) {
-    const rates = machine.rates?.length ? machine.rates.filter((rate: any) => rate.active) : [{ name: 'Standard', id: 'default', selectorValue: '', rateRial: machine.rateRial, rateBasis: machine.rateBasis }]
+    const rates = machine.rates?.length ? machine.rates.filter((rate: any) => rate.active) : [{ name: 'Standard', id: 'default', selectorValue: '', selectorPredefinedKey: '', rateRial: machine.rateRial, rateBasis: machine.rateBasis }]
     for (const rate of rates) {
       const value = rateValue(rate)
       if (!value) continue
       const existing = result.get(value)
+      const selectorPredefinedKey = String(rate.selectorPredefinedKey || '').trim()
       if (existing) {
         existing.machineCount += 1
         existing.rates += 1
+        // A shared rate value can come from both a predefined selector and a
+        // custom parameter. In that case the parameter must stay generic.
+        if (existing.selectorPredefinedKey !== selectorPredefinedKey) existing.selectorPredefinedKey = ''
       } else {
-        result.set(value, { value, label: rate.name || value, machineCount: 1, rates: 1 })
+        result.set(value, { value, label: rate.name || value, machineCount: 1, rates: 1, selectorPredefinedKey })
       }
     }
   }
   return Array.from(result.values()).sort((left, right) => left.label.localeCompare(right.label))
+}
+
+function selectorKeyForRateOptions(options: RateOption[]) {
+  const keys = Array.from(new Set(options.map((option) => option.selectorPredefinedKey).filter(Boolean)))
+  return keys.length === 1 && options.every((option) => !option.selectorPredefinedKey || option.selectorPredefinedKey === keys[0]) ? keys[0] : ''
+}
+
+function syncRateParameter(parameter: ParameterForm, machines: MachineRecord[]) {
+  const options = rateOptionsForMachines(machines)
+  const nextOptions = options.map((option) => option.value)
+  if (parameter.options.join('\u001f') !== nextOptions.join('\u001f')) parameter.options = nextOptions
+
+  const nextDefault = nextOptions.includes(parameter.defaultValue) ? parameter.defaultValue : nextOptions[0] || ''
+  if (parameter.defaultValue !== nextDefault) parameter.defaultValue = nextDefault
+
+  const nextPredefinedKey = selectorKeyForRateOptions(options)
+  if (parameter.predefinedKey !== nextPredefinedKey) parameter.predefinedKey = nextPredefinedKey
 }
 
 const allRateOptions = computed(() => rateOptionsForMachines(machineOptions(activeMachineParameter.value)))
@@ -106,6 +128,7 @@ function createMachineGroup() {
     rateParameter = {
       id: id('parameter'), key: rateKey, label: 'Machine rate', type: 'choice', required: true,
       defaultValue: rateOptions[0].value, options: rateOptions.map((option) => option.value), minValue: null, maxValue: null, unit: '',
+      predefinedKey: selectorKeyForRateOptions(rateOptions),
     }
     props.parameters.push(rateParameter)
   }
@@ -126,6 +149,8 @@ function normalizeMachineGroups() {
       const configured = parameter?.options.filter((value) => activeMachines.value.some((machine) => machine.id === value)) || []
       if (parameter && !configured.length) parameter.options = activeMachines.value.map((machine) => machine.id)
       if (parameter && !machineOptions(parameter).some((machine) => machine.id === parameter.defaultValue)) parameter.defaultValue = machineOptions(parameter)[0]?.id || ''
+      const rateParameter = component.rateParameterKey ? props.parameters.find((item) => item.key === component.rateParameterKey) : null
+      if (rateParameter) syncRateParameter(rateParameter, machineOptions(parameter))
       continue
     }
     const base = (component.name || 'machine').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'machine'
@@ -196,16 +221,19 @@ watch(() => props.components.length, () => {
 
 normalizeMachineGroups()
 watch(() => props.components, normalizeMachineGroups, { deep: true })
+watch(() => props.machines, normalizeMachineGroups, { deep: true })
 </script>
 
 <template>
   <section class="min-w-0 space-y-4" aria-label="Service machine groups">
-    <div class="flex min-w-0 flex-wrap items-start justify-between gap-3 rounded-box border border-primary/25 bg-primary/5 p-4">
-      <div class="flex min-w-0 items-start gap-3"><span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><Factory :size="20" aria-hidden="true" /></span><div class="min-w-0"><h2 class="text-base font-semibold">Machine groups</h2><p class="mt-1 max-w-3xl text-sm leading-5 text-base-content/65">Create a machine choice for the order, then connect it to the machine’s configured rate options. The selected rate and usage become part of the estimate.</p></div></div>
+      <div class="flex min-w-0 flex-wrap items-start justify-between gap-3 rounded-box border border-primary/25 bg-primary/5 p-4">
+      <div class="flex min-w-0 items-start gap-3"><span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><Factory :size="20" aria-hidden="true" /></span><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><h2 class="text-base font-semibold">Machine groups</h2><span class="badge badge-sm" :class="required ? 'badge-primary' : 'badge-ghost'">{{ required ? 'Required for this category' : 'Optional for this category' }}</span></div><p class="mt-1 max-w-3xl text-sm leading-5 text-base-content/65">Create a machine choice for the order, then connect it to the machine’s configured rate options. The selected rate and usage become part of the estimate.</p></div></div>
       <button class="btn btn-primary btn-sm shrink-0 gap-2" type="button" :disabled="!activeMachines.length" @click="createMachineGroup"><Plus :size="15" aria-hidden="true" />Add machine group</button>
     </div>
 
-    <div v-if="!activeMachines.length" class="flex items-start gap-3 rounded-box border border-warning/30 bg-warning/10 p-4 text-sm"><AlertTriangle class="mt-0.5 shrink-0 text-warning" :size="18" aria-hidden="true" /><div><strong class="font-semibold">Add an active machine first</strong><p class="mt-1 text-xs leading-5 text-base-content/65">Machine groups use the machines and rate profiles already configured in the Machines workspace.</p></div></div>
+    <div v-if="!activeMachines.length && (required || machineComponents.length)" class="flex items-start gap-3 rounded-box border border-warning/30 bg-warning/10 p-4 text-sm"><AlertTriangle class="mt-0.5 shrink-0 text-warning" :size="18" aria-hidden="true" /><div><strong class="font-semibold">Add an active machine first</strong><p class="mt-1 text-xs leading-5 text-base-content/65">Machine groups use the machines and rate profiles already configured in the Machines workspace.</p></div></div>
+
+    <div v-if="!machineComponents.length && !required" class="rounded-box border border-info/25 bg-info/5 p-4 text-sm leading-6 text-base-content/70">This category does not need machine setup. You can continue without adding a machine group, or add one if the service uses production equipment.</div>
 
     <div v-if="!machineComponents.length" class="rounded-box border border-dashed border-primary/35 bg-base-100 p-8 text-center"><Gauge class="mx-auto text-primary" :size="28" aria-hidden="true" /><h3 class="mt-3 text-base font-semibold">Start with a machine group</h3><p class="mx-auto mt-1 max-w-lg text-sm leading-5 text-base-content/60">For example, add a “Digital printer” group. Customers can choose the machine, and—when rate profiles exist—the configured rate options will be available too.</p><button class="btn btn-primary btn-sm mt-4 gap-2" type="button" :disabled="!activeMachines.length" @click="createMachineGroup"><Plus :size="15" aria-hidden="true" />Add machine group</button></div>
 

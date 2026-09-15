@@ -148,7 +148,6 @@ function stepClass(number: number) {
 const activeStepNumber = computed(() => steps.find((step) => step.tab === tab.value)?.number || 1);
 
 function selectStep(step: (typeof steps)[number]) {
-  if (isNew.value && step.number > 1) return;
   tab.value = step.tab;
 }
 
@@ -262,9 +261,18 @@ return runAction(async () => {
   saving.value = true;
   const replacing = Boolean(editingItem.value);
   try {
+    let orderId = props.order.id;
+    if (isNew.value) {
+      const discount = parseDiscountRial();
+      if (discount === null || discount > props.order.subtotalRial) throw new Error('Enter a valid discount up to the order subtotal');
+      const created = await ordersApi.create(payload());
+      emit('saved', created);
+      emit('notify', 'Order created.');
+      orderId = created.id;
+    }
     const result = replacing
-      ? await ordersApi.replaceItem(props.order.id, editingItem.value.id, input)
-      : await ordersApi.addItem(props.order.id, input);
+      ? await ordersApi.replaceItem(orderId, editingItem.value.id, input)
+      : await ordersApi.addItem(orderId, input);
     emit('saved', result);
     closeItemEditor();
     emit('notify', replacing ? 'Item replaced' : 'Item added');
@@ -356,7 +364,7 @@ reportError(error);
     <div class="order-wizard-main flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-visible xl:overflow-hidden">
       <aside class="order-wizard-steps flex min-w-0 shrink-0 flex-col border-b border-base-300 pb-3 xl:sticky xl:top-0 xl:z-20 xl:bg-base-200">
         <nav aria-label="Order setup steps" class="order-wizard-step-nav flex min-w-0 gap-1 overflow-x-auto pb-1 xl:overflow-visible">
-          <button v-for="step in steps" :key="step.number" class="wizard-step w-auto min-w-[11rem] shrink-0 text-start xl:min-w-0 xl:flex-1" :class="stepClass(step.number)" type="button" :disabled="isNew && step.number > 1" @click="selectStep(step)">
+          <button v-for="step in steps" :key="step.number" class="wizard-step w-auto min-w-[11rem] shrink-0 text-start xl:min-w-0 xl:flex-1" :class="stepClass(step.number)" type="button" @click="selectStep(step)">
             <span class="wizard-step-number"><CheckCheck v-if="step.number < activeStepNumber" :size="17" :stroke-width="2.2" aria-hidden="true" /><span v-else>{{ step.number }}</span></span>
             <span class="min-w-0"><strong class="block truncate whitespace-nowrap text-sm">{{ step.title }}</strong><small class="mt-0.5 block truncate whitespace-nowrap text-xs leading-4 text-base-content/60">{{ step.description }}</small></span>
           </button>

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -50,6 +51,99 @@ func productionFlowFixture(t *testing.T) (*Store, domain.Order, domain.Productio
 		t.Fatal(err)
 	}
 	return s, o, j
+}
+
+func TestProductionUsesMaterialSelectedByDynamicServiceOptionGroup(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "dynamic-material.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	material, err := domain.NewMaterial("MAT-dynamic", domain.MaterialDraft{
+		Name:                "A4 matte paper",
+		Kind:                domain.MaterialKindSheetStock,
+		PurchaseUnit:        "sheet",
+		ConsumptionUnit:     "sheet",
+		ConversionFactor:    domain.QuantityScale,
+		PhysicalStock:       100 * domain.QuantityScale,
+		AverageUnitCostRial: 100,
+		Attributes: []domain.MaterialAttributeValue{
+			{Key: "width_mm", ValueType: domain.MaterialAttributeDecimal, DecimalValue: 210 * domain.QuantityScale},
+			{Key: "height_mm", ValueType: domain.MaterialAttributeDecimal, DecimalValue: 297 * domain.QuantityScale},
+		},
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Create(ctx, material); err != nil {
+		t.Fatal(err)
+	}
+	machine, err := domain.NewMachine("MAC-dynamic", domain.MachineDraft{
+		Name:      "Digital printer",
+		RateBasis: domain.RatePerUnit,
+		Rates:     []domain.MachineRate{{ID: "full-color", Name: "Full color", SelectorValue: "full-color", RateBasis: domain.RatePerUnit, RateRial: 250, Active: true}},
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.SaveMachine(ctx, machine); err != nil {
+		t.Fatal(err)
+	}
+	service, err := domain.NewService("SVC-dynamic-material", domain.ServiceDraft{
+		Name:     "Dynamic paper printing",
+		Category: "Paper printing",
+		Parameters: []domain.ServiceParameterDraft{
+			{ID: "P-paper-size", Key: "paper_size", Label: "Paper size", Type: domain.ParameterChoice, Required: true, MaterialSource: &domain.MaterialParameterSource{AllowedKinds: []domain.MaterialKind{domain.MaterialKindSheetStock}, ExposedAttributeKeys: []string{"width_mm", "height_mm"}}},
+			{ID: "P-machine", Key: "machine", Label: "Machine", Type: domain.ParameterMachineReference, Required: true, DefaultValue: machine.ID, Options: []string{machine.ID}},
+			{ID: "P-rate", Key: "machine_rate", Label: "Machine rate", Type: domain.ParameterChoice, Required: true, DefaultValue: "full-color", Options: []string{"full-color"}},
+		},
+		Components: []domain.ServiceCostComponentDraft{
+			{ID: "C-paper", Name: "Paper", Type: domain.CostMaterial, UsageMode: domain.UsageParameter, ParameterKey: "paper_size", UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true},
+			{ID: "C-machine", Name: "Printer", Type: domain.CostMachine, UsageMode: domain.UsageParameter, ParameterKey: "machine", RateParameterKey: "machine_rate", UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true},
+		},
+		MaterialVariants: []domain.ServiceMaterialVariant{{ID: "VAR-a4", MaterialID: material.ID, Values: map[string]string{"paper_size": "210\x1f297"}, Position: 0, Active: true}},
+		PricingRule:      &domain.ServicePricingRuleDraft{Type: domain.PricingFixed, FixedPriceRial: 1000},
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.SaveServiceDefinition(ctx, service); err != nil {
+		t.Fatal(err)
+	}
+
+	order := domain.NewOrder("ORD-dynamic-material", "", now)
+	order.CommercialStatus = domain.CommercialConfirmed
+	if err = s.CreateOrder(ctx, order); err != nil {
+		t.Fatal(err)
+	}
+	orders := application.NewOrdersService(s, s, application.NewPricingService(s, s, s))
+	view, err := orders.AddItem(ctx, order.ID, application.OrderItemInput{
+		ServiceID:    service.ID,
+		Parameters:   map[string]string{"paper_size": "210\x1f297", "machine": machine.ID, "machine_rate": "full-color"},
+		Quantity:     "2",
+		QuantityUnit: "piece",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(view.Items) != 1 || !strings.Contains(view.Items[0].CostBreakdownJSON, `"materialId":"`+material.ID+`"`) {
+		t.Fatalf("dynamic material was not saved in pricing snapshot: %+v", view.Items)
+	}
+
+	job := domain.ProductionJob{ID: "JOB-dynamic-material", OrderID: view.ID, OrderItemID: view.Items[0].ID, Status: domain.ProductionPending, Priority: "Normal", CreatedAt: now, UpdatedAt: now}
+	if err = s.CreateProductionJob(ctx, job); err != nil {
+		t.Fatal(err)
+	}
+	plans, err := s.ProductionMaterials(ctx, job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plans) != 1 || plans[0].MaterialID != material.ID || plans[0].Required != "2" {
+		t.Fatalf("dynamic material production plan=%+v, want %s with required quantity 2", plans, material.ID)
+	}
 }
 
 func TestProductionOrderEditsOverridesConsumptionAndPartialOutsourcing(t *testing.T) {

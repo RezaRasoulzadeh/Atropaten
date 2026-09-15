@@ -93,3 +93,22 @@ func TestServiceComponentReferencesAndBrokenParameterUpdateAreRejected(t *testin
 		t.Fatal("missing machine reference was accepted")
 	}
 }
+
+func TestServicePreservesConfiguredMachineOptions(t *testing.T) {
+	repository := &serviceRepositoryStub{}
+	machine := domain.Machine{ID: "MAC-1", Name: "Printer", Active: true}
+	service := NewServicesService(repository, materialLookupStub{}, machineLookupStub{machine: machine})
+	created, err := service.Create(context.Background(), ServiceInput{
+		Name: "Selectable print",
+		Parameters: []ParameterInput{{
+			ID: "P-machine", Key: "machine", Label: "Machine", Type: string(domain.ParameterMachineReference), Required: true,
+			DefaultValue: machine.ID, Options: []string{machine.ID},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create service with configured machine options: %v", err)
+	}
+	if len(created.Parameters) != 1 || len(created.Parameters[0].Options) != 1 || created.Parameters[0].Options[0] != machine.ID {
+		t.Fatalf("machine options = %+v, want [%s]", created.Parameters, machine.ID)
+	}
+}

@@ -13,6 +13,7 @@ import {
 } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
 import { confirmAction, useToast } from '../../ui/feedback';
+import { serviceCategoryRequirements } from './serviceCategory';
 
 export function useServicesWorkspace(props:{ currencyUnit: CurrencyUnit },emit:(event:'notify',message:string)=>void){
 const {busy,runAction}=useWorkspaceActions()
@@ -258,7 +259,7 @@ function startEdit() {
           })),
         }
       : emptyForm().pricingRule,
-    finishedSize: service.parameters.some((parameter) => parameter.predefinedKey === 'print_size') ? null : service.finishedSize ? {
+    finishedSize: service.finishedSize ? {
       parameterKey: service.finishedSize.parameterKey || '',
       quantityParameterKey: service.finishedSize.quantityParameterKey || '',
       widthParameterKey: service.finishedSize.widthParameterKey || '',
@@ -538,6 +539,21 @@ function removeOption(parameter: ParameterForm, index: number) {
   const removed = parameter.options.splice(index, 1)[0];
   if (parameter.defaultValue === removed) parameter.defaultValue = '';
 }
+function categorySetupIssues() {
+  const requirements = serviceCategoryRequirements(form.value.category);
+  const hasMaterial = form.value.parameters.some(
+    (parameter) => parameter.type === 'material-reference' || (parameter.type === 'choice' && Boolean(parameter.materialSource)),
+  ) || form.value.components.some(
+    (component) => component.type === 'material' && (Boolean(component.referenceId) || (component.usageMode === 'parameter' && Boolean(component.parameterKey))),
+  );
+  const hasMachine = form.value.parameters.some((parameter) => parameter.type === 'machine-reference') || form.value.components.some(
+    (component) => component.type === 'machine' && (Boolean(component.referenceId) || (component.usageMode === 'parameter' && Boolean(component.parameterKey))),
+  );
+  const issues: string[] = [];
+  if (requirements.material && !hasMaterial) issues.push('material setup');
+  if (requirements.machine && !hasMachine) issues.push('machine setup');
+  return issues;
+}
 async function saveService() {
 return runAction(async () => {
   validationAttempted.value = true;
@@ -547,6 +563,11 @@ return runAction(async () => {
   firstInvalid?.focus();
   if (!form.value.name.trim()) {
     toast.error('Enter a service name.', 'Services');
+    return;
+  }
+  const setupIssues = categorySetupIssues();
+  if (setupIssues.length) {
+    toast.error(`Complete the ${setupIssues.join(' and ')} required for the ${form.value.category} category.`, 'Services');
     return;
   }
   isSaving.value = true;

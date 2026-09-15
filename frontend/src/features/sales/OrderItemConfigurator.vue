@@ -18,6 +18,10 @@ import {
   type CurrencyUnit,
 } from '../../utils/currency';
 import { useToast } from '../../ui/feedback';
+import { serviceCategoryRequirements } from '../services/serviceCategory';
+import { serviceDefaultPricingResult } from '../services/serviceDefaultPricing';
+import RollSizeFields from '../services/RollSizeFields.vue';
+import { ensureRollSizeInputs, usesMaterialRollWidth, selectedRollMaterial, rollWidthValue } from '../services/rollSizeInputs';
 
 const props = withDefaults(
   defineProps<{
@@ -55,12 +59,25 @@ let lastWarningSignature = '';
 const calculating = ref(false);
 const manualCosts = ref<Record<string, number>>({});
 const overrideInvalid = computed(() => overrideText.value.trim() !== '' && parseMoneyInput(overrideText.value, props.currencyUnit) === null);
-const missingRequiredParameters = computed(() => activeParams.value.some((parameter: any) => parameter.required && !String(values.value[parameter.key] ?? '').trim()));
+const missingRequiredParameters = computed(() => activeParams.value.some((parameter: any) => parameterIsMissing(parameter)));
 const quantityInvalid = computed(() => {
   const parsed = Number(quantity.value);
-  return !quantity.value.trim() || !Number.isFinite(parsed) || parsed <= 0;
+  const layoutService = service.value?.finishedSize?.quantityParameterKey;
+  return !quantity.value.trim() || !Number.isFinite(parsed) || parsed <= 0 || (Boolean(layoutService) && !Number.isInteger(parsed));
 });
-const canAdd = computed(() => Boolean(serviceId.value && pricing.value && !calculating.value && !overrideInvalid.value && !missingRequiredParameters.value && !quantityInvalid.value));
+const requiresMaterialOrMachineResolution = computed(() => Boolean(
+  activeParams.value.some((parameter: any) => isMaterialParameter(parameter) || isMachineParameter(parameter) || isMachineRateParameter(parameter)) ||
+  (service.value?.components || []).some((component: any) => component.enabled !== false && (component.type === 'material' || component.type === 'machine')),
+));
+const canAddWithoutPricingPreview = computed(() => Boolean(service.value && !requiresMaterialOrMachineResolution.value));
+const canAdd = computed(() => Boolean(
+  serviceId.value &&
+  (pricing.value || canAddWithoutPricingPreview.value) &&
+  (!calculating.value || canAddWithoutPricingPreview.value) &&
+  !overrideInvalid.value &&
+  !missingRequiredParameters.value &&
+  !quantityInvalid.value,
+));
 const quantityNumber = computed(() => {
   const parsed = Number(quantity.value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
@@ -81,27 +98,49 @@ const unitOptions = [
   'unit',
 ].map((value) => ({ label: value, value }));
 
-const service = computed(() => props.services.find((value) => value.id === serviceId.value));
+function configuredService(id: string) {
+  const source = props.services.find(value => value.id === id);
+  return source ? ensureRollSizeInputs({ ...source, parameters: (source.parameters || []).map((p: any) => ({ ...p })) }) : undefined;
+}
+const service = computed(() => configuredService(serviceId.value));
 const activeParams = computed(
   () => service.value?.parameters?.filter((value: any) => value.active !== false) || [],
 );
+const layoutEnabled = computed(() => Boolean(service.value?.finishedSize?.quantityParameterKey));
+const materialWidthMode = computed(() => usesMaterialRollWidth(service.value));
+const selectedRoll = computed(() => selectedRollMaterial(service.value, props.materials, values.value));
+const materialWidth = computed(() => rollWidthValue(selectedRoll.value, values.value.layout_margin_mm ?? service.value?.parameters?.find((p: any) => p.key === 'layout_margin_mm')?.defaultValue ?? '0'));
+const layoutParams = computed(() => {
+  if (!layoutEnabled.value) return [];
+  const size = service.value.finishedSize;
+  const keys = new Set([size.parameterKey, size.widthParameterKey, size.heightParameterKey, 'layout_gap_mm', 'layout_margin_mm'].filter(Boolean));
+  return activeParams.value.filter((p: any) => keys.has(p.key));
+});
+const optionParams = computed(() => activeParams.value.filter((p: any) =>
+  p.key !== service.value?.finishedSize?.quantityParameterKey && !layoutParams.value.includes(p),
+));
+const needsLayoutSetup = computed(() => !layoutEnabled.value && ['large format', 'banners & signage'].includes(String(service.value?.category || '').trim().toLowerCase()));
+const categoryRequirements = computed(() => serviceCategoryRequirements(service.value?.category || ''));
+const hasMaterialSetup = computed(() => (service.value?.components || []).some((component: any) => component.type === 'material'));
+const hasMachineSetup = computed(() => (service.value?.components || []).some((component: any) => component.type === 'machine'));
 const manualComponents = computed(
   () =>
     service.value?.components?.filter((value: any) => value.enabled && value.type === 'manual') ||
     [],
 );
+const priceMultiplier = computed(() => pricing.value?.batchQuantity ? 1 : quantityNumber.value);
 const totalEstimatedCost = computed(() =>
   pricing.value
     ? pricing.value.roundingStepRial !== 1000
-      ? roundMoneyUp(Math.round(pricing.value.estimatedCostRial * quantityNumber.value), pricing.value.roundingStepRial)
-      : Math.round(pricing.value.estimatedCostRial * quantityNumber.value)
+      ? roundMoneyUp(Math.round(pricing.value.estimatedCostRial * priceMultiplier.value), pricing.value.roundingStepRial)
+      : Math.round(pricing.value.estimatedCostRial * priceMultiplier.value)
     : 0,
 );
 const totalSuggestedPrice = computed(() =>
-  pricing.value ? sellingPriceTotal(pricing.value.suggestedSellingPriceRial, quantityNumber.value, pricing.value.roundingStepRial) : 0,
+  pricing.value ? sellingPriceTotal(pricing.value.suggestedSellingPriceRial, priceMultiplier.value, pricing.value.roundingStepRial) : 0,
 );
 const totalEffectivePrice = computed(() =>
-  pricing.value ? sellingPriceTotal(pricing.value.effectiveSellingPriceRial, quantityNumber.value, pricing.value.roundingStepRial) : 0,
+  pricing.value ? sellingPriceTotal(pricing.value.effectiveSellingPriceRial, priceMultiplier.value, pricing.value.roundingStepRial) : 0,
 );
 const totalProfit = computed(() => totalEffectivePrice.value - totalEstimatedCost.value);
 
@@ -109,7 +148,7 @@ function initialize() {
   initializing = true;
   const initial = props.initial;
   const selectedServiceId = initial?.serviceId || props.presetServiceId || props.services.find((value) => value.active)?.id || '';
-  const selectedService = props.services.find((value) => value.id === selectedServiceId);
+  const selectedService = configuredService(selectedServiceId);
   serviceId.value = selectedServiceId;
   const initialValues: Record<string, string> = {};
   if (initial?.resolvedParametersJson) {
@@ -139,10 +178,13 @@ function initialize() {
 }
 
 watch(() => [props.initial, props.presetServiceId, props.services], initialize, { immediate: true });
-watch([serviceId, values], refreshMaterialOptions, { deep: true });
+watch([serviceId, values, () => props.services, () => props.materials], () => {
+  syncMachineRateSelections();
+  void refreshMaterialOptions();
+}, { deep: true, immediate: true });
 watch(serviceId, (next, previous) => {
   if (initializing || !previous || next === previous) return;
-  const selectedService = props.services.find((value) => value.id === next);
+  const selectedService = configuredService(next);
   values.value = Object.fromEntries(
     (selectedService?.parameters || [])
       .filter((parameter: any) => parameter.key)
@@ -161,39 +203,263 @@ function setValue(key: string, value: string) {
   values.value[key] = value;
 }
 
+function isMaterialParameter(parameter: any) {
+  return parameter.type === 'material-reference' || Boolean(parameter.materialSource);
+}
+
+function isMachineParameter(parameter: any) {
+  return parameter.type === 'machine-reference';
+}
+
+function isMachineRateParameter(parameter: any) {
+  return parameter.type === 'choice' && (service.value?.components || []).some(
+    (component: any) => component.type === 'machine' && component.rateParameterKey === parameter.key,
+  );
+}
+
+function parameterIsRequired(parameter: any) {
+  if (!parameter.required) return false;
+  if (isMaterialParameter(parameter)) return categoryRequirements.value.material || hasMaterialSetup.value;
+  if (isMachineParameter(parameter) || isMachineRateParameter(parameter)) return categoryRequirements.value.machine || hasMachineSetup.value;
+  return true;
+}
+
+function configuredMachineOptions(parameter: any) {
+  const configured = new Set(parameter.options || []);
+  if (!configured.size) {
+    const fallback = props.machines.find((machine: any) => machine.active && machine.id === parameter.defaultValue);
+    return fallback ? [fallback] : [];
+  }
+  return props.machines.filter((machine: any) => machine.active && configured.has(machine.id));
+}
+
+function machineRateOptions(parameter: any) {
+  const allowed = new Set(parameter.options || []);
+  const machineComponents = (service.value?.components || [])
+    .filter((component: any) => component.type === 'machine' && component.rateParameterKey === parameter.key)
+  const selectedMachines = machineComponents
+    .map((component: any) => {
+      if (component.usageMode !== 'parameter' || !component.parameterKey) {
+        return props.machines.find((machine: any) => machine.id === component.referenceId && machine.active);
+      }
+      const machineParameter = (service.value?.parameters || []).find((item: any) => item.key === component.parameterKey);
+      const selectedID = values.value[component.parameterKey] || machineParameter?.defaultValue;
+      return props.machines.find((machine: any) => machine.id === selectedID && machine.active);
+    })
+    .filter(Boolean);
+  const candidates = selectedMachines.length
+    ? selectedMachines
+    : machineComponents.flatMap((component: any) => {
+      const machineParameter = (service.value?.parameters || []).find((item: any) => item.key === component.parameterKey);
+      return machineParameter ? configuredMachineOptions(machineParameter) : [];
+    });
+  const options = new Map<string, { label: string; value: string }>();
+  for (const machine of candidates as any[]) {
+    const rates = machine.rates?.length
+      ? machine.rates.filter((rate: any) => rate.active)
+      : [{ id: 'default', name: 'Standard', selectorValue: '', selectorPredefinedKey: '', rateRial: machine.rateRial, setupCostRial: machine.setupCostRial, rateBasis: machine.rateBasis, active: true }];
+    for (const rate of rates) {
+      const value = String(rate.selectorValue || rate.name || rate.id || '').trim();
+      if (!value || (allowed.size && !allowed.has(value))) continue;
+      if (rate.selectorPredefinedKey && parameter.predefinedKey && rate.selectorPredefinedKey !== parameter.predefinedKey) continue;
+      if (!options.has(value)) options.set(value, { value, label: rate.name || value });
+    }
+  }
+  return Array.from(options.values()).sort((left, right) => left.label.localeCompare(right.label));
+}
+
 function parameterOptions(parameter: any) {
-  if (parameter.materialSource) return materialOptions.value[parameter.key] || [];
-  if (parameter.predefinedKey) return (parameter.predefinedOptions || []).filter((option: any) => option.active !== false).map((option: any) => ({ label: option.label, value: option.code }));
+  if (parameter.materialSource) return availableMaterialOptions(parameter);
+  if (isMachineRateParameter(parameter)) return machineRateOptions(parameter);
+  if (parameter.predefinedKey) {
+    const configured = new Set(parameter.options || []);
+    return (parameter.predefinedOptions || [])
+      .filter((option: any) => option.active !== false && (!configured.size || configured.has(option.code)))
+      .map((option: any) => ({ label: option.label, value: option.code }));
+  }
   return (parameter.options || []).map((option: string) => ({ label: option, value: option }));
+}
+
+function canonicalMaterialAttribute(attribute: any) {
+  if (!attribute) return '';
+  if (attribute.valueType === 'decimal') {
+    const value = String(attribute.decimalValue ?? '').trim();
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? String(numeric) : value;
+  }
+  if (attribute.valueType === 'integer') return String(attribute.integerValue ?? '').trim();
+  if (attribute.valueType === 'enum') return String(attribute.enumCode ?? '').trim();
+  if (attribute.valueType === 'boolean') return attribute.booleanValue ? 'true' : 'false';
+  return String(attribute.textValue ?? '').trim();
+}
+
+function materialAttribute(material: any, key: string) {
+  return (material.attributes || []).find((attribute: any) => attribute.key === key);
+}
+
+function materialSourceKeys(parameter: any) {
+  const source = parameter.materialSource;
+  if (!source) return [];
+  return source.exposedAttributeKeys?.length
+    ? source.exposedAttributeKeys
+    : source.exposedAttributeKey
+      ? [source.exposedAttributeKey]
+      : [];
+}
+
+function materialSourceValue(material: any, parameter: any) {
+  if (parameter.materialSource?.selectMaterial) return material.id;
+  const values = materialSourceKeys(parameter).map((key: string) => canonicalMaterialAttribute(materialAttribute(material, key)));
+  return values.every(Boolean) ? values.join('\u001f') : '';
+}
+
+function materialMatchesSource(material: any, parameter: any) {
+  const source = parameter.materialSource;
+  if (!source) return true;
+  if (source.allowedKinds?.length && !source.allowedKinds.includes(material.kind)) return false;
+  for (const filter of source.additionalFilters || []) {
+    if (canonicalMaterialAttribute(materialAttribute(material, filter.key)) !== canonicalMaterialAttribute(filter.value)) return false;
+  }
+  for (const key of materialSourceKeys(parameter)) {
+    if (!materialAttribute(material, key)) return false;
+  }
+  for (const allowed of source.allowedValues || []) {
+    const attribute = materialAttribute(material, allowed.key);
+    if (attribute && canonicalMaterialAttribute(attribute) === canonicalMaterialAttribute(allowed)) continue;
+    if (materialSourceKeys(parameter).includes(allowed.key)) return false;
+  }
+  return true;
+}
+
+function inventoryMaterialOptions(parameter: any) {
+  if (!parameter.materialSource) return [];
+  const materialParameters = activeParams.value.filter((item: any) => isMaterialParameter(item));
+  const options = new Map<string, { label: string; value: string }>();
+  for (const material of props.materials.filter((item: any) => item.active)) {
+    if (!materialParameters.every((item: any) => materialMatchesSource(material, item))) continue;
+    const compatible = materialParameters.every((item: any) => {
+      if (item.key === parameter.key) return true;
+      const selected = String(values.value[item.key] || '').trim();
+      if (!selected) return true;
+      if (item.type === 'material-reference') return material.id === selected;
+      return materialSourceValue(material, item) === selected;
+    });
+    if (!compatible) continue;
+    const value = materialSourceValue(material, parameter);
+    if (!value || options.has(value)) continue;
+    options.set(value, { value, label: material.name || value });
+  }
+  return Array.from(options.values()).sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true }));
+}
+
+function derivedMaterialOptions(parameter: any) {
+  const saved = savedMaterialOptions(parameter);
+  return saved.length ? saved : inventoryMaterialOptions(parameter);
+}
+
+function availableMaterialOptions(parameter: any) {
+  const loaded = materialOptions.value[parameter.key] || [];
+  return loaded.length ? loaded : derivedMaterialOptions(parameter);
+}
+
+function savedMaterialOptions(parameter: any) {
+  const variants = (service.value?.materialVariants || []).filter((variant: any) => variant.active !== false);
+  if (!variants.length) return [];
+  const materialParameters = activeParams.value.filter((item: any) => isMaterialParameter(item));
+  const options = new Map<string, { label: string; value: string; materialIds: string[] }>();
+  for (const variant of variants) {
+    const value = String(variant.values?.[parameter.key] || '').trim();
+    if (!value) continue;
+    const compatible = materialParameters.every((item: any) => {
+      if (item.key === parameter.key) return true;
+      const selected = String(values.value[item.key] || '').trim();
+      return !selected || String(variant.values?.[item.key] || '').trim() === selected;
+    });
+    if (!compatible) continue;
+    const material = props.materials.find((item: any) => item.active && item.id === variant.materialId);
+    const label = material?.name || value;
+    const existing = options.get(value);
+    if (existing) {
+      if (!existing.materialIds.includes(variant.materialId)) existing.materialIds.push(variant.materialId);
+    } else {
+      options.set(value, { value, label, materialIds: variant.materialId ? [variant.materialId] : [] });
+    }
+  }
+  return Array.from(options.values()).map(({ label, value }) => ({ label, value }));
+}
+
+function materialOptionLabel(option: any) {
+  const names = (option.materialIds || [])
+    .map((id: string) => props.materials.find((material: any) => material.active && material.id === id)?.name)
+    .filter(Boolean);
+  return names.length ? Array.from(new Set(names)).join(' / ') : option.label;
+}
+
+function syncMaterialSelections() {
+  for (const parameter of activeParams.value) {
+    if (!parameter.materialSource) continue;
+    const options = availableMaterialOptions(parameter);
+    if (values.value[parameter.key] && !options.some((option) => option.value === values.value[parameter.key])) values.value[parameter.key] = '';
+    if (!values.value[parameter.key] && parameter.defaultValue && options.some((option) => option.value === parameter.defaultValue)) values.value[parameter.key] = parameter.defaultValue;
+  }
 }
 
 let materialOptionsToken = 0;
 async function refreshMaterialOptions() {
   const selected = serviceId.value;
   if (!selected) { materialOptions.value = {}; materialMessages.value = {}; return; }
+  if (!activeParams.value.some((parameter: any) => parameter.materialSource)) {
+    materialOptions.value = {};
+    materialMessages.value = {};
+    return;
+  }
   const token = ++materialOptionsToken;
+  materialOptions.value = Object.fromEntries(
+    activeParams.value
+      .filter((parameter: any) => parameter.materialSource)
+      .map((parameter: any) => [parameter.key, derivedMaterialOptions(parameter)]),
+  );
+  syncMaterialSelections();
   try {
-    const groups = await servicesApi.materialOptions(selected, values.value);
+    const materialValues = Object.fromEntries(
+      activeParams.value
+        .filter((parameter: any) => isMaterialParameter(parameter))
+        .map((parameter: any) => [parameter.key, values.value[parameter.key] || '']),
+    );
+    const groups = await servicesApi.materialOptions(selected, materialValues);
     if (token !== materialOptionsToken || selected !== serviceId.value) return;
     const next: Record<string, Array<{ label: string; value: string }>> = {};
     const messages: Record<string, string> = {};
     for (const group of groups as any[]) {
-      next[group.parameterKey] = (group.options || []).map((option: any) => ({ label: option.label, value: option.value }));
-      if (group.message) messages[group.parameterKey] = group.message;
+      const liveOptions = (group.options || []).map((option: any) => ({ label: materialOptionLabel(option), value: option.value }));
+      const fallbackOptions = materialOptions.value[group.parameterKey] || [];
+      next[group.parameterKey] = liveOptions.length ? liveOptions : fallbackOptions;
+      if (group.message && !next[group.parameterKey].length) messages[group.parameterKey] = group.message;
     }
-    materialOptions.value = next;
+    if (Object.keys(next).length) materialOptions.value = next;
     materialMessages.value = messages;
-    for (const parameter of activeParams.value) {
-      if (parameter.materialSource && values.value[parameter.key] && !(next[parameter.key] || []).some((option) => option.value === values.value[parameter.key])) values.value[parameter.key] = '';
-    }
+    syncMaterialSelections();
   } catch {
-    materialOptions.value = {};
+    // Keep the service's saved material variants available when the live
+    // inventory lookup is temporarily unavailable.
     materialMessages.value = {};
+    syncMaterialSelections();
   }
 }
 
 function parameterIsMissing(parameter: any) {
-  return Boolean(parameter.required && !String(values.value[parameter.key] ?? '').trim());
+  return Boolean(parameterIsRequired(parameter) && !String(values.value[parameter.key] ?? '').trim());
+}
+
+function syncMachineRateSelections() {
+  for (const parameter of activeParams.value.filter((item: any) => isMachineRateParameter(item))) {
+    const options = machineRateOptions(parameter);
+    if (!options.length || options.some((option) => option.value === values.value[parameter.key])) continue;
+    const fallback = parameter.defaultValue && options.some((option) => option.value === parameter.defaultValue)
+      ? parameter.defaultValue
+      : options[0].value;
+    if (values.value[parameter.key] !== fallback) values.value[parameter.key] = fallback;
+  }
 }
 
 function updateMoneyText(text: string, key: string) {
@@ -210,8 +476,17 @@ function updateMoneyText(text: string, key: string) {
 }
 
 function scheduleCalculate() {
+  requestToken += 1;
+  pricing.value = null;
+  calculating.value = true;
+  const quantityKey = service.value?.finishedSize?.quantityParameterKey;
+  if (materialWidthMode.value) {
+    const widthKey = service.value.finishedSize.widthParameterKey;
+    if (values.value[widthKey] !== materialWidth.value) values.value[widthKey] = materialWidth.value;
+  }
+  if (quantityKey && values.value[quantityKey] !== quantity.value) values.value[quantityKey] = quantity.value;
   if (calculationTimer) clearTimeout(calculationTimer);
-  if (!serviceId.value || overrideInvalid.value) {
+  if (!serviceId.value || overrideInvalid.value || (materialWidthMode.value && !materialWidth.value)) {
     requestToken += 1;
     pricing.value = null;
     calculating.value = false;
@@ -221,6 +496,45 @@ function scheduleCalculate() {
     calculationTimer = undefined;
     void calculate();
   }, 250);
+}
+
+function dependencyFreePricingPreview(): PricingRecord | null {
+  const selectedService = service.value;
+  if (!selectedService || activeParams.value.length || requiresMaterialOrMachineResolution.value) return null;
+  const result = serviceDefaultPricingResult(selectedService, props.materials, props.machines, props.services);
+  if (!result) return null;
+  const override = overrideText.value.trim() ? parseMoneyInput(overrideText.value, props.currencyUnit) : null;
+  const effective = override ?? result.sellingPriceRial;
+  return {
+    serviceId: selectedService.id,
+    serviceName: selectedService.name,
+    serviceCode: selectedService.code,
+    parameters: [],
+    components: result.lines.map((line, index) => ({
+      id: `${selectedService.id}-preview-${index}`,
+      name: line.name,
+      type: '',
+      referenceId: '',
+      materialId: '',
+      parameterKey: '',
+      enabled: !line.missing,
+      usageQuantity: '1',
+      rateRial: line.amount,
+      percentage: '',
+      amountRial: line.amount,
+      explanation: line.detail,
+    })),
+    estimatedCostRial: result.totalCostRial,
+    suggestedSellingPriceRial: result.sellingPriceRial,
+    effectiveSellingPriceRial: effective,
+    profitRial: effective - result.totalCostRial,
+    marginPercentage: effective ? String(((effective - result.totalCostRial) / effective) * 100) : '0',
+    warnings: result.hasMissing ? ['Some service costs need configuration.'] : [],
+    belowCost: effective < result.totalCostRial,
+    roundingStepRial: 1000,
+    finishedWidthMM: '',
+    finishedHeightMM: '',
+  } as unknown as PricingRecord;
 }
 
 async function calculate() {
@@ -233,8 +547,14 @@ async function calculate() {
       : null;
     if (overrideText.value.trim() && override === null)
       throw new Error('Enter a valid selling price');
+    const localPreview = dependencyFreePricingPreview();
+    if (localPreview) {
+      pricing.value = localPreview;
+      return;
+    }
     const next = await pricingApi.calculate({
       serviceId: serviceId.value,
+      quantity: quantity.value,
       parameters: values.value,
       manualCosts: manualCosts.value,
       sellingPriceOverrideRial: override,
@@ -257,10 +577,11 @@ async function calculate() {
 }
 
 watch(
-  [serviceId, values, manualCosts, overrideText],
+  [serviceId, values, quantity, manualCosts, overrideText],
   scheduleCalculate,
   { deep: true },
 );
+watch(materialWidth, scheduleCalculate);
 
 onBeforeUnmount(() => {
   if (calculationTimer) clearTimeout(calculationTimer);
@@ -285,7 +606,7 @@ function save() {
     toast.warning('Enter a quantity greater than zero.', 'Order item');
     return;
   }
-  if (!pricing.value) {
+  if (!pricing.value && !canAddWithoutPricingPreview.value) {
     toast.warning('Wait for the live price preview before adding the item.', 'Pricing');
     return;
   }
@@ -335,16 +656,33 @@ function save() {
           <p v-if="!service" class="mt-2 text-xs text-error">This service is unavailable. Close this window and choose another service.</p>
         </section>
 
-        <section v-if="activeParams.length" class="rounded-box border border-base-300 bg-base-100 p-4">
+        <section v-if="needsLayoutSetup" class="rounded-box border border-warning/40 bg-warning/5 p-4 text-sm" role="status">
+          <h4 class="font-semibold">Print layout is not configured</h4>
+          <p class="mt-2">Edit this service → Materials → Set up roll / sheet layout, then save it. Finished size, roll rotation, and waste calculations will appear here once enabled.</p>
+        </section>
+
+        <section v-if="layoutEnabled" class="space-y-4 rounded-box border border-primary/35 bg-primary/5 p-4" aria-label="Finished size and layout">
+          <div><h4 class="font-semibold">Finished size &amp; layout</h4><p class="mt-1 text-xs text-base-content/65">{{ materialWidthMode ? 'Width follows the selected roll material. Enter the custom height / length below.' : 'Enter the finished dimensions in mm: 1000 mm = 1 m.' }} The preview calculates stock for the whole item quantity.</p></div>
+          <RollSizeFields v-if="materialWidthMode" :width="materialWidth" :height="values[service.finishedSize.heightParameterKey] || ''" :material-name="selectedRoll?.name" @height="setValue(service.finishedSize.heightParameterKey, $event)" />
+          <div class="grid gap-4 sm:grid-cols-2">
+            <template v-for="parameter in layoutParams.filter((p: any) => !materialWidthMode || ![service.finishedSize.widthParameterKey, service.finishedSize.heightParameterKey].includes(p.key))" :key="parameter.id">
+              <SelectField v-if="parameter.type === 'choice'" :model-value="values[parameter.key] || ''" :label="parameter.label" :invalid="parameterIsMissing(parameter)" :options="[{label: 'Select finished size…', value: ''}, ...parameterOptions(parameter)]" @update:model-value="setValue(parameter.key, $event)" />
+              <FormField v-else class="gap-1"><span>{{ parameter.label }}</span><AppInput :model-value="values[parameter.key] || ''" type="number" min="0" step="any" :aria-label="parameter.label" @update:model-value="setValue(parameter.key, $event)" /></FormField>
+            </template>
+          </div>
+          <p class="text-xs text-base-content/65">{{ service.finishedSize.allowRotation ? 'Automatic rotation enabled — the preview shows the most efficient grid orientation.' : 'Rotation locked — the original artwork orientation is preserved.' }}</p>
+        </section>
+
+        <section v-if="optionParams.length" class="rounded-box border border-base-300 bg-base-100 p-4">
           <div class="flex items-start justify-between gap-3 border-b border-base-300 pb-3">
             <div>
               <h4 class="text-sm font-semibold">Service options</h4>
               <p class="mt-1 text-xs leading-5 text-base-content/60">Use the customer’s requested specifications.</p>
             </div>
-            <span class="badge badge-ghost shrink-0 text-xs">{{ activeParams.length }} option{{ activeParams.length === 1 ? '' : 's' }}</span>
+            <span class="badge badge-ghost shrink-0 text-xs">{{ optionParams.length }} option{{ optionParams.length === 1 ? '' : 's' }}</span>
           </div>
           <div class="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
-            <template v-for="parameter in activeParams" :key="parameter.id">
+            <template v-for="parameter in optionParams" :key="parameter.id">
               <SelectField
                 v-if="parameter.type === 'choice'"
                 :model-value="values[parameter.key] || parameter.defaultValue || ''"
@@ -358,7 +696,7 @@ function save() {
                 @update:model-value="setValue(parameter.key, $event)"
               />
               <FormField v-else-if="parameter.type === 'boolean'" class="justify-center gap-1">
-                <span class="text-xs text-base-content/60">{{ parameter.label }}<em v-if="parameter.required" class="text-error"> *</em></span>
+                <span class="text-xs text-base-content/60">{{ parameter.label }}<em v-if="parameterIsRequired(parameter)" class="text-error"> *</em></span>
                 <span class="flex h-10 items-center gap-2 rounded-field border border-base-300 bg-base-100 px-3 text-sm">
                   <input class="checkbox checkbox-sm" type="checkbox" :checked="values[parameter.key] === 'true'" @change="values[parameter.key] = ($event.target as HTMLInputElement).checked ? 'true' : 'false'" />
                   <span>{{ values[parameter.key] === 'true' ? 'Enabled' : 'Disabled' }}</span>
@@ -376,7 +714,6 @@ function save() {
                 :aria-label="parameter.label"
                 @update:model-value="setValue(parameter.key, $event)"
               />
-              <p v-if="parameter.materialSource && materialMessages[parameter.key]" class="text-xs leading-5 text-warning sm:col-span-2">{{ materialMessages[parameter.key] }}</p>
               <SelectField
                 v-else-if="parameter.type === 'machine-reference'"
                 :model-value="values[parameter.key] || ''"
@@ -384,13 +721,13 @@ function save() {
                 :invalid="parameterIsMissing(parameter)"
                 :options="[
                   { label: 'Select machine…', value: '' },
-                  ...machines.filter((value: any) => value.active).map((value: any) => ({ label: value.code ? `${value.name} · ${value.code}` : value.name, value: value.id })),
+                  ...configuredMachineOptions(parameter).map((value: any) => ({ label: value.code ? `${value.name} · ${value.code}` : value.name, value: value.id })),
                 ]"
                 :aria-label="parameter.label"
                 @update:model-value="setValue(parameter.key, $event)"
               />
               <FormField v-else class="gap-1">
-                <span class="text-xs text-base-content/60">{{ parameter.label }}<em v-if="parameter.required" class="text-error"> *</em></span>
+                <span class="text-xs text-base-content/60">{{ parameter.label }}<em v-if="parameterIsRequired(parameter)" class="text-error"> *</em></span>
                 <AppInput
                   :model-value="values[parameter.key] || ''"
                   :class="{ 'input-error': parameterIsMissing(parameter) }"
@@ -400,11 +737,12 @@ function save() {
                 />
                 <small v-if="parameter.unit" class="text-xs text-base-content/50">{{ parameter.unit }}</small>
               </FormField>
+              <p v-if="parameter.materialSource && materialMessages[parameter.key]" class="text-xs leading-5 text-warning sm:col-span-2">{{ materialMessages[parameter.key] }}</p>
             </template>
           </div>
           <p v-if="missingRequiredParameters" class="mt-3 text-xs text-warning">Complete the required options to add this item.</p>
         </section>
-        <section v-else class="rounded-box border border-dashed border-base-300 bg-base-100 p-4 text-sm text-base-content/60">
+        <section v-else-if="!layoutEnabled && !needsLayoutSetup" class="rounded-box border border-dashed border-base-300 bg-base-100 p-4 text-sm text-base-content/60">
           This service uses its standard configuration. No additional service options are required.
         </section>
 
@@ -417,7 +755,7 @@ function save() {
             <FormField class="gap-1">
               <span class="text-xs text-base-content/60">Item quantity *</span>
               <AppInput v-model="quantity" class="input w-full min-w-0" :class="{ 'input-error': quantityInvalid }" inputmode="decimal" placeholder="1" />
-              <small v-if="quantityInvalid" class="text-xs text-error">Enter a quantity greater than zero.</small>
+              <small v-if="quantityInvalid" class="text-xs text-error">{{ service?.finishedSize?.quantityParameterKey ? 'Enter a positive whole number of finished pieces.' : 'Enter a quantity greater than zero.' }}</small>
             </FormField>
             <SelectField v-model="unit" label="Unit" :options="unitOptions" aria-label="Unit" />
             <FormField class="gap-1 sm:col-span-2">
@@ -457,9 +795,17 @@ function save() {
 
         <div v-if="pricing" class="mt-4 space-y-4" :class="{ 'opacity-60': calculating }">
           <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-            <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">Estimated cost · order total</span><strong class="mt-1 block text-sm">{{ formatMoney(totalEstimatedCost, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/50">{{ formatMoney(pricing.estimatedCostRial, currencyUnit) }} / {{ unit }}</span></div>
+            <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">Estimated cost · order total</span><strong class="mt-1 block text-sm">{{ formatMoney(totalEstimatedCost, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/50">{{ formatMoney(pricing.estimatedCostRial, currencyUnit) }} / {{ pricing.batchQuantity ? 'batch' : unit }}</span></div>
             <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">Suggested price · order total</span><strong class="mt-1 block text-sm">{{ formatMoney(totalSuggestedPrice, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/50">{{ formatMoney(pricing.suggestedSellingPriceRial, currencyUnit) }} / {{ unit }}</span></div>
-            <div class="rounded-box border border-primary/30 bg-primary/5 p-3"><span class="block text-xs text-base-content/60">Effective price · order total</span><strong class="mt-1 block text-lg text-primary">{{ formatMoney(totalEffectivePrice, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/60">{{ quantity || '1' }} {{ unit }} · {{ formatMoney(pricing.effectiveSellingPriceRial, currencyUnit) }} / {{ unit }}</span></div>
+            <div v-for="layout in pricing.layouts || []" :key="layout.materialId" class="rounded-box border border-primary/30 bg-primary/5 p-3 text-sm space-y-2">
+              <strong>{{ layout.materialName }} · production layout</strong>
+              <p v-if="layout.itemsPerSheet">{{ layout.itemsPerSheet }} pieces per sheet · {{ layout.sheets }} sheets</p>
+              <p v-else>{{ layout.across }} across × {{ layout.rows }} rows · {{ Number(layout.lengthMM) / 1000 }} m of roll</p>
+              <p>{{ layout.consumedQuantity }} {{ layout.unit }} consumed · {{ layout.wastePercent.toFixed(1) }}% waste</p>
+              <p v-if="layout.rotated" class="text-primary">Rotate artwork 90° for this layout.<span v-if="layout.originalLengthMM"> Roll usage drops from {{ Number(layout.originalLengthMM) / 1000 }} m to {{ Number(layout.lengthMM) / 1000 }} m.</span></p>
+              <p v-else>Original orientation uses the least material (or rotation is disabled).</p>
+            </div>
+            <div class="rounded-box border border-primary/30 bg-primary/5 p-3"><span class="block text-xs text-base-content/60">Effective price · order total</span><strong class="mt-1 block text-lg text-primary">{{ formatMoney(totalEffectivePrice, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/60">{{ quantity || '1' }} {{ unit }} · {{ formatMoney(pricing.effectiveSellingPriceRial, currencyUnit) }} / {{ pricing.batchQuantity ? 'batch' : unit }}</span></div>
             <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">Profit / margin</span><strong class="mt-1 block text-sm" :class="totalProfit < 0 ? 'text-error' : 'text-success'">{{ formatMoney(totalProfit, currencyUnit) }} · {{ pricing.marginPercentage }}%</strong></div>
           </div>
           <p class="text-xs text-base-content/60">Selling prices round up to the next 100 tomans (1,000 rials).</p>

@@ -3,6 +3,7 @@ import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
 import type { ComponentForm, ParameterForm, ServiceForm } from './types'
 import { collapseGroupedMaterialComponents } from './serviceComponentSync'
+import { serviceCategoryRequirements } from './serviceCategory'
 
 export type TestValues = Record<string, string>
 export type TestPricingLine = { name: string; detail: string; amount: number; missing: boolean }
@@ -61,6 +62,7 @@ export function isLegacyTestParameter(form: ServiceForm, parameter: ParameterFor
 
 export function visibleTestParameters(form: ServiceForm, parameters: ParameterForm[]) {
   return parameters.filter((parameter) => {
+    if (parameter.key === form.finishedSize?.parameterKey) return true
     if (isLegacyTestParameter(form, parameter)) return false
     if (isAutomaticVariationParameter(form, parameter)) return true
     return parameter.type === 'integer' || parameter.type === 'decimal'
@@ -156,12 +158,13 @@ function nestedServiceCost(service: ServiceRecord, materials: MaterialRecord[], 
   const next = new Set(visited).add(service.id)
   const parameters = service.parameters.map((parameter) => ({ ...parameter, type: parameter.type as ParameterForm['type'], minValue: parameter.minValue ?? null, maxValue: parameter.maxValue ?? null })) as ParameterForm[]
   const values: TestValues = Object.fromEntries(parameters.map((parameter) => [parameter.key, parameter.defaultValue || '']))
-  return calculateComponents(service.components as unknown as ComponentForm[], parameters, values, materials, machines, services, service.materialVariants || [], next).totalCostRial
+  return calculateComponents(service.components as unknown as ComponentForm[], parameters, values, materials, machines, services, service.materialVariants || [], next, service.category).totalCostRial
 }
 
-function calculateComponents(components: ComponentForm[], parameters: ParameterForm[], values: TestValues, materials: MaterialRecord[], machines: MachineRecord[], services: ServiceRecord[], materialVariants: MaterialVariantForPricing[] = [], visited = new Set<string>()) {
+function calculateComponents(components: ComponentForm[], parameters: ParameterForm[], values: TestValues, materials: MaterialRecord[], machines: MachineRecord[], services: ServiceRecord[], materialVariants: MaterialVariantForPricing[] = [], visited = new Set<string>(), category = '') {
   let running = 0
   const lines: TestPricingLine[] = []
+  const requirements = serviceCategoryRequirements(category)
   for (const component of collapseGroupedMaterialComponents(components, parameters).filter((item) => item.enabled)) {
     if (component.type === 'overhead' || component.type === 'waste') {
       const amount = Math.round(running * Math.max(0, number(component.percentage)) / 100)
@@ -177,7 +180,7 @@ function calculateComponents(components: ComponentForm[], parameters: ParameterF
       : component.type === 'machine' ? rate?.rateRial || 0
       : component.type === 'service' && service ? nestedServiceCost(service, materials, machines, services, visited) : component.rateRial
     const amount = Math.round(base * usageFor(component, parameters, values) * Math.max(0, number(component.multiplier, 1)))
-    const missing = (component.type === 'material' && !material) || (component.type === 'machine' && (!machine || !rate)) || (component.type === 'service' && !service)
+    const missing = (component.type === 'material' && requirements.material && !material) || (component.type === 'machine' && requirements.machine && (!machine || !rate)) || (component.type === 'service' && !service)
     const detail = component.type === 'material' ? material?.name || 'Choose a material' : component.type === 'machine' ? `${machine?.name || 'Choose a machine'}${rate ? ` · ${rate.name}` : ''}` : component.type === 'service' ? service?.name || 'Choose a service' : 'Included in estimate'
     running += amount
     lines.push({ name: component.name || 'Cost component', detail, amount, missing })
@@ -186,7 +189,7 @@ function calculateComponents(components: ComponentForm[], parameters: ParameterF
 }
 
 export function calculateServiceTest(form: ServiceForm, values: TestValues, materials: MaterialRecord[], machines: MachineRecord[], services: ServiceRecord[]): TestPricingResult {
-  const costs = calculateComponents(form.components, form.parameters, values, materials, machines, services, form.materialVariants)
+  const costs = calculateComponents(form.components, form.parameters, values, materials, machines, services, form.materialVariants, new Set<string>(), form.category)
   const rule = form.pricingRule
   const quantity = number(values[rule.parameterKey] || form.parameters.find((parameter) => parameter.key === rule.parameterKey)?.defaultValue)
   const markupRial = rule.type === 'markup' ? Math.ceil(costs.totalCostRial * number(rule.markupPercentage) / 100) : 0

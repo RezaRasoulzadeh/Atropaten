@@ -23,6 +23,9 @@ const { selected, selectedOrder, selectedItem, jobOrder, statusTone, date } = pr
 const machineName = computed(
   () => props.machines.find((machine) => machine.id === selected.value?.assignedMachineId)?.name || 'Unassigned',
 )
+const layouts = computed(() => {
+  try { return JSON.parse(selectedItem.value?.pricingSnapshotJson || '{}').layouts || [] } catch { return [] }
+})
 const customerName = computed(() => selectedOrder.value?.customerName || 'Walk-in customer')
 
 </script>
@@ -66,6 +69,12 @@ const customerName = computed(() => selectedOrder.value?.customerName || 'Walk-i
         </dl>
       </div>
 
+      <section v-for="layout in layouts" :key="layout.materialId" class="rounded-box border border-primary/30 p-4 text-sm space-y-2">
+        <h3 class="font-semibold">{{ layout.materialName }} · order layout ({{ layout.quantity }} pieces)</h3>
+        <p>{{ layout.rotated ? 'Rotate artwork 90° before printing.' : 'Use original artwork orientation.' }}</p>
+        <p>{{ layout.itemsPerSheet ? `${layout.itemsPerSheet} pieces per sheet · ${layout.sheets} sheets` : `${layout.across} across × ${layout.rows} rows · ${Number(layout.lengthMM)/1000} m roll length` }}</p>
+        <p>{{ layout.consumedQuantity }} {{ layout.unit }} including {{ Number(layout.wastePercent).toFixed(1) }}% waste</p>
+      </section>
       <ProductionCostBreakdown v-if="selected" :job="selected" :currency-unit="currencyUnit" />
 
       <div class="rounded-box border border-base-300 bg-base-200/20 p-4">

@@ -62,7 +62,7 @@ func TestConfiguredMaterialVariantResolvesExactInventoryMaterial(t *testing.T) {
 		t.Fatal("unavailable variant was accepted")
 	}
 	options, err := MaterialOptionsForParameter(service, "finish", []Material{material}, nil)
-	if err != nil || len(options) != 1 || options[0].Value != "matte" || len(options[0].MaterialIDs) != 1 {
+	if err != nil || len(options) != 1 || options[0].Value != "matte" || options[0].Label != "Exact" || len(options[0].MaterialIDs) != 1 {
 		t.Fatalf("variant-derived options=%+v err=%v", options, err)
 	}
 }
@@ -94,7 +94,7 @@ func TestCompositeMaterialGroupResolvesSizeAndTypeCombination(t *testing.T) {
 	if err != nil || got.ID != a4Gloss.ID {
 		t.Fatalf("composite variant=%+v err=%v", got, err)
 	}
-	options, err := MaterialOptionsForParameter(service, "size", []Material{a4Matte, a4Gloss, a3Matte}, map[string]string{"type": "matte"})
+	options, err := MaterialOptionsForParameter(service, "size", []Material{a4Matte, a4Gloss, a3Matte}, map[string]string{"type": "matte", "machine": "MAC-digital", "machine_rate": "full-color"})
 	if err != nil || len(options) != 2 {
 		t.Fatalf("composite options=%+v err=%v", options, err)
 	}

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
+import { pricingApi, type PricingRecord } from '../../api/pricing'
 import { CircleHelp } from 'lucide-vue-next'
 import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
@@ -9,6 +10,7 @@ import { formatMoney, type CurrencyUnit } from '../../utils/currency'
 import ServiceOverviewIdentity from './ServiceOverviewIdentity.vue'
 import ServiceOverviewSection from './ServiceOverviewSection.vue'
 import { collapseGroupedMaterialComponents } from './serviceComponentSync'
+import { serviceCategoryRequirements } from './serviceCategory'
 
 const props = defineProps<{
   components: ComponentForm[]
@@ -113,6 +115,7 @@ function serviceCost(service: ServiceRecord, visited = new Set<string>()) {
 }
 
 const effectiveComponents = computed(() => collapseGroupedMaterialComponents(props.components, props.parameters))
+const categoryRequirements = computed(() => serviceCategoryRequirements(props.form.category))
 
 function baseAmount(component: ComponentForm, parameters = props.parameters, visited = new Set<string>()) {
   if (component.type === 'material') {
@@ -128,7 +131,30 @@ function baseAmount(component: ComponentForm, parameters = props.parameters, vis
   return 0
 }
 
+const layoutPrice = ref<PricingRecord | null>(null)
+const layoutMessage = ref('')
+let previewToken = 0
+let previewTimer: ReturnType<typeof setTimeout> | undefined
+onBeforeUnmount(() => { previewToken++; clearTimeout(previewTimer) })
+watch(() => props.form, () => {
+  const token = ++previewToken
+  clearTimeout(previewTimer)
+  layoutPrice.value = null
+  if (!props.form.finishedSize?.quantityParameterKey) return
+  layoutMessage.value = 'Calculating batch layout…'
+  previewTimer = setTimeout(async () => {
+    const values = Object.fromEntries(props.form.parameters.map(p => [p.key,p.defaultValue]))
+    try {
+      const price = await pricingApi.draft(props.form,values,values[props.form.finishedSize!.quantityParameterKey] || '1')
+      if (token === previewToken) { layoutPrice.value = price; layoutMessage.value = '' }
+    } catch(e) { if (token === previewToken) layoutMessage.value = String(e) }
+  },250)
+},{deep:true,immediate:true})
 const rows = computed<BreakdownRow[]>(() => {
+  if (props.form.finishedSize?.quantityParameterKey) return effectiveComponents.value.filter(c => c.enabled).map(component => {
+    const line = layoutPrice.value?.components.find(c => c.id === component.id)
+    return {component, amount:line?.amountRial || 0, detail:line?.explanation || layoutMessage.value, missing:!line}
+  })
   let running = 0
   return effectiveComponents.value.filter((component) => component.enabled).map((component) => {
     if (component.type === 'overhead' || component.type === 'waste') {
@@ -139,9 +165,9 @@ const rows = computed<BreakdownRow[]>(() => {
     }
     const amount = baseAmount(component) * usageFor(component) * Math.max(0, numeric(component.multiplier))
     running += amount
-    const missing = (component.type === 'material' && !materialFor(component)) || (component.type === 'machine' && !machineFor(component)) || (component.type === 'service' && !props.services.some((service) => service.id === component.referenceId && service.active))
+    const missing = (component.type === 'material' && categoryRequirements.value.material && !materialFor(component)) || (component.type === 'machine' && categoryRequirements.value.machine && !machineFor(component)) || (component.type === 'service' && !props.services.some((service) => service.id === component.referenceId && service.active))
     const detail = component.type === 'material' ? (materialFor(component)?.name || 'Choose a material') : component.type === 'machine' ? `${machineFor(component)?.name || 'Choose a machine'}${machineRateFor(component)?.name ? ` · ${machineRateFor(component)?.name}` : ''}` : component.type === 'service' ? (props.services.find((service) => service.id === component.referenceId)?.name || 'Choose a service') : 'Included in estimate'
-    const rateMissing = component.type === 'machine' && !!machineFor(component) && !machineRateFor(component)
+    const rateMissing = component.type === 'machine' && categoryRequirements.value.machine && !!machineFor(component) && !machineRateFor(component)
     return { component, amount, detail, missing: missing || rateMissing }
   })
 })
@@ -164,7 +190,7 @@ watch(rows, (value) => emit('update:breakdown', value.map((row) => ({ name: row.
   <section class="min-w-0 space-y-4" aria-label="Cost breakdown preview">
     <ServiceOverviewIdentity :form="form" :active="active" />
 
-    <ServiceOverviewSection title="Cost estimate" description="Current cost per service unit from the configured components and their selected defaults.">
+    <ServiceOverviewSection title="Cost estimate" :description="form.finishedSize?.quantityParameterKey ? 'Complete batch cost from the default dimensions and quantity.' : 'Current cost per service unit from the configured components and their selected defaults.'">
       <div v-if="defaultEstimateSummary.length" class="mb-3 rounded-box border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs leading-5 text-base-content/70"><strong class="font-medium text-primary">Defaults used for estimate:</strong> {{ defaultEstimateSummary.join(' · ') }}</div>
       <div v-if="rows.length" class="space-y-2">
         <div class="divide-y divide-base-300/70">

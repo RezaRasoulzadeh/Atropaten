@@ -35,8 +35,8 @@ func orderMaterialRequirementsTx(ctx context.Context, tx *sql.Tx, itemID string)
 		return nil, err
 	}
 	var components []struct {
-		ID, Name, Type, MaterialID, ReferenceID, ParameterKey, UsageQuantity string
-		Enabled                                                              bool
+		ID, Name, Type, MaterialID, ReferenceID, ParameterKey, UsageQuantity, BatchQuantity string
+		Enabled                                                                             bool
 	}
 	// Explicit tags are needed for the saved camelCase field names.
 	var raw []struct {
@@ -47,6 +47,7 @@ func orderMaterialRequirementsTx(ctx context.Context, tx *sql.Tx, itemID string)
 		ReferenceID   string `json:"referenceId"`
 		ParameterKey  string `json:"parameterKey"`
 		UsageQuantity string `json:"usageQuantity"`
+		BatchQuantity string `json:"batchQuantity"`
 		Enabled       bool   `json:"enabled"`
 	}
 	if strings.HasPrefix(strings.TrimSpace(componentsJSON), "[") {
@@ -56,9 +57,9 @@ func orderMaterialRequirementsTx(ctx context.Context, tx *sql.Tx, itemID string)
 	}
 	for _, c := range raw {
 		components = append(components, struct {
-			ID, Name, Type, MaterialID, ReferenceID, ParameterKey, UsageQuantity string
-			Enabled                                                              bool
-		}{c.ID, c.Name, c.Type, c.MaterialID, c.ReferenceID, c.ParameterKey, c.UsageQuantity, c.Enabled})
+			ID, Name, Type, MaterialID, ReferenceID, ParameterKey, UsageQuantity, BatchQuantity string
+			Enabled                                                                             bool
+		}{c.ID, c.Name, c.Type, c.MaterialID, c.ReferenceID, c.ParameterKey, c.UsageQuantity, c.BatchQuantity, c.Enabled})
 	}
 	var parameters []struct {
 		Key        string `json:"key"`
@@ -113,7 +114,16 @@ func orderMaterialRequirementsTx(ctx context.Context, tx *sql.Tx, itemID string)
 		if err != nil || usage < 0 {
 			return nil, fmt.Errorf("invalid usage for material %q", c.Name)
 		}
-		total, err := multiplyProductionQuantity(usage, quantity)
+		var total domain.Quantity
+		if c.BatchQuantity != "" {
+			batch, parseErr := domain.ParseQuantity(c.BatchQuantity)
+			if parseErr != nil || batch <= 0 {
+				return nil, fmt.Errorf("invalid layout batch quantity")
+			}
+			total, err = scaleProductionQuantity(usage, quantity, batch)
+		} else {
+			total, err = multiplyProductionQuantity(usage, quantity)
+		}
 		if err != nil {
 			return nil, err
 		}

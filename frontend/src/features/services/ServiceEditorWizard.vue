@@ -7,6 +7,7 @@ import FormField from '../../components/ui/FormField.vue'
 import SelectField from '../../components/ui/SelectField.vue'
 import WorkspaceBreadcrumb from '../../components/layout/WorkspaceBreadcrumb.vue'
 import ServiceMaterialsStep from './ServiceMaterialsStep.vue'
+import ServiceLayoutSetup from './ServiceLayoutSetup.vue'
 import ServiceOrderPreview from './ServiceOrderPreview.vue'
 import ServiceCostBreakdownPreview from './ServiceCostBreakdownPreview.vue'
 import ServicePricingStep from './ServicePricingStep.vue'
@@ -23,6 +24,8 @@ import ServiceMachinesStep from './ServiceMachinesStep.vue'
 import type { PredefinedParameter, ServiceForm } from './types'
 import type { TestPricingResult, TestValues } from './serviceTestPricing'
 import { ensureSuggestedCostComponents, reconcileCostComponents } from './serviceComponentSync'
+import { SERVICE_CATEGORIES, serviceCategoryRequirements, serviceCategorySupportsLayout } from './serviceCategory'
+import { ensureRollSizeInputs } from './rollSizeInputs'
 
 const props = defineProps<{
   form: ServiceForm
@@ -45,6 +48,7 @@ const emit = defineEmits<{
 }>()
 
 const activeStep = ref(1)
+watch(() => props.form, form => ensureRollSizeInputs(form), { immediate: true, deep: true })
 const imageInput = ref<HTMLInputElement | null>(null)
 const codeWasEdited = ref(Boolean(props.form.code.trim()))
 const lastGeneratedCode = ref('')
@@ -53,6 +57,7 @@ const pricingBreakdown = ref<Array<{ name: string; amount: number; detail: strin
 const testValues = ref<TestValues>({})
 const testResult = ref<TestPricingResult | null>(null)
 const imagePreview = computed(() => props.form.imagePath || '')
+const categoryRequirements = computed(() => serviceCategoryRequirements(props.form.category))
 const steps = [
   { number: 1, title: 'Basic', description: 'Name, category, description' },
   { number: 2, title: 'Materials', description: 'Group stock choices by order options' },
@@ -106,18 +111,7 @@ function clearImage() {
   props.form.imagePath = ''
 }
 function categoryOptions() {
-  const defaults = [
-    'Print products',
-    'Paper printing',
-    'Large format',
-    'Banners & signage',
-    'Cards & stationery',
-    'Flyers & brochures',
-    'Labels & stickers',
-    'Finishing',
-    'Design',
-    'Packaging',
-  ]
+  const defaults: string[] = [...SERVICE_CATEGORIES]
   const current = props.form.category.trim()
   return [
     { label: 'Select a category', value: '' },
@@ -230,22 +224,27 @@ watch(
             </div>
           </section>
 
+          <section v-else-if="activeStep === 2">
+          <ServiceLayoutSetup v-if="serviceCategorySupportsLayout(form.category)" :form="form" />
           <ServiceMaterialsStep
-            v-else-if="activeStep === 2"
             :parameters="form.parameters"
             :materials="materials"
             :attribute-definitions="attributeDefinitions"
             :material-variants="form.materialVariants"
             :show-errors="validationAttempted"
             :currency-unit="currencyUnit"
+            :required="categoryRequirements.material"
           />
+          </section>
+          <section v-else-if="activeStep === 3">
           <ServiceMachinesStep
-            v-else-if="activeStep === 3"
             :components="form.components"
             :parameters="form.parameters"
             :machines="machines"
             :show-errors="validationAttempted"
+            :required="categoryRequirements.machine"
           />
+          </section>
           <ServicePricingStep
             v-else-if="activeStep === 4"
             :pricing-rule="form.pricingRule"

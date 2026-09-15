@@ -602,6 +602,26 @@ func (s *ServicesService) validateReferences(ctx context.Context, service domain
 		}
 	}
 	for _, parameter := range service.Parameters {
+		if parameter.Type == domain.ParameterMachineReference && len(parameter.Options) > 0 {
+			if s.machine == nil {
+				return fmt.Errorf("parameter %q: machine options cannot be checked", parameter.Key)
+			}
+			seen := make(map[string]struct{}, len(parameter.Options))
+			for _, option := range parameter.Options {
+				option = strings.TrimSpace(option)
+				if _, exists := seen[option]; exists {
+					return fmt.Errorf("parameter %q: machine options must be unique", parameter.Key)
+				}
+				seen[option] = struct{}{}
+				machine, err := s.machine.GetMachine(ctx, option)
+				if err != nil {
+					return fmt.Errorf("parameter %q: machine option %q: %w", parameter.Key, option, err)
+				}
+				if !machine.Active {
+					return fmt.Errorf("parameter %q: machine option %q must be active", parameter.Key, option)
+				}
+			}
+		}
 		if parameter.DefaultValue == "" {
 			continue
 		}
@@ -970,7 +990,7 @@ func (s *ServicesService) parseParameter(ctx context.Context, input ParameterInp
 	default:
 		options = nil
 	}
-	if typeName != domain.ParameterChoice {
+	if typeName != domain.ParameterChoice && typeName != domain.ParameterMachineReference {
 		options = nil
 	}
 	return domain.ServiceParameterDraft{
@@ -1007,12 +1027,13 @@ func parameterFromDraft(serviceID string, draft domain.ServiceParameterDraft, po
 		Type: domain.ParameterType(strings.ToLower(strings.TrimSpace(string(draft.Type)))), Required: draft.Required,
 		Position: position, DefaultValue: strings.TrimSpace(draft.DefaultValue), Options: append([]string(nil), draft.Options...),
 		MinValue: draft.MinValue, MaxValue: draft.MaxValue, Unit: strings.TrimSpace(draft.Unit), Active: true,
-		MaterialSource: draft.MaterialSource,
-		CreatedAt:      now.UTC(), UpdatedAt: now.UTC(),
+		PredefinedKey: strings.TrimSpace(draft.PredefinedKey), PredefinedOptions: append([]domain.PredefinedParameterOption(nil), draft.PredefinedOptions...), MaterialSource: draft.MaterialSource,
+		CreatedAt: now.UTC(), UpdatedAt: now.UTC(),
 	}
 }
 
 func serviceView(service domain.Service) ServiceView {
+	service = service.WithRollSizeDefaults()
 	parameters := make([]ParameterView, 0, len(service.Parameters))
 	for _, parameter := range service.Parameters {
 		view := ParameterView{ID: parameter.ID, Key: parameter.Key, Label: parameter.Label, Type: string(parameter.Type), Required: parameter.Required, Position: parameter.Position, DefaultValue: parameter.DefaultValue, Options: append([]string(nil), parameter.Options...), Unit: parameter.Unit, PredefinedKey: parameter.PredefinedKey, PredefinedOptions: append([]domain.PredefinedParameterOption(nil), parameter.PredefinedOptions...), MaterialSource: parameter.MaterialSource, Active: parameter.Active}

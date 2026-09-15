@@ -66,6 +66,10 @@ export function ArchiveSupplier(arg1) {
   return window['go']['main']['App']['ArchiveSupplier'](arg1);
 }
 
+export function CalculateDraftServicePrice(arg1, arg2) {
+  return window['go']['main']['App']['CalculateDraftServicePrice'](arg1, arg2);
+}
+
 export function CalculateServicePrice(arg1) {
   return window['go']['main']['App']['CalculateServicePrice'](arg1);
 }

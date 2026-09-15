@@ -101,7 +101,7 @@ function formFromService(service: ServiceRecord): ServiceForm {
     parameters,
     components,
     pricingRule,
-    finishedSize: service.parameters.some((parameter) => parameter.predefinedKey === 'print_size') ? null : service.finishedSize ? {
+    finishedSize: service.finishedSize ? {
       parameterKey: service.finishedSize.parameterKey || '',
       quantityParameterKey: service.finishedSize.quantityParameterKey || '',
       widthParameterKey: service.finishedSize.widthParameterKey || '',
@@ -140,7 +140,7 @@ export function serviceDefaultPricingResult(
   machines: MachineRecord[],
   services: ServiceRecord[],
 ): TestPricingResult | null {
-  if (!service.pricingRule || service.pricingRule.type === 'manual') return null
+  if (service.finishedSize?.quantityParameterKey || !service.pricingRule || service.pricingRule.type === 'manual') return null
   const form = formFromService(service)
   return calculateServiceTest(form, defaultValues(form), materials, machines, services)
 }

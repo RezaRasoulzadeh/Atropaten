@@ -20,6 +20,7 @@ type ResolvedParameter struct {
 }
 
 type PricingInput struct {
+	BatchQuantity            Quantity
 	Service                  Service
 	Parameters               map[string]ResolvedParameter
 	Materials                map[string]Material
@@ -112,6 +113,12 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 			if err != nil {
 				return PricingResult{}, err
 			}
+			if input.BatchQuantity > 0 && component.Type != CostFixed && component.Type != CostManual && !(component.UsageMode == UsageParameter && input.Service.FinishedSize != nil && component.ParameterKey == input.Service.FinishedSize.QuantityParameterKey) {
+				usage, err = quantityProduct(usage, input.BatchQuantity)
+				if err != nil {
+					return PricingResult{}, err
+				}
+			}
 			item.UsageQuantity = usage
 			switch component.Type {
 			case CostMaterial:
@@ -127,7 +134,8 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 				if !exists {
 					return PricingResult{}, fmt.Errorf("component %q: material %q not found", component.Name, materialID)
 				}
-				if input.Service.FinishedSize != nil && input.Service.FinishedSize.QuantityParameterKey != "" {
+				_, layoutSupported := ConsumptionStrategyForMaterialKind(material.Kind)
+				if layoutSupported && input.Service.FinishedSize != nil && input.Service.FinishedSize.QuantityParameterKey != "" {
 					usage, err = CalculateMaterialConsumption(material, input.Service, input.Parameters)
 					if err != nil {
 						return PricingResult{}, fmt.Errorf("component %q: material consumption: %w", component.Name, err)
@@ -161,9 +169,56 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 				if !rateExists {
 					return PricingResult{}, fmt.Errorf("component %q: machine rate is not configured for the selected option", component.Name)
 				}
+				layoutBasis := component.RateBasis
+				if layoutBasis == "meter" || layoutBasis == "square meter" || layoutBasis == "sheet" {
+					if rate.RateBasis != RatePerUnit {
+						return PricingResult{}, fmt.Errorf("component %q: layout charging requires a per-unit machine profile; time rates require explicit time usage", component.Name)
+					}
+					var layout *PrintLayout
+					for _, stock := range input.Materials {
+						if _, ok := ConsumptionStrategyForMaterialKind(stock.Kind); !ok {
+							continue
+						}
+						if layout != nil {
+							return PricingResult{}, fmt.Errorf("machine layout rate requires exactly one layout material")
+						}
+						plan, e := CalculatePrintLayout(stock, input.Service, input.Parameters)
+						if e != nil {
+							return PricingResult{}, e
+						}
+						layout = &plan
+					}
+					if layout == nil {
+						return PricingResult{}, fmt.Errorf("machine layout rate requires a material layout")
+					}
+					switch layoutBasis {
+					case "sheet":
+						usage, err = ParseQuantity(layout.Sheets)
+					case "square meter":
+						usage, err = ParseQuantity(layout.AreaM2)
+					case "meter":
+						var length Quantity
+						length, err = ParseQuantity(layout.LengthMM)
+						if err == nil {
+							usage, err = rollQuantity(length, QuantityScale, "meter")
+						}
+					}
+					if err != nil || usage <= 0 {
+						return PricingResult{}, fmt.Errorf("machine rate basis does not match material layout")
+					}
+					item.UsageQuantity = usage
+				}
 				amount, err = scaledMoney(usage, rate.RateRial)
 				item.RateRial = rate.RateRial
-				item.Explanation = fmt.Sprintf("%s × %d Rial %s rate (%s)", usage.String(), rate.RateRial, rate.RateBasis, rate.Name)
+				basis := rate.RateBasis
+				if layoutBasis != "" {
+					basis = layoutBasis
+				}
+				item.Explanation = fmt.Sprintf("%s × %d Rial %s rate (%s)", usage.String(), rate.RateRial, basis, rate.Name)
+				if input.BatchQuantity > 0 && rate.SetupCostRial > 0 && err == nil {
+					amount, err = addMoney(amount, rate.SetupCostRial)
+					item.Explanation += fmt.Sprintf(" + %d Rial batch setup", rate.SetupCostRial)
+				}
 			case CostService:
 				serviceCost, exists := input.ServiceCosts[component.ReferenceID]
 				if !exists {

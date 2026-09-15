@@ -50,49 +50,11 @@ func (m Material) RollWidthMM() (Quantity, bool) {
 }
 
 func CalculateMaterialConsumption(material Material, service Service, parameters map[string]ResolvedParameter) (Quantity, error) {
-	if service.FinishedSize == nil {
-		return 0, fmt.Errorf("service does not define finished dimensions")
-	}
-	quantityParameter, ok := parameters[service.FinishedSize.QuantityParameterKey]
-	if !ok || quantityParameter.Quantity <= 0 {
-		return 0, fmt.Errorf("finished quantity parameter %q is not resolved", service.FinishedSize.QuantityParameterKey)
-	}
-	selected := make(map[string]string, len(parameters))
-	for key, value := range parameters {
-		selected[key] = value.Value
-	}
-	width, height, err := service.ResolveFinishedDimensions(selected)
+	layout, err := CalculatePrintLayout(material, service, parameters)
 	if err != nil {
 		return 0, err
 	}
-	strategy, ok := ConsumptionStrategyForMaterialKind(material.Kind)
-	if !ok {
-		return 0, fmt.Errorf("material kind %q has no consumption strategy", material.Kind)
-	}
-	switch strategy {
-	case ConsumptionStrategySheet:
-		sheetWidth, sheetHeight, ok := material.PhysicalDimensions()
-		if !ok {
-			return 0, fmt.Errorf("material %q has incomplete sheet dimensions", material.ID)
-		}
-		yield, err := CalculateSheetYield(sheetWidth, sheetHeight, width, height, quantityParameter.Quantity, service.FinishedSize.AllowRotation)
-		if err != nil {
-			return 0, err
-		}
-		return yield.SheetsRequired, nil
-	case ConsumptionStrategyRoll:
-		rollWidth, ok := material.RollWidthMM()
-		if !ok {
-			return 0, fmt.Errorf("material %q has incomplete roll width", material.ID)
-		}
-		layout, err := CalculateRollConsumption(rollWidth, width, height, quantityParameter.Quantity, service.FinishedSize.AllowRotation, material.ConsumptionUnit)
-		if err != nil {
-			return 0, err
-		}
-		return layout.ConsumedQuantity, nil
-	default:
-		return 0, fmt.Errorf("unsupported material consumption strategy %q", strategy)
-	}
+	return ParseQuantity(layout.ConsumedQuantity)
 }
 
 type SheetYield struct {
@@ -105,8 +67,8 @@ func CalculateSheetYield(sheetWidthMM, sheetHeightMM, itemWidthMM, itemHeightMM,
 	if sheetWidthMM <= 0 || sheetHeightMM <= 0 || itemWidthMM <= 0 || itemHeightMM <= 0 {
 		return SheetYield{}, fmt.Errorf("sheet and finished dimensions must be positive")
 	}
-	if requiredQuantity <= 0 {
-		return SheetYield{}, fmt.Errorf("required finished quantity must be positive")
+	if requiredQuantity <= 0 || requiredQuantity%QuantityScale != 0 {
+		return SheetYield{}, fmt.Errorf("required finished quantity must be a positive whole number")
 	}
 	widthCount, heightCount := int64(sheetWidthMM/itemWidthMM), int64(sheetHeightMM/itemHeightMM)
 	if heightCount > 0 && widthCount > int64(^uint64(0)>>1)/heightCount {
@@ -116,7 +78,11 @@ func CalculateSheetYield(sheetWidthMM, sheetHeightMM, itemWidthMM, itemHeightMM,
 	best := normal
 	rotated := false
 	if allowRotation {
-		rotatedYield := int64(sheetWidthMM/itemHeightMM) * int64(sheetHeightMM/itemWidthMM)
+		rotatedWidth, rotatedHeight := int64(sheetWidthMM/itemHeightMM), int64(sheetHeightMM/itemWidthMM)
+		if rotatedHeight > 0 && rotatedWidth > int64(^uint64(0)>>1)/rotatedHeight {
+			return SheetYield{}, fmt.Errorf("sheet yield is too large")
+		}
+		rotatedYield := rotatedWidth * rotatedHeight
 		if rotatedYield > best {
 			best, rotated = rotatedYield, true
 		}
@@ -145,7 +111,7 @@ type RollLayout struct {
 // CalculateRollConsumption lays rectangular pieces along a continuous roll.
 // ConsumedQuantity is expressed in the material's existing consumption unit.
 func CalculateRollConsumption(rollWidthMM, itemWidthMM, itemHeightMM, requiredQuantity Quantity, allowRotation bool, consumptionUnit string) (RollLayout, error) {
-	if rollWidthMM <= 0 || itemWidthMM <= 0 || itemHeightMM <= 0 || requiredQuantity <= 0 {
+	if rollWidthMM <= 0 || itemWidthMM <= 0 || itemHeightMM <= 0 || requiredQuantity <= 0 || requiredQuantity%QuantityScale != 0 {
 		return RollLayout{}, fmt.Errorf("roll, finished dimensions, and quantity must be positive")
 	}
 	best, err := rollOrientation(rollWidthMM, itemWidthMM, itemHeightMM, requiredQuantity, consumptionUnit, false)
@@ -169,7 +135,11 @@ func rollOrientation(rollWidthMM, itemWidthMM, itemHeightMM, requiredQuantity Qu
 	if across <= 0 {
 		return RollLayout{}, fmt.Errorf("item width does not fit roll width")
 	}
-	rows := (int64(requiredQuantity) + across*QuantityScale - 1) / (across * QuantityScale)
+	pieces := int64(requiredQuantity / QuantityScale)
+	rows := pieces / across
+	if pieces%across != 0 {
+		rows++
+	}
 	length := new(big.Int).Mul(big.NewInt(rows), big.NewInt(int64(itemHeightMM)))
 	if !length.IsInt64() {
 		return RollLayout{}, fmt.Errorf("roll length is too large")
@@ -185,10 +155,12 @@ func rollOrientation(rollWidthMM, itemWidthMM, itemHeightMM, requiredQuantity Qu
 func rollQuantity(lengthMM, widthMM Quantity, unit string) (Quantity, error) {
 	switch NormalizeUnit(unit) {
 	case "meter":
-		return Quantity(int64(lengthMM) / 1000), nil
+		return Quantity(int64(lengthMM)/1000 + min(int64(lengthMM)%1000, 1)), nil
 	case "square meter":
 		n := new(big.Int).Mul(big.NewInt(int64(lengthMM)), big.NewInt(int64(widthMM)))
-		n.Quo(n, big.NewInt(QuantityScale*1_000_000))
+		denominator := big.NewInt(QuantityScale * 1_000_000)
+		n.Add(n, new(big.Int).Sub(denominator, big.NewInt(1)))
+		n.Quo(n, denominator)
 		if !n.IsInt64() {
 			return 0, fmt.Errorf("roll area is too large")
 		}

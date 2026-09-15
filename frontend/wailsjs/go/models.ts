@@ -1,3 +1,56 @@
+export namespace domain {
+	
+	export class PrintLayout {
+	    finishedWidthMM: string;
+	    finishedHeightMM: string;
+	    gapMM: string;
+	    marginMM: string;
+	    materialId: string;
+	    materialName: string;
+	    kind: string;
+	    quantity: string;
+	    consumedQuantity: string;
+	    unit: string;
+	    across: number;
+	    rows: number;
+	    itemsPerSheet: number;
+	    sheets: string;
+	    lengthMM: string;
+	    rotated: boolean;
+	    wastePercent: number;
+	    areaM2: string;
+	    originalLengthMM?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PrintLayout(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.finishedWidthMM = source["finishedWidthMM"];
+	        this.finishedHeightMM = source["finishedHeightMM"];
+	        this.gapMM = source["gapMM"];
+	        this.marginMM = source["marginMM"];
+	        this.materialId = source["materialId"];
+	        this.materialName = source["materialName"];
+	        this.kind = source["kind"];
+	        this.quantity = source["quantity"];
+	        this.consumedQuantity = source["consumedQuantity"];
+	        this.unit = source["unit"];
+	        this.across = source["across"];
+	        this.rows = source["rows"];
+	        this.itemsPerSheet = source["itemsPerSheet"];
+	        this.sheets = source["sheets"];
+	        this.lengthMM = source["lengthMM"];
+	        this.rotated = source["rotated"];
+	        this.wastePercent = source["wastePercent"];
+	        this.areaM2 = source["areaM2"];
+	        this.originalLengthMM = source["originalLengthMM"];
+	    }
+	}
+
+}
+
 export namespace main {
 	
 	export class AccountDTO {
@@ -2628,6 +2681,8 @@ export namespace main {
 	    }
 	}
 	export class PricingDTO {
+	    batchQuantity?: string;
+	    layouts?: domain.PrintLayout[];
 	    serviceId: string;
 	    serviceName: string;
 	    serviceCode: string;
@@ -2650,6 +2705,8 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.batchQuantity = source["batchQuantity"];
+	        this.layouts = this.convertValues(source["layouts"], domain.PrintLayout);
 	        this.serviceId = source["serviceId"];
 	        this.serviceName = source["serviceName"];
 	        this.serviceCode = source["serviceCode"];
@@ -2686,6 +2743,7 @@ export namespace main {
 		}
 	}
 	export class PricingRequest {
+	    quantity: string;
 	    serviceId: string;
 	    parameters: Record<string, string>;
 	    manualCosts: Record<string, number>;
@@ -2697,6 +2755,7 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.quantity = source["quantity"];
 	        this.serviceId = source["serviceId"];
 	        this.parameters = source["parameters"];
 	        this.manualCosts = source["manualCosts"];
@@ -2710,11 +2769,11 @@ export namespace main {
 	    tiers: PricingTierDTO[];
 	    position: number;
 	    active: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PricingVariationDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2724,7 +2783,7 @@ export namespace main {
 	        this.position = source["position"];
 	        this.active = source["active"];
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2786,7 +2845,7 @@ export namespace main {
 	        this.tiers = this.convertValues(source["tiers"], PricingTierDTO);
 	        this.variations = this.convertValues(source["variations"], PricingVariationDTO);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2812,11 +2871,11 @@ export namespace main {
 	    tiers: PricingTierInput[];
 	    position: number;
 	    active: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PricingVariationInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2909,8 +2968,8 @@ export namespace main {
 	}
 	
 	
-
-
+	
+	
 	export class PrintAllocationDTO {
 	    reference: string;
 	    targetType: string;

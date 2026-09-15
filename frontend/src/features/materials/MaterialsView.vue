@@ -34,6 +34,13 @@ function statusCount(status: MaterialFilter) {
 function unitCost(material: typeof materials.value[number]) {
   return material.highestPurchaseUnitCostRial || material.averageUnitCostRial
 }
+function kindLabel(kind: string) {
+  return ({
+    'sheet-stock': 'Sheet stock', 'roll-media': 'Roll media', board: 'Board', ink: 'Ink',
+    'lamination-film': 'Lamination film', adhesive: 'Adhesive', fabric: 'Fabric', packaging: 'Packaging',
+    chemical: 'Chemical', 'generic-consumable': 'Generic consumable',
+  } as Record<string, string>)[kind] || 'Generic consumable'
+}
 function goToPage(value: number) { page.value = Math.min(Math.max(value, 1), pageCount.value) }
 function clearFilters() {
   searchQuery.value = ''
@@ -67,7 +74,7 @@ watch([selectedId, editorMode], () => { void nextTick(() => document.querySelect
           </div>
         </div>
 
-        <div class="material-register-table-head hidden grid-cols-[minmax(0,1.5fr)_minmax(7rem,0.8fr)_8rem_7rem_6rem_1.25rem] gap-3 border-b border-base-300 px-4 py-3 text-xs font-medium text-base-content/55"><span>Name</span><span>Category</span><span>Unit cost</span><span>Stock</span><span>Status</span><span></span></div>
+        <div class="material-register-table-head hidden grid-cols-[minmax(0,1.5fr)_minmax(7rem,0.8fr)_8rem_7rem_6rem_1.25rem] gap-3 border-b border-base-300 px-4 py-3 text-xs font-medium text-base-content/55"><span>Name</span><span>Kind</span><span>Unit cost</span><span>Stock</span><span>Status</span><span></span></div>
         <LoadingState v-if="isLoading" label="Loading materials…" />
         <div v-else-if="pagedMaterials.length" class="min-h-0 flex-1 overflow-y-auto divide-y divide-base-300">
           <button v-for="material in pagedMaterials" :key="material.id" class="material-register-row group grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-base-200/60 focus-visible:bg-base-200/60 focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary" :class="selectedId === material.id ? 'bg-primary/10' : ''" type="button" @click="selectMaterial(material.id)">
@@ -76,10 +83,10 @@ watch([selectedId, editorMode], () => { void nextTick(() => document.querySelect
               <span class="material-register-mobile-identity min-w-0 self-center"><strong class="block truncate text-sm">{{ material.name }}</strong><span class="block truncate text-xs text-base-content/60">{{ material.sku || 'No SKU' }}<span v-if="material.consumptionUnit"> · {{ material.consumptionUnit }}</span></span></span>
               <StatusBadge class="material-register-mobile-status justify-self-end self-center" :label="material.active ? 'Active' : 'Archived'" :tone="material.active ? 'green' : 'slate'" />
               <ChevronRight :size="17" class="register-row-arrow material-register-mobile-arrow self-center text-base-content/45" aria-hidden="true" />
-              <span class="material-register-mobile-summary flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/55"><span>{{ material.category || 'Uncategorized' }}</span><span>{{ formatMoney(unitCost(material), props.currencyUnit) }} / {{ material.consumptionUnit }}</span><span>{{ material.availableStock }} available</span></span>
+              <span class="material-register-mobile-summary flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/55"><span>{{ kindLabel(material.kind) }}</span><span>{{ formatMoney(unitCost(material), props.currencyUnit) }} / {{ material.consumptionUnit }}</span><span>{{ material.availableStock }} available</span></span>
             </span>
             <span class="material-register-name material-register-desktop-only flex min-w-0 items-center gap-3"><span class="grid size-9 shrink-0 place-items-center rounded-box border border-base-300 bg-base-200 text-primary"><Package :size="18" aria-hidden="true" /></span><span class="min-w-0"><strong class="block truncate text-sm">{{ material.name }}</strong><span class="block truncate text-xs text-base-content/60">{{ material.sku || 'No SKU' }}<span v-if="material.consumptionUnit"> · {{ material.consumptionUnit }}</span></span></span></span>
-            <span class="material-register-category material-register-desktop-only hidden truncate text-xs text-base-content/70">{{ material.category || 'Uncategorized' }}</span>
+            <span class="material-register-category material-register-desktop-only hidden truncate text-xs text-base-content/70">{{ kindLabel(material.kind) }}</span>
             <span class="material-register-cost material-register-desktop-only hidden text-sm tabular-nums text-base-content/80">{{ formatMoney(unitCost(material), props.currencyUnit) }}</span>
             <span class="material-register-stock material-register-desktop-only hidden truncate text-xs text-base-content/70">{{ material.availableStock }} {{ material.consumptionUnit }}</span>
             <StatusBadge class="material-register-status material-register-desktop-only justify-self-end" :label="material.active ? 'Active' : 'Archived'" :tone="material.active ? 'green' : 'slate'" />

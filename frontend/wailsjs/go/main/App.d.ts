@@ -35,6 +35,8 @@ export function ArchiveService(arg1:string):Promise<main.ServiceDTO>;
 
 export function ArchiveSupplier(arg1:string):Promise<main.SupplierDTO>;
 
+export function CalculateDraftServicePrice(arg1:main.ServiceInput,arg2:main.PricingRequest):Promise<main.PricingDTO>;
+
 export function CalculateServicePrice(arg1:main.PricingRequest):Promise<main.PricingDTO>;
 
 export function CancelMaterialMovement(arg1:string):Promise<void>;

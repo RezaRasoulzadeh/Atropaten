@@ -70,7 +70,7 @@ function kindLabel(kind: string) {
               <h2 class="min-w-0 truncate text-xl font-semibold sm:text-2xl">{{ selectedMaterial.name }}</h2>
               <div class="flex shrink-0 flex-wrap gap-1.5"><StatusBadge v-if="selectedMaterial.lowStock" label="Low stock" tone="amber" /><StatusBadge :label="selectedMaterial.active ? 'Active' : 'Archived'" :tone="selectedMaterial.active ? 'green' : 'slate'" /></div>
             </div>
-            <p class="mt-1 truncate text-sm text-base-content/65">{{ selectedMaterial.sku || 'No SKU' }}<span v-if="selectedMaterial.category"> · {{ selectedMaterial.category }}</span></p>
+            <p class="mt-1 truncate text-sm text-base-content/65">{{ selectedMaterial.sku || 'No SKU' }} · {{ kindLabel(selectedMaterial.kind || 'generic-consumable') }}</p>
             <p v-if="selectedMaterial.notes" class="mt-3 line-clamp-2 text-sm leading-5 text-base-content/65">{{ selectedMaterial.notes }}</p>
           </div>
         </div>

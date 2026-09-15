@@ -121,10 +121,6 @@ const isEditing = computed(() => editorMode.value === 'edit');
             <span class="text-xs">SKU / code</span>
             <AppInput v-model="form.sku" class="input w-full min-w-0" type="text" placeholder="PAPER-A4" autocomplete="off" />
           </FormField>
-          <FormField class="gap-1">
-            <span class="text-xs">Category</span>
-            <AppInput v-model="form.category" class="input w-full min-w-0" type="text" placeholder="Paper" autocomplete="off" />
-          </FormField>
         </FormSection>
 
         <FormSection title="Units and opening stock" description="Keep purchase and production quantities explicit. Posted purchases set the pricing basis automatically.">
@@ -199,8 +195,8 @@ const isEditing = computed(() => editorMode.value === 'edit');
           <InspectorSection title="Catalog details" description="Units, reorder threshold, and reference data.">
             <dl class="grid min-w-0 gap-3 rounded-box border border-base-300 p-3 text-sm sm:grid-cols-2">
               <div>
-                <dt class="text-xs text-base-content/60">SKU / category</dt>
-                <dd class="mt-1 break-words font-medium">{{ selectedMaterial.sku || 'No SKU' }} · {{ selectedMaterial.category || 'Uncategorized' }}</dd>
+                <dt class="text-xs text-base-content/60">SKU / kind</dt>
+                <dd class="mt-1 break-words font-medium">{{ selectedMaterial.sku || 'No SKU' }} · {{ selectedMaterial.kind || 'generic-consumable' }}</dd>
               </div>
               <div>
                 <dt class="text-xs text-base-content/60">Unit conversion</dt>

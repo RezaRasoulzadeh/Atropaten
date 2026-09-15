@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
+import { pricingApi, type PricingRecord } from '../../api/pricing'
 import { Calculator, CheckCircle2, Eye, FlaskConical, RotateCcw, TriangleAlert } from 'lucide-vue-next'
 import AppInput from '../../components/ui/AppInput.vue'
 import FormField from '../../components/ui/FormField.vue'
@@ -10,6 +11,8 @@ import type { ServiceRecord } from '../../api/services'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
 import { calculateServiceTest, isAutomaticVariationParameter, isMachineRateParameter, machineGroupOptions, machineRateOptions, testParameterLabel, visibleTestParameters, type TestPricingResult, type TestValues } from './serviceTestPricing'
 import type { ParameterForm, ServiceForm } from './types'
+import RollSizeFields from './RollSizeFields.vue'
+import { ensureRollSizeInputs, usesMaterialRollWidth, selectedRollMaterial, rollWidthValue } from './rollSizeInputs'
 
 const props = defineProps<{
   form: ServiceForm
@@ -24,6 +27,13 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:result': [result: TestPricingResult]
 }>()
+
+const materialWidthMode = computed(() => usesMaterialRollWidth(props.form))
+const selectedRoll = computed(() => selectedRollMaterial(props.form, props.materials, props.values))
+const materialWidth = computed(() => rollWidthValue(selectedRoll.value, props.values.layout_margin_mm ?? props.parameters.find(p => p.key === 'layout_margin_mm')?.defaultValue ?? '0'))
+const inputParameters = computed(() => visibleTestParameters(props.form, props.parameters).filter(p =>
+  !materialWidthMode.value || ![props.form.finishedSize?.widthParameterKey, props.form.finishedSize?.heightParameterKey].includes(p.key),
+))
 
 function defaultValue(parameter: ParameterForm) {
   if (parameter.defaultValue) return parameter.defaultValue
@@ -48,10 +58,38 @@ function syncDynamicSelections() {
   }
 }
 
+const draftPrice = ref<PricingRecord | null>(null)
+const draftError = ref('')
+let draftToken = 0
+let draftTimer: ReturnType<typeof setTimeout> | undefined
+onBeforeUnmount(() => { draftToken++; clearTimeout(draftTimer) })
+
 function recalculate() {
+  ensureRollSizeInputs(props.form)
   syncValues()
   syncDynamicSelections()
-  emit('update:result', calculateServiceTest(props.form, props.values, props.materials, props.machines, props.services))
+  if (materialWidthMode.value) {
+    const key = props.form.finishedSize!.widthParameterKey
+    if (props.values[key] !== materialWidth.value) props.values[key] = materialWidth.value
+  }
+  if (!props.form.finishedSize?.quantityParameterKey) {
+    emit('update:result', calculateServiceTest(props.form, props.values, props.materials, props.machines, props.services)); return
+  }
+  const token = ++draftToken
+  clearTimeout(draftTimer)
+  draftPrice.value = null
+  if (materialWidthMode.value && !materialWidth.value) {
+    draftError.value = 'Select a roll material with a valid width. Edge margins must leave a positive printable width.'
+    return
+  }
+  draftError.value = 'Updating layout…'
+  draftTimer = setTimeout(async () => {
+    try {
+      const next = await pricingApi.draft(props.form, { ...props.values }, props.values[props.form.finishedSize!.quantityParameterKey] || '1')
+      if (token !== draftToken) return
+      draftPrice.value = next; draftError.value = ''
+    } catch (error) { if (token === draftToken) draftError.value = String(error) }
+  }, 250)
 }
 
 function reset() {
@@ -81,16 +119,26 @@ function onValueChanged() {
 }
 
 watch(
-  () => [props.parameters, props.form.components, props.form.pricingRule, props.materials, props.machines, props.services, props.values],
+  () => [props.parameters, props.form.components, props.form.pricingRule, props.form.finishedSize, props.materials, props.machines, props.services, props.values],
   recalculate,
   { deep: true, immediate: true },
 )
 
-const result = computed<TestPricingResult>(() => calculateServiceTest(props.form, props.values, props.materials, props.machines, props.services))
+const result = computed<TestPricingResult>(() => {
+  if (!props.form.finishedSize?.quantityParameterKey) return calculateServiceTest(props.form, props.values, props.materials, props.machines, props.services)
+  const p = draftPrice.value
+  return { lines: p?.components.map(c => ({name:c.name,detail:c.explanation,amount:c.amountRial,missing:false})) || [], totalCostRial:p?.estimatedCostRial || 0, markupRial:p ? p.suggestedSellingPriceRial-p.estimatedCostRial : 0, sellingPriceRial:p?.effectiveSellingPriceRial || 0, pricingLabel:'Complete batch',profitRial:p?.profitRial || 0,marginPercentage:Number(p?.marginPercentage || 0),belowCost:p?.belowCost || false,hasMissing:!p }
+})
+watch(result, r => emit('update:result', r), {immediate:true})
 </script>
 
 <template>
   <section class="min-w-0 space-y-4" aria-label="Test service">
+    <p v-if="form.finishedSize?.quantityParameterKey && draftError" class="text-sm text-warning">{{ draftError }}</p>
+    <div v-for="layout in draftPrice?.layouts || []" :key="layout.materialId" class="rounded-box border border-primary/30 p-4 text-sm">
+      <strong>{{ layout.materialName }}</strong> · {{ layout.consumedQuantity }} {{ layout.unit }} · {{ layout.wastePercent.toFixed(1) }}% waste
+      <p>{{ layout.rotated ? 'Rotate artwork 90°.' : 'Original orientation.' }} {{ layout.itemsPerSheet ? `${layout.itemsPerSheet} pieces/sheet · ${layout.sheets} sheets` : `${layout.across} across × ${layout.rows} rows · ${Number(layout.lengthMM)/1000} m of roll` }}</p>
+    </div>
     <div class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)]">
       <div class="min-w-0 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-5">
         <div class="flex min-w-0 items-start justify-between gap-3 border-b border-base-300 pb-4">
@@ -104,12 +152,16 @@ const result = computed<TestPricingResult>(() => calculateServiceTest(props.form
           <button class="btn btn-outline btn-sm shrink-0 gap-2" type="button" @click="reset"><RotateCcw :size="14" aria-hidden="true" />Reset</button>
         </div>
 
-        <div v-if="visibleTestParameters(form, parameters).length" class="mt-4 space-y-3">
-          <div v-for="parameter in visibleTestParameters(form, parameters)" :key="parameter.id" class="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] items-start gap-3">
+        <div v-if="materialWidthMode" class="mt-4 rounded-box border border-primary/30 bg-primary/5 p-4 space-y-3">
+          <h3 class="font-semibold">Roll size &amp; custom length</h3>
+          <RollSizeFields :width="materialWidth" :height="values[form.finishedSize!.heightParameterKey] || ''" :material-name="selectedRoll?.name" @height="values[form.finishedSize!.heightParameterKey] = $event; onValueChanged()" />
+        </div>
+        <div v-if="inputParameters.length" class="mt-4 space-y-3">
+          <div v-for="parameter in inputParameters" :key="parameter.id" class="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] items-start gap-3">
             <span class="grid size-8 place-items-center rounded-box bg-base-300/60 text-base-content/70"><span v-if="parameter.type === 'integer' || parameter.type === 'decimal'" class="text-lg">#</span><span v-else-if="parameter.type === 'boolean'" class="text-sm">✓</span><span v-else class="text-base">◈</span></span>
             <FormField class="min-w-0 gap-1">
               <span class="text-sm text-base-content">{{ testParameterLabel(form, parameter, parameters) }}<em v-if="parameter.required" class="text-error"> *</em></span>
-              <small class="text-xs text-base-content/50">{{ isAutomaticVariationParameter(form, parameter) ? 'Affects automatic variation pricing' : 'Price can be entered on the order' }}</small>
+              <small class="text-xs text-base-content/50">{{ isAutomaticVariationParameter(form, parameter) ? 'Affects automatic variation pricing' : form.finishedSize?.quantityParameterKey ? 'Used to calculate the complete print layout' : 'Price can be entered on the order' }}</small>
               <AppInput v-if="parameter.type === 'integer' || parameter.type === 'decimal'" v-model="values[parameter.key]" class="input w-full min-w-0" :type="parameter.type === 'integer' ? 'number' : 'text'" :step="parameter.type === 'integer' ? '1' : 'any'" :min="parameter.minValue || undefined" :max="parameter.maxValue || undefined" inputmode="decimal" @update:model-value="onValueChanged" />
               <SelectField v-else-if="parameter.type === 'choice' || parameter.type === 'machine-reference'" v-model="values[parameter.key]" :aria-label="parameter.label" :options="valueOptions(parameter)" @update:model-value="onValueChanged" />
               <label v-else class="flex h-10 items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 text-sm"><input class="checkbox checkbox-sm" type="checkbox" :checked="values[parameter.key] === 'true'" @change="updateBoolean(parameter.key, $event)" />Enabled</label>

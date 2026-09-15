@@ -277,7 +277,7 @@ func (s *OrdersService) saveConfiguredItem(ctx context.Context, id string, pos i
 	if s.pricing == nil {
 		return OrderView{}, fmt.Errorf("pricing service unavailable")
 	}
-	price, err := s.pricing.Calculate(ctx, PricingRequest{ServiceID: input.ServiceID, Parameters: input.Parameters, ManualCosts: input.ManualCosts, SellingPriceOverrideRial: input.SellingPriceOverrideRial})
+	price, err := s.pricing.Calculate(ctx, PricingRequest{Quantity: input.Quantity, ServiceID: input.ServiceID, Parameters: input.Parameters, ManualCosts: input.ManualCosts, SellingPriceOverrideRial: input.SellingPriceOverrideRial})
 	if err != nil {
 		return OrderView{}, err
 	}
@@ -285,7 +285,11 @@ func (s *OrdersService) saveConfiguredItem(ctx context.Context, id string, pos i
 	if err != nil {
 		return OrderView{}, err
 	}
-	estimatedCostRial, err := domain.MulQuantityRial(qty, price.EstimatedCostRial)
+	priceQuantity := qty
+	if price.BatchQuantity != "" {
+		priceQuantity = domain.QuantityScale
+	}
+	estimatedCostRial, err := domain.MulQuantityRial(priceQuantity, price.EstimatedCostRial)
 	if err != nil {
 		return OrderView{}, fmt.Errorf("estimated cost for quantity: %w", err)
 	}
@@ -295,11 +299,11 @@ func (s *OrdersService) saveConfiguredItem(ctx context.Context, id string, pos i
 			return OrderView{}, fmt.Errorf("round estimated cost for quantity: %w", err)
 		}
 	}
-	suggestedPriceRial, err := domain.MulQuantitySellingPriceRialWithStep(qty, price.SuggestedSellingPriceRial, price.RoundingStepRial)
+	suggestedPriceRial, err := domain.MulQuantitySellingPriceRialWithStep(priceQuantity, price.SuggestedSellingPriceRial, price.RoundingStepRial)
 	if err != nil {
 		return OrderView{}, fmt.Errorf("suggested price for quantity: %w", err)
 	}
-	sellingPriceRial, err := domain.MulQuantitySellingPriceRialWithStep(qty, price.EffectiveSellingPriceRial, price.RoundingStepRial)
+	sellingPriceRial, err := domain.MulQuantitySellingPriceRialWithStep(priceQuantity, price.EffectiveSellingPriceRial, price.RoundingStepRial)
 	if err != nil {
 		return OrderView{}, fmt.Errorf("selling price for quantity: %w", err)
 	}

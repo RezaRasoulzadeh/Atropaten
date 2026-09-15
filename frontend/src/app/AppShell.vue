@@ -199,7 +199,7 @@ const globalSearchIndex = computed<SearchIndexEntry[]>(() => [
     searchEntry('Services', service.id, service.name, service.code, service.category, service.description),
   ),
   ...catalogMaterials.value.map((material) =>
-    searchEntry('Materials', material.id, material.name, material.code, material.category || material.consumptionUnit, material.notes),
+    searchEntry('Materials', material.id, material.name, material.code, material.kind || material.consumptionUnit, material.notes),
   ),
   ...catalogMachines.value.map((machine) =>
     searchEntry('Machines', machine.id, machine.name, machine.code, machine.category, machine.notes),

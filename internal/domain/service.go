@@ -311,6 +311,7 @@ func NewService(id string, draft ServiceDraft, now time.Time) (Service, error) {
 		service.FinishedSize = &finishedSize
 	}
 	service.MaterialVariants = cloneMaterialVariants(draft.MaterialVariants)
+	service = service.WithRollSizeDefaults()
 	if err := service.Validate(); err != nil {
 		return Service{}, err
 	}
@@ -875,8 +876,8 @@ func (p ServiceParameter) Validate() error {
 	if p.CreatedAt.IsZero() || p.UpdatedAt.IsZero() {
 		return validationError("timestamps", "are required")
 	}
-	if p.Type != ParameterChoice && len(p.Options) > 0 {
-		return validationError("options", "are only supported for choice parameters")
+	if p.Type != ParameterChoice && p.Type != ParameterMachineReference && len(p.Options) > 0 {
+		return validationError("options", "are only supported for choice and machine-reference parameters")
 	}
 	if p.PredefinedKey != "" {
 		if p.Type != ParameterChoice {
@@ -1016,8 +1017,24 @@ func (p ServiceParameter) Validate() error {
 			return validationError("defaultValue", "must reference a material")
 		}
 	case ParameterMachineReference:
+		options := make(map[string]struct{}, len(p.Options))
+		for index, option := range p.Options {
+			option = strings.TrimSpace(option)
+			if option == "" {
+				return validationError(fmt.Sprintf("options[%d]", index), "cannot be empty")
+			}
+			if _, exists := options[option]; exists {
+				return validationError("options", "must not contain duplicates")
+			}
+			options[option] = struct{}{}
+		}
 		if p.DefaultValue != "" && strings.TrimSpace(p.DefaultValue) == "" {
 			return validationError("defaultValue", "must reference a machine")
+		}
+		if p.DefaultValue != "" && len(options) > 0 {
+			if _, exists := options[p.DefaultValue]; !exists {
+				return validationError("defaultValue", "must belong to the machine options")
+			}
 		}
 	default:
 		return validationError("type", "is not supported")

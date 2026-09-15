@@ -29,9 +29,10 @@ func productionConversionCost(snapshot string, quantity domain.Quantity, fallbac
 		return fallback, nil
 	}
 	var components []struct {
-		Type    string `json:"type"`
-		Enabled bool   `json:"enabled"`
-		Amount  int64  `json:"amountRial"`
+		BatchQuantity string `json:"batchQuantity"`
+		Type          string `json:"type"`
+		Enabled       bool   `json:"enabled"`
+		Amount        int64  `json:"amountRial"`
 	}
 	if err := json.Unmarshal([]byte(snapshot), &components); err != nil {
 		return 0, err
@@ -48,12 +49,29 @@ func productionConversionCost(snapshot string, quantity domain.Quantity, fallbac
 			return 0, fmt.Errorf("negative production component cost")
 		}
 		var err error
-		perUnit, err = sumProductionCosts(perUnit, c.Amount)
+		amount := c.Amount
+		if c.BatchQuantity != "" {
+			batch, e := domain.ParseQuantity(c.BatchQuantity)
+			if e != nil || batch <= 0 {
+				return 0, fmt.Errorf("invalid cost batch quantity")
+			}
+			scaled, e := scaleProductionQuantity(domain.Quantity(amount), quantity, batch)
+			if e != nil {
+				return 0, e
+			}
+			amount = int64(scaled)
+		} else {
+			amount, err = domain.MulQuantityRial(quantity, amount)
+			if err != nil {
+				return 0, err
+			}
+		}
+		perUnit, err = sumProductionCosts(perUnit, amount)
 		if err != nil {
 			return 0, err
 		}
 	}
-	return domain.MulQuantityRial(quantity, perUnit)
+	return perUnit, nil
 }
 
 func (s *Store) withProductionForecast(ctx context.Context, j domain.ProductionJob) (domain.ProductionJob, error) {

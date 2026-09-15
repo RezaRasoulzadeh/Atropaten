@@ -178,6 +178,11 @@ func (s *MaterialsService) Update(ctx context.Context, id string, input Material
 	if err != nil {
 		return MaterialView{}, err
 	}
+	// Category is a legacy catalog field. The editor no longer sends it, so retain
+	// existing values during updates for backward compatibility.
+	if strings.TrimSpace(input.Category) == "" {
+		draft.Category = material.Category
+	}
 	if err := material.Update(draft, s.now()); err != nil {
 		return MaterialView{}, err
 	}

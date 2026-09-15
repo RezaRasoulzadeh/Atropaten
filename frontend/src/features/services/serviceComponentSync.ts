@@ -74,10 +74,10 @@ export function ensureSuggestedCostComponents(components: ComponentForm[], param
     ...materialParameters.filter((parameter) => !groupedMaterialParameters.includes(parameter)),
     ...parameters.filter(isMachineParameter),
   ]
-  if (!components.length && !candidates.length) {
-    components.push(suggestedComponent('material', 'Material cost'))
-    return false
-  }
+  // A service may legitimately have no inventory-backed cost at all (for
+  // example Design). Do not create an invalid blank material component just
+  // to populate the editor.
+  if (!components.length && !candidates.length) return false
   for (const parameter of candidates) {
     const type = isMachineParameter(parameter) ? 'machine' : 'material'
     const alreadyLinked = components.some((component) => component.type === type && component.usageMode === 'parameter' && component.parameterKey === parameter.key)

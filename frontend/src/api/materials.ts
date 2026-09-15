@@ -26,7 +26,6 @@ export type MaterialAttributePayload = {
 export type MaterialPayload = {
   name: string
   sku: string
-  category: string
   kind: string
   attributes: MaterialAttributePayload[]
   purchaseUnit: string

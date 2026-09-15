@@ -15,7 +15,6 @@ export type EditorMode = 'create' | 'edit' | null;
 export type MaterialForm = {
   name: string;
   sku: string;
-  category: string;
   purchaseUnit: string;
   consumptionUnit: string;
   conversionFactor: string;
@@ -88,7 +87,7 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
         [
           material.name,
           material.sku,
-          material.category,
+          material.kind,
           material.purchaseUnit,
           material.consumptionUnit,
         ].some((value) => value.toLowerCase().includes(query));
@@ -117,7 +116,6 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
     return {
       name: '',
       sku: '',
-      category: '',
       kind: 'generic-consumable',
       attributes: [],
       purchaseUnit: 'pack',
@@ -188,7 +186,6 @@ export function useMaterialsWorkspace(props: MaterialsProps, emit: MaterialsEmit
     form.value = {
       name: material.name,
       sku: material.sku,
-      category: material.category,
       kind: material.kind || 'generic-consumable',
       attributes: (material.attributes || []).map((attribute: any) => ({ ...attribute })),
       purchaseUnit: material.purchaseUnit,

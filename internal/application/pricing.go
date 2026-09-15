@@ -6,11 +6,13 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"Atropaten/internal/domain"
 )
 
 type PricingRequest struct {
+	Quantity                 string
 	ServiceID                string
 	Parameters               map[string]string
 	ManualCosts              map[string]int64
@@ -28,6 +30,7 @@ type ResolvedParameterView struct {
 }
 
 type PricingComponentView struct {
+	BatchQuantity string `json:"batchQuantity,omitempty"`
 	ID            string `json:"id"`
 	Name          string `json:"name"`
 	Type          string `json:"type"`
@@ -43,6 +46,8 @@ type PricingComponentView struct {
 }
 
 type PricingView struct {
+	BatchQuantity             string                  `json:"batchQuantity,omitempty"`
+	Layouts                   []domain.PrintLayout    `json:"layouts,omitempty"`
 	ServiceID                 string                  `json:"serviceId"`
 	ServiceName               string                  `json:"serviceName"`
 	ServiceCode               string                  `json:"serviceCode"`
@@ -90,6 +95,26 @@ func (s *PricingService) calculate(ctx context.Context, request PricingRequest, 
 	if err != nil {
 		return PricingView{}, err
 	}
+	return s.calculateDefinition(ctx, request, stack, service)
+}
+
+// CalculateDraft runs the production pricing engine without saving a service.
+func (s *PricingService) CalculateDraft(ctx context.Context, input ServiceInput, request PricingRequest) (PricingView, error) {
+	definitions := NewServicesService(s.repository, s.material, s.machine)
+	draft, err := definitions.parseDraft(ctx, input, "SVC-preview", nil, nil)
+	if err != nil {
+		return PricingView{}, err
+	}
+	service, err := domain.NewService("SVC-preview", draft, time.Now())
+	if err != nil {
+		return PricingView{}, err
+	}
+	return s.calculateDefinition(ctx, request, map[string]bool{"SVC-preview": true}, service)
+}
+
+func (s *PricingService) calculateDefinition(ctx context.Context, request PricingRequest, stack map[string]bool, service domain.Service) (PricingView, error) {
+	service = service.WithRollSizeDefaults()
+	var err error
 	if !service.Active {
 		return PricingView{}, fmt.Errorf("service is archived")
 	}
@@ -102,6 +127,19 @@ func (s *PricingService) calculate(ctx context.Context, request PricingRequest, 
 		if settings.MonetaryRoundingStepRial > 0 {
 			step = settings.MonetaryRoundingStepRial
 		}
+	}
+	batchQuantity := domain.Quantity(0)
+	if service.FinishedSize != nil && service.FinishedSize.QuantityParameterKey != "" && request.Quantity != "" {
+		batchQuantity, err = domain.ParseQuantity(request.Quantity)
+		if err != nil || batchQuantity <= 0 || batchQuantity%domain.QuantityScale != 0 {
+			return PricingView{}, fmt.Errorf("layout quantity must be a positive whole number")
+		}
+		selected := make(map[string]string, len(request.Parameters)+1)
+		for key, value := range request.Parameters {
+			selected[key] = value
+		}
+		selected[service.FinishedSize.QuantityParameterKey] = batchQuantity.String()
+		request.Parameters = selected
 	}
 	resolved, err := s.resolveParameters(ctx, service, request.Parameters)
 	if err != nil {
@@ -168,13 +206,39 @@ func (s *PricingService) calculate(ctx context.Context, request PricingRequest, 
 			serviceCosts[component.ReferenceID] = nested.EstimatedCostRial
 		}
 	}
-	result, err := domain.EvaluatePricing(domain.PricingInput{Service: service, Parameters: parameterMap, Materials: materials, Machines: machines, ServiceCosts: serviceCosts, ManualCosts: request.ManualCosts, SellingPriceOverrideRial: request.SellingPriceOverrideRial, MonetaryRoundingStepRial: step})
+	result, err := domain.EvaluatePricing(domain.PricingInput{BatchQuantity: batchQuantity, Service: service, Parameters: parameterMap, Materials: materials, Machines: machines, ServiceCosts: serviceCosts, ManualCosts: request.ManualCosts, SellingPriceOverrideRial: request.SellingPriceOverrideRial, MonetaryRoundingStepRial: step})
 	if err != nil {
 		return PricingView{}, err
 	}
 	view := pricingView(service, result)
 	view.RoundingStepRial = step
-	if width, height, dimensionErr := service.ResolveFinishedDimensions(request.Parameters); dimensionErr == nil {
+	if batchQuantity > 0 {
+		view.BatchQuantity = batchQuantity.String()
+		for i := range view.Components {
+			view.Components[i].BatchQuantity = view.BatchQuantity
+		}
+	}
+	seenLayouts := map[string]bool{}
+	for _, component := range result.Components {
+		if !component.Enabled || component.MaterialID == "" || seenLayouts[component.MaterialID] || service.FinishedSize == nil || service.FinishedSize.QuantityParameterKey == "" {
+			continue
+		}
+		material := materials[component.MaterialID]
+		if _, ok := domain.ConsumptionStrategyForMaterialKind(material.Kind); !ok {
+			continue
+		}
+		layout, e := domain.CalculatePrintLayout(material, service, parameterMap)
+		if e != nil {
+			return PricingView{}, e
+		}
+		view.Layouts = append(view.Layouts, layout)
+		seenLayouts[component.MaterialID] = true
+	}
+	dimensionValues := make(map[string]string, len(resolved))
+	for _, parameter := range resolved {
+		dimensionValues[parameter.Key] = parameter.Value
+	}
+	if width, height, dimensionErr := service.ResolveFinishedDimensions(dimensionValues); dimensionErr == nil {
 		view.FinishedWidthMM = width.String()
 		view.FinishedHeightMM = height.String()
 	}
@@ -244,6 +308,18 @@ func (s *PricingService) resolveParameters(ctx context.Context, service domain.S
 			}
 			item.MaterialID = material.ID
 		case domain.ParameterMachineReference:
+			if len(definition.Options) > 0 {
+				allowed := false
+				for _, option := range definition.Options {
+					if strings.TrimSpace(option) == value {
+						allowed = true
+						break
+					}
+				}
+				if !allowed {
+					return nil, fmt.Errorf("parameter %q must use one of its configured machines", definition.Label)
+				}
+			}
 			if s.machine == nil {
 				return nil, fmt.Errorf("machine lookup is not available")
 			}

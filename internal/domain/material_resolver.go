@@ -142,7 +142,7 @@ func ResolveMaterialSelection(service Service, materials []Material, selected ma
 			return Material{}, fmt.Errorf("selected material combination is unavailable")
 		}
 		for _, material := range materials {
-			if material.Active && material.ID == variant.MaterialID {
+			if material.Active && material.ID == variant.MaterialID && finishedDimensionsFit(service, material, selected) {
 				return material, nil
 			}
 		}
@@ -207,6 +207,18 @@ func MaterialOptionsForParameter(service Service, parameterKey string, materials
 	// option cannot be displayed unless the operator configured a material for
 	// the complete combination.
 	if len(service.MaterialVariants) > 0 {
+		materialParameterKeys := make(map[string]struct{})
+		for _, candidate := range service.Parameters {
+			if candidate.MaterialSource != nil || candidate.Type == ParameterMaterialReference {
+				materialParameterKeys[candidate.Key] = struct{}{}
+			}
+		}
+		materialSelected := make(map[string]string, len(selected))
+		for key, selectedValue := range selected {
+			if _, ok := materialParameterKeys[key]; ok {
+				materialSelected[key] = selectedValue
+			}
+		}
 		options := make([]MaterialOption, 0)
 		seen := map[string]int{}
 		for _, variant := range service.MaterialVariants {
@@ -218,7 +230,7 @@ func MaterialOptionsForParameter(service Service, parameterKey string, materials
 				continue
 			}
 			matches := true
-			for key, selectedValue := range selected {
+			for key, selectedValue := range materialSelected {
 				selectedValue = strings.TrimSpace(selectedValue)
 				if key == parameterKey || selectedValue == "" {
 					continue
@@ -251,9 +263,9 @@ func MaterialOptionsForParameter(service Service, parameterKey string, materials
 			if compatible, err := CompatibleMaterials(service, []Material{material}, merged); err != nil || len(compatible) == 0 {
 				continue
 			}
-			label := strings.TrimSpace(value)
-			if parameter.MaterialSource.SelectMaterial {
-				label = material.Name
+			label := strings.TrimSpace(material.Name)
+			if label == "" {
+				label = strings.TrimSpace(value)
 			}
 			if index, exists := seen[value]; exists {
 				options[index].MaterialIDs = append(options[index].MaterialIDs, material.ID)
@@ -279,14 +291,16 @@ func MaterialOptionsForParameter(service Service, parameterKey string, materials
 	seen := map[string]int{}
 	for _, material := range compatible {
 		value := material.ID
-		label := material.Name
+		label := strings.TrimSpace(material.Name)
 		if len(parameter.MaterialSource.AttributeKeys()) > 0 && !parameter.MaterialSource.SelectMaterial {
 			derived, ok := sourceValue(material, *parameter.MaterialSource)
 			if !ok {
 				continue
 			}
 			value = derived
-			label = value
+			if label == "" {
+				label = value
+			}
 		}
 		if index, ok := seen[value]; ok {
 			options[index].MaterialIDs = append(options[index].MaterialIDs, material.ID)

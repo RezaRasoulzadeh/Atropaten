@@ -1648,14 +1648,6 @@ func hydratePredefinedFinishedSize(service *domain.Service) {
 				break
 			}
 		}
-		if definition.QuantityParameterKey == "" {
-			for _, candidate := range service.Parameters {
-				if candidate.Type == domain.ParameterInteger || candidate.Type == domain.ParameterDecimal {
-					definition.QuantityParameterKey = candidate.Key
-					break
-				}
-			}
-		}
 		for _, option := range parameter.PredefinedOptions {
 			if !option.Active || option.WidthMM == nil || option.HeightMM == nil {
 				continue
@@ -1980,7 +1972,11 @@ func (s *Store) saveMaterialParameterSource(ctx context.Context, tx *sql.Tx, par
 	if err != nil {
 		return fmt.Errorf("encode material parameter attributes: %w", err)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO service_parameter_material_sources(parameter_id,exposed_attribute_key,exposed_attribute_keys_json,select_material) VALUES(?,?,?,?)`, parameter.ID, source.ExposedAttributeKey, string(exposedKeysJSON), boolToInt(source.SelectMaterial)); err != nil {
+	exposedAttributeKey := strings.TrimSpace(source.ExposedAttributeKey)
+	if exposedAttributeKey == "" && len(source.ExposedAttributeKeys) > 0 {
+		exposedAttributeKey = strings.TrimSpace(source.ExposedAttributeKeys[0])
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO service_parameter_material_sources(parameter_id,exposed_attribute_key,exposed_attribute_keys_json,select_material) VALUES(?,?,?,?)`, parameter.ID, exposedAttributeKey, string(exposedKeysJSON), boolToInt(source.SelectMaterial)); err != nil {
 		return fmt.Errorf("save material parameter source: %w", err)
 	}
 	for _, kind := range source.AllowedKinds {

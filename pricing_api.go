@@ -4,9 +4,11 @@ import (
 	"fmt"
 
 	"Atropaten/internal/application"
+	"Atropaten/internal/domain"
 )
 
 type PricingRequest struct {
+	Quantity                 string            `json:"quantity"`
 	ServiceID                string            `json:"serviceId"`
 	Parameters               map[string]string `json:"parameters"`
 	ManualCosts              map[string]int64  `json:"manualCosts"`
@@ -39,6 +41,8 @@ type PricingComponentDTO struct {
 }
 
 type PricingDTO struct {
+	BatchQuantity             string                 `json:"batchQuantity,omitempty"`
+	Layouts                   []domain.PrintLayout   `json:"layouts,omitempty"`
 	ServiceID                 string                 `json:"serviceId"`
 	ServiceName               string                 `json:"serviceName"`
 	ServiceCode               string                 `json:"serviceCode"`
@@ -71,7 +75,7 @@ func (a *App) CalculateServicePrice(request PricingRequest) (PricingDTO, error) 
 	if err != nil {
 		return PricingDTO{}, err
 	}
-	view, err := service.Calculate(a.materialContext(), application.PricingRequest{ServiceID: request.ServiceID, Parameters: request.Parameters, ManualCosts: request.ManualCosts, SellingPriceOverrideRial: request.SellingPriceOverrideRial})
+	view, err := service.Calculate(a.materialContext(), application.PricingRequest{Quantity: request.Quantity, ServiceID: request.ServiceID, Parameters: request.Parameters, ManualCosts: request.ManualCosts, SellingPriceOverrideRial: request.SellingPriceOverrideRial})
 	if err != nil {
 		return PricingDTO{}, err
 	}
@@ -79,7 +83,7 @@ func (a *App) CalculateServicePrice(request PricingRequest) (PricingDTO, error) 
 }
 
 func pricingDTO(view application.PricingView) PricingDTO {
-	dto := PricingDTO{ServiceID: view.ServiceID, ServiceName: view.ServiceName, ServiceCode: view.ServiceCode, EstimatedCostRial: view.EstimatedCostRial, SuggestedSellingPriceRial: view.SuggestedSellingPriceRial, EffectiveSellingPriceRial: view.EffectiveSellingPriceRial, ProfitRial: view.ProfitRial, MarginPercentage: view.MarginPercentage, Warnings: view.Warnings, BelowCost: view.BelowCost, RoundingStepRial: view.RoundingStepRial, FinishedWidthMM: view.FinishedWidthMM, FinishedHeightMM: view.FinishedHeightMM}
+	dto := PricingDTO{BatchQuantity: view.BatchQuantity, Layouts: view.Layouts, ServiceID: view.ServiceID, ServiceName: view.ServiceName, ServiceCode: view.ServiceCode, EstimatedCostRial: view.EstimatedCostRial, SuggestedSellingPriceRial: view.SuggestedSellingPriceRial, EffectiveSellingPriceRial: view.EffectiveSellingPriceRial, ProfitRial: view.ProfitRial, MarginPercentage: view.MarginPercentage, Warnings: view.Warnings, BelowCost: view.BelowCost, RoundingStepRial: view.RoundingStepRial, FinishedWidthMM: view.FinishedWidthMM, FinishedHeightMM: view.FinishedHeightMM}
 	for _, parameter := range view.Parameters {
 		dto.Parameters = append(dto.Parameters, ResolvedParameterDTO{Key: parameter.Key, Label: parameter.Label, Type: parameter.Type, Value: parameter.Value, Quantity: parameter.Quantity, MaterialID: parameter.MaterialID, Unit: parameter.Unit})
 	}
