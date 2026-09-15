@@ -226,6 +226,10 @@ func (s *ServicesService) MaterialOptions(ctx context.Context, serviceID string,
 	if err != nil {
 		return nil, err
 	}
+	// Keep dependent material options aligned with the read-time compatibility
+	// projection used by service views and pricing. In particular, legacy roll
+	// services may still have a predefined print-size definition.
+	service = service.WithRollSizeDefaults()
 	lookup, ok := s.material.(interface {
 		List(context.Context, bool) ([]domain.Material, error)
 	})

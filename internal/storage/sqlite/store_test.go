@@ -41,6 +41,41 @@ func TestFreshDatabaseMigratesAndReopens(t *testing.T) {
 	}
 }
 
+func TestMachinePersistsLargeFormatRateBases(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "machine-rates.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	now := time.Date(2026, 9, 15, 0, 0, 0, 0, time.UTC)
+	machine, err := domain.NewMachine("M-LARGE", domain.MachineDraft{
+		Name:      "Banner printer",
+		Category:  "Large format printing",
+		RateBasis: domain.RatePerMeter,
+		RateRial:  1200,
+		Rates: []domain.MachineRate{{
+			ID:        "banner-sqm",
+			Name:      "Banner square meter",
+			RateBasis: domain.RatePerSquareMeter,
+			RateRial:  2400,
+			Active:    true,
+		}},
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveMachine(context.Background(), machine); err != nil {
+		t.Fatalf("SaveMachine: %v", err)
+	}
+	got, err := store.GetMachine(context.Background(), machine.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.RateBasis != domain.RatePerSquareMeter || len(got.Rates) != 1 || got.Rates[0].RateBasis != domain.RatePerSquareMeter {
+		t.Fatalf("large-format rates did not round-trip: %+v", got)
+	}
+}
+
 func TestV9ToV10PreservesPaymentAllocations(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "legacy-v9.db")
 	raw, err := sql.Open("sqlite3", path+"?_foreign_keys=on")

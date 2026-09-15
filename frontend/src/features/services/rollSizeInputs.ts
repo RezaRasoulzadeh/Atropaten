@@ -8,7 +8,10 @@ export function isRollService(service: any): boolean {
 // the pricing backend, without requiring a visit to the Materials step.
 export function ensureRollSizeInputs(service: any) {
   if (!service || !isRollService(service)) return service
-  if (service.finishedSize?.quantityParameterKey) return service
+  if (service.finishedSize?.quantityParameterKey && service.finishedSize.allowCustom) return service
+  const legacySizeKey = service.finishedSize?.allowCustom ? '' : service.finishedSize?.parameterKey || ''
+  if (legacySizeKey) service.parameters = (service.parameters || []).filter((p: any) =>
+    !(p.key === legacySizeKey && !p.materialSource && p.predefinedKey === 'print_size'))
   const size = { parameterKey: '', widthParameterKey: 'finished_width_mm', heightParameterKey: 'finished_height_mm',
     allowCustom: true, allowRotation: true, options: [], ...(service.finishedSize?.allowCustom ? service.finishedSize : {}), quantityParameterKey: 'layout_quantity' }
   service.parameters ||= []
@@ -56,11 +59,35 @@ export function selectedRollMaterial(service: any, materials: any[], values: Rec
     if (!variant) return null
     ids.add(variant.materialId)
   }
+  const canonical = (attribute: any) => {
+    if (!attribute) return ''
+    if (attribute.valueType === 'decimal') return String(attribute.decimalValue ?? '')
+    if (attribute.valueType === 'integer') return String(attribute.integerValue ?? '')
+    if (attribute.valueType === 'enum') return String(attribute.enumCode ?? '').trim()
+    if (attribute.valueType === 'boolean') return attribute.booleanValue ? 'true' : 'false'
+    return String(attribute.textValue ?? '').trim()
+  }
+  const matchesSource = (material: any, source: any) => {
+    if (!source) return true
+    if (source.allowedKinds?.length && !source.allowedKinds.includes(material.kind)) return false
+    for (const filter of source.additionalFilters || []) {
+      const attribute = material.attributes?.find((a: any) => a.key === filter.key)
+      if (!attribute || attribute.valueType !== filter.value?.valueType || canonical(attribute) !== canonical(filter.value)) return false
+    }
+    const keys = source.exposedAttributeKeys?.length ? source.exposedAttributeKeys : source.exposedAttributeKey ? [source.exposedAttributeKey] : []
+    for (const key of keys) {
+      const attribute = material.attributes?.find((a: any) => a.key === key)
+      if (!attribute) return false
+      const allowed = (source.allowedValues || []).filter((value: any) => value.key === key)
+      if (allowed.length && !allowed.some((value: any) => value.valueType === attribute.valueType && canonical(value) === canonical(attribute))) return false
+    }
+    return true
+  }
   const candidates = materials.filter(m => m.active !== false && ['roll-media', 'fabric'].includes(m.kind) && (!ids.size || ids.has(m.id)))
     .filter(m => parameters.every((p: any) => {
       const source = p.materialSource
       if (!source) return true
-      if (source.allowedKinds?.length && !source.allowedKinds.includes(m.kind)) return false
+      if (!matchesSource(m, source)) return false
       if (source.selectMaterial) return !selected[p.key] || selected[p.key] === m.id
       const keys = source.exposedAttributeKeys?.length ? source.exposedAttributeKeys : source.exposedAttributeKey ? [source.exposedAttributeKey] : []
       if (!keys.length || !selected[p.key]) return true
@@ -79,4 +106,62 @@ export function rollWidthValue(material: any, margin: string): string {
   const edge = Number(margin || '0')
   if (!Number.isFinite(rawWidth) || !Number.isFinite(edge) || edge < 0 || rawWidth <= 2 * edge) return ''
   return String(Math.round((rawWidth - 2 * edge) * 1e6) / 1e6)
+}
+
+export function materialOptionsForParameter(service: any, parameter: any, materials: any[], values: Record<string, string>) {
+  if (!parameter?.materialSource) return []
+  const materialParameters = (service.parameters || []).filter((item: any) => item.materialSource || item.type === 'material-reference')
+  const canonical = (attribute: any) => {
+    if (!attribute) return ''
+    if (attribute.valueType === 'decimal') return String(attribute.decimalValue ?? '')
+    if (attribute.valueType === 'integer') return String(attribute.integerValue ?? '')
+    if (attribute.valueType === 'enum') return String(attribute.enumCode ?? '').trim()
+    if (attribute.valueType === 'boolean') return attribute.booleanValue ? 'true' : 'false'
+    return String(attribute.textValue ?? '').trim()
+  }
+  const keys = (item: any) => item.materialSource?.exposedAttributeKeys?.length ? item.materialSource.exposedAttributeKeys : item.materialSource?.exposedAttributeKey ? [item.materialSource.exposedAttributeKey] : []
+  const sourceValue = (material: any, item: any) => item.type === 'material-reference' || item.materialSource?.selectMaterial
+    ? material.id
+    : keys(item).map((key: string) => canonical(material.attributes?.find((a: any) => a.key === key))).join('\u001f')
+  const matchesSource = (material: any, item: any) => {
+    const source = item.materialSource
+    if (!source) return true
+    if (source.allowedKinds?.length && !source.allowedKinds.includes(material.kind)) return false
+    for (const filter of source.additionalFilters || []) {
+      const attribute = material.attributes?.find((a: any) => a.key === filter.key)
+      if (!attribute || attribute.valueType !== filter.value?.valueType || canonical(attribute) !== canonical(filter.value)) return false
+    }
+    for (const key of keys(item)) {
+      const attribute = material.attributes?.find((a: any) => a.key === key)
+      if (!attribute) return false
+      const allowed = (source.allowedValues || []).filter((value: any) => value.key === key)
+      if (allowed.length && !allowed.some((value: any) => value.valueType === attribute.valueType && canonical(value) === canonical(attribute))) return false
+    }
+    return true
+  }
+  const options = new Map<string, { label: string; value: string }>()
+  const variants = (service.materialVariants || []).filter((variant: any) => variant.active !== false)
+  for (const variant of variants) {
+    const value = String(variant.values?.[parameter.key] || '').trim()
+    if (!value) continue
+    let material = materials.find((item: any) => item.active !== false && item.id === variant.materialId)
+    if (!material || !materialParameters.every((item: any) => {
+      const selected = String(values[item.key] || '').trim()
+      return item.key === parameter.key || !selected || (item.type === 'material-reference' ? material.id === selected : String(variant.values?.[item.key] || '').trim() === selected)
+    })) continue
+    if (!matchesSource(material, parameter)) continue
+    options.set(value, { value, label: material.name || value.split('\u001f').join(' × ') })
+  }
+  if (options.size) return Array.from(options.values()).sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true }))
+  for (const material of materials.filter((item: any) => item.active !== false)) {
+    if (!materialParameters.every((item: any) => {
+      if (!matchesSource(material, item)) return false
+      if (item.key === parameter.key) return true
+      const selected = String(values[item.key] || '').trim()
+      return !selected || sourceValue(material, item) === selected
+    })) continue
+    const value = sourceValue(material, parameter)
+    if (value && !options.has(value)) options.set(value, { value, label: material.name || value.split('\u001f').join(' × ') })
+  }
+  return Array.from(options.values()).sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true }))
 }

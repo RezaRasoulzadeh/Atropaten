@@ -45,7 +45,7 @@ function disable() {
       <p v-if="['large format', 'banners & signage'].includes(form.category.trim().toLowerCase())" class="text-xs text-warning">Recommended for this category: rotation and waste need a configured print layout.</p>
     </div>
     <template v-if="enabled && form.finishedSize">
-      <p class="text-sm">{{ automaticRoll ? 'Width comes from the selected material. Enter custom height / length in Test and order items (1000 mm = 1 m).' : form.finishedSize.allowCustom ? 'Customers enter width and height in millimetres (1000 mm = 1 m).' : 'Uses the configured finished-size choices.' }} Quantity means finished pieces. Fixed prices and manual overrides apply to the entire batch.</p>
+      <p class="text-sm">{{ automaticRoll ? 'The exact material mapped in the grouped options above supplies the roll width. Enter custom height / length in Test and order items (1000 mm = 1 m).' : form.finishedSize.allowCustom ? 'Customers enter width and height in millimetres (1000 mm = 1 m).' : 'Uses the configured finished-size choices.' }} Quantity means finished pieces. Fixed prices and manual overrides apply to the entire batch.</p>
       <label class="flex items-center gap-2 text-sm"><input v-model="form.finishedSize.allowRotation" class="checkbox checkbox-sm" type="checkbox" />Allow 90° rotation to reduce consumption</label>
       <p class="text-xs text-base-content/60">Disable rotation for directional fabric, grain, or artwork. Layout uses a rectangular grid; include bleed in the finished dimensions or spacing.</p>
       <div class="grid gap-3 sm:grid-cols-2">
@@ -54,7 +54,7 @@ function disable() {
         <label v-for="key in ['layout_gap_mm', 'layout_margin_mm']" :key="key" class="space-y-1 text-sm"><span>{{ key === 'layout_gap_mm' ? 'Default space between pieces (mm)' : 'Default edge margin (mm)' }}</span><AppInput :model-value="form.parameters.find(p => p.key === key)?.defaultValue || '0'" type="number" min="0" max="1000" @update:model-value="parameter(key, key === 'layout_gap_mm' ? 'Space between pieces (mm)' : 'Edge margin (mm)', 'mm', '0').defaultValue = $event" /></label>
       </div>
       <SelectField v-for="component in form.components.filter(c => c.type === 'machine')" :key="component.id" v-model="component.rateBasis" :label="`${component.name || 'Machine'} — apply selected rate per`" :options="[{label: 'Configured usage / finished piece', value: ''}, {label: 'Consumed sheet',value:'sheet'}, {label: 'Consumed roll metre',value:'meter'}, {label: 'Consumed square metre (includes waste)',value:'square meter'}]" />
-      <p class="text-xs text-base-content/60">Use the selected machine profile’s amount for the basis above. Time-based profiles should use configured usage. Material stock must use sheet/piece units for sheets, or metre/square metre units for rolls.</p>
+      <p class="text-xs text-base-content/60">Use the selected machine profile’s amount for the basis above. A machine profile set to Per meter or Per square meter automatically uses this layout when no override is selected. Time-based profiles should use configured usage. Material stock must use sheet/piece units for sheets, or metre/square metre units for rolls.</p>
     </template>
   </section>
 </template>

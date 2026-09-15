@@ -13,9 +13,11 @@ var (
 )
 
 const (
-	RatePerUnit   = "unit"
-	RatePerMinute = "minute"
-	RatePerHour   = "hour"
+	RatePerUnit        = "unit"
+	RatePerMinute      = "minute"
+	RatePerHour        = "hour"
+	RatePerMeter       = "meter"
+	RatePerSquareMeter = "square meter"
 )
 
 type Machine struct {
@@ -57,7 +59,9 @@ type MachineDraft struct {
 	Rates         []MachineRate
 }
 
-func SupportedRateBases() []string { return []string{RatePerUnit, RatePerMinute, RatePerHour} }
+func SupportedRateBases() []string {
+	return []string{RatePerUnit, RatePerMeter, RatePerSquareMeter, RatePerMinute, RatePerHour}
+}
 
 func NewMachine(id string, draft MachineDraft, now time.Time) (Machine, error) {
 	rates := append([]MachineRate(nil), draft.Rates...)
@@ -127,7 +131,7 @@ func (m Machine) Validate() error {
 		}
 	}
 	if !validBasis {
-		return validationError("rateBasis", "must be unit, minute, or hour")
+		return validationError("rateBasis", "must be unit, meter, square meter, minute, or hour")
 	}
 	if m.RateRial < 0 {
 		return validationError("rateRial", "cannot be negative")
@@ -166,7 +170,7 @@ func (r MachineRate) Validate() error {
 		}
 	}
 	if !validBasis {
-		return validationError("rateBasis", "must be unit, minute, or hour")
+		return validationError("rateBasis", "must be unit, meter, square meter, minute, or hour")
 	}
 	if r.RateRial < 0 {
 		return validationError("rateRial", "cannot be negative")

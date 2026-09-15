@@ -143,7 +143,7 @@ export function useMachinesWorkspace(props: MachinesProps, emit: MachinesEmit) {
   }
 
   function basisLabel(value: string) {
-    return ({ unit: 'Per unit / page', minute: 'Per minute', hour: 'Per hour' } as Record<string, string>)[value] ?? value
+    return ({ unit: 'Per unit / page', meter: 'Per meter', 'square meter': 'Per square meter', minute: 'Per minute', hour: 'Per hour' } as Record<string, string>)[value] ?? value
   }
 
   function dateLabel(value: string) {

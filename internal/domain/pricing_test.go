@@ -315,6 +315,49 @@ func TestEvaluatePricingUsesMachineRateSelectedByChoice(t *testing.T) {
 	}
 }
 
+func TestEvaluatePricingUsesMachineMeterAndSquareMeterRatesForRollLayout(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := NewService("SVC-large-format-machine", ServiceDraft{
+		Name: "Banner print",
+		Parameters: []ServiceParameterDraft{
+			{ID: "P-width", Key: "finished_width_mm", Label: "Finished width", Type: ParameterDecimal, Required: true},
+			{ID: "P-height", Key: "finished_height_mm", Label: "Finished height", Type: ParameterDecimal, Required: true},
+			{ID: "P-quantity", Key: "layout_quantity", Label: "Finished pieces", Type: ParameterInteger, Required: true},
+		},
+		FinishedSize: &ServiceFinishedSizeDefinition{AllowCustom: true, AllowRotation: true, WidthParameterKey: "finished_width_mm", HeightParameterKey: "finished_height_mm", QuantityParameterKey: "layout_quantity"},
+		Components: []ServiceCostComponentDraft{
+			{ID: "C-material", Name: "Banner roll", Type: CostMaterial, ReferenceID: "MAT-roll", UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true},
+			{ID: "C-machine", Name: "Large format printer", Type: CostMachine, ReferenceID: "MAC-large", UsageQuantity: QuantityScale, Multiplier: QuantityScale, Enabled: true},
+		},
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	material := Material{ID: "MAT-roll", Name: "3200 mm banner", Kind: MaterialKindRollMedia, ConsumptionUnit: "meter", Attributes: []MaterialAttributeValue{{Key: "width_mm", ValueType: MaterialAttributeDecimal, DecimalValue: 3200 * QuantityScale}}, Active: true}
+	parameters := map[string]ResolvedParameter{
+		"finished_width_mm":  {Key: "finished_width_mm", Type: ParameterDecimal, Value: "1000", Quantity: 1000 * QuantityScale},
+		"finished_height_mm": {Key: "finished_height_mm", Type: ParameterDecimal, Value: "3000", Quantity: 3000 * QuantityScale},
+		"layout_quantity":    {Key: "layout_quantity", Type: ParameterInteger, Value: "1", Quantity: QuantityScale},
+	}
+	for _, test := range []struct {
+		basis string
+		rate  int64
+		want  int64
+	}{
+		{RatePerMeter, 20, 20},
+		{RatePerSquareMeter, 10, 32},
+	} {
+		machine := Machine{ID: "MAC-large", Name: "Large format printer", RateBasis: test.basis, RateRial: test.rate, Active: true, Rates: []MachineRate{{ID: "standard", Name: "Standard", RateBasis: test.basis, RateRial: test.rate, Active: true}}}
+		result, evalErr := EvaluatePricing(PricingInput{BatchQuantity: QuantityScale, Service: service, Parameters: parameters, Materials: map[string]Material{material.ID: material}, Machines: map[string]Machine{machine.ID: machine}})
+		if evalErr != nil {
+			t.Fatalf("%s pricing: %v", test.basis, evalErr)
+		}
+		if result.Components[1].AmountRial != test.want {
+			t.Fatalf("%s machine amount = %d, want %d", test.basis, result.Components[1].AmountRial, test.want)
+		}
+	}
+}
+
 func TestEvaluatePricingRequiresMatchingPredefinedMachineSelector(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	service, err := NewService("SVC-machine-color-catalog", ServiceDraft{

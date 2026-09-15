@@ -16,4 +16,9 @@ func TestMachineValidation(t *testing.T) {
 	if _, err := NewMachine("MAC-1", MachineDraft{Name: "Printer", RateBasis: RatePerHour, RateRial: -1}, now); err == nil {
 		t.Fatal("negative rate accepted")
 	}
+	for _, basis := range []string{RatePerMeter, RatePerSquareMeter} {
+		if _, err := NewMachine("MAC-"+basis, MachineDraft{Name: "Large format printer", RateBasis: basis, RateRial: 100}, now); err != nil {
+			t.Fatalf("%s rate basis rejected: %v", basis, err)
+		}
+	}
 }

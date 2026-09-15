@@ -962,6 +962,30 @@ var migrations = []migration{{
 		DROP TABLE service_pricing_tiers_backup;
 		DROP TABLE service_pricing_rules_backup;`,
 	},
+	{
+		version: 42,
+		sql: `PRAGMA writable_schema = ON;
+		UPDATE sqlite_master
+		SET sql = replace(sql, 'rate_basis IN (''unit'', ''minute'', ''hour'')', 'rate_basis IN (''unit'', ''meter'', ''square meter'', ''minute'', ''hour'')')
+		WHERE type = 'table' AND name IN ('machines', 'machine_rates');
+		PRAGMA writable_schema = OFF;`,
+		run: refreshMachineRateBasisSchema,
+	},
+}
+
+// SQLite does not support altering a CHECK constraint. Rebuilding machines is
+// needlessly risky because production_jobs and machine_rates both reference it,
+// so this migration updates only the two table definitions in sqlite_master.
+// The schema version bump forces SQLite to reparse the definitions immediately.
+func refreshMachineRateBasisSchema(ctx context.Context, tx *sql.Tx) error {
+	var schemaVersion int
+	if err := tx.QueryRowContext(ctx, `PRAGMA schema_version`).Scan(&schemaVersion); err != nil {
+		return fmt.Errorf("read sqlite schema version: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(`PRAGMA schema_version = %d`, schemaVersion+1)); err != nil {
+		return fmt.Errorf("refresh sqlite schema: %w", err)
+	}
+	return nil
 }
 
 func seedPredefinedParameters(ctx context.Context, tx *sql.Tx) error {

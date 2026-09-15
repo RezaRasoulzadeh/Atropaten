@@ -22,8 +22,12 @@ func (s Service) WithRollSizeDefaults() Service {
 		}
 		roll = roll || onlyRoll
 	}
-	if !roll || (s.FinishedSize != nil && s.FinishedSize.QuantityParameterKey != "") {
+	if !roll || (s.FinishedSize != nil && s.FinishedSize.QuantityParameterKey != "" && s.FinishedSize.AllowCustom) {
 		return s
+	}
+	legacySizeKey := ""
+	if s.FinishedSize != nil && !s.FinishedSize.AllowCustom {
+		legacySizeKey = s.FinishedSize.ParameterKey
 	}
 	size := ServiceFinishedSizeDefinition{WidthParameterKey: "finished_width_mm", HeightParameterKey: "finished_height_mm", AllowCustom: true, AllowRotation: true}
 	if s.FinishedSize != nil && s.FinishedSize.AllowCustom {
@@ -32,6 +36,19 @@ func (s Service) WithRollSizeDefaults() Service {
 	size.QuantityParameterKey = "layout_quantity"
 	s.FinishedSize = &size
 	s.Parameters = append([]ServiceParameter(nil), s.Parameters...)
+	if legacySizeKey != "" {
+		filtered := s.Parameters[:0]
+		for _, parameter := range s.Parameters {
+			// A legacy predefined print-size input described finished dimensions,
+			// not the inventory choice. Keep it only when it is also explicitly
+			// material-backed.
+			if parameter.Key == legacySizeKey && parameter.MaterialSource == nil && parameter.PredefinedKey == PredefinedParameterPrintSize {
+				continue
+			}
+			filtered = append(filtered, parameter)
+		}
+		s.Parameters = filtered
+	}
 	for _, spec := range []struct{ key, label, unit, value, min string }{
 		{size.WidthParameterKey, "Finished width (mm)", "mm", "", "0.001"},
 		{size.HeightParameterKey, "Custom height / length (mm)", "mm", "1000", "0.001"},

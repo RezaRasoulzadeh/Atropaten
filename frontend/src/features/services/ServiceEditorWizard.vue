@@ -225,8 +225,8 @@ watch(
           </section>
 
           <section v-else-if="activeStep === 2">
-          <ServiceLayoutSetup v-if="serviceCategorySupportsLayout(form.category)" :form="form" />
           <ServiceMaterialsStep
+            :category="form.category"
             :parameters="form.parameters"
             :materials="materials"
             :attribute-definitions="attributeDefinitions"
@@ -235,6 +235,7 @@ watch(
             :currency-unit="currencyUnit"
             :required="categoryRequirements.material"
           />
+          <ServiceLayoutSetup v-if="serviceCategorySupportsLayout(form.category)" :form="form" />
           </section>
           <section v-else-if="activeStep === 3">
           <ServiceMachinesStep

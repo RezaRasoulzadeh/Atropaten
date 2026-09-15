@@ -170,9 +170,17 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 					return PricingResult{}, fmt.Errorf("component %q: machine rate is not configured for the selected option", component.Name)
 				}
 				layoutBasis := component.RateBasis
-				if layoutBasis == "meter" || layoutBasis == "square meter" || layoutBasis == "sheet" {
-					if rate.RateBasis != RatePerUnit {
-						return PricingResult{}, fmt.Errorf("component %q: layout charging requires a per-unit machine profile; time rates require explicit time usage", component.Name)
+				// A machine profile can define its own roll/sheet charging basis.
+				// For layout-enabled services that basis is authoritative when the
+				// service component has no explicit override.
+				if layoutBasis == "" && input.Service.FinishedSize != nil && input.Service.FinishedSize.QuantityParameterKey != "" {
+					if rate.RateBasis == RatePerMeter || rate.RateBasis == RatePerSquareMeter {
+						layoutBasis = rate.RateBasis
+					}
+				}
+				if layoutBasis == RatePerMeter || layoutBasis == RatePerSquareMeter || layoutBasis == "sheet" {
+					if rate.RateBasis != RatePerUnit && rate.RateBasis != layoutBasis {
+						return PricingResult{}, fmt.Errorf("component %q: layout basis %q does not match machine profile basis %q", component.Name, layoutBasis, rate.RateBasis)
 					}
 					var layout *PrintLayout
 					for _, stock := range input.Materials {
@@ -194,7 +202,7 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 					switch layoutBasis {
 					case "sheet":
 						usage, err = ParseQuantity(layout.Sheets)
-					case "square meter":
+					case RatePerSquareMeter:
 						usage, err = ParseQuantity(layout.AreaM2)
 					case "meter":
 						var length Quantity

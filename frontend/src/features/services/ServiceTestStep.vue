@@ -12,7 +12,7 @@ import { formatMoney, type CurrencyUnit } from '../../utils/currency'
 import { calculateServiceTest, isAutomaticVariationParameter, isMachineRateParameter, machineGroupOptions, machineRateOptions, testParameterLabel, visibleTestParameters, type TestPricingResult, type TestValues } from './serviceTestPricing'
 import type { ParameterForm, ServiceForm } from './types'
 import RollSizeFields from './RollSizeFields.vue'
-import { ensureRollSizeInputs, usesMaterialRollWidth, selectedRollMaterial, rollWidthValue } from './rollSizeInputs'
+import { ensureRollSizeInputs, materialOptionsForParameter, usesMaterialRollWidth, selectedRollMaterial, rollWidthValue } from './rollSizeInputs'
 
 const props = defineProps<{
   form: ServiceForm
@@ -106,8 +106,7 @@ function valueOptions(parameter: ParameterForm) {
 	if (isMachineRateParameter(props.form, parameter)) return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...machineRateOptions(props.form, parameter, props.parameters, props.machines, props.values)]
 	if (parameter.type === 'choice') {
     if (parameter.materialSource) {
-      const values = Array.from(new Set(props.form.materialVariants.filter((variant) => variant.active !== false).map((variant) => variant.values[parameter.key]).filter(Boolean)))
-      return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...values.sort().map((value) => ({ label: value.split('\u001f').join(' × '), value }))]
+      return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...materialOptionsForParameter(props.form, parameter, props.materials, props.values)]
     }
     return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...(parameter.predefinedKey ? ((parameter as any).predefinedOptions || []).filter((option: any) => option.active !== false).map((option: any) => ({ label: option.label, value: option.code })) : parameter.options.map((value) => ({ label: value, value })))]
   }

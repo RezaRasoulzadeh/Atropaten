@@ -9,6 +9,7 @@ import type { MaterialParameterSourceForm, ParameterForm, ServiceMaterialVariant
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
 
 const props = defineProps<{
+  category?: string
   parameters: ParameterForm[]
   materials: MaterialRecord[]
   attributeDefinitions: MaterialAttributeDefinitionRecord[]
@@ -65,6 +66,26 @@ function canonicalAttribute(attribute: any) {
   return String(attribute.textValue ?? '').trim()
 }
 
+function attributeMatches(attribute: any, wanted: any) {
+  if (!attribute || !wanted || attribute.valueType !== wanted.valueType) return false
+  return canonicalAttribute(attribute) === canonicalAttribute(wanted)
+}
+
+function materialMatchesSource(material: MaterialRecord, source?: MaterialParameterSourceForm) {
+  if (!source) return true
+  if (source.allowedKinds?.length && !source.allowedKinds.includes(material.kind)) return false
+  for (const filter of source.additionalFilters || []) {
+    if (!attributeMatches(attributeValue(material, filter.key), filter.value)) return false
+  }
+  const keys = sourceKeys({ materialSource: source } as ParameterForm)
+  for (const key of keys) if (!attributeValue(material, key)) return false
+  for (const key of keys) {
+    const allowed = (source.allowedValues || []).filter((value: any) => value.key === key)
+    if (allowed.length && !allowed.some((value: any) => attributeMatches(attributeValue(material, key), value))) return false
+  }
+  return true
+}
+
 function displayAttribute(attribute: any, key: string) {
   const value = canonicalAttribute(attribute)
   const definition = attributeDefinition(key)
@@ -80,20 +101,30 @@ function sourceLabel(material: MaterialRecord, parameter: ParameterForm) {
   return sourceKeys(parameter).map((key) => displayAttribute(attributeValue(material, key), key)).join(' × ')
 }
 
+function optionLabel(material: MaterialRecord, parameter: ParameterForm) {
+  const rollGroup = ['large format', 'banners & signage'].includes(String(props.category || '').trim().toLowerCase()) &&
+    ['roll-media', 'fabric'].includes(material.kind)
+  return rollGroup ? material.name || sourceLabel(material, parameter) : sourceLabel(material, parameter)
+}
+
 function materialCost(material: MaterialRecord) {
   return material.highestPurchaseUnitCostRial || material.averageUnitCostRial || 0
 }
 
 function materialLabel(material: MaterialRecord) {
   const cost = props.currencyUnit ? ` · ${formatMoney(materialCost(material), props.currencyUnit)}` : ''
-  return `${material.name}${material.sku ? ` · ${material.sku}` : ''}${cost}`
+  const width = ['roll-media', 'fabric'].includes(material.kind)
+    ? attributeValue(material, 'width_mm')?.decimalValue
+    : undefined
+  const rollWidth = width ? ` · ${width} mm roll` : ''
+  return `${material.name}${material.sku ? ` · ${material.sku}` : ''}${rollWidth}${cost}`
 }
 
 function materialsFor(parameter: ParameterForm) {
   const source = parameter.materialSource
   const keys = sourceKeys(parameter)
   return activeMaterials.value.filter((material) => {
-    if (source?.allowedKinds?.length && !source.allowedKinds.includes(material.kind)) return false
+    if (!materialMatchesSource(material, source)) return false
     return keys.every((key) => Boolean(attributeValue(material, key)))
   })
 }
@@ -104,8 +135,11 @@ function groupOptions(parameter: ParameterForm): MaterialOption[] {
     const value = sourceValue(material, parameter)
     if (!value) continue
     const existing = options.get(value)
-    if (existing) existing.materialIds.push(material.id)
-    else options.set(value, { value, label: sourceLabel(material, parameter), materialIds: [material.id] })
+    if (existing) {
+      existing.materialIds.push(material.id)
+      const label = optionLabel(material, parameter)
+      if (label && existing.label !== label && !existing.label.includes(label)) existing.label += ` / ${label}`
+    } else options.set(value, { value, label: optionLabel(material, parameter), materialIds: [material.id] })
   }
   return Array.from(options.values()).sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true }))
 }
@@ -146,7 +180,7 @@ function candidatesFor(values: Record<string, string>) {
   return activeMaterials.value.filter((material) => materialGroups.value.every((group) => {
     const selected = values[group.key]
     if (!selected) return false
-    return sourceValue(material, group) === selected
+    return materialMatchesSource(material, group.materialSource) && sourceValue(material, group) === selected
   }))
 }
 
@@ -188,11 +222,15 @@ function createGroup() {
   let key = baseKey
   let suffix = 2
   while (props.parameters.some((parameter) => parameter.key === key)) key = `${baseKey}_${suffix++}`
-  const preferredKeys = props.attributeDefinitions.some((definition) => definition.key === 'width_mm') && props.attributeDefinitions.some((definition) => definition.key === 'height_mm')
+  const rollCategory = ['large format', 'banners & signage'].includes(String(props.category || '').trim().toLowerCase())
+  const preferredKeys = rollCategory && props.attributeDefinitions.some((definition) => definition.key === 'width_mm')
+    ? ['width_mm']
+    : props.attributeDefinitions.some((definition) => definition.key === 'width_mm') && props.attributeDefinitions.some((definition) => definition.key === 'height_mm')
     ? ['width_mm', 'height_mm']
     : props.attributeDefinitions.filter((definition) => definition.active).slice(0, 1).map((definition) => definition.key)
+  const rollKind = materialKinds.value.includes('roll-media') ? 'roll-media' : materialKinds.value.includes('fabric') ? 'fabric' : ''
   const source: MaterialParameterSourceForm = {
-    allowedKinds: materialKinds.value.includes('sheet-stock') ? ['sheet-stock'] : [],
+    allowedKinds: rollCategory && rollKind ? [rollKind] : materialKinds.value.includes('sheet-stock') ? ['sheet-stock'] : rollKind ? [rollKind] : [],
     exposedAttributeKey: preferredKeys[0] || '',
     exposedAttributeKeys: preferredKeys,
     allowedValues: [],
@@ -298,11 +336,11 @@ syncVariants()
           <FormField class="gap-1"><span>Material kind</span><SelectField :model-value="activeGroup.materialSource?.allowedKinds?.[0] || ''" label="" :options="[{ label: 'All material kinds', value: '' }, ...materialKinds.map((kind) => ({ label: kindLabel(kind), value: kind }))]" @update:model-value="setGroupKind(activeGroup, $event)" /></FormField>
         </div>
 
-        <div class="rounded-box border border-base-300 bg-base-200/25 p-3.5"><div class="flex items-start gap-2"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="16" aria-hidden="true" /><div><h4 class="text-sm font-semibold">What defines an option?</h4><p class="mt-1 text-xs leading-5 text-base-content/65">Choose one attribute for a simple group, or multiple attributes for a combined value. Paper size uses Width + Height; paper type can use Material subtype or Finish.</p></div></div><div class="mt-3 grid gap-2 sm:grid-cols-2"><label v-for="definition in attributeDefinitions.filter((item) => item.active)" :key="definition.key" class="flex min-w-0 items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2 text-sm"><input class="checkbox checkbox-sm" type="checkbox" :checked="sourceKeys(activeGroup).includes(definition.key)" @change="toggleAttribute(activeGroup, definition.key, $event)" /><span class="min-w-0 truncate">{{ definition.label }}<small v-if="definition.unit" class="ml-1 text-xs text-base-content/55">({{ definition.unit }})</small></span></label></div></div>
+        <div class="rounded-box border border-base-300 bg-base-200/25 p-3.5"><div class="flex items-start gap-2"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="16" aria-hidden="true" /><div><h4 class="text-sm font-semibold">What defines an option?</h4><p class="mt-1 text-xs leading-5 text-base-content/65">Choose one attribute for a simple group, or multiple attributes for a combined value. For roll media, use Width as the customer’s roll choice; the mapped material width feeds the layout automatically, while height / length stays custom per order.</p></div></div><div class="mt-3 grid gap-2 sm:grid-cols-2"><label v-for="definition in attributeDefinitions.filter((item) => item.active)" :key="definition.key" class="flex min-w-0 items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2 text-sm"><input class="checkbox checkbox-sm" type="checkbox" :checked="sourceKeys(activeGroup).includes(definition.key)" @change="toggleAttribute(activeGroup, definition.key, $event)" /><span class="min-w-0 truncate">{{ definition.label }}<small v-if="definition.unit" class="ml-1 text-xs text-base-content/55">({{ definition.unit }})</small></span></label></div></div>
 
         <div class="rounded-box border border-base-300"><div class="flex flex-wrap items-start justify-between gap-2 border-b border-base-300 px-4 py-3"><div><h4 class="text-sm font-semibold">Options from inventory</h4><p class="mt-1 text-xs text-base-content/60">{{ selectedGroupOptionCount(activeGroup) }} distinct value{{ selectedGroupOptionCount(activeGroup) === 1 ? '' : 's' }} found in active materials. Mark one as the default for the estimate.</p></div><span class="badge badge-ghost text-xs">Automatic</span></div><div v-if="sourceKeys(activeGroup).length && selectedGroupOptionCount(activeGroup)" class="divide-y divide-base-300/70"><div v-for="option in groupOptions(activeGroup)" :key="option.value" class="flex min-w-0 items-center justify-between gap-3 px-4 py-3"><div class="min-w-0"><strong class="block truncate text-sm">{{ option.label }}</strong><small class="block truncate text-xs text-base-content/60">{{ option.materialIds.length }} matching material{{ option.materialIds.length === 1 ? '' : 's' }}</small></div><label class="flex shrink-0 items-center gap-1.5 text-xs" :class="activeGroup.defaultValue === option.value ? 'font-medium text-primary' : 'text-base-content/60'"><input class="radio radio-primary radio-sm" type="radio" :name="`default-material-${activeGroup.id}`" :checked="activeGroup.defaultValue === option.value" @change="setGroupDefault(activeGroup, option.value)" />Default</label></div></div><div v-else class="p-4 text-sm text-warning">Choose at least one inventory attribute with active materials.</div></div>
 
-        <div class="rounded-box border border-primary/30 bg-primary/5"><div class="border-b border-primary/15 px-4 py-3"><h4 class="text-sm font-semibold">Material combination pricing</h4><p class="mt-1 text-xs leading-5 text-base-content/65">Select the exact inventory material for every combination. Its recorded unit cost will be used in estimation.</p></div><div v-if="combinationRows.length" class="divide-y divide-base-300/70"><div v-for="row in combinationRows" :key="row.key" class="grid min-w-0 gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(13rem,0.9fr)]"><div class="min-w-0"><div class="flex flex-wrap gap-1.5"><span v-for="group in materialGroups" :key="group.key" class="badge badge-ghost max-w-full truncate text-xs">{{ group.label }}: {{ groupOptions(group).find((option) => option.value === row.values[group.key])?.label || row.values[group.key] }}</span><span v-if="isDefaultCombination(row)" class="badge badge-primary badge-outline text-xs">Default estimate</span></div><small class="mt-1 block text-xs text-base-content/55">{{ row.candidates.length }} compatible material{{ row.candidates.length === 1 ? '' : 's' }} found</small></div><SelectField :model-value="row.variant?.materialId || ''" label="Exact inventory material" :options="[{ label: row.candidates.length ? 'Choose material…' : 'No compatible material', value: '' }, ...row.candidates.map((material) => ({ label: materialLabel(material), value: material.id }))]" @update:model-value="setVariantMaterial(row.variant, $event)" /></div></div><div v-else class="p-5 text-sm text-warning">No combinations can be generated yet. Check the selected attributes and active inventory.</div></div>
+        <div class="rounded-box border border-primary/30 bg-primary/5"><div class="border-b border-primary/15 px-4 py-3"><h4 class="text-sm font-semibold">Material combination pricing</h4><p class="mt-1 text-xs leading-5 text-base-content/65">Select the exact inventory material for every combination. Its recorded unit cost will be used in estimation. For roll media, this selection also supplies the printable width used by Test and order items.</p></div><div v-if="combinationRows.length" class="divide-y divide-base-300/70"><div v-for="row in combinationRows" :key="row.key" class="grid min-w-0 gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(13rem,0.9fr)]"><div class="min-w-0"><div class="flex flex-wrap gap-1.5"><span v-for="group in materialGroups" :key="group.key" class="badge badge-ghost max-w-full truncate text-xs">{{ group.label }}: {{ groupOptions(group).find((option) => option.value === row.values[group.key])?.label || row.values[group.key] }}</span><span v-if="isDefaultCombination(row)" class="badge badge-primary badge-outline text-xs">Default estimate</span></div><small class="mt-1 block text-xs text-base-content/55">{{ row.candidates.length }} compatible material{{ row.candidates.length === 1 ? '' : 's' }} found<span v-if="row.candidates.some((material) => ['roll-media', 'fabric'].includes(material.kind))"> · roll width drives layout</span></small></div><SelectField :model-value="row.variant?.materialId || ''" label="Exact inventory material" :options="[{ label: row.candidates.length ? 'Choose material…' : 'No compatible material', value: '' }, ...row.candidates.map((material) => ({ label: materialLabel(material), value: material.id }))]" @update:model-value="setVariantMaterial(row.variant, $event)" /></div></div><div v-else class="p-5 text-sm text-warning">No combinations can be generated yet. Check the selected attributes and active inventory.</div></div>
         <p v-if="combinationRows.length && combinationRows.some((row) => !row.variant?.materialId)" class="text-xs leading-5 text-warning">Complete each combination before saving. Pricing will remain unavailable for an unmapped material choice.</p>
       </div>
     </div>
