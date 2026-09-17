@@ -13,7 +13,7 @@ cd frontend
 npm ci
 cd ..
 wails doctor
-wails build --clean --target windows/amd64 --nsis
+wails build --clean --platform windows/amd64 --nsis
 ```
 
 The expected artifacts are the application executable and NSIS installer under
