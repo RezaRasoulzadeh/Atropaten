@@ -144,7 +144,7 @@ const initialLoading = computed(() => loading.value && !data.value);
         />
         <KpiCard
           :value="money(data?.receivableRial || 0)"
-          :detail="$ui(`${data?.openInvoiceCount || 0} open invoices`)"
+          :detail="$ui(`${data?.openInvoiceCount || 0} open invoice${data?.openInvoiceCount === 1 ? '' : 's'}`)"
           :title='$t("Receivables")'
           trend="Outstanding"
           :icon="HandCoins"

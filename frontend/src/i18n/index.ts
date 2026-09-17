@@ -12,7 +12,7 @@ const dynamicMessageTemplates = Object.keys(messages.fa)
     const parts = normalizedKey.split(/\$\{[^}]+\}/u);
     const pattern = parts
       .map((part) => part.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'))
-      .join('([\\s\\S]+?)');
+      .join('([\\s\\S]*?)');
     return {
       key,
       matcher: new RegExp(`^${pattern}$`, 'u'),

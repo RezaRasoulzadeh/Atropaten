@@ -154,9 +154,9 @@ function usesFixedQuantitySourceSelector() {
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-1">
-          <button class="btn btn-ghost btn-sm" type="button" :disabled="index === 0" :aria-label="$ui(`Move ${component.name || 'cost'} up`)" @click.stop.prevent="emit('move', -1)"><ChevronUp :size="14" aria-hidden="true" /></button>
-          <button class="btn btn-ghost btn-sm" type="button" :disabled="index === count - 1" :aria-label="$ui(`Move ${component.name || 'cost'} down`)" @click.stop.prevent="emit('move', 1)"><ChevronDown :size="14" aria-hidden="true" /></button>
-          <button class="btn btn-outline btn-error btn-sm" type="button" :aria-label="$ui(`Remove ${component.name || 'cost'}`)" @click.stop.prevent="emit('remove')"><Trash2 :size="14" aria-hidden="true" /></button>
+          <button class="btn btn-ghost btn-sm" type="button" :disabled="index === 0" :aria-label="$ui(`Move ${component.name || $ui('cost')} up`)" @click.stop.prevent="emit('move', -1)"><ChevronUp :size="14" aria-hidden="true" /></button>
+          <button class="btn btn-ghost btn-sm" type="button" :disabled="index === count - 1" :aria-label="$ui(`Move ${component.name || $ui('cost')} down`)" @click.stop.prevent="emit('move', 1)"><ChevronDown :size="14" aria-hidden="true" /></button>
+          <button class="btn btn-outline btn-error btn-sm" type="button" :aria-label="$ui(`Remove ${component.name || $ui('cost')}`)" @click.stop.prevent="emit('remove')"><Trash2 :size="14" aria-hidden="true" /></button>
           <ChevronDown class="ml-1 shrink-0 transition-transform group-open:rotate-180" :size="16" aria-hidden="true" />
         </div>
       </summary>
@@ -193,7 +193,7 @@ function usesFixedQuantitySourceSelector() {
           <div v-else class="space-y-2">
             <SelectField v-model="component.parameterKey" :label='$t("Which operator input chooses it?")' :invalid="props.showErrors && !component.parameterKey" :options="[
               { label: 'Select a material or paper input', value: '' },
-              ...materialParameters().map((parameter) => ({ label: `${parameter.label || parameter.key} · ${parameter.type === 'choice' ? 'choices' : 'materials'}`, value: parameter.key })),
+              ...materialParameters().map((parameter) => ({ label: `${parameter.label || parameter.key} · ${$ui(parameter.type === 'choice' ? 'choices' : 'materials')}`, value: parameter.key })),
             ]" />
             <p class="text-xs leading-5 text-base-content/60">{{ $t("Connect this cost to an inventory-backed material input. The selected material ID is used in pricing.") }}</p>
           </div>
@@ -212,18 +212,18 @@ function usesFixedQuantitySourceSelector() {
           <div v-else class="space-y-2">
             <SelectField v-model="component.parameterKey" :label='$t("Which operator input chooses it?")' :invalid="props.showErrors && !component.parameterKey" :options="[
               { label: 'Select a machine input', value: '' },
-              ...machineParameters().map((parameter) => ({ label: `${parameter.label || parameter.key} · ${parameter.type === 'choice' ? 'choices' : 'machines'}`, value: parameter.key })),
+              ...machineParameters().map((parameter) => ({ label: `${parameter.label || parameter.key} · ${$ui(parameter.type === 'choice' ? 'choices' : 'machines')}`, value: parameter.key })),
             ]" />
             <p class="text-xs leading-5 text-base-content/60">{{ $t("Connect this cost to a machine input that stores an explicit machine ID.") }}</p>
           </div>
           <div class="space-y-2 border-t border-base-300 pt-4">
             <SelectField v-if="machineSource(component) === 'fixed'" :model-value="component.rateId" :label='$t("Machine rate")' :options="[
               { label: machineRates(component).length ? 'Use the machine standard rate' : 'No rate profiles configured', value: '' },
-              ...machineRates(component).map((rate) => ({ label: `${rate.name} · ${formatLocalizedNumber(rate.rateRial)} / ${rate.rateBasis}`, value: rate.id })),
+              ...machineRates(component).map((rate) => ({ label: `${rate.name} · ${formatLocalizedNumber(rate.rateRial)} / ${$ui(rate.rateBasis)}`, value: rate.id })),
             ]" @update:model-value="updateRateId(component, $event)" />
             <SelectField :model-value="component.rateParameterKey" :label='$t("Rate varies with (optional)")' :options="[
               { label: 'Use the selected machine rate', value: '' },
-              ...choiceParameters().map((parameter) => ({ label: `${parameter.label || parameter.key} · matches a machine rate`, value: parameter.key })),
+              ...choiceParameters().map((parameter) => ({ label: $ui(`${parameter.label || parameter.key} · matches a machine rate`), value: parameter.key })),
             ]" @update:model-value="updateRateParameter(component, $event)" />
             <p class="text-xs leading-5 text-base-content/60">{{ $t("For example, add “Black & white” and “Full color” rates to the machine, then connect this cost to the Color input. Each option is matched to the rate profile’s selector value or name.") }}</p>
           </div>

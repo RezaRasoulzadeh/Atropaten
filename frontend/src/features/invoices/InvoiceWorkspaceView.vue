@@ -195,7 +195,7 @@ async function remove() {
             </div>
           </AppPanel>
 
-          <AppPanel :title='$t("Invoice lines")' :subtitle="$ui(`${invoice.items.length} immutable snapshot lines`)" :flush="true">
+          <AppPanel :title='$t("Invoice lines")' :subtitle="$ui(`${invoice.items.length} line items`)" :flush="true">
             <DataTable v-if="invoice.items.length" :label='$t("Invoice lines")'>
               <thead>
                 <tr>

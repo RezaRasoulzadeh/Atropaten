@@ -157,7 +157,7 @@ const money = (value: number) => formatMoney(value, props.currencyUnit);
           <div
             class="h-3 overflow-hidden rounded bg-base-300"
             role="img"
-            :aria-label="$ui(`${item.status}: ${item.count} orders`)"
+            :aria-label="$ui(`${$ui(item.status)}: ${item.count} ${item.count === 1 ? 'order' : 'orders'}`)"
           >
             <div
               class="h-full rounded bg-info"

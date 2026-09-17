@@ -339,7 +339,7 @@ reportError(e);
             :label='$t("From account")'
             :options="
               props.financial.filter((account) => account.active).map((account) => ({
-                label: `From ${accountLabel(account)}`,
+                label: `${$t('From')} ${accountLabel(account)}`,
                 value: account.id,
               }))
             "
@@ -347,7 +347,7 @@ reportError(e);
             v-model="transfer.destinationFinancialAccountId"
             :label='$t("To account")'
             :options="
-              props.financial.filter((account) => account.active).map((account) => ({ label: `To ${accountLabel(account)}`, value: account.id }))
+              props.financial.filter((account) => account.active).map((account) => ({ label: `${$t('To')} ${accountLabel(account)}`, value: account.id }))
             "
           /><FormField :label="$ui(`Amount (${$ui(props.currencyUnit)})`)"><AppInput
             class="input w-full min-w-0"

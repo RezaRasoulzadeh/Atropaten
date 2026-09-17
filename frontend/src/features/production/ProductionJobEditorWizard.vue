@@ -11,6 +11,7 @@ import JalaliDatePicker from '../../components/ui/JalaliDatePicker.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
 import type { CurrencyUnit } from '../../utils/currency'
 import { formatQuantityInput } from '../../utils/quantity'
+import { translateUi } from '../../i18n'
 import type { OrderRecord } from '../../api/orders'
 import type { useProductionWorkspace } from './useProductionWorkspace'
 
@@ -46,14 +47,14 @@ const confirmedOrders = computed(() => props.orders.filter((order) => order.comm
 const itemOptions = computed(() => [
   { label: 'Select an order item', value: '' },
   ...(selectedOrder.value?.items ?? []).map((item) => ({
-    label: `${item.serviceName} · ${item.quantity} ${item.quantityUnit}`,
+    label: `${item.serviceName} · ${item.quantity} ${translateUi(item.quantityUnit)}`,
     value: item.id,
   })),
 ])
 const orderOptions = computed(() => [
   { label: confirmedOrders.value.length ? 'Select a confirmed order' : 'No confirmed orders available', value: '' },
   ...confirmedOrders.value.map((order) => ({
-    label: `${order.orderNumber} · ${order.customerName || 'Walk-in customer'}`,
+    label: `${order.orderNumber} · ${order.customerName || translateUi('Walk-in customer')}`,
     value: order.id,
   })),
 ])

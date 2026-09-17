@@ -785,11 +785,11 @@ function save() {
           <div class="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
             <FormField v-for="component in manualComponents" :key="component.id" class="gap-1">
               <span class="text-xs text-base-content/60">{{ component.name }}</span>
-              <AppInput :model-value="manualTexts[component.id] || ''" :money="currencyUnit" :placeholder="$ui(`Amount in ${currencyUnit}`)" @update:model-value="updateMoneyText($event, component.id)" />
+              <AppInput :model-value="manualTexts[component.id] || ''" :money="currencyUnit" :placeholder="$ui(`Amount in ${$ui(currencyUnit)}`)" @update:model-value="updateMoneyText($event, component.id)" />
             </FormField>
             <FormField class="gap-1" :class="manualComponents.length ? 'sm:col-span-2' : ''">
               <span class="text-xs text-base-content/60">{{ $t("Selling price override") }} <em class="font-normal text-base-content/50">{{ $t("optional") }}</em></span>
-              <AppInput :model-value="overrideText" :class="{ 'input-error': overrideInvalid }" :money="currencyUnit" inputmode="decimal" :placeholder="$ui(`Optional ${currencyUnit} price`)" @update:model-value="updateMoneyText($event, 'override')" />
+              <AppInput :model-value="overrideText" :class="{ 'input-error': overrideInvalid }" :money="currencyUnit" inputmode="decimal" :placeholder="$ui(`Optional ${$ui(currencyUnit)} price`)" @update:model-value="updateMoneyText($event, 'override')" />
               <small v-if="overrideInvalid" class="text-xs text-error">{{ $t("Enter a valid amount.") }}</small>
             </FormField>
           </div>

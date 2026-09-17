@@ -153,7 +153,7 @@ function previous() {
               </div>
               <details data-enter-scope class="border-t border-base-300 pt-3">
                 <summary class="cursor-pointer text-sm font-medium">{{ $t("Reserve additional material") }}</summary>
-                <FormGrid class="mt-3"><SelectField v-model="reservationMaterial" :label='$t("Material")' :options="[{label:'Select material',value:''},...stockMaterials.map(m=>({label:m.name+' · free '+m.availableStock,value:m.id}))]" /><FormField :label='$t("Quantity")'><AppInput v-model="reservationQuantity" inputmode="decimal" :placeholder='$t("Quantity")' /></FormField></FormGrid>
+                <FormGrid class="mt-3"><SelectField v-model="reservationMaterial" :label='$t("Material")' :options="[{label:'Select material',value:''},...stockMaterials.map(m=>({label:`${m.name} · ${$ui('free')} ${m.availableStock}`,value:m.id}))]" /><FormField :label='$t("Quantity")'><AppInput v-model="reservationQuantity" inputmode="decimal" :placeholder='$t("Quantity")' /></FormField></FormGrid>
                 <button class="btn btn-outline btn-sm mt-3" :disabled="busy || !editableJob" data-enter-submit @click="reserve">{{ $t("Add reservation") }}</button>
               </details>
             </template>

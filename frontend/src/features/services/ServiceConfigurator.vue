@@ -209,7 +209,7 @@ function typeLabel(type: string) {
               v-model="values[parameter.key]"
               :aria-label="parameter.label"
               :options="[
-                { label: `Select ${parameter.label.toLowerCase()}`, value: '' },
+                { label: $ui(`Select ${$ui(parameter.label.toLowerCase())}`), value: '' },
                 ...optionsFor(parameter),
               ]"
             />

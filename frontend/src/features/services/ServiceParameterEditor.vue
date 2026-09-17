@@ -76,9 +76,9 @@ function setMaterialBacked(event: Event) {
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-1">
-          <button class="btn btn-ghost btn-sm" type="button" :disabled="index === 0" :aria-label="$ui(`Move ${parameter.label || 'input'} up`)" @click.stop.prevent="emit('move', -1)"><ChevronUp :size="14" aria-hidden="true" /></button>
-          <button class="btn btn-ghost btn-sm" type="button" :disabled="index === count - 1" :aria-label="$ui(`Move ${parameter.label || 'input'} down`)" @click.stop.prevent="emit('move', 1)"><ChevronDown :size="14" aria-hidden="true" /></button>
-          <button class="btn btn-outline btn-error btn-sm" type="button" :aria-label="$ui(`Remove ${parameter.label || 'input'}`)" @click.stop.prevent="emit('remove')"><Trash2 :size="14" aria-hidden="true" /></button>
+          <button class="btn btn-ghost btn-sm" type="button" :disabled="index === 0" :aria-label="$ui(`Move ${parameter.label || $ui('input')} up`)" @click.stop.prevent="emit('move', -1)"><ChevronUp :size="14" aria-hidden="true" /></button>
+          <button class="btn btn-ghost btn-sm" type="button" :disabled="index === count - 1" :aria-label="$ui(`Move ${parameter.label || $ui('input')} down`)" @click.stop.prevent="emit('move', 1)"><ChevronDown :size="14" aria-hidden="true" /></button>
+          <button class="btn btn-outline btn-error btn-sm" type="button" :aria-label="$ui(`Remove ${parameter.label || $ui('input')}`)" @click.stop.prevent="emit('remove')"><Trash2 :size="14" aria-hidden="true" /></button>
           <ChevronDown class="ml-1 shrink-0 transition-transform group-open:rotate-180" :size="16" aria-hidden="true" />
         </div>
       </summary>

@@ -16,7 +16,7 @@ import EmptyState from '../../components/ui/EmptyState.vue'
 import ReportPrintDocument from './ReportPrintDocument.vue'
 import { reportsApi, type ReportRecord } from '../../api/reports'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
-import { currentCanonicalDate, formatDateTime } from '../../utils/date'
+import { currentCanonicalDate, formatDate, formatDateTime } from '../../utils/date'
 import { normalizeError, useToast } from '../../ui/feedback'
 
 const props = defineProps<{ currencyUnit: CurrencyUnit }>()
@@ -132,7 +132,7 @@ watch([activeTab, start, end], load)
         </article>
       </section>
 
-      <AppPanel :title="$ui(activeLabel)" :subtitle="$ui(`${report?.startDate || ''} → ${report?.endDate || ''} · values supplied by Go`)" :flush="true">
+      <AppPanel :title="$ui(activeLabel)" :subtitle="$ui(`${report?.startDate ? formatDate(report.startDate) : ''} → ${report?.endDate ? formatDate(report.endDate) : ''}`)" :flush="true">
         <template #action><span class="text-xs text-base-content/55">{{ rowCount }} {{ $t("rows") }}</span></template>
         <DataTable :label='$t("Report data")'>
           <thead>

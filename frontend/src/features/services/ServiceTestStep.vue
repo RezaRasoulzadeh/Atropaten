@@ -11,6 +11,7 @@ import type { ServiceRecord } from '../../api/services'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
 import { calculateServiceTest, isAutomaticVariationParameter, isMachineRateParameter, machineGroupOptions, machineRateOptions, testParameterLabel, visibleTestParameters, type TestPricingResult, type TestValues } from './serviceTestPricing'
 import type { ParameterForm, ServiceForm } from './types'
+import { translateUi } from '../../i18n'
 import RollSizeFields from './RollSizeFields.vue'
 import { ensureRollSizeInputs, materialOptionsForParameter, usesMaterialRollWidth, selectedRollMaterial, rollWidthValue, rollStockWidthValue } from './rollSizeInputs'
 
@@ -113,12 +114,13 @@ function updateBoolean(key: string, event: Event) {
 }
 
 function valueOptions(parameter: ParameterForm) {
-	if (isMachineRateParameter(props.form, parameter)) return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...machineRateOptions(props.form, parameter, props.parameters, props.machines, props.values)]
+	const selectLabel = translateUi(`Select ${translateUi(parameter.label.toLowerCase())}`)
+	if (isMachineRateParameter(props.form, parameter)) return [{ label: selectLabel, value: '' }, ...machineRateOptions(props.form, parameter, props.parameters, props.machines, props.values)]
 	if (parameter.type === 'choice') {
     if (parameter.materialSource) {
-      return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...materialOptionsForParameter(props.form, parameter, props.materials, props.values)]
+      return [{ label: selectLabel, value: '' }, ...materialOptionsForParameter(props.form, parameter, props.materials, props.values)]
     }
-    return [{ label: `Select ${parameter.label.toLowerCase()}`, value: '' }, ...(parameter.predefinedKey ? ((parameter as any).predefinedOptions || []).filter((option: any) => option.active !== false).map((option: any) => ({ label: option.label, value: option.code })) : parameter.options.map((value) => ({ label: value, value })))]
+    return [{ label: selectLabel, value: '' }, ...(parameter.predefinedKey ? ((parameter as any).predefinedOptions || []).filter((option: any) => option.active !== false).map((option: any) => ({ label: option.label, value: option.code })) : parameter.options.map((value) => ({ label: value, value })))]
   }
   return [{ label: 'Select machine', value: '' }, ...machineGroupOptions(parameter, props.machines).map((item) => ({ label: `${item.name}${item.code ? ` · ${item.code}` : ''}`, value: item.id }))]
 }
