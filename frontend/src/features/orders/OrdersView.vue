@@ -185,7 +185,7 @@ async function removeSelectedOrder() {
               @click="status = filter"
             >
               <span class="size-2 rounded-full" :class="filter === 'Cancelled' ? 'bg-error' : filter === 'All' ? 'bg-primary' : filter === 'Closed' || filter === 'Delivery' ? 'bg-success' : filter === 'Production' || filter === 'Confirmed' ? 'bg-info' : 'bg-base-content/35'"></span>
-              {{ filter }}
+              {{ $ui(filter) }}
               <span class="rounded-full bg-base-200 px-1.5 py-0.5 text-xs tabular-nums">{{ statusCount(filter) }}</span>
             </button>
           </div>

@@ -87,7 +87,7 @@ function shopValue(value: string | undefined, fallback = '—') {
               <strong>{{ line.description }}</strong>
               <span v-if="line.notes" class="invoice-print-subline">{{ line.notes }}</span>
             </td>
-            <td>{{ formatQuantityUnits(line.quantity) }} {{ line.quantityUnit }}</td>
+            <td>{{ formatQuantityUnits(line.quantity) }} {{ $ui(line.quantityUnit) }}</td>
             <td class="invoice-print-number">{{ money(line.unitPriceRial) }}</td>
             <td class="invoice-print-number"><strong>{{ money(line.lineTotalRial) }}</strong></td>
           </tr>

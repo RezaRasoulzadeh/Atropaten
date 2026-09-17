@@ -162,7 +162,7 @@ function tone(s: string) {
         <span class="grid size-8 shrink-0 place-items-center rounded-box bg-base-200 text-xs font-semibold text-base-content/60">{{ item.position + 1 }}</span>
         <div class="min-w-0 flex-1">
           <strong class="block truncate text-sm">{{ item.serviceName }}</strong>
-          <span class="mt-0.5 block truncate text-xs text-base-content/55">{{ item.quantity }} {{ item.quantityUnit }}</span>
+          <span class="mt-0.5 block truncate text-xs text-base-content/55">{{ item.quantity }} {{ $ui(item.quantityUnit) }}</span>
         </div>
         <div class="flex shrink-0 items-center gap-2">
           <template v-if="itemJob(item.id)?.status === 'Cancelled'">
@@ -211,7 +211,7 @@ function tone(s: string) {
                 <strong class="truncate text-sm">{{ job.jobNumber }}</strong>
                 <StatusBadge :label="job.status" :tone="tone(job.status)" />
               </div>
-              <p class="mt-0.5 truncate text-xs text-base-content/70">{{ job.serviceName }} · {{ job.quantity }} {{ job.quantityUnit }}</p>
+              <p class="mt-0.5 truncate text-xs text-base-content/70">{{ job.serviceName }} · {{ job.quantity }} {{ $ui(job.quantityUnit) }}</p>
             </div>
           </div>
           <div class="shrink-0 text-end">

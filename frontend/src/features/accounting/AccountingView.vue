@@ -224,8 +224,8 @@ function transactionSource(entry: JournalEntryRecord) {
           <div v-if="recentTransactions.length" class="divide-y divide-base-300">
             <div v-for="entry in recentTransactions" :key="entry.id" class="flex min-w-0 items-center justify-between gap-3 px-4 py-3">
               <div class="min-w-0">
-                <strong class="block truncate text-sm">{{ entry.description }}</strong>
-                <span class="mt-1 block truncate text-xs text-base-content/55">{{ entry.entryNumber }} · {{ transactionSource(entry) }} · {{ formatDateTime(entry.postedAt) }}</span>
+                <strong class="block truncate text-sm">{{ $ui(entry.description) }}</strong>
+                <span class="mt-1 block truncate text-xs text-base-content/55">{{ entry.entryNumber }} · {{ $ui(transactionSource(entry)) }} · {{ formatDateTime(entry.postedAt) }}</span>
               </div>
               <span class="shrink-0 text-sm font-semibold tabular-nums">{{ money(journalAmount(entry)) }}</span>
             </div>

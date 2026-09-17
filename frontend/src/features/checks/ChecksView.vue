@@ -364,7 +364,7 @@ function date(v: string) {
               @click="transition(value)"
               class="btn btn-sm"
              :disabled="busy">
-              <RotateCcw :size="14" /> {{ value }}
+              <RotateCcw :size="14" /> {{ $ui(value) }}
             </button>
           </div>
           <InspectorSection :title='$t("Lifecycle history")'>
@@ -374,7 +374,7 @@ function date(v: string) {
               </thead>
               <tbody>
                 <tr v-for="event in history" :key="event.id">
-                  <DataTableCell><strong>{{ event.fromStatus }} → {{ event.toStatus }}</strong></DataTableCell>
+                  <DataTableCell><strong>{{ $ui(event.fromStatus) }} → {{ $ui(event.toStatus) }}</strong></DataTableCell>
                   <DataTableCell>{{ date(event.occurredAt) }}</DataTableCell>
                   <DataTableCell>
                     <span v-if="event.note" class="me-2 text-xs text-base-content/60">{{ event.note }}</span>

@@ -102,7 +102,7 @@ watch([activeTab, start, end], load)
         <div class="flex h-10 min-w-0 items-center gap-2 px-1">
           <BarChart3 :size="17" class="shrink-0 text-primary" aria-hidden="true" />
           <div class="min-w-0">
-            <strong class="block truncate text-sm">{{ activeLabel }}</strong>
+            <strong class="block truncate text-sm">{{ $ui(activeLabel) }}</strong>
             <span class="block truncate text-xs text-base-content/55">{{ $t("Choose a reporting period; the report updates automatically.") }}</span>
           </div>
         </div>
@@ -132,7 +132,7 @@ watch([activeTab, start, end], load)
         </article>
       </section>
 
-      <AppPanel :title="activeLabel" :subtitle="$ui(`${report?.startDate || ''} → ${report?.endDate || ''} · values supplied by Go`)" :flush="true">
+      <AppPanel :title="$ui(activeLabel)" :subtitle="$ui(`${report?.startDate || ''} → ${report?.endDate || ''} · values supplied by Go`)" :flush="true">
         <template #action><span class="text-xs text-base-content/55">{{ rowCount }} {{ $t("rows") }}</span></template>
         <DataTable :label='$t("Report data")'>
           <thead>
@@ -156,7 +156,7 @@ watch([activeTab, start, end], load)
 
     <Teleport to="body">
       <div v-if="report" class="print-output">
-        <ReportPrintDocument :report="report" :title="activeLabel" :currency-unit="props.currencyUnit" />
+        <ReportPrintDocument :report="report" :title="$ui(activeLabel)" :currency-unit="props.currencyUnit" />
       </div>
     </Teleport>
   </div>

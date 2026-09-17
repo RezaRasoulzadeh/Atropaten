@@ -133,7 +133,7 @@ function allocated(payment: PaymentRecord) {
             <button class="absolute inset-y-1 end-1 rounded px-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40" type="button" :disabled="busy || !loaded || !available" :aria-label='$t("Use maximum payment amount")' @click="amount = formatMoneyInput(available, currencyUnit)">{{ $t("Max") }}</button>
           </div>
           <div class="payment-slider mt-2 w-full overflow-visible">
-            <input class="range range-primary range-sm w-full" type="range" min="0" max="100" step="5" :value="paymentSliderValue" :disabled="busy || !loaded || !available" :aria-label='$t("Payment amount percentage slider")' :aria-valuetext="`${Math.round(paymentSliderValue)}% of available unpaid balance`" @input="updatePaymentSlider" />
+            <input class="range range-primary range-sm w-full" type="range" min="0" max="100" step="5" :value="paymentSliderValue" :disabled="busy || !loaded || !available" :aria-label='$t("Payment amount percentage slider")' :aria-valuetext="$ui(`${Math.round(paymentSliderValue)}% of available unpaid balance`)" @input="updatePaymentSlider" />
             <div class="mt-1 grid w-full grid-cols-5 px-2.5 text-center text-[10px] leading-3 text-base-content/40" aria-hidden="true"><span v-for="tick in [0, 25, 50, 75, 100]" :key="tick">|</span></div>
             <div class="mt-1 grid w-full grid-cols-5 px-2.5 text-center text-xs leading-4 text-base-content/50" aria-hidden="true"><span v-for="tick in [0, 25, 50, 75, 100]" :key="tick">{{ tick }}</span></div>
           </div>

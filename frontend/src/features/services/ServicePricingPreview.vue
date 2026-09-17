@@ -76,7 +76,7 @@ const methodLabel = computed(() => ({ markup: 'Markup', 'fixed-margin': 'Fixed m
     </ServiceOverviewSection>
 
     <ServiceOverviewSection :title='$t("Selling price")' :description='$t("The current selling-price result for this service.")'>
-      <div class="flex items-center justify-between gap-3 text-sm"><span>{{ methodLabel }}{{ $ui(pricingRule.type === 'markup' ? ` (${pricingRule.markupPercentage || 0}%)` : '') }}</span><span v-if="pricingRule.type === 'markup'" class="tabular-nums">{{ formatMoney(markupAmount, currencyUnit) }}</span><span v-else-if="pricingRule.type === 'fixed-margin'" class="tabular-nums">{{ formatMoney(pricingRule.fixedMarginRial, currencyUnit) }}</span></div>
+      <div class="flex items-center justify-between gap-3 text-sm"><span>{{ $ui(methodLabel) }}{{ $ui(pricingRule.type === 'markup' ? ` (${pricingRule.markupPercentage || 0}%)` : '') }}</span><span v-if="pricingRule.type === 'markup'" class="tabular-nums">{{ formatMoney(markupAmount, currencyUnit) }}</span><span v-else-if="pricingRule.type === 'fixed-margin'" class="tabular-nums">{{ formatMoney(pricingRule.fixedMarginRial, currencyUnit) }}</span></div>
       <div class="mt-3 flex items-center justify-between gap-3 border-t border-base-300/75 pt-2.5"><span class="font-semibold">{{ $t("Selling price") }}</span><strong class="text-lg text-success tabular-nums">{{ $ui(pricingRule.type === 'manual' ? 'Set in order' : !selectedSellingPriceReady ? 'Needs setup' : formatMoney(sellingPrice, currencyUnit)) }}</strong></div>
     </ServiceOverviewSection>
 

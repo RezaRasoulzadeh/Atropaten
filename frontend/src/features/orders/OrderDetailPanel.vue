@@ -144,7 +144,7 @@ function itemCount(order: OrderRecord) {
             <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">{{ $t("Contact") }}</dt><dd class="truncate text-end">{{ $ui(order.customerPhone || 'No contact details') }}</dd></div>
             <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">{{ $t("Created") }}</dt><dd class="text-end">{{ formatDateTime(order.createdAt) }}</dd></div>
             <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">{{ $t("Promised") }}</dt><dd class="text-end">{{ $ui(order.promisedAt ? formatDateTime(order.promisedAt) : 'Not set') }}</dd></div>
-            <div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-base-content/60">{{ $t("Fulfillment") }}</dt><dd class="text-end">{{ order.fulfillmentStatus }}</dd></div>
+            <div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-base-content/60">{{ $t("Fulfillment") }}</dt><dd class="text-end">{{ $ui(order.fulfillmentStatus) }}</dd></div>
           </dl>
         </div>
 
@@ -159,7 +159,7 @@ function itemCount(order: OrderRecord) {
       <div v-else class="space-y-2">
         <div v-for="item in order.items" :key="item.id" class="flex min-w-0 items-center gap-3 rounded-box border border-base-300 bg-base-200/20 px-3 py-2.5">
           <span class="grid size-9 shrink-0 place-items-center rounded-box bg-base-200 text-primary"><Package :size="18" aria-hidden="true" /></span>
-          <div class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ $ui(item.serviceName || 'Service item') }}</strong><span class="block truncate text-xs text-base-content/55">{{ $ui(item.serviceCode || 'No code') }} · {{ item.quantity }} {{ item.quantityUnit }}</span></div>
+          <div class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ $ui(item.serviceName || 'Service item') }}</strong><span class="block truncate text-xs text-base-content/55">{{ $ui(item.serviceCode || 'No code') }} · {{ item.quantity }} {{ $ui(item.quantityUnit) }}</span></div>
           <span class="shrink-0 text-sm font-medium tabular-nums">{{ money(item.sellingPriceRial) }}</span>
         </div>
         <div v-if="!order.items.length" class="rounded-box border border-dashed border-base-300 p-8 text-center text-sm text-base-content/60">{{ $t("No configured items.") }}</div>

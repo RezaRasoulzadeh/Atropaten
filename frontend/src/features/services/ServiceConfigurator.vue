@@ -350,14 +350,14 @@ function typeLabel(type: string) {
               <DataTableCell
                 ><span class="block font-medium">{{ component.name }}</span
                 ><span class="block text-xs text-base-content/60">{{
-                  component.type
+                  $ui(component.type)
                 }}</span></DataTableCell
               ><DataTableCell numeric
                 >{{ $ui(component.enabled ? component.usageQuantity : '—')
                 }}<span v-if="component.percentage !== '0'">
                   · {{ component.percentage }}%</span
                 ></DataTableCell
-              ><DataTableCell>{{ component.explanation }}</DataTableCell
+              ><DataTableCell>{{ $ui(component.explanation) }}</DataTableCell
               ><DataTableCell numeric>{{ money(component.amountRial) }}</DataTableCell>
             </tr>
           </tbody></DataTable

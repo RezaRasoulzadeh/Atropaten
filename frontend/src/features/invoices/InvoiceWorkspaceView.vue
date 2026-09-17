@@ -208,7 +208,7 @@ async function remove() {
               <tbody>
                 <tr v-for="line in invoice.items" :key="line.id">
                   <DataTableCell><span class="block min-w-44 whitespace-normal font-medium">{{ line.description }}</span></DataTableCell>
-                  <DataTableCell>{{ formatQuantityUnits(line.quantity) }} {{ line.quantityUnit }}</DataTableCell>
+                  <DataTableCell>{{ formatQuantityUnits(line.quantity) }} {{ $ui(line.quantityUnit) }}</DataTableCell>
                   <DataTableCell numeric>{{ formatMoney(line.unitPriceRial, props.currencyUnit) }}</DataTableCell>
                   <DataTableCell numeric><strong>{{ formatMoney(line.lineTotalRial, props.currencyUnit) }}</strong></DataTableCell>
                 </tr>

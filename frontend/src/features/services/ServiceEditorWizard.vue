@@ -291,7 +291,7 @@ watch(
               <div class="flex items-center justify-between gap-3 py-2.5 first:pt-0 text-sm"><dt class="text-base-content/60">{{ $t("Setup") }}</dt><dd>{{ $ui(form.parameters.length ? `${form.parameters.length} input${form.parameters.length === 1 ? '' : 's'}` : 'Not configured yet') }}</dd></div>
               <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">{{ $t("Costs") }}</dt><dd>{{ $ui(form.components.length ? `${form.components.length} component${form.components.length === 1 ? '' : 's'}` : 'Not configured yet') }}</dd></div>
               <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">{{ $t("Unit") }}</dt><dd>{{ $ui(form.defaultUnit) }}</dd></div>
-              <div class="flex items-center justify-between gap-3 py-2.5 last:pb-0 text-sm"><dt class="text-base-content/60">{{ $t("Default priority") }}</dt><dd>{{ form.defaultPriority }}</dd></div>
+              <div class="flex items-center justify-between gap-3 py-2.5 last:pb-0 text-sm"><dt class="text-base-content/60">{{ $t("Default priority") }}</dt><dd>{{ $ui(form.defaultPriority) }}</dd></div>
             </dl>
           </ServiceOverviewSection>
           <ServiceOverviewSection v-if="form.description" :title='$t("Description")'>

@@ -430,7 +430,7 @@ reportError(error);
           <div class="min-h-0 flex-1 space-y-2 overflow-y-auto pt-3">
             <div v-for="item in [...order.items].sort((a, b) => a.position - b.position)" :key="item.id" class="flex min-w-0 items-center gap-2 rounded-box border border-base-300 bg-base-200/20 p-2.5">
               <span class="grid size-8 shrink-0 place-items-center rounded-box bg-base-200 text-xs font-semibold text-base-content/60">{{ item.position + 1 }}</span>
-              <span class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ item.serviceName }}</strong><span class="block truncate text-xs text-base-content/55">{{ item.quantity }} {{ item.quantityUnit }}<template v-if="item.notes"> · {{ item.notes }}</template></span></span>
+              <span class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ item.serviceName }}</strong><span class="block truncate text-xs text-base-content/55">{{ item.quantity }} {{ $ui(item.quantityUnit) }}<template v-if="item.notes"> · {{ item.notes }}</template></span></span>
               <span class="shrink-0 text-end"><strong class="block text-sm text-primary">{{ money(item.sellingPriceRial) }}</strong><span class="block text-[0.68rem] text-base-content/50">{{ money(item.estimatedCostRial) }} {{ $t("cost") }}</span></span>
               <div class="flex shrink-0 items-center gap-0.5"><button class="btn btn-ghost btn-square btn-xs" type="button" :aria-label='$t("Edit order item")' :title='$t("Edit item")' :disabled="busy" @click="editItem(item)"><Pencil :size="14" aria-hidden="true" /></button><button class="btn btn-ghost btn-error btn-square btn-xs" type="button" :aria-label='$t("Remove order item")' :title='$t("Remove item")' :disabled="busy" @click="remove(item)"><Trash2 :size="14" aria-hidden="true" /></button></div>
             </div>
@@ -608,7 +608,7 @@ reportError(error);
               <h2 class="text-sm font-semibold">{{ $t("Configured services") }}</h2>
               <ul class="mt-3 divide-y divide-base-300/70">
                 <li v-for="item in [...order.items].sort((a, b) => a.position - b.position)" :key="item.id" class="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-                  <span class="min-w-0"><strong class="block truncate text-sm">{{ item.serviceName }}</strong><small class="mt-0.5 block text-xs text-base-content/55">{{ item.quantity }} {{ item.quantityUnit }}</small></span>
+                  <span class="min-w-0"><strong class="block truncate text-sm">{{ item.serviceName }}</strong><small class="mt-0.5 block text-xs text-base-content/55">{{ item.quantity }} {{ $ui(item.quantityUnit) }}</small></span>
                   <strong class="shrink-0 text-sm text-primary">{{ money(item.sellingPriceRial) }}</strong>
                 </li>
               </ul>

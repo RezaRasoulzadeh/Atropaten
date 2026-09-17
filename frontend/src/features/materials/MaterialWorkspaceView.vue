@@ -129,7 +129,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
           <FormField class="gap-1 sm:col-span-2">
             <span class="text-xs">{{ $t("Conversion factor") }}</span>
             <AppInput v-model="form.conversionFactor" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="500" />
-            <small class="text-xs text-base-content/60">1 {{ form.purchaseUnit }} = {{ $ui(form.conversionFactor || '…') }} {{ $ui(form.consumptionUnit) }}</small>
+            <small class="text-xs text-base-content/60">1 {{ $ui(form.purchaseUnit) }} = {{ $ui(form.conversionFactor || '…') }} {{ $ui(form.consumptionUnit) }}</small>
           </FormField>
           <FormField class="gap-1">
             <span class="text-xs">{{ $t("Opening physical stock") }}</span>
@@ -141,7 +141,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
             <AppInput v-model="form.reorderLevel" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="0" />
           </FormField>
           <FormField v-if="isCreating" class="gap-1 sm:col-span-2">
-            <span class="text-xs">{{ $t("Opening unit cost /") }} {{ $ui(form.consumptionUnit) }} ({{ props.currencyUnit }})</span>
+            <span class="text-xs">{{ $t("Opening unit cost /") }} {{ $ui(form.consumptionUnit) }} ({{ $ui(props.currencyUnit) }})</span>
             <AppInput :model-value="costDraft" :money="props.currencyUnit" type="text" inputmode="decimal" placeholder="0" @update:model-value="updateCost" />
             <small class="text-xs text-base-content/60">{{ $t("Used for opening stock only. After a purchase is posted, pricing uses the highest landed purchase cost automatically.") }}</small>
           </FormField>
@@ -167,7 +167,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
           <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
             <span class="block text-xs text-base-content/60">{{ $t("Physical stock") }}</span>
             <strong class="mt-1 block text-xl leading-6 tabular-nums">{{ selectedMaterial.physicalStock }}</strong>
-            <span class="mt-1 block text-xs text-base-content/55">{{ selectedMaterial.consumptionUnit }}</span>
+            <span class="mt-1 block text-xs text-base-content/55">{{ $ui(selectedMaterial.consumptionUnit) }}</span>
           </div>
           <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
             <span class="block text-xs text-base-content/60">{{ $t("Available stock") }}</span>
@@ -182,7 +182,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
           <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
             <span class="block text-xs text-base-content/60">{{ $t("Inventory average") }}</span>
             <strong class="mt-1 block truncate text-sm font-semibold">{{ formatMoney(selectedMaterial.averageUnitCostRial, props.currencyUnit) }}</strong>
-            <span class="mt-1 block text-xs text-base-content/55">{{ $t("valuation per") }} {{ selectedMaterial.consumptionUnit }}</span>
+            <span class="mt-1 block text-xs text-base-content/55">{{ $t("valuation per") }} {{ $ui(selectedMaterial.consumptionUnit) }}</span>
           </div>
           <div class="rounded-box border border-base-300 bg-base-200/45 p-3">
             <span class="block text-xs text-base-content/60">{{ $t("Inventory value") }}</span>
@@ -204,7 +204,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
               </div>
               <div>
                 <dt class="text-xs text-base-content/60">{{ $t("Reorder level") }}</dt>
-                <dd class="mt-1 font-medium tabular-nums">{{ selectedMaterial.reorderLevel }} {{ selectedMaterial.consumptionUnit }}</dd>
+                <dd class="mt-1 font-medium tabular-nums">{{ selectedMaterial.reorderLevel }} {{ $ui(selectedMaterial.consumptionUnit) }}</dd>
               </div>
               <div>
                 <dt class="text-xs text-base-content/60">{{ $t("Last updated") }}</dt>
@@ -229,7 +229,7 @@ const isEditing = computed(() => editorMode.value === 'edit');
             <small class="text-xs text-base-content/60">{{ $t("Positive adds stock; negative records a correction or return.") }}</small>
           </FormField>
           <FormField class="gap-1">
-            <span class="text-xs">{{ $t("Unit cost (") }}{{ props.currencyUnit }})</span>
+            <span class="text-xs">{{ $t("Unit cost (") }}{{ $ui(props.currencyUnit) }})</span>
             <AppInput
               :model-value="adjustmentCost"
               :money="props.currencyUnit"
@@ -265,17 +265,17 @@ const isEditing = computed(() => editorMode.value === 'edit');
           <tbody>
             <tr v-for="movement in movements" :key="movement.id">
               <DataTableCell>
-                <strong class="block">{{ movement.movementType }}</strong>
+                <strong class="block">{{ $ui(movement.movementType) }}</strong>
                 <span class="block text-xs text-base-content/60">{{ dateLabel(movement.occurredAt) }}</span>
               </DataTableCell>
               <DataTableCell numeric :class="String(movement.quantityDelta).startsWith('-') ? 'text-error' : 'text-success'">
-                {{ movement.quantityDelta }} {{ selectedMaterial.consumptionUnit }}
+                {{ movement.quantityDelta }} {{ $ui(selectedMaterial.consumptionUnit) }}
               </DataTableCell>
               <DataTableCell numeric>{{ formatMoney(movement.unitCostRial, props.currencyUnit) }}</DataTableCell>
               <DataTableCell numeric>{{ formatMoney(movement.totalCostRial, props.currencyUnit) }}</DataTableCell>
               <DataTableCell>
                 <span class="block max-w-64 whitespace-normal break-words">{{ $ui(movement.note || movement.referenceType || '—') }}</span>
-                <span v-if="movement.referenceType && movement.note" class="block text-xs text-base-content/55">{{ movement.referenceType }}</span>
+                <span v-if="movement.referenceType && movement.note" class="block text-xs text-base-content/55">{{ $ui(movement.referenceType) }}</span>
               </DataTableCell>
             </tr>
           </tbody>

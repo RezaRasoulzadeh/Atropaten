@@ -62,7 +62,7 @@ const money = (value: number) => formatMoney(value, props.currencyUnit);
       <template v-if="hasActivity">
         <div class="flex justify-between gap-2 text-xs text-base-content/60">
           <span>{{ money(bounds.max) }}</span
-          ><span>{{ $t("Daily") }} {{ currencyUnit }}</span>
+          ><span>{{ $t("Daily") }} {{ $ui(currencyUnit) }}</span>
         </div>
         <svg
           viewBox="0 0 600 180"

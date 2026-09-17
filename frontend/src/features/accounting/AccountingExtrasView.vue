@@ -309,7 +309,7 @@ reportError(e);
             <StatusBadge :label="entry.kind" :tone="entry.kind === 'Expense' ? 'blue' : 'amber'" />
             <strong class="truncate text-sm">{{ entry.number }}</strong>
           </div>
-          <p class="mt-1 break-words text-sm text-base-content/80">{{ entry.description }}</p>
+          <p class="mt-1 break-words text-sm text-base-content/80">{{ $ui(entry.description) }}</p>
         </div>
       </template>
       <template #meta>

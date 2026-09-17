@@ -231,7 +231,7 @@ function pricingLabel(type?: string) {
         <div class="relative z-10 flex min-h-52 items-end justify-start p-4 sm:min-h-60 sm:p-5">
           <div class="w-full min-w-0 text-start text-white">
             <div class="flex min-w-0 items-center justify-start gap-3"><h2 class="min-w-0 truncate text-xl font-semibold sm:text-2xl">{{ service.name }}</h2><StatusBadge class="shrink-0" :label="$ui(service.active ? 'Active' : 'Archived')" :tone="service.active ? 'green' : 'slate'" /></div>
-            <div class="mt-2 flex min-w-0 flex-wrap items-center justify-start gap-x-3 gap-y-1 text-sm text-white/75"><span>{{ $ui(service.code || 'No code') }}</span><span class="size-1 rounded-full bg-white/50" aria-hidden="true"></span><span>{{ categoryLabel }}</span></div>
+            <div class="mt-2 flex min-w-0 flex-wrap items-center justify-start gap-x-3 gap-y-1 text-sm text-white/75"><span>{{ $ui(service.code || 'No code') }}</span><span class="size-1 rounded-full bg-white/50" aria-hidden="true"></span><span>{{ $ui(categoryLabel) }}</span></div>
             <p v-if="service.description" class="mt-3 max-w-prose text-sm leading-6 text-white/75">{{ service.description }}</p>
           </div>
         </div>
@@ -245,7 +245,7 @@ function pricingLabel(type?: string) {
       </div>
 
       <div class="mt-4 grid min-w-0 divide-y divide-base-300 border-y border-base-300 sm:mt-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        <div class="flex items-center gap-3 py-3 sm:px-3 sm:first:pl-0"><Tag :size="20" class="shrink-0 text-primary" aria-hidden="true" /><div><span class="block text-xs text-base-content/55">{{ $t("Price preview") }}</span><strong class="block text-sm">{{ priceSummary }}</strong></div></div>
+        <div class="flex items-center gap-3 py-3 sm:px-3 sm:first:pl-0"><Tag :size="20" class="shrink-0 text-primary" aria-hidden="true" /><div><span class="block text-xs text-base-content/55">{{ $t("Price preview") }}</span><strong class="block text-sm">{{ $ui(priceSummary) }}</strong></div></div>
         <div class="flex items-center gap-3 py-3 sm:px-3"><Package :size="20" class="shrink-0 text-primary" aria-hidden="true" /><div><span class="block text-xs text-base-content/55">{{ $t("Default unit") }}</span><strong class="block text-sm">{{ $ui(service.defaultUnit || 'piece') }}</strong></div></div>
         <div class="flex items-center gap-3 py-3 sm:px-3 sm:pr-0"><Flag :size="20" class="shrink-0 text-primary" aria-hidden="true" /><div><span class="block text-xs text-base-content/55">{{ $t("Priority") }}</span><strong class="block text-sm">{{ $ui(service.defaultPriority || 'Normal') }}</strong></div></div>
       </div>
@@ -269,7 +269,7 @@ function pricingLabel(type?: string) {
         </div>
         <div v-for="parameter in parameters" :key="parameter.id" class="flex min-w-0 items-center gap-3 rounded-box border border-base-300 bg-base-200/20 px-3 py-2.5">
           <span class="grid size-9 shrink-0 place-items-center rounded-box bg-base-200 text-primary"><component :is="parameterIcon(parameter.type)" :size="19" aria-hidden="true" /></span>
-          <div class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ parameterLabel(parameter) }}</strong><span class="block truncate text-xs text-base-content/55">{{ parameterSummary(parameter) }}</span></div>
+          <div class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ $ui(parameterLabel(parameter)) }}</strong><span class="block truncate text-xs text-base-content/55">{{ $ui(parameterSummary(parameter)) }}</span></div>
           <div class="flex shrink-0 items-center gap-2"><span v-if="parameter.required" class="text-xs text-error">{{ $t("Required") }}</span><ChevronRight :size="16" class="text-base-content/45" aria-hidden="true" /></div>
         </div>
         <div v-if="!parameters.length" class="rounded-box border border-dashed border-base-300 p-8 text-center text-sm text-base-content/60">{{ $t("No order inputs configured for this service.") }}</div>
@@ -278,7 +278,7 @@ function pricingLabel(type?: string) {
       <div v-else-if="activeTab === 'components'" class="space-y-2">
         <div v-for="component in components" :key="component.id" class="flex min-w-0 items-center gap-3 rounded-box border border-base-300 bg-base-200/20 px-3 py-2.5">
           <span class="grid size-9 shrink-0 place-items-center rounded-box bg-base-200 text-primary"><component :is="componentIcon(component.type)" :size="18" aria-hidden="true" /></span>
-          <div class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ $ui(component.name || 'Cost component') }}</strong><span class="block truncate text-xs text-base-content/55">{{ $ui(componentTypeLabel(component.type)) }} · {{ componentReference(component) }}</span></div>
+          <div class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ $ui(component.name || 'Cost component') }}</strong><span class="block truncate text-xs text-base-content/55">{{ $ui(componentTypeLabel(component.type)) }} · {{ $ui(componentReference(component)) }}</span></div>
           <span v-if="!component.enabled" class="badge badge-ghost shrink-0 text-xs">{{ $t("Disabled") }}</span><span v-else-if="component.type !== 'overhead' && component.type !== 'waste' && componentAmount(component)" class="shrink-0 text-sm tabular-nums">{{ formatMoney(componentAmount(component), currencyUnit) }}</span>
         </div>
         <div v-if="!components.length" class="rounded-box border border-dashed border-base-300 p-8 text-center text-sm text-base-content/60">{{ $ui(categoryRequirements.material || categoryRequirements.machine ? 'Required cost setup is not configured yet.' : 'No cost components needed for this category.') }}</div>
@@ -294,7 +294,7 @@ function pricingLabel(type?: string) {
       </div>
 
       <div v-else class="space-y-3">
-        <div class="rounded-box border border-base-300 bg-base-200/20 p-4"><div class="flex items-start gap-3"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><FileText :size="18" aria-hidden="true" /></span><div><h3 class="text-sm font-semibold">{{ $t("Service information") }}</h3><p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Catalog identity and default behavior.") }}</p></div></div><dl class="mt-4 divide-y divide-base-300/70 text-sm"><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">{{ $t("Code") }}</dt><dd>{{ $ui(service.code || 'No code') }}</dd></div><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">{{ $t("Category") }}</dt><dd>{{ categoryLabel }}</dd></div><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">{{ $t("Created") }}</dt><dd>{{ formatDateTime(service.createdAt) }}</dd></div><div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-base-content/60">{{ $t("Updated") }}</dt><dd>{{ formatDateTime(service.updatedAt) }}</dd></div></dl></div>
+        <div class="rounded-box border border-base-300 bg-base-200/20 p-4"><div class="flex items-start gap-3"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><FileText :size="18" aria-hidden="true" /></span><div><h3 class="text-sm font-semibold">{{ $t("Service information") }}</h3><p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Catalog identity and default behavior.") }}</p></div></div><dl class="mt-4 divide-y divide-base-300/70 text-sm"><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">{{ $t("Code") }}</dt><dd>{{ $ui(service.code || 'No code') }}</dd></div><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">{{ $t("Category") }}</dt><dd>{{ $ui(categoryLabel) }}</dd></div><div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">{{ $t("Created") }}</dt><dd>{{ formatDateTime(service.createdAt) }}</dd></div><div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-base-content/60">{{ $t("Updated") }}</dt><dd>{{ formatDateTime(service.updatedAt) }}</dd></div></dl></div>
         <div v-if="service.description" class="rounded-box border border-base-300 bg-base-200/20 p-4"><h3 class="text-sm font-semibold">{{ $t("Description") }}</h3><p class="mt-2 text-sm leading-6 text-base-content/70">{{ service.description }}</p></div>
         <div class="flex items-start gap-2 border-t border-base-300 pt-3 text-xs leading-5 text-base-content/60"><CircleHelp :size="15" class="mt-0.5 shrink-0 text-info" aria-hidden="true" /><span>{{ $t("Use Edit to change the service definition and its pricing setup.") }}</span></div>
       </div>

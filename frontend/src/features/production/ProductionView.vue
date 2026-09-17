@@ -133,7 +133,7 @@ function openWorkspace() {
             <ChevronRight :size="17" class="register-row-arrow justify-self-end text-base-content/45"
               aria-hidden="true" /><span
               class="col-span-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/55 md:hidden"><span>{{
-                job.serviceName }}</span><span>{{ job.quantity }} {{ job.quantityUnit }}</span><span>{{ jobContext(job)
+                job.serviceName }}</span><span>{{ job.quantity }} {{ $ui(job.quantityUnit) }}</span><span>{{ jobContext(job)
                 }}</span></span>
           </button></div>
         <EmptyState v-else :title="$ui(jobs.length ? 'No jobs match this view' : 'Production queue is empty')"

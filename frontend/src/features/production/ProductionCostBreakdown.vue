@@ -35,7 +35,7 @@ function money(value: number) {
         <dt class="text-xs text-base-content/60">
           {{ $t("Outsourcing") }}
           <span v-if="Number(job.outsourceQuantity) > 0" class="mt-0.5 block text-base-content/45">
-            {{ job.outsourceQuantity }} {{ job.quantityUnit }} × {{ money(job.outsourceUnitCostRial) }} / {{ job.quantityUnit }}
+            {{ job.outsourceQuantity }} {{ $ui(job.quantityUnit) }} × {{ money(job.outsourceUnitCostRial) }} / {{ $ui(job.quantityUnit) }}
           </span>
         </dt>
         <dd class="whitespace-nowrap tabular-nums">{{ money(job.actualOutsourcedCostRial) }}</dd>

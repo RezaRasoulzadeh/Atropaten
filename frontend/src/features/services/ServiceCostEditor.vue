@@ -257,7 +257,7 @@ function usesFixedQuantitySourceSelector() {
         <div v-if="componentNeedsRate(component.type)" class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
           <div><h4 class="text-sm font-semibold">{{ $t("What does it cost?") }}</h4><p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Enter the rate for this cost. Material and machine rates come from their records.") }}</p></div>
           <FormGrid>
-            <FormField><span>{{ $ui(component.type === 'manual' ? 'Manual amount' : 'Rate') }} ({{ currencyUnit }})</span><AppInput :model-value="component.rateInput" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.rateInput.trim() }" :money="currencyUnit" type="text" inputmode="decimal" placeholder="0" @update:model-value="emit('changeRate', $event)" /></FormField>
+            <FormField><span>{{ $ui(component.type === 'manual' ? 'Manual amount' : 'Rate') }} ({{ $ui(currencyUnit) }})</span><AppInput :model-value="component.rateInput" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.rateInput.trim() }" :money="currencyUnit" type="text" inputmode="decimal" placeholder="0" @update:model-value="emit('changeRate', $event)" /></FormField>
             <SelectField v-if="component.type === 'labor' || component.type === 'outsourced'" v-model="component.rateBasis" :label='$t("Rate is charged per")' :options="[{ label: 'Unit', value: 'unit' }, { label: 'Minute', value: 'minute' }, { label: 'Hour', value: 'hour' }]" />
           </FormGrid>
         </div>

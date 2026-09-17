@@ -744,7 +744,7 @@ function save() {
                   :model-value="values[parameter.key] || ''"
                   :class="{ 'input-error': parameterIsMissing(parameter) }"
                   :type="parameter.type === 'integer' ? 'number' : 'text'"
-                  :placeholder="parameter.defaultValue || parameter.type"
+                  :placeholder="$ui(parameter.defaultValue || parameter.type)"
                   @update:model-value="setValue(parameter.key, $event)"
                 />
                 <small v-if="parameter.unit" class="text-xs text-base-content/50">{{ $ui(parameter.unit) }}</small>
