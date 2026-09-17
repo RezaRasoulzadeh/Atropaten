@@ -114,6 +114,41 @@ func TestBackupRoundTripPreservesDatabaseAndManagedFiles(t *testing.T) {
 	}
 }
 
+func TestBackupIgnoresExternalLogoReference(t *testing.T) {
+	root := t.TempDir()
+	paths := platform.DataPaths{Root: root, Database: filepath.Join(root, "atropaten.db"), Attachments: filepath.Join(root, "attachments"), Backups: filepath.Join(root, "backups")}
+	if err := paths.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	store, err := Open(paths.Database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	logo := filepath.Join(t.TempDir(), "shop-logo.png")
+	if err = os.WriteFile(logo, []byte("external logo"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	settings, err := store.GetShopSettings(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings.LogoPath = logo
+	if err = store.SaveShopSettings(context.Background(), settings); err != nil {
+		t.Fatal(err)
+	}
+
+	service := platform.NewBackupService(paths, store, ValidateDatabaseFile)
+	backup, err := service.Create(context.Background())
+	if err != nil {
+		t.Fatalf("external logo reference must not block backup: %v", err)
+	}
+	if backup.ManagedFileCount != 0 {
+		t.Fatalf("managed file count=%d, external logo was included", backup.ManagedFileCount)
+	}
+}
+
 func TestBackupValidationRejectsCorruptMissingAndFutureArchives(t *testing.T) {
 	root := t.TempDir()
 	paths := platform.DataPaths{Root: root, Database: filepath.Join(root, "db"), Attachments: filepath.Join(root, "attachments"), Backups: filepath.Join(root, "backups")}

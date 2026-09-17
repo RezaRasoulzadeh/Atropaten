@@ -83,7 +83,11 @@ func (s *Store) SchemaVersion(ctx context.Context) (int, error) {
 }
 
 func (s *Store) ManagedFilePaths(ctx context.Context) ([]string, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT path FROM attachments WHERE trim(path) <> '' UNION SELECT value FROM shop_settings WHERE key='logo_path' AND trim(value) <> ''`)
+	// LogoPath is an external reference used by printed documents, not an
+	// Atropaten-owned file. Only attachment records are included in the
+	// archive; this keeps a valid logo path outside the app data directory from
+	// making backup creation fail on one operating system or another.
+	rows, err := s.db.QueryContext(ctx, `SELECT path FROM attachments WHERE trim(path) <> ''`)
 	if err != nil {
 		return nil, err
 	}
