@@ -57,6 +57,7 @@ func TestCustomerAndOrderPersistenceKeepsSnapshotsAndOrderNumbers(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer store.Close()
 	ctx := context.Background()
 	now := time.Date(2026, time.January, 12, 8, 0, 0, 0, time.UTC)
 	customer, err := domain.NewCustomer("CUS-1", domain.CustomerDraft{Name: "Mehr Studio", Phone: "+98 21 1"}, now)

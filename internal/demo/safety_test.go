@@ -25,11 +25,12 @@ func TestResetRequiresOurMarker(t *testing.T) {
 	}
 }
 
-func TestAssertIsolatedRootRejectsEmptyAndProductionRoot(t *testing.T) {
+func TestAssertIsolatedRootRejectsEmptyAndVolumeRoot(t *testing.T) {
 	if err := AssertIsolatedRoot(""); err == nil {
 		t.Fatal("empty root was accepted")
 	}
-	if err := AssertIsolatedRoot(filepath.Clean(filepath.Join(string(filepath.Separator), "tmp"))); err == nil {
+	volumeRoot := filepath.VolumeName(os.TempDir()) + string(filepath.Separator)
+	if err := AssertIsolatedRoot(volumeRoot); err == nil {
 		t.Fatal("unsafe broad root was accepted")
 	}
 }
