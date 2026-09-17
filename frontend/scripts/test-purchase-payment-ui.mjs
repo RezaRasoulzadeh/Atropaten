@@ -44,7 +44,7 @@ const result = await build({
     builder.onLoad({ filter: /\.vue$/ }, async ({ path }) => {
       // The shared dropdown hides its menu while closed. Render its supplied
       // options here so the bank/check choices can be asserted without a DOM.
-      if (path.endsWith('/SelectField.vue')) return {
+      if (path.replaceAll('\\', '/').endsWith('/SelectField.vue')) return {
         contents: `import { defineComponent, h } from 'vue'; export default defineComponent({ props: ['options'], setup: p => () => h('select', p.options.map(o => h('option', { value: o.value }, o.label))) })`,
         loader: 'js',
       }
