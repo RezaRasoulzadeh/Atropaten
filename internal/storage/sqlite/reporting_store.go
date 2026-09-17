@@ -196,7 +196,7 @@ func (s *Store) reportCashBank(ctx context.Context, r domain.Report, from, until
 }
 
 func (s *Store) reportReceivables(ctx context.Context, r domain.Report, from, until string) (domain.Report, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT COALESCE(jl.party_id,''),COALESCE(c.name,'Unassigned customer'),COALESCE(SUM(jl.debit_rial-jl.credit_rial),0),COALESCE(SUM(CASE WHEN je.posted_at>=? AND je.posted_at<? THEN jl.debit_rial ELSE 0 END),0),COALESCE((SELECT SUM(pa.amount_rial) FROM payment_allocations pa JOIN payments p ON p.id=pa.payment_id WHERE pa.target_type IN ('invoice','order') AND pa.reversed=0 AND p.status='posted' AND p.customer_id=jl.party_id),0),COALESCE((SELECT SUM(l2.credit_rial-l2.debit_rial) FROM journal_lines l2 WHERE l2.account_id='ACC-CUSTOMER-CREDIT' AND l2.party_id=jl.party_id),0) FROM journal_lines jl JOIN journal_entries je ON je.id=jl.journal_entry_id LEFT JOIN customers c ON c.id=jl.party_id WHERE jl.account_id='ACC-AR' GROUP BY jl.party_id,c.name ORDER BY c.name,jl.party_id`, from, until)
+	rows, err := s.db.QueryContext(ctx, receivableBalancesSQL, from, until, from, until)
 	if err != nil {
 		return r, err
 	}
@@ -219,6 +219,70 @@ func (s *Store) reportReceivables(ctx context.Context, r domain.Report, from, un
 	}
 	return addSummaries(r, domain.ReportSummary{Key: "receivable", Label: "Outstanding receivable", AmountRial: outstanding}, domain.ReportSummary{Key: "charges", Label: "Period receivable", AmountRial: charges}, domain.ReportSummary{Key: "allocated", Label: "Allocated payments", AmountRial: paid}, domain.ReportSummary{Key: "credit", Label: "Customer credit", AmountRial: credits}), nil
 }
+
+// Receivables are backed by both the accounting ledger and commercial orders.
+// Confirmed/closed orders are the receivable source until an active invoice is
+// posted; after that, the invoice's AR journal entry is authoritative. This
+// preserves direct order deposits while preventing an invoiced order from
+// being counted twice.
+const receivableBalancesSQL = `
+WITH ledger AS (
+	SELECT COALESCE(jl.party_id,'') AS customer_id,
+		COALESCE(c.name,'Unassigned customer') AS customer_name,
+		COALESCE(SUM(jl.debit_rial-jl.credit_rial),0) AS balance,
+		COALESCE(SUM(CASE WHEN je.posted_at>=? AND je.posted_at<? THEN jl.debit_rial ELSE 0 END),0) AS charges
+	FROM journal_lines jl
+	JOIN journal_entries je ON je.id=jl.journal_entry_id
+	LEFT JOIN customers c ON c.id=jl.party_id
+	WHERE jl.account_id='ACC-AR'
+	GROUP BY jl.party_id,c.name
+), order_balances AS (
+	SELECT COALESCE(o.customer_id,'') AS customer_id,
+		MAX(COALESCE(c.name,NULLIF(o.customer_name_snapshot,''),'Unassigned customer')) AS customer_name,
+		COALESCE(SUM(o.total_rial),0) AS balance,
+		COALESCE(SUM(CASE WHEN o.created_at>=? AND o.created_at<? THEN o.total_rial ELSE 0 END),0) AS charges
+	FROM orders o
+	LEFT JOIN customers c ON c.id=o.customer_id
+	WHERE o.commercial_status IN ('Confirmed','Closed')
+		AND NOT EXISTS (
+			SELECT 1 FROM invoices i
+			WHERE i.order_id=o.id AND i.status IN ('Posted','Partially Paid','Paid')
+		)
+	GROUP BY o.customer_id
+), payment_balances AS (
+	SELECT COALESCE(NULLIF(p.customer_id,''),NULLIF(o.customer_id,''),NULLIF(i.customer_id,''),'') AS customer_id,
+		COALESCE(SUM(pa.amount_rial),0) AS amount
+	FROM payment_allocations pa
+	JOIN payments p ON p.id=pa.payment_id
+	LEFT JOIN orders o ON pa.target_type='order' AND o.id=pa.target_id
+	LEFT JOIN invoices i ON pa.target_type='invoice' AND i.id=pa.target_id
+	WHERE pa.target_type IN ('invoice','order') AND pa.reversed=0 AND p.status='posted'
+	GROUP BY COALESCE(NULLIF(p.customer_id,''),NULLIF(o.customer_id,''),NULLIF(i.customer_id,''),'')
+), credit_balances AS (
+	SELECT COALESCE(l.party_id,'') AS customer_id,
+		COALESCE(SUM(l.credit_rial-l.debit_rial),0) AS amount
+	FROM journal_lines l
+	WHERE l.account_id='ACC-CUSTOMER-CREDIT' AND l.party_type='customer'
+	GROUP BY l.party_id
+), parties AS (
+	SELECT customer_id FROM ledger
+	UNION SELECT customer_id FROM order_balances
+	UNION SELECT customer_id FROM payment_balances
+	UNION SELECT customer_id FROM credit_balances
+)
+SELECT p.customer_id,
+	COALESCE(c.name,NULLIF(ob.customer_name,''),NULLIF(l.customer_name,''),'Unassigned customer') AS customer_name,
+	COALESCE(l.balance,0)+COALESCE(ob.balance,0) AS balance,
+	COALESCE(l.charges,0)+COALESCE(ob.charges,0) AS charges,
+	COALESCE(pb.amount,0) AS payment,
+	COALESCE(cb.amount,0) AS credit
+FROM parties p
+LEFT JOIN customers c ON c.id=p.customer_id
+LEFT JOIN ledger l ON l.customer_id=p.customer_id
+LEFT JOIN order_balances ob ON ob.customer_id=p.customer_id
+LEFT JOIN payment_balances pb ON pb.customer_id=p.customer_id
+LEFT JOIN credit_balances cb ON cb.customer_id=p.customer_id
+ORDER BY customer_name,p.customer_id`
 
 func (s *Store) reportPayables(ctx context.Context, r domain.Report, from, until string) (domain.Report, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT COALESCE(jl.party_id,''),COALESCE(s.name,'Unassigned supplier'),COALESCE(SUM(jl.credit_rial-jl.debit_rial),0),COALESCE(SUM(CASE WHEN je.posted_at>=? AND je.posted_at<? THEN jl.credit_rial ELSE 0 END),0),COALESCE((SELECT SUM(pa.amount_rial) FROM payment_allocations pa JOIN payments p ON p.id=pa.payment_id WHERE pa.target_type='purchase' AND pa.reversed=0 AND p.status='posted' AND p.supplier_id=jl.party_id),0) FROM journal_lines jl JOIN journal_entries je ON je.id=jl.journal_entry_id LEFT JOIN suppliers s ON s.id=jl.party_id WHERE jl.account_id='ACC-AP' GROUP BY jl.party_id,s.name ORDER BY s.name,jl.party_id`, from, until)
@@ -421,7 +485,7 @@ func (s *Store) Dashboard(ctx context.Context, start, end time.Time) (domain.Das
 	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(jl.debit_rial-jl.credit_rial),0) FROM journal_lines jl JOIN journal_entries je ON je.id=jl.journal_entry_id WHERE jl.account_id='ACC-BANK'`).Scan(&d.BankRial); err != nil {
 		return d, err
 	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(debit_rial-credit_rial),0) FROM journal_lines WHERE account_id='ACC-AR'`).Scan(&d.ReceivableRial); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(balance),0) FROM (`+receivableBalancesSQL+`) balances`, from, until, from, until).Scan(&d.ReceivableRial); err != nil {
 		return d, err
 	}
 	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(credit_rial-debit_rial),0) FROM journal_lines WHERE account_id='ACC-AP'`).Scan(&d.PayableRial); err != nil {

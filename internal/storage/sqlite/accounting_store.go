@@ -974,10 +974,11 @@ const purchaseCommittedTotalSQL = `SELECT
 	(SELECT COALESCE(SUM(amount_rial),0) FROM checks WHERE source_type='purchase' AND source_id=? AND direction='outgoing' AND status IN ('Issued','Delivered','Cleared') AND id<>?)`
 
 // CustomerFinancialSummary derives receivables and unapplied customer credit
-// from posted journal lines; no customer balance is stored or mutated.
+// from posted financial activity and eligible orders; no customer balance is
+// stored or mutated.
 func (s *Store) CustomerFinancialSummary(ctx context.Context, customerID string) (int64, int64, error) {
 	var receivable, credit int64
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(debit_rial-credit_rial),0) FROM journal_lines WHERE account_id='ACC-AR' AND party_type='customer' AND party_id=?`, customerID).Scan(&receivable); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(balance),0) FROM (`+receivableBalancesSQL+`) balances WHERE customer_id=?`, "", "", "", "", customerID).Scan(&receivable); err != nil {
 		return 0, 0, err
 	}
 	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(credit_rial-debit_rial),0) FROM journal_lines WHERE account_id='ACC-CUSTOMER-CREDIT' AND party_type='customer' AND party_id=?`, customerID).Scan(&credit); err != nil {

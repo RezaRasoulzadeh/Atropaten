@@ -31,6 +31,7 @@ import SelectField from '../../components/ui/SelectField.vue';
 import { ownersApi, type OwnerRecord } from '../../api/owners';
 import { confirmAction } from '../../ui/feedback';
 import { formatDateTime } from '../../utils/date';
+import { reportsApi, type ReportRecord } from '../../api/reports';
 
 const props = defineProps<{
   currencyUnit: CurrencyUnit;
@@ -41,6 +42,7 @@ const tab = ref('Overview');
 const accounts = ref<AccountRecord[]>([]);
 const financial = ref<FinancialAccountRecord[]>([]);
 const journal = ref<JournalEntryRecord[]>([]);
+const receivablesReport = ref<ReportRecord | null>(null);
 const owners = ref<OwnerRecord[]>([]);
 const accountFormOpen = ref(false);
 const accountForm = ref({
@@ -55,18 +57,19 @@ const accountForm = ref({
 });
 const editingAccount = computed(() => !!accountForm.value.id);
 const money = (v: number) => formatMoney(v, props.currencyUnit);
+const receivable = computed(() => receivablesReport.value?.summaries.find((summary) => summary.key === 'receivable')?.amountRial ?? 0);
 const totalAssets = computed(() =>
-  accounts.value.filter((a) => a.type === 'asset').reduce((n, a) => n + a.balanceRial, 0),
+  accounts.value.filter((a) => a.type === 'asset').reduce((n, a) => n + (a.code === '1100' ? receivable.value : a.balanceRial), 0),
 );
-const receivable = computed(() => accounts.value.find((a) => a.code === '1100')?.balanceRial ?? 0);
 const payable = computed(() => accounts.value.find((a) => a.code === '2000')?.balanceRial ?? 0);
 async function load() { return runLoad(async () => {
   try {
-    [accounts.value, financial.value, owners.value, journal.value] = await Promise.all([
+    [accounts.value, financial.value, owners.value, journal.value, receivablesReport.value] = await Promise.all([
       accountingApi.accounts(),
       accountingApi.financialAccounts(),
       ownersApi.list(false),
       accountingApi.journal(),
+      reportsApi.report('receivables', '', ''),
     ]);
   } catch (e) {
     reportError(e);

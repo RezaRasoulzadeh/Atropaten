@@ -1,6 +1,7 @@
 @font-face {
   font-family: "Estedad";
-  src: url("../assets/fonts/Estedad-VF.woff2") format("woff2");
+  /* Keep the font inside the release CSS, including offline WebView2 printing. */
+  src: url("../assets/fonts/Estedad-VF.woff2?inline") format("woff2");
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;

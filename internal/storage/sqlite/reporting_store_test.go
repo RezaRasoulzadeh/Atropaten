@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"Atropaten/internal/application"
 	"Atropaten/internal/domain"
 )
 
@@ -88,6 +89,71 @@ func TestReportsReconcileJournalLinesAndPersistedSettings(t *testing.T) {
 	persisted, err := reopened.GetShopSettings(ctx)
 	if err != nil || persisted.MonetaryRoundingStepRial != 10000 {
 		t.Fatalf("persisted rounding setting=%+v err=%v", persisted, err)
+	}
+}
+
+func TestReceivablesReportIncludesUninvoicedOrderAndDoesNotDoubleCountInvoice(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "receivables.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	now := time.Date(2026, 2, 13, 8, 0, 0, 0, time.UTC)
+	customer := domain.Customer{ID: "CUS-receivable", Name: "Receivable Customer", Active: true, CreatedAt: now, UpdatedAt: now}
+	if err = s.SaveCustomer(ctx, customer); err != nil {
+		t.Fatal(err)
+	}
+	order := domain.NewOrder("ORD-receivable", customer.ID, now)
+	order.CustomerNameSnapshot = customer.Name
+	order.CommercialStatus = domain.CommercialConfirmed
+	order.Items = []domain.OrderItem{{ID: "ITEM-receivable", OrderID: order.ID, Position: 0, ServiceNameSnapshot: "Printing", Quantity: domain.QuantityScale, QuantityUnit: "piece", SellingPriceRial: 1000}}
+	if err = order.RecalculateTotals(); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.CreateOrder(ctx, order); err != nil {
+		t.Fatal(err)
+	}
+
+	amount := func(report domain.Report, key string) int64 {
+		for _, summary := range report.Summaries {
+			if summary.Key == key {
+				return summary.AmountRial
+			}
+		}
+		return 0
+	}
+	load := func() domain.Report {
+		report, reportErr := s.Report(ctx, "receivables", now.Add(-time.Hour), now.Add(time.Hour))
+		if reportErr != nil {
+			t.Fatal(reportErr)
+		}
+		return report
+	}
+
+	report := load()
+	if len(report.Rows) != 1 || report.Rows[0].AmountRial != order.TotalRial || amount(report, "receivable") != order.TotalRial || amount(report, "charges") != order.TotalRial || amount(report, "allocated") != 0 {
+		t.Fatalf("uninvoiced order receivable=%+v summaries=%+v", report.Rows, report.Summaries)
+	}
+
+	if _, err = s.CreatePayment(ctx, domain.Payment{ID: "PAY-receivable", Direction: domain.PaymentIncoming, Method: domain.PaymentCash, FinancialAccountID: "FIN-CASH", CustomerID: customer.ID, AmountRial: 400, PostedAt: now, CreatedAt: now, Allocations: []domain.PaymentAllocation{{ID: "ALLOC-receivable", TargetType: "order", TargetID: order.ID, AmountRial: 400}}}); err != nil {
+		t.Fatal(err)
+	}
+	report = load()
+	if len(report.Rows) != 1 || report.Rows[0].AmountRial != 600 || amount(report, "receivable") != 600 || amount(report, "allocated") != 400 {
+		t.Fatalf("partially paid order receivable=%+v summaries=%+v", report.Rows, report.Summaries)
+	}
+
+	invoice, err := application.NewInvoicesService(s, s).CreateFromOrder(ctx, order.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.PostInvoice(ctx, invoice.ID); err != nil {
+		t.Fatal(err)
+	}
+	report = load()
+	if len(report.Rows) != 1 || report.Rows[0].AmountRial != 600 || amount(report, "receivable") != 600 {
+		t.Fatalf("invoiced order was double-counted: rows=%+v summaries=%+v", report.Rows, report.Summaries)
 	}
 }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ArrowLeft, CalendarDays, FileText, Plus, Printer, RotateCcw, Trash2 } from 'lucide-vue-next'
 import AppPanel from '../../components/layout/AppPanel.vue'
 import WorkspaceHeader from '../../components/layout/WorkspaceHeader.vue'
@@ -18,6 +18,7 @@ import { formatQuantityUnits } from '../../utils/quantity'
 import { formatDateTime } from '../../utils/date'
 import { confirmAction } from '../../ui/feedback'
 import InvoicePrintDocument from './InvoicePrintDocument.vue'
+import { printDocument } from '../../utils/print'
 
 const props = defineProps<{ invoiceId: string; currencyUnit: CurrencyUnit }>()
 const emit = defineEmits<{
@@ -30,6 +31,7 @@ const { busy, runAction } = useWorkspaceActions()
 const invoice = ref<InvoiceRecord | null>(null)
 const shopSettings = ref<ShopSettingsRecord | null>(null)
 const loading = ref(false)
+const printing = ref(false)
 const printMode = computed(() => invoice.value?.status === 'Draft' ? 'pre' : 'final')
 
 function tone(value: string) {
@@ -59,9 +61,15 @@ async function load() {
 }
 
 async function printInvoice() {
-  if (!invoice.value || loading.value) return
-  await nextTick()
-  window.print()
+  if (!invoice.value || loading.value || printing.value) return
+  printing.value = true
+  try {
+    await printDocument()
+  } catch (error) {
+    reportError(error)
+  } finally {
+    printing.value = false
+  }
 }
 
 onMounted(load)
@@ -139,7 +147,7 @@ async function remove() {
           <StatusBadge v-if="invoice" :label="invoice.status" :tone="tone(invoice.status)" />
         </template>
         <div class="flex flex-wrap items-center justify-end gap-2">
-          <button class="btn btn-primary btn-sm gap-1.5" type="button" :disabled="loading" @click="printInvoice">
+          <button class="btn btn-primary btn-sm gap-1.5" type="button" :disabled="loading || printing || !invoice" :aria-busy="printing" @click="printInvoice">
             <Printer :size="15" aria-hidden="true" />
             <span>{{ $ui(invoice?.status === 'Draft' ? 'Print pre-invoice' : 'Print final invoice') }}</span>
           </button>
