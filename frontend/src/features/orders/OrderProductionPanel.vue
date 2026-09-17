@@ -129,14 +129,14 @@ function tone(s: string) {
     <header class="border-b border-base-300 pb-4">
       <div class="flex min-w-0 flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
-          <h2 class="text-base font-semibold">Production jobs</h2>
+          <h2 class="text-base font-semibold">{{ $t("Production jobs") }}</h2>
           <p class="mt-1 text-xs text-base-content/60">
-            Track execution independently from payment and commercial status.
+            {{ $t("Track execution independently from payment and commercial status.") }}
           </p>
         </div>
         <div class="shrink-0 text-end">
           <strong class="block text-lg tabular-nums">{{ jobs.length }}</strong>
-          <span class="text-xs text-base-content/60">{{ progress }}% completed</span>
+          <span class="text-xs text-base-content/60">{{ progress }}{{ $t("% completed") }}</span>
         </div>
       </div>
       <div class="mt-4 h-2 overflow-hidden rounded-full bg-base-300" aria-hidden="true">
@@ -149,10 +149,10 @@ function tone(s: string) {
     <div v-if="orderItems.length" class="space-y-2 pt-4">
       <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 class="text-sm font-semibold">Order items</h3>
-          <p class="mt-0.5 text-xs text-base-content/60">Add each service to the production queue when it is ready.</p>
+          <h3 class="text-sm font-semibold">{{ $t("Order items") }}</h3>
+          <p class="mt-0.5 text-xs text-base-content/60">{{ $t("Add each service to the production queue when it is ready.") }}</p>
         </div>
-        <span v-if="props.order.commercialStatus === 'Draft'" class="text-[11px] text-base-content/55">Adding a job confirms the order.</span>
+        <span v-if="props.order.commercialStatus === 'Draft'" class="text-[11px] text-base-content/55">{{ $t("Adding a job confirms the order.") }}</span>
       </div>
       <div
         v-for="item in orderItems"
@@ -166,24 +166,24 @@ function tone(s: string) {
         </div>
         <div class="flex shrink-0 items-center gap-2">
           <template v-if="itemJob(item.id)?.status === 'Cancelled'">
-            <StatusBadge label="Cancelled" tone="red" />
+            <StatusBadge :label='$t("Cancelled")' tone="red" />
             <button class="btn btn-outline btn-warning btn-sm gap-1.5" type="button" :disabled="busy || addingItemId !== null || !canAddToProduction" @click="addItemToProduction(item)">
-              <Plus :size="14" aria-hidden="true" />{{ addingItemId === item.id ? 'Adding…' : 'Add again' }}
+              <Plus :size="14" aria-hidden="true" />{{ $ui(addingItemId === item.id ? 'Adding…' : 'Add again') }}
             </button>
           </template>
           <StatusBadge v-else-if="itemJob(item.id)" :label="itemJob(item.id)!.status" :tone="tone(itemJob(item.id)!.status)" />
           <button v-else class="btn btn-primary btn-sm gap-1.5" type="button" :disabled="busy || addingItemId !== null || !canAddToProduction" @click="addItemToProduction(item)">
-            <Plus :size="14" aria-hidden="true" />{{ addingItemId === item.id ? 'Adding…' : 'Add to production' }}
+            <Plus :size="14" aria-hidden="true" />{{ $ui(addingItemId === item.id ? 'Adding…' : 'Add to production') }}
           </button>
         </div>
       </div>
-      <p v-if="!canAddToProduction" class="text-xs text-warning">This order is closed, cancelled, archived, or delivered, so new production jobs cannot be added.</p>
+      <p v-if="!canAddToProduction" class="text-xs text-warning">{{ $t("This order is closed, cancelled, archived, or delivered, so new production jobs cannot be added.") }}</p>
     </div>
     <EmptyState
       v-else
       compact
-      title="No order items"
-      description="Add a service item before sending work to production."
+      :title='$t("No order items")'
+      :description='$t("Add a service item before sending work to production.")'
     >
       <template #icon><PackageOpen :size="24" :stroke-width="1.6" aria-hidden="true" /></template>
     </EmptyState>
@@ -191,10 +191,10 @@ function tone(s: string) {
     <div v-if="jobs.length" class="space-y-3 border-t border-base-300 pt-4">
       <div class="flex items-center justify-between gap-2">
         <div>
-          <h3 class="text-sm font-semibold">Production activity</h3>
-          <p class="mt-0.5 text-xs text-base-content/60">Execution, cost, and material activity for this order.</p>
+          <h3 class="text-sm font-semibold">{{ $t("Production activity") }}</h3>
+          <p class="mt-0.5 text-xs text-base-content/60">{{ $t("Execution, cost, and material activity for this order.") }}</p>
         </div>
-        <span class="badge badge-ghost text-xs">{{ jobs.length }} job{{ jobs.length === 1 ? '' : 's' }}</span>
+        <span class="badge badge-ghost text-xs">{{ jobs.length }} {{ $t("job") }}{{ $ui(jobs.length === 1 ? '' : 's') }}</span>
       </div>
       <div
         v-for="job in jobs"
@@ -215,18 +215,18 @@ function tone(s: string) {
             </div>
           </div>
           <div class="shrink-0 text-end">
-            <span class="block text-[11px] text-base-content/50">Expected total cost</span>
+            <span class="block text-[11px] text-base-content/50">{{ $t("Expected total cost") }}</span>
             <strong class="block text-sm tabular-nums">{{ formatMoney(job.projectedCostRial, props.currencyUnit) }}</strong>
           </div>
         </div>
         <details class="mt-3 border-t border-base-300 pt-2">
-          <summary class="cursor-pointer text-xs text-base-content/65">Cost breakdown · includes machine, labor &amp; overhead estimates</summary>
+          <summary class="cursor-pointer text-xs text-base-content/65">{{ $t("Cost breakdown · includes machine, labor & overhead estimates") }}</summary>
           <ProductionCostBreakdown class="mt-2" embedded :job="job" :currency-unit="props.currencyUnit" />
         </details>
         <div class="mt-3 grid min-w-0 grid-cols-2 gap-3 border-t border-base-300 pt-3 text-xs sm:grid-cols-3">
-          <div class="min-w-0"><span class="block text-base-content/50">Created</span><strong class="mt-0.5 block truncate font-medium text-base-content/80">{{ job.createdAt ? formatDateTime(job.createdAt) : '—' }}</strong></div>
-          <div class="min-w-0"><span class="block text-base-content/50">Reservations</span><strong class="mt-0.5 block truncate font-medium text-base-content/80">{{ reservedCount(job.id) }} active</strong></div>
-          <div class="min-w-0"><span class="block text-base-content/50">Used / waste</span><strong class="mt-0.5 block truncate font-medium text-base-content/80">{{ usageCount(job.id) }}</strong></div>
+          <div class="min-w-0"><span class="block text-base-content/50">{{ $t("Created") }}</span><strong class="mt-0.5 block truncate font-medium text-base-content/80">{{ $ui(job.createdAt ? formatDateTime(job.createdAt) : '—') }}</strong></div>
+          <div class="min-w-0"><span class="block text-base-content/50">{{ $t("Reservations") }}</span><strong class="mt-0.5 block truncate font-medium text-base-content/80">{{ reservedCount(job.id) }} {{ $t("active") }}</strong></div>
+          <div class="min-w-0"><span class="block text-base-content/50">{{ $t("Used / waste") }}</span><strong class="mt-0.5 block truncate font-medium text-base-content/80">{{ usageCount(job.id) }}</strong></div>
         </div>
       </div>
     </div>

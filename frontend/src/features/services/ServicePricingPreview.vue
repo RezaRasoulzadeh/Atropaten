@@ -64,26 +64,26 @@ const methodLabel = computed(() => ({ markup: 'Markup', 'fixed-margin': 'Fixed m
 </script>
 
 <template>
-  <section class="min-w-0 space-y-4" aria-label="Live pricing preview">
+  <section class="min-w-0 space-y-4" :aria-label='$t("Live pricing preview")'>
     <ServiceOverviewIdentity :form="form" :active="active" />
 
-    <ServiceOverviewSection title="Cost estimate" description="The estimated cost used by the selected pricing method.">
+    <ServiceOverviewSection :title='$t("Cost estimate")' :description='$t("The estimated cost used by the selected pricing method.")'>
       <template #meta><Calculator :size="16" class="text-primary" aria-hidden="true" /></template>
       <div v-if="breakdown.length" class="mt-3 space-y-2">
-        <div v-for="item in breakdown" :key="item.name" class="flex min-w-0 items-center gap-2 text-sm"><span class="size-2 shrink-0 rounded-full" :class="item.missing ? 'bg-warning' : 'bg-primary'"></span><span class="min-w-0 flex-1 truncate">{{ item.name }}</span><span class="shrink-0 tabular-nums" :class="item.missing ? 'text-warning' : ''">{{ item.missing ? 'Needs setup' : formatMoney(item.amount, currencyUnit) }}</span></div>
+        <div v-for="item in breakdown" :key="item.name" class="flex min-w-0 items-center gap-2 text-sm"><span class="size-2 shrink-0 rounded-full" :class="item.missing ? 'bg-warning' : 'bg-primary'"></span><span class="min-w-0 flex-1 truncate">{{ item.name }}</span><span class="shrink-0 tabular-nums" :class="item.missing ? 'text-warning' : ''">{{ $ui(item.missing ? 'Needs setup' : formatMoney(item.amount, currencyUnit)) }}</span></div>
       </div>
-      <div class="mt-3 flex items-center justify-between gap-3 border-t border-base-300/75 pt-2.5 text-sm"><span class="font-medium">Total cost</span><strong class="text-base tabular-nums">{{ formatMoney(estimatedCostRial, currencyUnit) }}</strong></div>
+      <div class="mt-3 flex items-center justify-between gap-3 border-t border-base-300/75 pt-2.5 text-sm"><span class="font-medium">{{ $t("Total cost") }}</span><strong class="text-base tabular-nums">{{ formatMoney(estimatedCostRial, currencyUnit) }}</strong></div>
     </ServiceOverviewSection>
 
-    <ServiceOverviewSection title="Selling price" description="The current selling-price result for this service.">
-      <div class="flex items-center justify-between gap-3 text-sm"><span>{{ methodLabel }}{{ pricingRule.type === 'markup' ? ` (${pricingRule.markupPercentage || 0}%)` : '' }}</span><span v-if="pricingRule.type === 'markup'" class="tabular-nums">{{ formatMoney(markupAmount, currencyUnit) }}</span><span v-else-if="pricingRule.type === 'fixed-margin'" class="tabular-nums">{{ formatMoney(pricingRule.fixedMarginRial, currencyUnit) }}</span></div>
-      <div class="mt-3 flex items-center justify-between gap-3 border-t border-base-300/75 pt-2.5"><span class="font-semibold">Selling price</span><strong class="text-lg text-success tabular-nums">{{ pricingRule.type === 'manual' ? 'Set in order' : !selectedSellingPriceReady ? 'Needs setup' : formatMoney(sellingPrice, currencyUnit) }}</strong></div>
+    <ServiceOverviewSection :title='$t("Selling price")' :description='$t("The current selling-price result for this service.")'>
+      <div class="flex items-center justify-between gap-3 text-sm"><span>{{ methodLabel }}{{ $ui(pricingRule.type === 'markup' ? ` (${pricingRule.markupPercentage || 0}%)` : '') }}</span><span v-if="pricingRule.type === 'markup'" class="tabular-nums">{{ formatMoney(markupAmount, currencyUnit) }}</span><span v-else-if="pricingRule.type === 'fixed-margin'" class="tabular-nums">{{ formatMoney(pricingRule.fixedMarginRial, currencyUnit) }}</span></div>
+      <div class="mt-3 flex items-center justify-between gap-3 border-t border-base-300/75 pt-2.5"><span class="font-semibold">{{ $t("Selling price") }}</span><strong class="text-lg text-success tabular-nums">{{ $ui(pricingRule.type === 'manual' ? 'Set in order' : !selectedSellingPriceReady ? 'Needs setup' : formatMoney(sellingPrice, currencyUnit)) }}</strong></div>
     </ServiceOverviewSection>
 
-    <ServiceOverviewSection title="Pricing method" description="How the selling price is calculated.">
-      <div class="flex items-start gap-3 text-sm"><span class="grid size-8 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><Percent :size="16" aria-hidden="true" /></span><p class="text-xs leading-5 text-base-content/60">{{ pricingRule.type === 'manual' ? 'Operators choose the final price for each order.' : `The ${methodLabel.toLowerCase()} is applied after the estimated cost is calculated.` }}</p></div>
+    <ServiceOverviewSection :title='$t("Pricing method")' :description='$t("How the selling price is calculated.")'>
+      <div class="flex items-start gap-3 text-sm"><span class="grid size-8 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><Percent :size="16" aria-hidden="true" /></span><p class="text-xs leading-5 text-base-content/60">{{ $ui(pricingRule.type === 'manual' ? 'Operators choose the final price for each order.' : `The ${$ui(methodLabel.toLowerCase())} is applied after the estimated cost is calculated.`) }}</p></div>
     </ServiceOverviewSection>
     <ServiceOrderPreview :form="form" :materials="materials" :machines="machines" :currency-unit="currencyUnit" :show-identity="false" :show-material-estimate="false" :active="active" />
-    <div class="flex items-start gap-2 border-t border-base-300 pt-3 text-xs leading-5 text-base-content/65"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="15" aria-hidden="true" /><span>Try different parameter values in the Test step to see how the price changes.</span></div>
+    <div class="flex items-start gap-2 border-t border-base-300 pt-3 text-xs leading-5 text-base-content/65"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="15" aria-hidden="true" /><span>{{ $t("Try different parameter values in the Test step to see how the price changes.") }}</span></div>
   </section>
 </template>

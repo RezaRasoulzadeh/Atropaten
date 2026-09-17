@@ -47,28 +47,28 @@ const money = (value: number) => formatMoney(value, props.currencyUnit);
     class="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
   >
     <AppPanel
-      title="Sales & gross profit"
-      subtitle="Daily totals for the selected period"
+      :title='$t("Sales & gross profit")'
+      :subtitle='$t("Daily totals for the selected period")'
     >
       <div class="flex flex-wrap gap-4 text-xs">
         <span class="flex items-center gap-2"
-          ><span class="h-0.5 w-5 bg-info"></span> Sales</span
+          ><span class="h-0.5 w-5 bg-info"></span> {{ $t("Sales") }}</span
         >
         <span class="flex items-center gap-2"
           ><span class="w-5 border-t-2 border-dashed border-success"></span>
-          Gross profit</span
+          {{ $t("Gross profit") }}</span
         >
       </div>
       <template v-if="hasActivity">
         <div class="flex justify-between gap-2 text-xs text-base-content/60">
           <span>{{ money(bounds.max) }}</span
-          ><span>Daily {{ currencyUnit }}</span>
+          ><span>{{ $t("Daily") }} {{ currencyUnit }}</span>
         </div>
         <svg
           viewBox="0 0 600 180"
           class="block w-full"
           role="img"
-          aria-label="Daily sales and gross profit line chart. Exact values are available in the data table below."
+          :aria-label='$t("Daily sales and gross profit line chart. Exact values are available in the data table below.")'
         >
           <line
             x1="20"
@@ -99,8 +99,8 @@ const money = (value: number) => formatMoney(value, props.currencyUnit);
               fill="var(--color-info)"
             >
               <title>
-                {{ formatDate(item.date) }} · Sales
-                {{ money(item.revenueRial) }} · Gross profit
+                {{ formatDate(item.date) }} {{ $t("· Sales") }}
+                {{ money(item.revenueRial) }} {{ $t("· Gross profit") }}
                 {{ money(item.grossProfitRial) }}
               </title>
             </circle>
@@ -117,21 +117,21 @@ const money = (value: number) => formatMoney(value, props.currencyUnit);
       <EmptyState
         v-else
         compact
-        title="No activity in this period"
-        description="Sales and gross profit will appear here once the selected period has activity."
+        :title='$t("No activity in this period")'
+        :description='$t("Sales and gross profit will appear here once the selected period has activity.")'
       >
         <template #icon><BarChart3 :size="21" aria-hidden="true" /></template>
       </EmptyState>
       <details v-if="hasActivity" class="text-xs">
         <summary class="cursor-pointer py-1 text-primary">
-          View chart data
+          {{ $t("View chart data") }}
         </summary>
-        <DataTable label="Daily sales and gross profit"
+        <DataTable :label='$t("Daily sales and gross profit")'
           ><thead>
             <tr>
-              <th>Date</th>
-              <th class="text-end">Sales</th>
-              <th class="text-end">Gross profit</th>
+              <th>{{ $t("Date") }}</th>
+              <th class="text-end">{{ $t("Sales") }}</th>
+              <th class="text-end">{{ $t("Gross profit") }}</th>
             </tr>
           </thead>
           <tbody>
@@ -145,19 +145,19 @@ const money = (value: number) => formatMoney(value, props.currencyUnit);
       </details>
     </AppPanel>
     <AppPanel
-      title="Order pipeline"
-      :subtitle="`${total} active orders · Current status`"
+      :title='$t("Order pipeline")'
+      :subtitle="$ui(`${total} active orders · Current status`)"
     >
       <div v-if="pipeline.length" class="space-y-5 py-3">
         <div v-for="item in pipeline" :key="item.status">
           <div class="mb-2 flex justify-between gap-2 text-xs">
-            <span>{{ item.status }}</span
+            <span>{{ $ui(item.status) }}</span
             ><strong>{{ item.count }}</strong>
           </div>
           <div
             class="h-3 overflow-hidden rounded bg-base-300"
             role="img"
-            :aria-label="`${item.status}: ${item.count} orders`"
+            :aria-label="$ui(`${item.status}: ${item.count} orders`)"
           >
             <div
               class="h-full rounded bg-info"
@@ -169,8 +169,8 @@ const money = (value: number) => formatMoney(value, props.currencyUnit);
       <EmptyState
         v-else
         compact
-        title="No active orders"
-        description="Current order status distribution will appear here when orders are active."
+        :title='$t("No active orders")'
+        :description='$t("Current order status distribution will appear here when orders are active.")'
       >
         <template #icon><ListChecks :size="21" aria-hidden="true" /></template>
       </EmptyState>

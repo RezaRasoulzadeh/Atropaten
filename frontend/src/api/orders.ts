@@ -69,6 +69,7 @@ export interface OrderPayload {
   priority: string
   notes: string
   discountRial: number
+  items?: OrderItemPayload[]
 }
 export interface OrderItemPayload {
   serviceId: string

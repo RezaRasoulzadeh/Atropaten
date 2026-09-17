@@ -20,11 +20,11 @@ defineProps<{
         <Printer :size="21" aria-hidden="true" />
       </div>
       <div class="min-w-0 text-white">
-        <strong class="block truncate text-base font-semibold">{{ form.name || 'Your service name' }}</strong>
+        <strong class="block truncate text-base font-semibold">{{ $ui(form.name || 'Your service name') }}</strong>
         <span class="mt-1 block truncate text-sm text-white/70">
-          {{ form.code || 'SVC-001' }}<span v-if="form.category"> · {{ form.category }}</span>
+          {{ $ui(form.code || 'SVC-001') }}<span v-if="form.category"> · {{ $ui(form.category) }}</span>
         </span>
-        <StatusBadge class="mt-2" :label="active ? 'Active' : 'Archived'" :tone="active ? 'green' : 'slate'" />
+        <StatusBadge class="mt-2" :label="$ui(active ? 'Active' : 'Archived')" :tone="active ? 'green' : 'slate'" />
       </div>
     </div>
   </div>

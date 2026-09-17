@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import {
   BarChart3,
   ChevronDown,
@@ -14,6 +15,7 @@ import type { CurrencyUnit } from '../../utils/currency';
 import IconButton from '../ui/IconButton.vue';
 import SearchField from '../ui/SearchField.vue';
 import SelectField from '../ui/SelectField.vue';
+import { messages, type Locale } from '../../i18n/messages';
 
 interface GlobalSearchResult {
   id: string;
@@ -24,6 +26,22 @@ interface GlobalSearchResult {
 }
 
 const searchField = ref<{ focus: () => void } | null>(null);
+const { t } = useI18n();
+const currencyOptions = computed(() => [
+  { label: t('toolbar.toman'), value: 'Toman' as const },
+  { label: t('toolbar.rial'), value: 'Rial' as const },
+]);
+const languageOptions = computed(() => [
+  { label: t('language.english'), value: 'en' as const },
+  { label: t('language.persian'), value: 'fa' as const },
+]);
+
+function translateView(view: string) {
+  if (Object.hasOwn(messages.en.navigation.views, view)) {
+    return t(`navigation.views.${view as keyof typeof messages.en.navigation.views}`);
+  }
+  return view;
+}
 
 function focusSearch(event: KeyboardEvent) {
   if (event.ctrlKey && event.key.toLowerCase() === 'f') {
@@ -41,6 +59,7 @@ defineProps<{
   searchResults: GlobalSearchResult[];
   searchLoading: boolean;
   currencyUnit: CurrencyUnit;
+  locale: Locale;
 }>();
 
 defineEmits<{
@@ -48,6 +67,7 @@ defineEmits<{
   'update:search-query': [value: string];
   'select-search-result': [result: GlobalSearchResult];
   'update:currency-unit': [value: CurrencyUnit];
+  'update:locale': [value: Locale];
   'new-order': [];
   navigate: [view: string];
 }>();
@@ -58,7 +78,7 @@ defineEmits<{
     <IconButton
       data-drawer-toggle="true"
       class="btn-square"
-      :label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+      :label="collapsed ? t('toolbar.expandSidebar') : t('toolbar.collapseSidebar')"
       @click.stop="$emit('toggle-sidebar')"
     >
       <PanelLeftOpen v-if="collapsed" :size="18" :stroke-width="1.8" aria-hidden="true" />
@@ -69,9 +89,9 @@ defineEmits<{
       ref="searchField"
       class="w-full"
       :model-value="searchQuery"
-      placeholder="Search anything..."
+      :placeholder="t('toolbar.search')"
       shortcut="Ctrl F"
-      aria-label="Global search"
+      :aria-label="t('toolbar.globalSearch')"
       @update:model-value="$emit('update:search-query', $event)"
       @keydown.esc="$emit('update:search-query', '')"
       @keydown.enter.prevent="searchResults[0] && $emit('select-search-result', searchResults[0])"
@@ -81,10 +101,10 @@ defineEmits<{
       class="absolute inset-x-0 top-[calc(100%+0.45rem)] z-50 overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-2xl"
     >
       <div v-if="searchLoading && !searchResults.length" class="px-4 py-3 text-xs text-base-content/60">
-        Searching workspace…
+        {{ t('toolbar.searching') }}
       </div>
       <div v-else-if="!searchResults.length" class="px-4 py-3 text-xs text-base-content/60">
-        No matching records.
+        {{ t('toolbar.noResults') }}
       </div>
       <div v-else class="max-h-[min(28rem,calc(100vh-6rem))] overflow-y-auto p-1">
         <button
@@ -101,7 +121,7 @@ defineEmits<{
           <span class="min-w-0 flex-1">
             <span class="flex min-w-0 items-center justify-between gap-3">
               <strong class="truncate text-sm">{{ result.title }}</strong>
-              <span class="shrink-0 text-[10px] uppercase tracking-wide text-base-content/45">{{ result.view }}</span>
+              <span class="shrink-0 text-[10px] uppercase tracking-wide text-base-content/45">{{ translateView(result.view) }}</span>
             </span>
             <span class="mt-0.5 block truncate text-xs text-base-content/60">{{ result.subtitle }}</span>
             <span v-if="result.detail" class="mt-0.5 block truncate text-[11px] text-base-content/45">{{ result.detail }}</span>
@@ -110,28 +130,32 @@ defineEmits<{
       </div>
     </div>
     </div>
-    <button class="btn btn-ghost hidden" type="button" aria-label="Current shop: Central shop">
+    <button class="btn btn-ghost hidden" type="button" :aria-label='$t("Current shop: Central shop")'>
       <Store class="text-primary" :size="16" :stroke-width="1.8" aria-hidden="true" />
-      <span><strong>Central shop</strong> · Tehran</span>
+      <span><strong>{{ $t("Central shop") }}</strong> {{ $t("· Tehran") }}</span>
       <ChevronDown :size="14" :stroke-width="1.8" aria-hidden="true" />
     </button>
     <SelectField
       class="w-24"
       :model-value="currencyUnit"
-      :options="[
-        { label: 'Toman', value: 'Toman' },
-        { label: 'Rial', value: 'Rial' },
-      ]"
-      aria-label="Display currency"
+      :options="currencyOptions"
+      :aria-label="t('toolbar.currency')"
       @update:model-value="$emit('update:currency-unit', $event as CurrencyUnit)"
     />
+    <SelectField
+      class="w-20 shrink-0"
+      :model-value="locale"
+      :options="languageOptions"
+      :aria-label="t('language.label')"
+      @update:model-value="$emit('update:locale', $event as Locale)"
+    />
     <slot name="notifications" />
-    <nav class="hidden items-center gap-1 lg:flex" aria-label="Quick actions">
+    <nav class="hidden items-center gap-1 lg:flex" :aria-label="t('toolbar.quickActions')">
       <button
         class="btn btn-ghost btn-square"
         type="button"
-        aria-label="Production"
-        title="Production"
+        :aria-label="t('navigation.views.Production')"
+        :title="t('navigation.views.Production')"
         @click="$emit('navigate', 'Production')"
       >
         <Printer :size="16" :stroke-width="1.8" aria-hidden="true" />
@@ -139,8 +163,8 @@ defineEmits<{
       <button
         class="btn btn-ghost btn-square"
         type="button"
-        aria-label="Purchases"
-        title="Purchases"
+        :aria-label="t('navigation.views.Purchases')"
+        :title="t('navigation.views.Purchases')"
         @click="$emit('navigate', 'Purchases')"
       >
         <ShoppingCart :size="16" :stroke-width="1.8" aria-hidden="true" />
@@ -148,8 +172,8 @@ defineEmits<{
       <button
         class="btn btn-ghost btn-square"
         type="button"
-        aria-label="Reports"
-        title="Reports"
+        :aria-label="t('navigation.views.Reports')"
+        :title="t('navigation.views.Reports')"
         @click="$emit('navigate', 'Reports')"
       >
         <BarChart3 :size="16" :stroke-width="1.8" aria-hidden="true" />
@@ -157,8 +181,8 @@ defineEmits<{
       <button
         class="btn btn-primary btn-square"
         type="button"
-        aria-label="New order"
-        title="New order"
+        :aria-label="t('toolbar.newOrder')"
+        :title="t('toolbar.newOrder')"
         @click="$emit('new-order')"
       >
         <FilePlus2 :size="16" :stroke-width="1.8" aria-hidden="true" />
@@ -166,11 +190,11 @@ defineEmits<{
     </nav>
     <div class="avatar placeholder hidden">
       <div class="w-8 rounded-full bg-primary text-primary-content" aria-hidden="true">
-        <span>RR</span>
+        <span>{{ $t("RR") }}</span>
       </div>
     </div>
     <div class="hidden text-xs">
-      <strong>Reza Rasoulzadeh</strong><span class="block text-base-content/60">Owner</span>
+      <strong>{{ $t("Reza Rasoulzadeh") }}</strong><span class="block text-base-content/60">{{ $t("Owner") }}</span>
     </div>
   </header>
 </template>

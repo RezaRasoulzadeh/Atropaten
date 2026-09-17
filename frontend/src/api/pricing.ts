@@ -1,7 +1,7 @@
 import { CalculateServicePrice, CalculateDraftServicePrice } from '../../wailsjs/go/main/App'
 import type { main as mainTypes } from '../../wailsjs/go/models'
 
-export type PrintLayout = { materialId: string; materialName: string; kind: string; quantity: string; consumedQuantity: string; unit: string; across: number; rows: number; itemsPerSheet: number; sheets: string; lengthMM: string; rotated: boolean; wastePercent: number; areaM2: string; originalLengthMM?: string }
+export type PrintLayout = { materialId: string; materialName: string; kind: string; quantity: string; consumedQuantity: string; unit: string; across: number; rows: number; itemsPerSheet: number; sheets: string; lengthMM: string; rotated: boolean; wastePercent: number; wasteCostRial: number; areaM2: string; originalLengthMM?: string }
 export type PricingRecord = mainTypes.PricingDTO & { batchQuantity?: string; layouts?: PrintLayout[] }
 
 export const pricingApi = {

@@ -17,20 +17,24 @@ const result = await build({
     contents: `
       import { createSSRApp, h } from 'vue'
       import { renderToString } from '@vue/server-renderer'
+      import { i18n, translateUi } from './src/i18n'
       import Wizard from './src/features/purchases/PurchaseWorkspaceView.vue'
       import Preview from './src/features/purchases/PurchaseDetailPanel.vue'
       import { usePurchasesWorkspace } from './src/features/purchases/usePurchasesWorkspace'
       export { formatMoneyInputWhileTyping, parseMoneyInput } from './src/utils/currency'
       export async function render(purchase, bank = false, preview = false, step = 5) {
         const props = { currencyUnit: 'Toman', suppliers: [], materials: [] }
-        return renderToString(createSSRApp({ setup() {
+        const app = createSSRApp({ setup() {
           const workspace = usePurchasesWorkspace(props, () => {})
           workspace.rows.value = [purchase]
           workspace.select(purchase.id)
           workspace.financial.value = [{ id: 'FIN-test', name: bank ? 'Bank' : 'Cash', type: bank ? 'bank' : 'cash', active: true }]
           if (!preview) workspace.openPayment()
           return () => h(preview ? Preview : Wizard, { ...props, workspace, initialStep: workspace.paymentMode.value ? step : 1 })
-        } }))
+        } })
+        app.config.globalProperties.$ui = translateUi
+        app.use(i18n)
+        return renderToString(app)
       }
     `,
   },

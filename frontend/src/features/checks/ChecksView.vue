@@ -207,12 +207,12 @@ function date(v: string) {
     <WorkspaceStickyStack>
       <WorkspaceHeader
         :show-breadcrumb="true"
-        eyebrow="Finance / instruments"
-        title="Checks"
-        description="Controlled check lifecycles with uncleared instruments kept outside available bank cash."
+        :eyebrow='$t("Finance / instruments")'
+        :title='$t("Checks")'
+        :description='$t("Controlled check lifecycles with uncleared instruments kept outside available bank cash.")'
       >
         <button class="btn btn-primary" type="button" @click="begin">
-          <Plus :size="16" /> New check
+          <Plus :size="16" /> {{ $t("New check") }}
         </button>
       </WorkspaceHeader>
 
@@ -220,20 +220,20 @@ function date(v: string) {
         <template #search>
           <SearchField
             v-model="query"
-            label="Search checks"
-            placeholder="Check number, bank, or party"
+            :label='$t("Search checks")'
+            :placeholder='$t("Check number, bank, or party")'
           />
         </template>
         <template #filters>
-          <SelectField v-model="tab" label="View" :options="viewOptions" />
+          <SelectField v-model="tab" :label='$t("View")' :options="viewOptions" />
         </template>
-        <template #count><span>{{ filtered.length }} of {{ rows.length }} checks</span></template>
+        <template #count><span>{{ filtered.length }} {{ $t("of") }} {{ rows.length }} {{ $t("checks") }}</span></template>
       </SearchFilterBar>
     </WorkspaceStickyStack>
 
-    <LoadingState v-if="pageLoading" label="Loading records…" /><div v-show="!pageLoading" class="space-y-4">
+    <LoadingState v-if="pageLoading" :label='$t("Loading records…")' /><div v-show="!pageLoading" class="space-y-4">
     <MasterDetail
-      ><RegisterList title="Check register" subtitle="Only valid next lifecycle actions are offered." :count="filtered.length"
+      ><RegisterList :title='$t("Check register")' :subtitle='$t("Only valid next lifecycle actions are offered.")' :count="filtered.length"
         ><div v-if="filtered.length">
           <RegisterRow v-for="v in filtered" :key="v.id" :selected="selectedId === v.id" @activate="select(v)">
             <template #identity>
@@ -244,55 +244,55 @@ function date(v: string) {
             </template>
             <template #meta>
               <div class="mt-2 grid min-w-0 grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2">
-                <div><span class="block text-base-content/50">Direction</span><span class="block text-base-content/80">{{ v.direction === 'incoming' ? 'Incoming' : 'Outgoing' }}</span></div>
-                <div><span class="block text-base-content/50">Due</span><span class="block text-base-content/80">{{ date(v.dueDate) }}</span></div>
-                <div><span class="block text-base-content/50">Account</span><span class="block truncate text-base-content/80">{{ v.accountDescriptor || v.financialAccountId || 'No account' }}</span></div>
+                <div><span class="block text-base-content/50">{{ $t("Direction") }}</span><span class="block text-base-content/80">{{ $ui(v.direction === 'incoming' ? 'Incoming' : 'Outgoing') }}</span></div>
+                <div><span class="block text-base-content/50">{{ $t("Due") }}</span><span class="block text-base-content/80">{{ date(v.dueDate) }}</span></div>
+                <div><span class="block text-base-content/50">{{ $t("Account") }}</span><span class="block truncate text-base-content/80">{{ $ui(v.accountDescriptor || v.financialAccountId || 'No account') }}</span></div>
               </div>
             </template>
             <template #status><StatusBadge :label="v.status" :tone="tone(v.status)" /></template>
           </RegisterRow>
         </div>
-        <EmptyState v-else title="No checks in this view" description="Adjust the search or lifecycle filters, or create a new check.">
+        <EmptyState v-else :title='$t("No checks in this view")' :description='$t("Adjust the search or lifecycle filters, or create a new check.")'>
           <template #icon><Landmark :size="22" aria-hidden="true" /></template>
           <template #action>
-            <button v-if="rows.length" class="btn btn-primary btn-sm" type="button" @click="clearFilters">Clear filters</button>
-            <button v-else class="btn btn-primary btn-sm gap-2" type="button" @click="begin"><Plus :size="15" aria-hidden="true" /> Create check</button>
+            <button v-if="rows.length" class="btn btn-primary btn-sm" type="button" @click="clearFilters">{{ $t("Clear filters") }}</button>
+            <button v-else class="btn btn-primary btn-sm gap-2" type="button" @click="begin"><Plus :size="15" aria-hidden="true" /> {{ $t("Create check") }}</button>
           </template>
         </EmptyState>
       </RegisterList>
       <InspectorShell
         v-if="createMode"
-        title="New check"
-        subtitle="Drafts have no financial effect until lifecycle posting."
+        :title='$t("New check")'
+        :subtitle='$t("Drafts have no financial effect until lifecycle posting.")'
         ><form @submit.prevent="create" class="min-w-0 space-y-3">
           <FormGrid
             ><SelectField
                 v-model="form.direction"
-                label="Direction"
+                :label='$t("Direction")'
                 :options="[
                   { label: 'Incoming', value: 'incoming' },
                   { label: 'Outgoing', value: 'outgoing' },
                 ]" />
             <FormField class="gap-1"
-              ><span>Check number</span
+              ><span>{{ $t("Check number") }}</span
               ><AppInput
                 class="input w-full min-w-0"
                 v-model="form.checkNumber"
                 required /></FormField
             ><FormField class="gap-1"
-              ><span>Bank</span
+              ><span>{{ $t("Bank") }}</span
               ><AppInput
                 class="input w-full min-w-0"
                 v-model="form.bank"
                 required /></FormField
             ><FormField class="gap-1"
-              ><span>Payer / payee</span
+              ><span>{{ $t("Payer / payee") }}</span
               ><AppInput
                 class="input w-full min-w-0"
                 v-model="form.payerPayee"
                 required /></FormField
             ><FormField class="gap-1"
-              ><span>Amount (Rial)</span
+              ><span>{{ $t("Amount (Rial)") }}</span
               ><AppInput
                 class="input w-full min-w-0"
                 v-model="form.amountRial"
@@ -300,39 +300,39 @@ function date(v: string) {
                 inputmode="numeric"
                 required /></FormField
             ><FormField class="gap-1"
-              ><span>Branch</span
+              ><span>{{ $t("Branch") }}</span
               ><AppInput
                 class="input w-full min-w-0"
                 v-model="form.branch" /></FormField
             ><FormField class="gap-1"
-              ><span>Issue date</span><JalaliDatePicker v-model="form.issueDate" /></FormField
+              ><span>{{ $t("Issue date") }}</span><JalaliDatePicker v-model="form.issueDate" /></FormField
             ><FormField class="gap-1"
-              ><span>Due date</span
+              ><span>{{ $t("Due date") }}</span
               ><JalaliDatePicker v-model="form.dueDate" /></FormField></FormGrid
           ><FormField class="gap-1"
-            ><span>Notes</span
+            ><span>{{ $t("Notes") }}</span
             ><AppTextarea
               v-model="form.notes"
               rows="3"
             />
           </FormField>
           <div class="flex flex-wrap items-center gap-2">
-            <button class="btn btn-ghost" type="button" @click="createMode = false">Cancel</button
-            ><button class="btn btn-primary"><Plus :size="15" /> Save draft</button>
+            <button class="btn btn-ghost" type="button" @click="createMode = false">{{ $t("Cancel") }}</button
+            ><button class="btn btn-primary"><Plus :size="15" /> {{ $t("Save draft") }}</button>
           </div>
         </form></InspectorShell
       >
       <InspectorShell
         v-else-if="selected"
-        title="Check inspector"
-        :subtitle="`${selected.checkNumber} · ${selected.payerPayee}`"
+        :title='$t("Check inspector")'
+        :subtitle="$ui(`${selected.checkNumber} · ${selected.payerPayee}`)"
         ><div class="min-w-0 space-y-3">
           <div class="min-w-0 space-y-3">
             <div><Landmark :size="19" /></div>
             <div class="min-w-0 space-y-3">
               <h3 class="text-sm font-semibold">{{ selected.bank }}</h3>
               <p>
-                {{ selected.direction === 'incoming' ? 'Incoming' : 'Outgoing' }} · due
+                {{ $ui(selected.direction === 'incoming' ? 'Incoming' : 'Outgoing') }} {{ $t("· due") }}
                 {{ date(selected.dueDate) }}
               </p>
             </div>
@@ -342,7 +342,7 @@ function date(v: string) {
             <div
               class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-3 border-b border-base-300 py-2 last:border-0"
             >
-              <dt class="text-xs text-base-content/60">Amount</dt>
+              <dt class="text-xs text-base-content/60">{{ $t("Amount") }}</dt>
               <dd class="min-w-0 text-end tabular-nums wrap-anywhere">
                 {{ formatMoney(selected.amountRial, props.currencyUnit) }}
               </dd>
@@ -350,9 +350,9 @@ function date(v: string) {
             <div
               class="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-3 border-b border-base-300 py-2 last:border-0"
             >
-              <dt class="text-xs text-base-content/60">Account</dt>
+              <dt class="text-xs text-base-content/60">{{ $t("Account") }}</dt>
               <dd class="min-w-0 text-end tabular-nums wrap-anywhere">
-                {{ selected.financialAccountId || 'Default bank' }}
+                {{ $ui(selected.financialAccountId || 'Default bank') }}
               </dd>
             </div>
           </dl>
@@ -367,10 +367,10 @@ function date(v: string) {
               <RotateCcw :size="14" /> {{ value }}
             </button>
           </div>
-          <InspectorSection title="Lifecycle history">
-            <DataTable v-if="history.length" label="Check lifecycle history">
+          <InspectorSection :title='$t("Lifecycle history")'>
+            <DataTable v-if="history.length" :label='$t("Check lifecycle history")'>
               <thead>
-                <tr><th scope="col">Transition</th><th scope="col">When</th><th scope="col">Record</th></tr>
+                <tr><th scope="col">{{ $t("Transition") }}</th><th scope="col">{{ $t("When") }}</th><th scope="col">{{ $t("Record") }}</th></tr>
               </thead>
               <tbody>
                 <tr v-for="event in history" :key="event.id">
@@ -378,19 +378,19 @@ function date(v: string) {
                   <DataTableCell>{{ date(event.occurredAt) }}</DataTableCell>
                   <DataTableCell>
                     <span v-if="event.note" class="me-2 text-xs text-base-content/60">{{ event.note }}</span>
-                    <StatusBadge :label="event.journalEntryId ? 'Journaled' : 'State only'" :tone="event.journalEntryId ? 'green' : 'slate'" />
+                    <StatusBadge :label="$ui(event.journalEntryId ? 'Journaled' : 'State only')" :tone="event.journalEntryId ? 'green' : 'slate'" />
                   </DataTableCell>
                 </tr>
               </tbody>
             </DataTable>
-            <EmptyState v-else title="No lifecycle events" description="Status changes will appear here."><template #icon><Landmark :size="21" aria-hidden="true" /></template></EmptyState>
+            <EmptyState v-else :title='$t("No lifecycle events")' :description='$t("Status changes will appear here.")'><template #icon><Landmark :size="21" aria-hidden="true" /></template></EmptyState>
           </InspectorSection>
         </div></InspectorShell
       ><InspectorShell
         v-else
-        title="Check inspector"
-        subtitle="Select a check to inspect lifecycle and history."
-        ><EmptyState compact title="No check selected" description="Choose a check from the register to inspect its lifecycle and history."><template #icon><Landmark :size="21" aria-hidden="true" /></template></EmptyState></InspectorShell
+        :title='$t("Check inspector")'
+        :subtitle='$t("Select a check to inspect lifecycle and history.")'
+        ><EmptyState compact :title='$t("No check selected")' :description='$t("Choose a check from the register to inspect its lifecycle and history.")'><template #icon><Landmark :size="21" aria-hidden="true" /></template></EmptyState></InspectorShell
       ></MasterDetail
     >
   </div></div>

@@ -259,23 +259,22 @@ reportError(error);
 async function configured(input: OrderItemPayload) {
 return runAction(async () => {
   saving.value = true;
+  const creating = isNew.value;
   const replacing = Boolean(editingItem.value);
   try {
-    let orderId = props.order.id;
-    if (isNew.value) {
+    let result: OrderRecord;
+    if (creating) {
       const discount = parseDiscountRial();
       if (discount === null || discount > props.order.subtotalRial) throw new Error('Enter a valid discount up to the order subtotal');
-      const created = await ordersApi.create(payload());
-      emit('saved', created);
-      emit('notify', 'Order created.');
-      orderId = created.id;
+      result = await ordersApi.create({ ...payload(), items: [input] });
+    } else {
+      result = replacing
+        ? await ordersApi.replaceItem(props.order.id, editingItem.value.id, input)
+        : await ordersApi.addItem(props.order.id, input);
     }
-    const result = replacing
-      ? await ordersApi.replaceItem(orderId, editingItem.value.id, input)
-      : await ordersApi.addItem(orderId, input);
     emit('saved', result);
     closeItemEditor();
-    emit('notify', replacing ? 'Item replaced' : 'Item added');
+    emit('notify', creating ? 'Order created.' : replacing ? 'Item replaced' : 'Item added');
   } catch (error) {
 reportError(error);
   } finally {
@@ -348,25 +347,25 @@ reportError(error);
 </script>
 
 <template>
-  <div data-enter-scope :aria-busy="busy || saving" class="order-wizard w-full flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Order editor">
+  <div data-enter-scope :aria-busy="busy || saving" class="order-wizard w-full flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" :aria-label='$t("Order editor")'>
     <header class="order-wizard-header flex min-w-0 shrink-0 flex-wrap items-end justify-between gap-4 border-b border-base-300 bg-base-200 px-1 pt-4 pb-4">
       <div class="min-w-0">
-        <h1 class="mt-2 text-2xl font-bold leading-8 tracking-tight text-primary">{{ isNew ? 'Add order' : 'Edit order' }}</h1>
-        <p class="mt-1 text-xs leading-4 text-base-content/65">Create and manage the customer order through its workflow.</p>
+        <h1 class="mt-2 text-2xl font-bold leading-8 tracking-tight text-primary">{{ $ui(isNew ? 'Add order' : 'Edit order') }}</h1>
+        <p class="mt-1 text-xs leading-4 text-base-content/65">{{ $t("Create and manage the customer order through its workflow.") }}</p>
         <WorkspaceBreadcrumb class="mt-2" :items="[{ label: 'Orders' }, { label: isNew ? 'Add order' : 'Edit order', current: true }]" @navigate="emit('back')" />
       </div>
       <div class="flex shrink-0 items-center gap-2">
-        <button class="btn btn-error" type="button" :disabled="busy || saving" @click="emit('back')">Cancel</button>
-        <button class="btn btn-success gap-2" type="button" :disabled="busy || saving" @click="saveMetadata(true)"><Save :size="16" aria-hidden="true" />{{ saving ? 'Saving…' : 'Save order' }}</button>
+        <button class="btn btn-error" type="button" :disabled="busy || saving" @click="emit('back')">{{ $t("Cancel") }}</button>
+        <button class="btn btn-success gap-2" type="button" :disabled="busy || saving" @click="saveMetadata(true)"><Save :size="16" aria-hidden="true" />{{ $ui(saving ? 'Saving…' : 'Save order') }}</button>
       </div>
     </header>
 
     <div class="order-wizard-main flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-visible xl:overflow-hidden">
       <aside class="order-wizard-steps flex min-w-0 shrink-0 flex-col border-b border-base-300 pb-3 xl:sticky xl:top-0 xl:z-20 xl:bg-base-200">
-        <nav aria-label="Order setup steps" class="order-wizard-step-nav flex min-w-0 gap-1 overflow-x-auto pb-1 xl:overflow-visible">
+        <nav :aria-label='$t("Order setup steps")' class="order-wizard-step-nav flex min-w-0 gap-1 overflow-x-auto pb-1 xl:overflow-visible">
           <button v-for="step in steps" :key="step.number" class="wizard-step w-auto min-w-[11rem] shrink-0 text-start xl:min-w-0 xl:flex-1" :class="stepClass(step.number)" type="button" @click="selectStep(step)">
             <span class="wizard-step-number"><CheckCheck v-if="step.number < activeStepNumber" :size="17" :stroke-width="2.2" aria-hidden="true" /><span v-else>{{ step.number }}</span></span>
-            <span class="min-w-0"><strong class="block truncate whitespace-nowrap text-sm">{{ step.title }}</strong><small class="mt-0.5 block truncate whitespace-nowrap text-xs leading-4 text-base-content/60">{{ step.description }}</small></span>
+            <span class="min-w-0"><strong class="block truncate whitespace-nowrap text-sm">{{ $ui(step.title) }}</strong><small class="mt-0.5 block truncate whitespace-nowrap text-xs leading-4 text-base-content/60">{{ $ui(step.description) }}</small></span>
           </button>
         </nav>
       </aside>
@@ -379,28 +378,28 @@ reportError(error);
     >
         <div class="space-y-3">
           <FormSection
-            title="Customer and delivery"
-            description="Keep the commercial identity and promised date together."
+            :title='$t("Customer and delivery")'
+            :description='$t("Keep the commercial identity and promised date together.")'
           >
-            <SelectField v-model="customerId" label="Customer" :options="customerOptions" />
+            <SelectField v-model="customerId" :label='$t("Customer")' :options="customerOptions" />
             <SelectField
               v-model="priority"
-              label="Priority"
+              :label='$t("Priority")'
               :options="priorityOptions"
-              aria-label="Priority"
+              :aria-label='$t("Priority")'
             />
             <div class="gap-1">
-              <span class="text-xs">Promised date</span
-              ><JalaliDatePicker v-model="promisedAt" placeholder="Set promised date" />
+              <span class="text-xs">{{ $t("Promised date") }}</span
+              ><JalaliDatePicker v-model="promisedAt" :placeholder='$t("Set promised date")' />
             </div>
           </FormSection>
-          <FormSection title="Notes">
+          <FormSection :title='$t("Notes")'>
             <FormField class="gap-1 sm:col-span-2"
-              ><span class="text-xs">Order notes</span
+              ><span class="text-xs">{{ $t("Order notes") }}</span
               ><AppTextarea
                 v-model="notes"
                 rows="4"
-                placeholder="Order notes"
+                :placeholder='$t("Order notes")'
               />
             </FormField>
           </FormSection>
@@ -409,33 +408,33 @@ reportError(error);
 
     <template v-else-if="tab === 'Items'">
       <div class="grid min-h-0 min-w-0 gap-4 xl:h-full xl:grid-cols-2 xl:divide-x xl:divide-base-300">
-        <section class="flex min-h-80 min-w-0 flex-col overflow-hidden xl:h-full xl:pe-4" aria-label="Service catalog">
+        <section class="flex min-h-80 min-w-0 flex-col overflow-hidden xl:h-full xl:pe-4" :aria-label='$t("Service catalog")'>
           <div class="sticky top-0 z-10 shrink-0 border-b border-base-300 bg-base-200/20 pb-3">
             <div class="flex items-center justify-between gap-2">
-              <div><h2 class="text-sm font-semibold">Services</h2><p class="mt-1 text-xs text-base-content/60">Choose a service to add.</p></div>
+              <div><h2 class="text-sm font-semibold">{{ $t("Services") }}</h2><p class="mt-1 text-xs text-base-content/60">{{ $t("Choose a service to add.") }}</p></div>
               <span class="badge badge-ghost text-xs">{{ filteredCatalogServices.length }}</span>
             </div>
-            <SearchField v-model="serviceQuery" class="mt-3" placeholder="Search services…" aria-label="Search services" />
+            <SearchField v-model="serviceQuery" class="mt-3" :placeholder='$t("Search services…")' :aria-label='$t("Search services")' />
           </div>
           <div class="min-h-0 flex-1 space-y-2 overflow-y-auto pt-3">
             <button v-for="service in filteredCatalogServices" :key="service.id" class="flex w-full min-w-0 items-center gap-2 rounded-box border border-base-300 bg-base-100 p-2.5 text-start transition-colors hover:border-primary/50 hover:bg-primary/5" type="button" @click="openItemEditor(service.id)">
               <span class="grid size-10 shrink-0 place-items-center overflow-hidden rounded-box border border-base-300 bg-base-200 bg-cover bg-center text-primary" :style="service.imagePath ? { backgroundImage: `url('${service.imagePath}')` } : undefined"><Layers3 v-if="!service.imagePath" :size="18" aria-hidden="true" /></span>
-              <span class="min-w-0"><strong class="block truncate text-sm">{{ service.name }}</strong><span class="mt-0.5 block truncate text-xs text-base-content/55">{{ service.code || service.category || 'Service' }}</span><span class="mt-0.5 block text-xs text-primary">Add item</span></span>
+              <span class="min-w-0"><strong class="block truncate text-sm">{{ service.name }}</strong><span class="mt-0.5 block truncate text-xs text-base-content/55">{{ $ui(service.code || service.category || 'Service') }}</span><span class="mt-0.5 block text-xs text-primary">{{ $t("Add item") }}</span></span>
             </button>
-            <EmptyState v-if="!filteredCatalogServices.length" compact title="No services found" description="Try another search or add an active service first."><template #icon><Layers3 :size="21" aria-hidden="true" /></template></EmptyState>
+            <EmptyState v-if="!filteredCatalogServices.length" compact :title='$t("No services found")' :description='$t("Try another search or add an active service first.")'><template #icon><Layers3 :size="21" aria-hidden="true" /></template></EmptyState>
           </div>
         </section>
 
-        <section class="flex min-h-80 min-w-0 flex-col overflow-hidden xl:h-full xl:ps-4" aria-label="Order items">
-          <div class="flex shrink-0 items-center justify-between gap-3 border-b border-base-300 pb-3"><div><h2 class="text-sm font-semibold">Order items</h2><p class="mt-1 text-xs text-base-content/60">Edit or remove configured services.</p></div><span class="badge badge-ghost text-xs">{{ order.items.length }} item{{ order.items.length === 1 ? '' : 's' }}</span></div>
+        <section class="flex min-h-80 min-w-0 flex-col overflow-hidden xl:h-full xl:ps-4" :aria-label='$t("Order items")'>
+          <div class="flex shrink-0 items-center justify-between gap-3 border-b border-base-300 pb-3"><div><h2 class="text-sm font-semibold">{{ $t("Order items") }}</h2><p class="mt-1 text-xs text-base-content/60">{{ $t("Edit or remove configured services.") }}</p></div><span class="badge badge-ghost text-xs">{{ order.items.length }} {{ $t("item") }}{{ $ui(order.items.length === 1 ? '' : 's') }}</span></div>
           <div class="min-h-0 flex-1 space-y-2 overflow-y-auto pt-3">
             <div v-for="item in [...order.items].sort((a, b) => a.position - b.position)" :key="item.id" class="flex min-w-0 items-center gap-2 rounded-box border border-base-300 bg-base-200/20 p-2.5">
               <span class="grid size-8 shrink-0 place-items-center rounded-box bg-base-200 text-xs font-semibold text-base-content/60">{{ item.position + 1 }}</span>
               <span class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ item.serviceName }}</strong><span class="block truncate text-xs text-base-content/55">{{ item.quantity }} {{ item.quantityUnit }}<template v-if="item.notes"> · {{ item.notes }}</template></span></span>
-              <span class="shrink-0 text-end"><strong class="block text-sm text-primary">{{ money(item.sellingPriceRial) }}</strong><span class="block text-[0.68rem] text-base-content/50">{{ money(item.estimatedCostRial) }} cost</span></span>
-              <div class="flex shrink-0 items-center gap-0.5"><button class="btn btn-ghost btn-square btn-xs" type="button" aria-label="Edit order item" title="Edit item" :disabled="busy" @click="editItem(item)"><Pencil :size="14" aria-hidden="true" /></button><button class="btn btn-ghost btn-error btn-square btn-xs" type="button" aria-label="Remove order item" title="Remove item" :disabled="busy" @click="remove(item)"><Trash2 :size="14" aria-hidden="true" /></button></div>
+              <span class="shrink-0 text-end"><strong class="block text-sm text-primary">{{ money(item.sellingPriceRial) }}</strong><span class="block text-[0.68rem] text-base-content/50">{{ money(item.estimatedCostRial) }} {{ $t("cost") }}</span></span>
+              <div class="flex shrink-0 items-center gap-0.5"><button class="btn btn-ghost btn-square btn-xs" type="button" :aria-label='$t("Edit order item")' :title='$t("Edit item")' :disabled="busy" @click="editItem(item)"><Pencil :size="14" aria-hidden="true" /></button><button class="btn btn-ghost btn-error btn-square btn-xs" type="button" :aria-label='$t("Remove order item")' :title='$t("Remove item")' :disabled="busy" @click="remove(item)"><Trash2 :size="14" aria-hidden="true" /></button></div>
             </div>
-            <EmptyState v-if="!order.items.length" compact title="No items yet" description="Choose a service from the catalog to add the first item."><template #icon><PackageOpen :size="21" aria-hidden="true" /></template></EmptyState>
+            <EmptyState v-if="!order.items.length" compact :title='$t("No items yet")' :description='$t("Choose a service from the catalog to add the first item.")'><template #icon><PackageOpen :size="21" aria-hidden="true" /></template></EmptyState>
           </div>
         </section>
       </div>
@@ -465,18 +464,18 @@ reportError(error);
     <template v-else-if="tab === 'Payments'">
       <section data-enter-scope class="min-w-0 border-b border-base-300 pb-4">
         <header class="mb-3">
-          <h2 class="text-sm font-semibold leading-5">Order discount</h2>
-          <p class="mt-1 text-xs leading-4 text-base-content/60">Enter a rial amount or a percentage of the order subtotal.</p>
+          <h2 class="text-sm font-semibold leading-5">{{ $t("Order discount") }}</h2>
+          <p class="mt-1 text-xs leading-4 text-base-content/60">{{ $t("Enter a rial amount or a percentage of the order subtotal.") }}</p>
         </header>
         <div class="flex max-w-2xl items-end gap-2">
           <FormField class="min-w-0 flex-1 gap-1">
-            <span class="text-xs text-base-content/60">Discount</span>
+            <span class="text-xs text-base-content/60">{{ $t("Discount") }}</span>
             <div class="flex min-w-0 items-center gap-2">
               <AppInput
                 class="flex-1"
                 :model-value="discountText"
                 inputmode="decimal"
-                placeholder="Amount or 10%"
+                :placeholder='$t("Amount or 10%")'
                 @update:model-value="updateDiscountInput"
                 @blur="normalizeDiscountInput"
               />
@@ -488,7 +487,7 @@ reportError(error);
             :disabled="isNew || busy || saving"
             data-enter-submit @click="updateDiscount"
           >
-            Apply
+            {{ $t("Apply") }}
           </button>
         </div>
       </section>
@@ -502,16 +501,16 @@ reportError(error);
     <template v-else-if="tab === 'History'">
       <section v-if="!isNew" class="min-w-0 border-b border-base-300 pb-4">
         <header class="mb-3">
-          <h2 class="text-sm font-semibold leading-5">Order workflow</h2>
-          <p class="mt-1 text-xs leading-4 text-base-content/60">Move the order through its commercial and fulfillment stages.</p>
+          <h2 class="text-sm font-semibold leading-5">{{ $t("Order workflow") }}</h2>
+          <p class="mt-1 text-xs leading-4 text-base-content/60">{{ $t("Move the order through its commercial and fulfillment stages.") }}</p>
         </header>
         <div class="flex flex-wrap items-center gap-3">
           <div class="flex items-center gap-2 text-sm">
-            <span class="text-xs text-base-content/60">Current status</span>
+            <span class="text-xs text-base-content/60">{{ $t("Current status") }}</span>
             <StatusBadge :label="orderStatus" :tone="tone(orderStatus)" />
           </div>
-          <div v-if="orderStatusActions.length" class="flex flex-wrap items-center gap-2" role="group" aria-label="Available order status actions">
-            <span class="text-xs text-base-content/60">Move to</span>
+          <div v-if="orderStatusActions.length" class="flex flex-wrap items-center gap-2" role="group" :aria-label='$t("Available order status actions")'>
+            <span class="text-xs text-base-content/60">{{ $t("Move to") }}</span>
             <button
               v-for="action in orderStatusActions"
               :key="action.status"
@@ -524,29 +523,29 @@ reportError(error);
               <Play v-if="action.status === 'Production'" :size="14" aria-hidden="true" />
               <XCircle v-else-if="action.status === 'Cancelled'" :size="14" aria-hidden="true" />
               <CheckCircle2 v-else :size="14" aria-hidden="true" />
-              {{ action.label }}
+              {{ $ui(action.label) }}
             </button>
           </div>
-          <EmptyState v-else compact title="No further workflow actions" description="This order is at its current terminal or completed state."><template #icon><CheckCircle2 :size="21" aria-hidden="true" /></template></EmptyState>
+          <EmptyState v-else compact :title='$t("No further workflow actions")' :description='$t("This order is at its current terminal or completed state.")'><template #icon><CheckCircle2 :size="21" aria-hidden="true" /></template></EmptyState>
         </div>
       </section>
       <section class="min-w-0">
         <header class="mb-3">
-          <h2 class="text-sm font-semibold leading-5">Order history</h2>
-          <p class="mt-1 text-xs leading-4 text-base-content/60">A chronological record of important order changes.</p>
+          <h2 class="text-sm font-semibold leading-5">{{ $t("Order history") }}</h2>
+          <p class="mt-1 text-xs leading-4 text-base-content/60">{{ $t("A chronological record of important order changes.") }}</p>
         </header>
       <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.6fr)]">
         <div class="relative space-y-3 ps-6 before:absolute before:inset-y-2 before:start-2 before:w-px before:bg-base-300">
           <div class="relative rounded-box border border-base-300 bg-base-200/35 p-3">
             <span class="absolute -start-[1.58rem] top-4 grid size-4 place-items-center rounded-full border-2 border-base-100 bg-primary ring-1 ring-primary/30"></span>
-            <span class="block text-xs text-base-content/50">Created</span>
-            <strong class="mt-1 block text-sm">Order {{ order.orderNumber }} was created</strong>
+            <span class="block text-xs text-base-content/50">{{ $t("Created") }}</span>
+            <strong class="mt-1 block text-sm">{{ $t("Order") }} {{ order.orderNumber }} {{ $t("was created") }}</strong>
             <span class="mt-1 block text-xs text-base-content/55">{{ formatDateTime(order.createdAt) }}</span>
           </div>
           <div class="relative rounded-box border border-base-300 bg-base-200/35 p-3">
             <span class="absolute -start-[1.58rem] top-4 grid size-4 place-items-center rounded-full border-2 border-base-100 bg-base-300 ring-1 ring-base-300"></span>
-            <span class="block text-xs text-base-content/50">Last updated</span>
-            <strong class="mt-1 block text-sm">Order details were last saved</strong>
+            <span class="block text-xs text-base-content/50">{{ $t("Last updated") }}</span>
+            <strong class="mt-1 block text-sm">{{ $t("Order details were last saved") }}</strong>
             <span class="mt-1 block text-xs text-base-content/55">{{ formatDateTime(order.updatedAt) }}</span>
           </div>
         </div>
@@ -556,14 +555,14 @@ reportError(error);
               <PackageOpen :size="18" aria-hidden="true" />
             </div>
             <div>
-              <strong class="block text-sm">Detailed history is coming next</strong>
+              <strong class="block text-sm">{{ $t("Detailed history is coming next") }}</strong>
               <p class="mt-2 text-xs leading-5 text-base-content/60">
-                Status changes, item updates, payments, production, and corrections will appear here as a preserved timeline.
+                {{ $t("Status changes, item updates, payments, production, and corrections will appear here as a preserved timeline.") }}
               </p>
             </div>
           </div>
           <div class="mt-4 border-t border-base-300 pt-3">
-            <span class="block text-xs text-base-content/50">Current order status</span>
+            <span class="block text-xs text-base-content/50">{{ $t("Current order status") }}</span>
             <StatusBadge class="mt-2" :label="orderStatus" :tone="tone(orderStatus)" />
           </div>
         </div>
@@ -578,35 +577,35 @@ reportError(error);
             <section class="rounded-box border border-base-300 bg-base-100 p-4">
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <span class="block text-xs text-base-content/55">Order overview</span>
-                  <strong class="mt-1 block truncate text-lg">{{ isNew ? 'New order' : order.orderNumber }}</strong>
+                  <span class="block text-xs text-base-content/55">{{ $t("Order overview") }}</span>
+                  <strong class="mt-1 block truncate text-lg">{{ $ui(isNew ? 'New order' : order.orderNumber) }}</strong>
                 </div>
                 <StatusBadge :label="orderStatus" :tone="tone(orderStatus)" />
               </div>
               <div class="mt-4 border-t border-base-300 pt-3">
-                <span class="block text-xs text-base-content/55">Customer</span>
-                <strong class="mt-1 block truncate text-sm">{{ customer?.name || order.customerName || 'Walk-in customer' }}</strong>
-                <span class="mt-1 block truncate text-xs text-base-content/60">{{ customer?.phone || order.customerPhone || 'No contact details' }}</span>
+                <span class="block text-xs text-base-content/55">{{ $t("Customer") }}</span>
+                <strong class="mt-1 block truncate text-sm">{{ $ui(customer?.name || order.customerName || 'Walk-in customer') }}</strong>
+                <span class="mt-1 block truncate text-xs text-base-content/60">{{ $ui(customer?.phone || order.customerPhone || 'No contact details') }}</span>
               </div>
             </section>
 
             <section class="rounded-box border border-base-300 bg-base-100 p-4">
-              <h2 class="text-sm font-semibold">Order summary</h2>
-              <p class="mt-1 text-xs leading-5 text-base-content/60">Current totals and fulfillment context.</p>
+              <h2 class="text-sm font-semibold">{{ $t("Order summary") }}</h2>
+              <p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Current totals and fulfillment context.") }}</p>
               <dl class="mt-4 divide-y divide-base-300/70">
-                <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Items</dt><dd>{{ order.items.length }}</dd></div>
-                <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Priority</dt><dd>{{ priority }}</dd></div>
-                <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Promised</dt><dd>{{ promisedAt ? formatDateTime(promisedAt) : 'Not set' }}</dd></div>
-                <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Subtotal</dt><dd>{{ money(order.subtotalRial) }}</dd></div>
-                <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Discount</dt><dd>{{ money(order.discountRial) }}</dd></div>
-                <div class="flex items-center justify-between gap-3 py-2.5 text-sm font-semibold"><dt>Total</dt><dd class="text-primary">{{ money(order.totalRial) }}</dd></div>
-                <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">Paid</dt><dd class="text-success">{{ money(order.paidRial || 0) }}</dd></div>
-                <div class="flex items-center justify-between gap-3 py-2.5 text-sm font-semibold"><dt>Remaining</dt><dd class="text-warning">{{ money(order.remainingRial ?? order.totalRial) }}</dd></div>
+                <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">{{ $t("Items") }}</dt><dd>{{ order.items.length }}</dd></div>
+                <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">{{ $t("Priority") }}</dt><dd>{{ $ui(priority) }}</dd></div>
+                <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">{{ $t("Promised") }}</dt><dd>{{ $ui(promisedAt ? formatDateTime(promisedAt) : 'Not set') }}</dd></div>
+                <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">{{ $t("Subtotal") }}</dt><dd>{{ money(order.subtotalRial) }}</dd></div>
+                <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">{{ $t("Discount") }}</dt><dd>{{ money(order.discountRial) }}</dd></div>
+                <div class="flex items-center justify-between gap-3 py-2.5 text-sm font-semibold"><dt>{{ $t("Total") }}</dt><dd class="text-primary">{{ money(order.totalRial) }}</dd></div>
+                <div class="flex items-center justify-between gap-3 py-2.5 text-sm"><dt class="text-base-content/60">{{ $t("Paid") }}</dt><dd class="text-success">{{ money(order.paidRial || 0) }}</dd></div>
+                <div class="flex items-center justify-between gap-3 py-2.5 text-sm font-semibold"><dt>{{ $t("Remaining") }}</dt><dd class="text-warning">{{ money(order.remainingRial ?? order.totalRial) }}</dd></div>
               </dl>
             </section>
 
             <section v-if="order.items.length" class="rounded-box border border-base-300 bg-base-100 p-4">
-              <h2 class="text-sm font-semibold">Configured services</h2>
+              <h2 class="text-sm font-semibold">{{ $t("Configured services") }}</h2>
               <ul class="mt-3 divide-y divide-base-300/70">
                 <li v-for="item in [...order.items].sort((a, b) => a.position - b.position)" :key="item.id" class="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                   <span class="min-w-0"><strong class="block truncate text-sm">{{ item.serviceName }}</strong><small class="mt-0.5 block text-xs text-base-content/55">{{ item.quantity }} {{ item.quantityUnit }}</small></span>
@@ -616,8 +615,8 @@ reportError(error);
             </section>
 
             <div class="border-t border-base-300 pt-3 text-xs leading-5 text-base-content/65">
-              <span class="block">Created {{ formatDateTime(order.createdAt) }}</span>
-              <span class="block">Updated {{ formatDateTime(order.updatedAt) }}</span>
+              <span class="block">{{ $t("Created") }} {{ formatDateTime(order.createdAt) }}</span>
+              <span class="block">{{ $t("Updated") }} {{ formatDateTime(order.updatedAt) }}</span>
             </div>
           </div>
         </aside>
@@ -625,13 +624,13 @@ reportError(error);
     </div>
 
     <footer class="flex min-w-0 items-center justify-between gap-3 border-t border-base-300 px-1 pt-3">
-      <button class="btn btn-ghost btn-sm" type="button" :disabled="activeStepNumber === 1 || busy || saving" @click="previousStep">Back</button>
-      <span class="text-xs text-base-content/55">Step {{ activeStepNumber }} of {{ steps.length }}</span>
-      <button v-if="activeStepNumber < steps.length" class="btn btn-primary btn-sm" type="button" :disabled="busy || saving" data-enter-submit @click="nextStep">Continue</button>
-      <button v-else data-enter-submit class="btn btn-success btn-sm gap-2" type="button" :disabled="busy || saving" @click="saveMetadata(true)"><Save :size="14" aria-hidden="true" />{{ saving ? 'Saving…' : 'Save order' }}</button>
+      <button class="btn btn-ghost btn-sm" type="button" :disabled="activeStepNumber === 1 || busy || saving" @click="previousStep">{{ $t("Back") }}</button>
+      <span class="text-xs text-base-content/55">{{ $t("Step") }} {{ activeStepNumber }} {{ $t("of") }} {{ steps.length }}</span>
+      <button v-if="activeStepNumber < steps.length" class="btn btn-primary btn-sm" type="button" :disabled="busy || saving" data-enter-submit @click="nextStep">{{ $t("Continue") }}</button>
+      <button v-else data-enter-submit class="btn btn-success btn-sm gap-2" type="button" :disabled="busy || saving" @click="saveMetadata(true)"><Save :size="14" aria-hidden="true" />{{ $ui(saving ? 'Saving…' : 'Save order') }}</button>
     </footer>
 
-    <div v-if="editorOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Configure order service item" @click.self="closeItemEditor">
+    <div v-if="editorOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 sm:p-6" role="dialog" aria-modal="true" :aria-label='$t("Configure order service item")' @click.self="closeItemEditor">
       <div class="w-full max-w-4xl overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-2xl">
         <OrderItemConfigurator
           :services="services"

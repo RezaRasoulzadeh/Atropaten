@@ -84,15 +84,15 @@ watch([activeTab, start, end], load)
     <WorkspaceStickyStack>
       <WorkspaceHeader
         :show-breadcrumb="true"
-        eyebrow="Insights / authoritative queries"
-        title="Reports"
-        description="Reconciled views of journals, movements, production, and saved documents."
+        :eyebrow='$t("Insights / authoritative queries")'
+        :title='$t("Reports")'
+        :description='$t("Reconciled views of journals, movements, production, and saved documents.")'
       >
         <button class="btn btn-ghost btn-sm" type="button" :disabled="loading" @click="load">
-          <RefreshCw :size="15" /> Refresh
+          <RefreshCw :size="15" /> {{ $t("Refresh") }}
         </button>
         <button class="btn btn-primary btn-sm" type="button" :disabled="!report || loading" @click="printReport">
-          <Printer :size="15" /> Print / save PDF
+          <Printer :size="15" /> {{ $t("Print / save PDF") }}
         </button>
       </WorkspaceHeader>
     </WorkspaceStickyStack>
@@ -103,52 +103,52 @@ watch([activeTab, start, end], load)
           <BarChart3 :size="17" class="shrink-0 text-primary" aria-hidden="true" />
           <div class="min-w-0">
             <strong class="block truncate text-sm">{{ activeLabel }}</strong>
-            <span class="block truncate text-xs text-base-content/55">Choose a reporting period; the report updates automatically.</span>
+            <span class="block truncate text-xs text-base-content/55">{{ $t("Choose a reporting period; the report updates automatically.") }}</span>
           </div>
         </div>
       </template>
       <template #filters>
         <SelectField
           v-model="activeTab"
-          label="Report"
+          :label='$t("Report")'
           :options="reportTabs.map(([value, label]) => ({ label, value }))"
         />
-        <FormField label="From"><JalaliDatePicker v-model="start" /></FormField>
-        <FormField label="To"><JalaliDatePicker v-model="end" /></FormField>
+        <FormField :label='$t("From")'><JalaliDatePicker v-model="start" /></FormField>
+        <FormField :label='$t("To")'><JalaliDatePicker v-model="end" /></FormField>
       </template>
-      <template #count><span>{{ rowCount }} rows</span></template>
+      <template #count><span>{{ rowCount }} {{ $t("rows") }}</span></template>
     </SearchFilterBar>
 
-    <LoadingState v-if="loading" label="Loading report…" />
+    <LoadingState v-if="loading" :label='$t("Loading report…")' />
     <template v-else>
-      <section v-if="summary.length" class="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5" aria-label="Report summary">
+      <section v-if="summary.length" class="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5" :aria-label='$t("Report summary")'>
         <article v-for="item in summary" :key="item.key" class="min-w-0 rounded-box border border-base-300 bg-base-100 p-4">
           <div class="flex items-start justify-between gap-3">
-            <p class="min-w-0 truncate text-xs font-medium text-base-content/60">{{ item.label }}</p>
+            <p class="min-w-0 truncate text-xs font-medium text-base-content/60">{{ $ui(item.label) }}</p>
             <span class="grid size-8 shrink-0 place-items-center rounded-box bg-primary/10 text-primary"><BarChart3 :size="15" /></span>
           </div>
           <strong class="mt-3 block truncate text-lg tabular-nums">{{ money(item.amountRial) }}</strong>
-          <span v-if="item.count" class="mt-1 block text-xs text-base-content/50">{{ item.count }} records</span>
+          <span v-if="item.count" class="mt-1 block text-xs text-base-content/50">{{ item.count }} {{ $t("records") }}</span>
         </article>
       </section>
 
-      <AppPanel :title="activeLabel" :subtitle="`${report?.startDate || ''} → ${report?.endDate || ''} · values supplied by Go`" :flush="true">
-        <template #action><span class="text-xs text-base-content/55">{{ rowCount }} rows</span></template>
-        <DataTable label="Report data">
+      <AppPanel :title="activeLabel" :subtitle="$ui(`${report?.startDate || ''} → ${report?.endDate || ''} · values supplied by Go`)" :flush="true">
+        <template #action><span class="text-xs text-base-content/55">{{ rowCount }} {{ $t("rows") }}</span></template>
+        <DataTable :label='$t("Report data")'>
           <thead>
-            <tr><th scope="col">Source / name</th><th scope="col">Category</th><th scope="col">Date</th><th scope="col">Status</th><th scope="col" class="text-end">Quantity</th><th scope="col" class="text-end">Amount</th><th scope="col" class="text-end">Secondary</th></tr>
+            <tr><th scope="col">{{ $t("Source / name") }}</th><th scope="col">{{ $t("Category") }}</th><th scope="col">{{ $t("Date") }}</th><th scope="col">{{ $t("Status") }}</th><th scope="col" class="text-end">{{ $t("Quantity") }}</th><th scope="col" class="text-end">{{ $t("Amount") }}</th><th scope="col" class="text-end">{{ $t("Secondary") }}</th></tr>
           </thead>
           <tbody>
             <tr v-for="row in report?.rows" :key="`${row.id}-${row.name}`">
               <DataTableCell><span class="block max-w-72 truncate font-medium">{{ row.name || row.id }}</span><span v-if="row.secondaryName" class="mt-1 block max-w-72 truncate text-xs text-base-content/55">{{ row.secondaryName }}</span><span v-if="row.referenceId" class="mt-1 block text-xs text-base-content/55">{{ row.referenceId }}</span></DataTableCell>
-              <DataTableCell>{{ row.category || '—' }}</DataTableCell>
-              <DataTableCell>{{ row.date ? formatDateTime(row.date) : '—' }}</DataTableCell>
+              <DataTableCell>{{ $ui(row.category || '—') }}</DataTableCell>
+              <DataTableCell>{{ $ui(row.date ? formatDateTime(row.date) : '—') }}</DataTableCell>
               <DataTableCell><StatusBadge v-if="row.status" :label="row.status" tone="slate" /><span v-else class="text-xs text-base-content/55">—</span></DataTableCell>
-              <DataTableCell numeric>{{ row.quantityUnits ? quantity(row.quantityUnits) : '—' }}<span v-if="row.secondaryQuantityUnits"> / {{ quantity(row.secondaryQuantityUnits) }}</span></DataTableCell>
+              <DataTableCell numeric>{{ $ui(row.quantityUnits ? quantity(row.quantityUnits) : '—') }}<span v-if="row.secondaryQuantityUnits"> / {{ quantity(row.secondaryQuantityUnits) }}</span></DataTableCell>
               <DataTableCell numeric>{{ money(row.amountRial) }}</DataTableCell>
-              <DataTableCell numeric>{{ row.secondaryAmountRial ? money(row.secondaryAmountRial) : '—' }}</DataTableCell>
+              <DataTableCell numeric>{{ $ui(row.secondaryAmountRial ? money(row.secondaryAmountRial) : '—') }}</DataTableCell>
             </tr>
-            <tr v-if="!report?.rows?.length"><DataTableCell colspan="7"><EmptyState compact title="No records in this period" description="Try another reporting range."><template #icon><BarChart3 :size="21" aria-hidden="true" /></template></EmptyState></DataTableCell></tr>
+            <tr v-if="!report?.rows?.length"><DataTableCell colspan="7"><EmptyState compact :title='$t("No records in this period")' :description='$t("Try another reporting range.")'><template #icon><BarChart3 :size="21" aria-hidden="true" /></template></EmptyState></DataTableCell></tr>
           </tbody>
         </DataTable>
       </AppPanel>

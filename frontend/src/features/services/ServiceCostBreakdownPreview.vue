@@ -208,25 +208,25 @@ watch(rows, (value) => emit('update:breakdown', value.map((row) => ({ name: row.
 </script>
 
 <template>
-  <section class="min-w-0 space-y-4" aria-label="Cost breakdown preview">
+  <section class="min-w-0 space-y-4" :aria-label='$t("Cost breakdown preview")'>
     <ServiceOverviewIdentity :form="form" :active="active" />
 
-    <ServiceOverviewSection title="Cost estimate" :description="form.finishedSize?.quantityParameterKey ? 'Complete batch cost from the default dimensions and quantity.' : 'Current cost per service unit from the configured components and their selected defaults.'">
-      <div v-if="defaultEstimateSummary.length" class="mb-3 rounded-box border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs leading-5 text-base-content/70"><strong class="font-medium text-primary">Defaults used for estimate:</strong> {{ defaultEstimateSummary.join(' · ') }}</div>
+    <ServiceOverviewSection :title='$t("Cost estimate")' :description="$ui(form.finishedSize?.quantityParameterKey ? 'Complete batch cost from the default dimensions and quantity.' : 'Current cost per service unit from the configured components and their selected defaults.')">
+      <div v-if="defaultEstimateSummary.length" class="mb-3 rounded-box border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs leading-5 text-base-content/70"><strong class="font-medium text-primary">{{ $t("Defaults used for estimate:") }}</strong> {{ $ui(defaultEstimateSummary.join(' · ')) }}</div>
       <div v-if="rows.length" class="space-y-2">
         <div class="divide-y divide-base-300/70">
           <div v-for="row in rows" :key="row.component.id" class="flex min-w-0 items-center gap-2 py-2.5 first:pt-0 last:pb-0">
             <span class="size-2 shrink-0 rounded-full" :class="row.missing ? 'bg-warning' : 'bg-primary'"></span>
-            <div class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ row.component.name || 'Cost component' }}</strong><small class="block truncate text-xs text-base-content/55">{{ row.detail }}</small></div>
-            <span class="shrink-0 text-sm tabular-nums" :class="row.missing ? 'text-warning' : ''">{{ row.missing ? 'Needs setup' : formatMoney(row.amount, currencyUnit) }}</span>
+            <div class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ $ui(row.component.name || 'Cost component') }}</strong><small class="block truncate text-xs text-base-content/55">{{ $ui(row.detail) }}</small></div>
+            <span class="shrink-0 text-sm tabular-nums" :class="row.missing ? 'text-warning' : ''">{{ $ui(row.missing ? 'Needs setup' : formatMoney(row.amount, currencyUnit)) }}</span>
           </div>
         </div>
-        <div class="flex items-center justify-between gap-3 border-t border-base-300/75 pt-2.5 text-sm"><span class="font-medium">Subtotal</span><strong class="tabular-nums">{{ formatMoney(subtotal, currencyUnit) }}</strong></div>
-        <div class="flex items-center justify-between gap-3 border-t border-base-300/75 pt-2.5 text-sm"><span class="font-semibold">Estimated cost</span><strong class="text-base text-success tabular-nums">{{ formatMoney(total, currencyUnit) }}</strong></div>
+        <div class="flex items-center justify-between gap-3 border-t border-base-300/75 pt-2.5 text-sm"><span class="font-medium">{{ $t("Subtotal") }}</span><strong class="tabular-nums">{{ formatMoney(subtotal, currencyUnit) }}</strong></div>
+        <div class="flex items-center justify-between gap-3 border-t border-base-300/75 pt-2.5 text-sm"><span class="font-semibold">{{ $t("Estimated cost") }}</span><strong class="text-base text-success tabular-nums">{{ formatMoney(total, currencyUnit) }}</strong></div>
       </div>
-      <p v-else class="rounded-box border border-dashed border-base-300/80 p-4 text-center text-sm leading-5 text-base-content/60">Add a cost component to see its estimated breakdown.</p>
+      <p v-else class="rounded-box border border-dashed border-base-300/80 p-4 text-center text-sm leading-5 text-base-content/60">{{ $t("Add a cost component to see its estimated breakdown.") }}</p>
     </ServiceOverviewSection>
 
-    <div class="flex items-start gap-2 border-t border-base-300 pt-3 text-xs leading-5 text-base-content/65"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="15" aria-hidden="true" /><span>Material costs use the highest recorded purchase cost when available. This is a setup preview; final pricing is calculated after the service is saved.</span></div>
+    <div class="flex items-start gap-2 border-t border-base-300 pt-3 text-xs leading-5 text-base-content/65"><CircleHelp class="mt-0.5 shrink-0 text-info" :size="15" aria-hidden="true" /><span>{{ $t("Material costs use the highest recorded purchase cost when available. This is a setup preview; final pricing is calculated after the service is saved.") }}</span></div>
   </section>
 </template>

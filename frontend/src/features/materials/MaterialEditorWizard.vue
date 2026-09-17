@@ -9,6 +9,7 @@ import StatusBadge from '../../components/ui/StatusBadge.vue'
 import WorkspaceBreadcrumb from '../../components/layout/WorkspaceBreadcrumb.vue'
 import type { CurrencyUnit } from '../../utils/currency'
 import { formatMoney } from '../../utils/currency'
+import { translateUi } from '../../i18n'
 import type { useMaterialsWorkspace } from './useMaterialsWorkspace'
 
 const props = defineProps<{
@@ -181,8 +182,8 @@ const unitSelectOptions = computed(() => unitOptions.map((unit) => ({ label: uni
 const materialTitle = computed(() => form.value.name.trim() || 'Your material')
 const materialCode = computed(() => form.value.sku.trim() || 'No SKU')
 const materialKind = computed(() => kindOptions.find((option) => option.value === form.value.kind)?.label || 'Generic consumable')
-const stockValue = computed(() => `${form.value.physicalStock || '0'} ${unitLabel(form.value.consumptionUnit)}`)
-const conversionValue = computed(() => `1 ${unitLabel(form.value.purchaseUnit)} = ${form.value.conversionFactor || '…'} ${unitLabel(form.value.consumptionUnit)}`)
+const stockValue = computed(() => `${form.value.physicalStock || '0'} ${translateUi(unitLabel(form.value.consumptionUnit))}`)
+const conversionValue = computed(() => `1 ${translateUi(unitLabel(form.value.purchaseUnit))} = ${form.value.conversionFactor || '…'} ${translateUi(unitLabel(form.value.consumptionUnit))}`)
 const pricingUnitCostValue = computed(() => {
   const value = selectedMaterial.value?.highestPurchaseUnitCostRial || form.value.averageUnitCostRial
   return value > 0 ? formatMoney(value, props.currencyUnit) : 'Not set'
@@ -245,27 +246,27 @@ function submit() {
 </script>
 
 <template>
-  <div class="service-wizard w-full flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" aria-label="Material editor">
+  <div class="service-wizard w-full flex min-h-0 min-w-0 flex-col gap-4 overflow-visible xl:h-full xl:overflow-hidden" :aria-label='$t("Material editor")'>
     <header class="service-wizard-header flex min-w-0 shrink-0 flex-wrap items-end justify-between gap-4 border-b border-base-300 bg-base-200 px-1 pt-4 pb-4">
       <div class="min-w-0">
-        <h1 class="mt-2 text-2xl font-bold leading-8 tracking-tight text-primary">{{ title }}</h1>
-        <p class="mt-1 text-xs leading-4 text-base-content/65">Define stock, units, and purchasing details for this material.</p>
+        <h1 class="mt-2 text-2xl font-bold leading-8 tracking-tight text-primary">{{ $ui(title) }}</h1>
+        <p class="mt-1 text-xs leading-4 text-base-content/65">{{ $t("Define stock, units, and purchasing details for this material.") }}</p>
         <WorkspaceBreadcrumb class="mt-2" :items="[{ label: 'Materials' }, { label: title, current: true }]" @navigate="emit('cancel')" />
       </div>
       <div class="flex shrink-0 items-center gap-2">
-        <button class="btn btn-error" type="button" :disabled="busy || isSaving" @click="emit('cancel')">Cancel</button>
+        <button class="btn btn-error" type="button" :disabled="busy || isSaving" @click="emit('cancel')">{{ $t("Cancel") }}</button>
         <button class="btn btn-success gap-2" type="submit" form="material-editor-wizard" :disabled="busy || isSaving">
-          <Save :size="16" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save' }}
+          <Save :size="16" aria-hidden="true" />{{ $ui(isSaving ? 'Saving…' : 'Save') }}
         </button>
       </div>
     </header>
 
     <div class="service-wizard-main flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-visible xl:overflow-hidden">
       <aside class="service-wizard-steps flex min-w-0 shrink-0 flex-col border-b border-base-300 pb-3 xl:sticky xl:top-0 xl:z-20 xl:bg-base-200">
-        <nav aria-label="Material setup steps" class="service-wizard-step-nav flex min-w-0 gap-1 overflow-x-auto pb-1 xl:overflow-visible">
+        <nav :aria-label='$t("Material setup steps")' class="service-wizard-step-nav flex min-w-0 gap-1 overflow-x-auto pb-1 xl:overflow-visible">
           <button v-for="step in steps" :key="step.number" class="wizard-step w-auto min-w-[11rem] shrink-0 text-start xl:min-w-0 xl:flex-1" :class="stepClass(step.number)" type="button" @click="activeStep = step.number">
             <span class="wizard-step-number"><CheckCheck v-if="step.number < activeStep" :size="17" :stroke-width="2.2" aria-hidden="true" /><span v-else>{{ step.number }}</span></span>
-            <span class="min-w-0"><strong class="block truncate whitespace-nowrap text-sm">{{ step.title }}</strong><small class="mt-0.5 block truncate whitespace-nowrap text-xs leading-4 text-base-content/60">{{ step.description }}</small></span>
+            <span class="min-w-0"><strong class="block truncate whitespace-nowrap text-sm">{{ $ui(step.title) }}</strong><small class="mt-0.5 block truncate whitespace-nowrap text-xs leading-4 text-base-content/60">{{ $ui(step.description) }}</small></span>
           </button>
         </nav>
       </aside>
@@ -276,50 +277,50 @@ function submit() {
             <section v-if="activeStep === 1" class="min-w-0 space-y-6">
               <div class="flex items-center gap-3 border-b border-base-300 pb-4">
                 <span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/10 text-primary"><Package :size="21" aria-hidden="true" /></span>
-                <div><h2 class="text-lg font-semibold">Identify the material</h2><p class="text-sm text-base-content/60">Start by choosing what kind of inventory material this is.</p></div>
+                <div><h2 class="text-lg font-semibold">{{ $t("Identify the material") }}</h2><p class="text-sm text-base-content/60">{{ $t("Start by choosing what kind of inventory material this is.") }}</p></div>
               </div>
               <div class="grid min-w-0 gap-4 sm:grid-cols-2">
-                <FormField class="gap-1"><span>Name <em class="text-error">*</em></span><AppInput v-model="form.name" class="input w-full min-w-0" :class="{ 'input-error': validationAttempted && !form.name.trim() }" type="text" required placeholder="A4 80gsm Paper" autocomplete="off" /><small class="text-xs leading-5 text-base-content/60">Use the name your team will recognize when selecting material.</small></FormField>
-                <FormField class="gap-1"><span>SKU / code</span><AppInput :model-value="form.sku" class="input w-full min-w-0" type="text" placeholder="A4-80GSM-PAPER" autocomplete="off" @update:model-value="onSkuInput" /><small class="text-xs leading-5 text-base-content/60">Generated from the name automatically. You can edit it if needed.</small></FormField>
-                <FormField class="gap-1 sm:col-span-2"><span>Material kind <em class="text-error">*</em></span><SelectField v-model="form.kind" :options="kindOptions" aria-label="Material kind" @update:model-value="updateKind" /><small class="text-xs leading-5 text-base-content/60">Determines compatibility, applicable specifications, and consumption behavior.</small></FormField>
+                <FormField class="gap-1"><span>{{ $t("Name") }} <em class="text-error">*</em></span><AppInput v-model="form.name" class="input w-full min-w-0" :class="{ 'input-error': validationAttempted && !form.name.trim() }" type="text" required :placeholder='$t("A4 80gsm Paper")' autocomplete="off" /><small class="text-xs leading-5 text-base-content/60">{{ $t("Use the name your team will recognize when selecting material.") }}</small></FormField>
+                <FormField class="gap-1"><span>{{ $t("SKU / code") }}</span><AppInput :model-value="form.sku" class="input w-full min-w-0" type="text" :placeholder='$t("A4-80GSM-PAPER")' autocomplete="off" @update:model-value="onSkuInput" /><small class="text-xs leading-5 text-base-content/60">{{ $t("Generated from the name automatically. You can edit it if needed.") }}</small></FormField>
+                <FormField class="gap-1 sm:col-span-2"><span>{{ $t("Material kind") }} <em class="text-error">*</em></span><SelectField v-model="form.kind" :options="kindOptions" :aria-label='$t("Material kind")' @update:model-value="updateKind" /><small class="text-xs leading-5 text-base-content/60">{{ $t("Determines compatibility, applicable specifications, and consumption behavior.") }}</small></FormField>
               </div>
             </section>
 
             <section v-else-if="activeStep === 2" class="min-w-0 space-y-6">
               <div class="flex items-center gap-3 border-b border-base-300 pb-4">
                 <span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/10 text-primary"><Warehouse :size="21" aria-hidden="true" /></span>
-                <div><h2 class="text-lg font-semibold">Specifications &amp; stock</h2><p class="text-sm text-base-content/60">Set the applicable physical properties first, then define how this material is bought and consumed.</p></div>
+                <div><h2 class="text-lg font-semibold">{{ $t("Specifications & stock") }}</h2><p class="text-sm text-base-content/60">{{ $t("Set the applicable physical properties first, then define how this material is bought and consumed.") }}</p></div>
               </div>
               <div class="grid min-w-0 gap-4 sm:grid-cols-2">
-                <p v-if="form.kind === 'roll-media' || form.kind === 'fabric'" class="text-sm text-base-content/65 sm:col-span-2">For roll layouts, consume in metres or square metres. If buying a whole roll, set the conversion to its length (or area). Enter physical width in mm: a 320 cm roll is 3200 mm.</p>
-                <SelectField v-model="form.purchaseUnit" label="Purchase unit" :options="unitSelectOptions" />
-                <SelectField v-model="form.consumptionUnit" label="Consumption unit" :options="unitSelectOptions" />
-                <FormField class="gap-1 sm:col-span-2"><span>Conversion factor</span><AppInput v-model="form.conversionFactor" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="500" /><small class="text-xs leading-5 text-base-content/60">{{ conversionValue }}</small></FormField>
-                <FormField class="gap-1"><span>Opening physical stock</span><AppInput v-model="form.physicalStock" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="0" :disabled="isEditing" /><small class="text-xs leading-5 text-base-content/60">{{ isEditing ? 'Use Adjust stock for later ledger movements.' : 'Starting quantity in the consumption unit.' }}</small></FormField>
-                <FormField class="gap-1"><span>Reorder level</span><AppInput v-model="form.reorderLevel" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="0" /><small class="text-xs leading-5 text-base-content/60">Warn when available stock reaches this level.</small></FormField>
+                <p v-if="form.kind === 'roll-media' || form.kind === 'fabric'" class="text-sm text-base-content/65 sm:col-span-2">{{ $t("For roll layouts, consume in metres or square metres. If buying a whole roll, set the conversion to its length (or area). Enter physical width in mm: a 320 cm roll is 3200 mm.") }}</p>
+                <SelectField v-model="form.purchaseUnit" :label='$t("Purchase unit")' :options="unitSelectOptions" />
+                <SelectField v-model="form.consumptionUnit" :label='$t("Consumption unit")' :options="unitSelectOptions" />
+                <FormField class="gap-1 sm:col-span-2"><span>{{ $t("Conversion factor") }}</span><AppInput v-model="form.conversionFactor" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="500" /><small class="text-xs leading-5 text-base-content/60">{{ conversionValue }}</small></FormField>
+                <FormField class="gap-1"><span>{{ $t("Opening physical stock") }}</span><AppInput v-model="form.physicalStock" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="0" :disabled="isEditing" /><small class="text-xs leading-5 text-base-content/60">{{ $ui(isEditing ? 'Use Adjust stock for later ledger movements.' : 'Starting quantity in the consumption unit.') }}</small></FormField>
+                <FormField class="gap-1"><span>{{ $t("Reorder level") }}</span><AppInput v-model="form.reorderLevel" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="0" /><small class="text-xs leading-5 text-base-content/60">{{ $t("Warn when available stock reaches this level.") }}</small></FormField>
               </div>
               <div v-if="showDimensions()" class="space-y-3 rounded-box border border-primary/25 bg-primary/5 p-4">
-                <div><h3 class="text-sm font-semibold">Physical inventory specifications</h3><p class="mt-1 text-xs leading-5 text-base-content/60">Stored canonically in millimetres. These describe the source inventory material, not the customer’s finished size.</p></div>
-                <SelectField v-if="(form.kind === 'sheet-stock' || form.kind === 'board') && physicalSizeOptions.length" :model-value="physicalSizeValue" label="Common source size" :options="[{ label: 'Enter custom dimensions', value: '' }, ...physicalSizeOptions]" @update:model-value="selectPhysicalSize" />
+                <div><h3 class="text-sm font-semibold">{{ $t("Physical inventory specifications") }}</h3><p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Stored canonically in millimetres. These describe the source inventory material, not the customer’s finished size.") }}</p></div>
+                <SelectField v-if="(form.kind === 'sheet-stock' || form.kind === 'board') && physicalSizeOptions.length" :model-value="physicalSizeValue" :label='$t("Common source size")' :options="[{ label: 'Enter custom dimensions', value: '' }, ...physicalSizeOptions]" @update:model-value="selectPhysicalSize" />
                 <div class="grid min-w-0 gap-4 sm:grid-cols-2">
-                  <FormField class="gap-1"><span>Physical width (mm) <em class="text-error">*</em></span><AppInput :model-value="String(attributeValue('width_mm'))" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="320" @update:model-value="setAttribute('width_mm', 'decimal', $event)" /></FormField>
-                  <FormField v-if="showHeight()" class="gap-1"><span>Physical height (mm) <em class="text-error">*</em></span><AppInput :model-value="String(attributeValue('height_mm'))" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="450" @update:model-value="setAttribute('height_mm', 'decimal', $event)" /></FormField>
-                  <FormField v-else-if="showLength()" class="gap-1"><span>Optional roll length (mm)</span><AppInput :model-value="String(attributeValue('length_mm'))" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="Optional" @update:model-value="setAttribute('length_mm', 'decimal', $event)" /></FormField>
+                  <FormField class="gap-1"><span>{{ $t("Physical width (mm)") }} <em class="text-error">*</em></span><AppInput :model-value="String(attributeValue('width_mm'))" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="320" @update:model-value="setAttribute('width_mm', 'decimal', $event)" /></FormField>
+                  <FormField v-if="showHeight()" class="gap-1"><span>{{ $t("Physical height (mm)") }} <em class="text-error">*</em></span><AppInput :model-value="String(attributeValue('height_mm'))" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="450" @update:model-value="setAttribute('height_mm', 'decimal', $event)" /></FormField>
+                  <FormField v-else-if="showLength()" class="gap-1"><span>{{ $t("Optional roll length (mm)") }}</span><AppInput :model-value="String(attributeValue('length_mm'))" class="input w-full min-w-0" type="text" inputmode="decimal" :placeholder='$t("Optional")' @update:model-value="setAttribute('length_mm', 'decimal', $event)" /></FormField>
                 </div>
               </div>
               <div class="space-y-4 rounded-box border border-base-300 bg-base-100 p-4">
                 <div>
-                  <h3 class="text-sm font-semibold">Material specifications</h3>
-                  <p class="mt-1 text-xs leading-5 text-base-content/60">Complete known values; migrated materials intentionally remain blank until verified. These fields are driven by the selected material kind.</p>
+                  <h3 class="text-sm font-semibold">{{ $t("Material specifications") }}</h3>
+                  <p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Complete known values; migrated materials intentionally remain blank until verified. These fields are driven by the selected material kind.") }}</p>
                 </div>
-                <div v-if="!specificationGroups.length" class="rounded-box border border-dashed border-base-300 px-3 py-4 text-sm text-base-content/60">This material kind has no additional specifications yet.</div>
+                <div v-if="!specificationGroups.length" class="rounded-box border border-dashed border-base-300 px-3 py-4 text-sm text-base-content/60">{{ $t("This material kind has no additional specifications yet.") }}</div>
                 <div v-for="group in specificationGroups" :key="group.name" class="space-y-3">
-                  <h4 class="text-xs font-semibold uppercase tracking-wide text-base-content/55">{{ group.name }}</h4>
+                  <h4 class="text-xs font-semibold uppercase tracking-wide text-base-content/55">{{ $ui(group.name) }}</h4>
                   <div class="grid min-w-0 gap-4 sm:grid-cols-2">
                     <FormField v-for="definition in group.definitions" :key="definition.key" class="gap-1">
-                      <span>{{ definition.label }}<span v-if="definition.unit"> ({{ definition.unit }})</span></span>
+                      <span>{{ $ui(definition.label) }}<span v-if="definition.unit"> ({{ $ui(definition.unit) }})</span></span>
                       <SelectField v-if="definition.valueType === 'enum'" :model-value="String(attributeValue(definition.key))" :options="enumOptions(definition)" :aria-label="definition.label" @update:model-value="setAttribute(definition.key, definition.valueType, $event)" />
-                      <div v-else-if="definition.valueType === 'boolean'" class="flex h-10 items-center gap-2"><input class="checkbox" type="checkbox" :checked="Boolean(attributeValue(definition.key))" :aria-label="definition.label" @change="setAttribute(definition.key, definition.valueType, ($event.target as HTMLInputElement).checked)" /><span class="text-sm">Enabled</span></div>
+                      <div v-else-if="definition.valueType === 'boolean'" class="flex h-10 items-center gap-2"><input class="checkbox" type="checkbox" :checked="Boolean(attributeValue(definition.key))" :aria-label="definition.label" @change="setAttribute(definition.key, definition.valueType, ($event.target as HTMLInputElement).checked)" /><span class="text-sm">{{ $t("Enabled") }}</span></div>
                       <AppInput v-else :model-value="String(attributeValue(definition.key))" class="input w-full min-w-0" :type="definition.valueType === 'text' ? 'text' : 'number'" :min="definition.valueType === 'integer' || definition.valueType === 'decimal' ? 0 : undefined" :step="definition.valueType === 'decimal' ? 'any' : undefined" @update:model-value="setAttribute(definition.key, definition.valueType, $event)" />
                     </FormField>
                   </div>
@@ -330,13 +331,13 @@ function submit() {
             <section v-else class="min-w-0 space-y-6">
               <div class="flex items-center gap-3 border-b border-base-300 pb-4">
                 <span class="grid size-10 shrink-0 place-items-center rounded-box bg-primary/10 text-primary"><Database :size="21" aria-hidden="true" /></span>
-                <div><h2 class="text-lg font-semibold">Purchasing details</h2><p class="text-sm text-base-content/60">Keep the cost basis and operational context with the material.</p></div>
+                <div><h2 class="text-lg font-semibold">{{ $t("Purchasing details") }}</h2><p class="text-sm text-base-content/60">{{ $t("Keep the cost basis and operational context with the material.") }}</p></div>
               </div>
               <div class="grid min-w-0 gap-4 sm:grid-cols-2">
-                <FormField v-if="isCreating" class="gap-1 sm:col-span-2"><span>Opening unit cost / {{ form.consumptionUnit }} ({{ props.currencyUnit }})</span><AppInput :model-value="costDraft" :money="props.currencyUnit" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="0" @update:model-value="updateCost" /><small class="text-xs leading-5 text-base-content/60">Used for opening stock only. Posted purchases become the authoritative pricing basis.</small></FormField>
-                <div v-else class="rounded-box border border-base-300 bg-base-100/45 p-4 sm:col-span-2"><span class="block text-xs text-base-content/60">Current pricing basis</span><strong class="mt-1 block text-lg font-semibold text-primary">{{ pricingUnitCostValue }}</strong><p class="mt-1 text-xs leading-5 text-base-content/60">Pricing uses the highest landed purchase cost when available.</p></div>
-                <FormField class="gap-1 sm:col-span-2"><span>Preferred supplier <em class="text-base-content/45">optional</em></span><AppInput v-model="form.preferredSupplier" class="input w-full min-w-0" type="text" placeholder="Pars Paper" autocomplete="off" /></FormField>
-                <FormField class="gap-1 sm:col-span-2"><span>Notes <em class="text-base-content/45">optional</em></span><AppTextarea v-model="form.notes" class="textarea w-full min-w-0" rows="6" placeholder="Storage, handling, or purchasing notes" /></FormField>
+                <FormField v-if="isCreating" class="gap-1 sm:col-span-2"><span>{{ $t("Opening unit cost /") }} {{ $ui(form.consumptionUnit) }} ({{ props.currencyUnit }})</span><AppInput :model-value="costDraft" :money="props.currencyUnit" class="input w-full min-w-0" type="text" inputmode="decimal" placeholder="0" @update:model-value="updateCost" /><small class="text-xs leading-5 text-base-content/60">{{ $t("Used for opening stock only. Posted purchases become the authoritative pricing basis.") }}</small></FormField>
+                <div v-else class="rounded-box border border-base-300 bg-base-100/45 p-4 sm:col-span-2"><span class="block text-xs text-base-content/60">{{ $t("Current pricing basis") }}</span><strong class="mt-1 block text-lg font-semibold text-primary">{{ pricingUnitCostValue }}</strong><p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Pricing uses the highest landed purchase cost when available.") }}</p></div>
+                <FormField class="gap-1 sm:col-span-2"><span>{{ $t("Preferred supplier") }} <em class="text-base-content/45">{{ $t("optional") }}</em></span><AppInput v-model="form.preferredSupplier" class="input w-full min-w-0" type="text" :placeholder='$t("Pars Paper")' autocomplete="off" /></FormField>
+                <FormField class="gap-1 sm:col-span-2"><span>{{ $t("Notes") }} <em class="text-base-content/45">{{ $t("optional") }}</em></span><AppTextarea v-model="form.notes" class="textarea w-full min-w-0" rows="6" :placeholder='$t("Storage, handling, or purchasing notes")' /></FormField>
               </div>
             </section>
           </form>
@@ -348,23 +349,23 @@ function submit() {
               <div class="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent" aria-hidden="true"></div>
               <div class="relative flex min-h-36 flex-col justify-end">
                 <span class="mb-auto grid size-11 place-items-center rounded-box border border-base-300 bg-base-200/80 text-primary"><Package :size="24" aria-hidden="true" /></span>
-                <div class="mt-6 flex items-end justify-between gap-3"><div class="min-w-0"><h2 class="truncate text-lg font-semibold">{{ materialTitle }}</h2><p class="mt-1 truncate text-xs text-base-content/60">{{ materialCode }} · {{ materialKind }}</p></div><StatusBadge label="Active" tone="green" /></div>
+                <div class="mt-6 flex items-end justify-between gap-3"><div class="min-w-0"><h2 class="truncate text-lg font-semibold">{{ materialTitle }}</h2><p class="mt-1 truncate text-xs text-base-content/60">{{ materialCode }} · {{ materialKind }}</p></div><StatusBadge :label='$t("Active")' tone="green" /></div>
               </div>
             </div>
 
             <div class="divide-y divide-base-300 rounded-box border border-base-300 bg-base-100/35">
-              <div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">Purchase unit</span><strong>{{ unitLabel(form.purchaseUnit) }}</strong></div>
-              <div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">Conversion</span><strong class="text-end text-xs">{{ conversionValue }}</strong></div>
-              <div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">Available stock</span><strong>{{ stockValue }}</strong></div>
-              <div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">Pricing unit cost</span><strong class="text-primary">{{ pricingUnitCostValue }}</strong></div>
-              <div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">Supplier</span><strong class="max-w-[9rem] truncate text-end">{{ form.preferredSupplier || 'Not specified' }}</strong></div>
+              <div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">{{ $t("Purchase unit") }}</span><strong>{{ $ui(unitLabel(form.purchaseUnit)) }}</strong></div>
+              <div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">{{ $t("Conversion") }}</span><strong class="text-end text-xs">{{ conversionValue }}</strong></div>
+              <div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">{{ $t("Available stock") }}</span><strong>{{ stockValue }}</strong></div>
+              <div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">{{ $t("Pricing unit cost") }}</span><strong class="text-primary">{{ pricingUnitCostValue }}</strong></div>
+              <div class="flex items-center justify-between gap-3 px-3 py-3 text-sm"><span class="text-base-content/60">{{ $t("Supplier") }}</span><strong class="max-w-[9rem] truncate text-end">{{ $ui(form.preferredSupplier || 'Not specified') }}</strong></div>
             </div>
 
-            <div class="flex gap-2 border-t border-base-300 pt-3 text-sm"><Package class="mt-0.5 shrink-0 text-info" :size="17" aria-hidden="true" /><p class="leading-5 text-base-content/70">{{ activeStep === 1 ? 'Start with the catalog identity, then continue to stock setup.' : activeStep === 2 ? 'Conversion keeps purchase quantities consistent with production usage.' : 'Save the material when its purchasing details are ready.' }}</p></div>
+            <div class="flex gap-2 border-t border-base-300 pt-3 text-sm"><Package class="mt-0.5 shrink-0 text-info" :size="17" aria-hidden="true" /><p class="leading-5 text-base-content/70">{{ $ui(activeStep === 1 ? 'Start with the catalog identity, then continue to stock setup.' : activeStep === 2 ? 'Conversion keeps purchase quantities consistent with production usage.' : 'Save the material when its purchasing details are ready.') }}</p></div>
           </div>
         </aside>
       </div>
     </div>
-    <footer class="flex min-w-0 items-center justify-between gap-3 border-t border-base-300 px-1 pt-3"><button class="btn btn-ghost btn-sm" type="button" :disabled="activeStep === 1 || busy || isSaving" @click="previous">Back</button><span class="text-xs text-base-content/55">Step {{ activeStep }} of {{ steps.length }}</span><button v-if="activeStep < steps.length" class="btn btn-primary btn-sm" type="button" @click="next">Continue</button><button v-else class="btn btn-success btn-sm gap-2" type="submit" form="material-editor-wizard" :disabled="busy || isSaving"><Save :size="14" aria-hidden="true" />{{ isSaving ? 'Saving…' : 'Save material' }}</button></footer>
+    <footer class="flex min-w-0 items-center justify-between gap-3 border-t border-base-300 px-1 pt-3"><button class="btn btn-ghost btn-sm" type="button" :disabled="activeStep === 1 || busy || isSaving" @click="previous">{{ $t("Back") }}</button><span class="text-xs text-base-content/55">{{ $t("Step") }} {{ activeStep }} {{ $t("of") }} {{ steps.length }}</span><button v-if="activeStep < steps.length" class="btn btn-primary btn-sm" type="button" @click="next">{{ $t("Continue") }}</button><button v-else class="btn btn-success btn-sm gap-2" type="submit" form="material-editor-wizard" :disabled="busy || isSaving"><Save :size="14" aria-hidden="true" />{{ $ui(isSaving ? 'Saving…' : 'Save material') }}</button></footer>
   </div>
 </template>

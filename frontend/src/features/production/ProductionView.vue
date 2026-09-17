@@ -87,19 +87,19 @@ function openWorkspace() {
 
 <template>
   <div v-if="!fullWorkspace" class="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
-    aria-label="Production workspace">
+    :aria-label='$t("Production workspace")'>
     <WorkspaceStickyStack class="shrink-0" :flush="true">
-      <WorkspaceHeader :show-breadcrumb="true" title="Production"
-        description="Manage production created from service items on confirmed orders.">
-        <SearchField v-model="searchQuery" class="w-full min-w-0 sm:w-72" placeholder="Search production jobs…"
-          aria-label="Search production jobs" />
+      <WorkspaceHeader :show-breadcrumb="true" :title='$t("Production")'
+        :description='$t("Manage production created from service items on confirmed orders.")'>
+        <SearchField v-model="searchQuery" class="w-full min-w-0 sm:w-72" :placeholder='$t("Search production jobs…")'
+          :aria-label='$t("Search production jobs")' />
       </WorkspaceHeader>
     </WorkspaceStickyStack>
 
     <div
       class="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(22rem,auto)_auto] gap-4 overflow-y-auto xl:grid-cols-[minmax(0,1.15fr)_minmax(24rem,0.85fr)] xl:grid-rows-1 xl:overflow-hidden">
       <section class="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-box border border-base-300 bg-base-100"
-        aria-label="Production register">
+        :aria-label='$t("Production register")'>
         <div class="shrink-0 border-b border-base-300 p-3 sm:p-4">
           <div class="flex min-w-0 flex-wrap items-center gap-3">
             <div class="flex min-w-0 flex-wrap items-center gap-2"><button v-for="status in statusOptions" :key="status"
@@ -107,14 +107,14 @@ function openWorkspace() {
                 :class="statusFilter === status ? 'border-primary bg-primary/10 text-primary' : 'border-base-300 text-base-content/70 hover:border-primary/50 hover:text-base-content'"
                 type="button" @click="statusFilter = status"><span class="size-2 rounded-full"
                   :class="status === 'Completed' ? 'bg-success' : status === 'Cancelled' || status === 'Failed' ? 'bg-error' : status === 'All' ? 'bg-primary' : 'bg-info'"></span>{{
-                status }}<span class="rounded-full bg-base-200 px-1.5 py-0.5 text-xs tabular-nums">{{
+                $ui(status) }}<span class="rounded-full bg-base-200 px-1.5 py-0.5 text-xs tabular-nums">{{
                   statusCount(status) }}</span></button></div>
           </div>
         </div>
         <div
           class="production-register-table-head hidden gap-3 border-b border-base-300 px-4 py-3 text-xs font-medium text-base-content/55 md:grid">
-          <span>Job</span><span>Service / order</span><span>Schedule</span><span>Status</span><span></span></div>
-        <LoadingState v-if="loading" label="Loading production jobs…" />
+          <span>{{ $t("Job") }}</span><span>{{ $t("Service / order") }}</span><span>{{ $t("Schedule") }}</span><span>{{ $t("Status") }}</span><span></span></div>
+        <LoadingState v-if="loading" :label='$t("Loading production jobs…")' />
         <div v-else-if="pagedJobs.length" class="min-h-0 flex-1 overflow-y-auto divide-y divide-base-300"><button
             v-for="job in pagedJobs" :key="job.id"
             class="production-register-row group grid w-full min-w-0 items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-base-200/60 focus-visible:bg-base-200/60 focus-visible:outline focus-visible:outline-1 focus-visible:outline-primary"
@@ -123,8 +123,8 @@ function openWorkspace() {
                 class="grid size-9 shrink-0 place-items-center rounded-box border border-base-300 bg-base-200 text-primary">
                 <Factory :size="18" aria-hidden="true" />
               </span><span class="min-w-0"><strong class="block truncate text-sm">{{ job.jobNumber }}</strong><span
-                  class="block truncate text-xs text-base-content/60">{{props.orders.find((order) => order.id ===
-                    job.orderId)?.customerName || 'Walk-in customer' }}</span></span></span><span
+                  class="block truncate text-xs text-base-content/60">{{$ui(props.orders.find((order) => order.id ===
+                    job.orderId)?.customerName || 'Walk-in customer') }}</span></span></span><span
               class="hidden min-w-0 truncate text-xs text-base-content/70 md:block">{{ job.serviceName }} · {{
               jobOrder(job) }}</span><span class="hidden min-w-0 truncate text-xs text-base-content/70 md:block">{{
               jobContext(job) }}</span>
@@ -136,32 +136,30 @@ function openWorkspace() {
                 job.serviceName }}</span><span>{{ job.quantity }} {{ job.quantityUnit }}</span><span>{{ jobContext(job)
                 }}</span></span>
           </button></div>
-        <EmptyState v-else :title="jobs.length ? 'No jobs match this view' : 'Production queue is empty'"
-          :description="jobs.length ? 'Try another status filter or search term.' : 'Create a job from a confirmed order to start tracking production.'">
+        <EmptyState v-else :title="$ui(jobs.length ? 'No jobs match this view' : 'Production queue is empty')"
+          :description="$ui(jobs.length ? 'Try another status filter or search term.' : 'Create a job from a confirmed order to start tracking production.')">
           <template #icon>
             <Search :size="22" aria-hidden="true" />
           </template><template #action><button v-if="jobs.length" class="btn btn-outline btn-sm" type="button"
-              @click="resetListFilters">Clear filters</button></template>
+              @click="resetListFilters">{{ $t("Clear filters") }}</button></template>
         </EmptyState>
         <footer
           class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-base-300 bg-base-100 px-4 py-3 text-xs text-base-content/60">
-          <span>{{ sortedJobs.length ? `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize,
-            sortedJobs.length)} of
-            ${sortedJobs.length} jobs` : '0 jobs' }}</span>
+          <span>{{ $ui(sortedJobs.length ? `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, sortedJobs.length)} of ${sortedJobs.length} jobs` : '0 jobs') }}</span>
           <div class="flex items-center gap-1"><button class="btn btn-ghost btn-xs btn-square" type="button"
-              :disabled="page === 1" aria-label="Previous page" @click="goToPage(page - 1)">
+              :disabled="page === 1" :aria-label='$t("Previous page")' @click="goToPage(page - 1)">
               <ChevronLeft :size="15" aria-hidden="true" />
             </button><button v-for="number in pageNumbers" :key="number" class="btn btn-xs min-w-8"
               :class="page === number ? 'btn-primary' : 'btn-ghost'" type="button" @click="goToPage(number)">{{ number
               }}</button><button class="btn btn-ghost btn-xs btn-square" type="button" :disabled="page === pageCount"
-              aria-label="Next page" @click="goToPage(page + 1)">
+              :aria-label='$t("Next page")' @click="goToPage(page + 1)">
               <ChevronRight :size="15" aria-hidden="true" />
             </button></div>
         </footer>
       </section>
       <section v-if="selected"
         class="min-h-0 min-w-0 overflow-y-auto rounded-box border border-base-300 bg-base-100"
-        aria-label="Production job preview">
+        :aria-label='$t("Production job preview")'>
         <ProductionJobDetailPanel
           :workspace="workspace"
           :currency-unit="props.currencyUnit"
@@ -173,8 +171,8 @@ function openWorkspace() {
       </section>
       <section v-else
         class="flex min-h-72 min-w-0 items-center justify-center rounded-box border border-dashed border-base-300 p-8 text-center">
-        <EmptyState title="Open a production job"
-          description="Select a job from the queue to preview its overview and production details.">
+        <EmptyState :title='$t("Open a production job")'
+          :description='$t("Select a job from the queue to preview its overview and production details.")'>
           <template #icon><Factory :size="22" aria-hidden="true" /></template>
         </EmptyState>
       </section>

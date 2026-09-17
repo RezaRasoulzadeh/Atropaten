@@ -21,7 +21,7 @@ import { useToast } from '../../ui/feedback';
 import { serviceCategoryRequirements } from '../services/serviceCategory';
 import { serviceDefaultPricingResult } from '../services/serviceDefaultPricing';
 import RollSizeFields from '../services/RollSizeFields.vue';
-import { ensureRollSizeInputs, usesMaterialRollWidth, selectedRollMaterial, rollWidthValue } from '../services/rollSizeInputs';
+import { ensureRollSizeInputs, usesMaterialRollWidth, selectedRollMaterial, rollWidthValue, rollStockWidthValue } from '../services/rollSizeInputs';
 
 const props = withDefaults(
   defineProps<{
@@ -40,7 +40,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  configured: [payload: OrderItemPayload];
+  configured: [payload: OrderItemPayload, preview?: PricingRecord];
   cancel: [];
 }>();
 
@@ -75,6 +75,7 @@ const canAdd = computed(() => Boolean(
   (pricing.value || canAddWithoutPricingPreview.value) &&
   (!calculating.value || canAddWithoutPricingPreview.value) &&
   !overrideInvalid.value &&
+  !customWidthInvalid.value &&
   !missingRequiredParameters.value &&
   !quantityInvalid.value,
 ));
@@ -110,6 +111,14 @@ const layoutEnabled = computed(() => Boolean(service.value?.finishedSize?.quanti
 const materialWidthMode = computed(() => usesMaterialRollWidth(service.value));
 const selectedRoll = computed(() => selectedRollMaterial(service.value, props.materials, values.value));
 const materialWidth = computed(() => rollWidthValue(selectedRoll.value, values.value.layout_margin_mm ?? service.value?.parameters?.find((p: any) => p.key === 'layout_margin_mm')?.defaultValue ?? '0'));
+const materialWidthLimit = computed(() => rollStockWidthValue(selectedRoll.value));
+const customWidthInvalid = computed(() => {
+  if (!materialWidthMode.value) return false;
+  const widthKey = service.value?.finishedSize?.widthParameterKey;
+  const width = Number(widthKey ? values.value[widthKey] : '');
+  const limit = Number(materialWidthLimit.value);
+  return !Number.isFinite(width) || width <= 0 || !Number.isFinite(limit) || limit <= 0 || width > limit;
+});
 const layoutParams = computed(() => {
   if (!layoutEnabled.value) return [];
   const size = service.value.finishedSize;
@@ -481,11 +490,11 @@ function scheduleCalculate() {
   const quantityKey = service.value?.finishedSize?.quantityParameterKey;
   if (materialWidthMode.value) {
     const widthKey = service.value.finishedSize.widthParameterKey;
-    if (values.value[widthKey] !== materialWidth.value) values.value[widthKey] = materialWidth.value;
+    if (!values.value[widthKey] && materialWidth.value) values.value[widthKey] = materialWidth.value;
   }
   if (quantityKey && values.value[quantityKey] !== quantity.value) values.value[quantityKey] = quantity.value;
   if (calculationTimer) clearTimeout(calculationTimer);
-  if (!serviceId.value || overrideInvalid.value || (materialWidthMode.value && !materialWidth.value)) {
+  if (!serviceId.value || overrideInvalid.value || (materialWidthMode.value && (!materialWidth.value || customWidthInvalid.value))) {
     requestToken += 1;
     pricing.value = null;
     calculating.value = false;
@@ -605,6 +614,10 @@ function save() {
     toast.warning('Enter a quantity greater than zero.', 'Order item');
     return;
   }
+  if (customWidthInvalid.value) {
+    toast.warning('Enter a positive custom width no greater than the selected material width.', 'Order item');
+    return;
+  }
   if (!pricing.value && !canAddWithoutPricingPreview.value) {
     toast.warning('Wait for the live price preview before adding the item.', 'Pricing');
     return;
@@ -620,7 +633,7 @@ function save() {
     quantity: quantity.value,
     quantityUnit: unit.value,
     notes: notes.value,
-  });
+  }, pricing.value || undefined);
 }
 </script>
 
@@ -629,12 +642,12 @@ function save() {
     <header class="flex shrink-0 items-start justify-between gap-3 border-b border-base-300 bg-base-100 p-4">
       <div class="min-w-0">
         <p class="text-xs font-semibold uppercase tracking-wide text-primary">
-          {{ initial ? 'Reconfigure item' : 'Add service item' }}
+          {{ $ui(initial ? 'Reconfigure item' : 'Add service item') }}
         </p>
-        <h3 class="text-base font-semibold">Configure service</h3>
-        <p class="mt-1 text-xs leading-5 text-base-content/60">Fill the required details. The price updates automatically.</p>
+        <h3 class="text-base font-semibold">{{ $t("Configure service") }}</h3>
+        <p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Fill the required details. The price updates automatically.") }}</p>
       </div>
-      <button class="btn btn-ghost btn-square btn-sm shrink-0" type="button" aria-label="Close service item editor" title="Close" @click="emit('cancel')"><X :size="18" aria-hidden="true" /></button>
+      <button class="btn btn-ghost btn-square btn-sm shrink-0" type="button" :aria-label='$t("Close service item editor")' :title='$t("Close")' @click="emit('cancel')"><X :size="18" aria-hidden="true" /></button>
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto p-4">
@@ -646,39 +659,39 @@ function save() {
               <Layers3 v-if="!service?.imagePath" :size="18" aria-hidden="true" />
             </span>
             <div class="min-w-0 flex-1">
-              <span class="block text-[0.68rem] font-semibold uppercase tracking-wide text-primary">Selected service</span>
-              <strong class="block truncate text-sm">{{ service?.name || 'Service unavailable' }}</strong>
-              <span class="block truncate text-xs text-base-content/55">{{ service?.code || service?.category || 'Close and choose another service' }}</span>
+              <span class="block text-[0.68rem] font-semibold uppercase tracking-wide text-primary">{{ $t("Selected service") }}</span>
+              <strong class="block truncate text-sm">{{ $ui(service?.name || 'Service unavailable') }}</strong>
+              <span class="block truncate text-xs text-base-content/55">{{ $ui(service?.code || service?.category || 'Close and choose another service') }}</span>
             </div>
-            <span class="badge badge-ghost shrink-0 text-xs">{{ service?.defaultUnit || unit }}</span>
+            <span class="badge badge-ghost shrink-0 text-xs">{{ $ui(service?.defaultUnit || unit) }}</span>
           </div>
-          <p v-if="!service" class="mt-2 text-xs text-error">This service is unavailable. Close this window and choose another service.</p>
+          <p v-if="!service" class="mt-2 text-xs text-error">{{ $t("This service is unavailable. Close this window and choose another service.") }}</p>
         </section>
 
         <section v-if="needsLayoutSetup" class="rounded-box border border-warning/40 bg-warning/5 p-4 text-sm" role="status">
-          <h4 class="font-semibold">Print layout is not configured</h4>
-          <p class="mt-2">Edit this service → Materials → Set up roll / sheet layout, then save it. Finished size, roll rotation, and waste calculations will appear here once enabled.</p>
+          <h4 class="font-semibold">{{ $t("Print layout is not configured") }}</h4>
+          <p class="mt-2">{{ $t("Edit this service → Materials → Set up roll / sheet layout, then save it. Finished size, roll rotation, and waste calculations will appear here once enabled.") }}</p>
         </section>
 
-        <section v-if="layoutEnabled" class="space-y-4 rounded-box border border-primary/35 bg-primary/5 p-4" aria-label="Finished size and layout">
-          <div><h4 class="font-semibold">Finished size &amp; layout</h4><p class="mt-1 text-xs text-base-content/65">{{ materialWidthMode ? 'Width follows the selected roll material. Enter the custom height / length below.' : 'Enter the finished dimensions in mm: 1000 mm = 1 m.' }} The preview calculates stock for the whole item quantity.</p></div>
-          <RollSizeFields v-if="materialWidthMode" :width="materialWidth" :height="values[service.finishedSize.heightParameterKey] || ''" :material-name="selectedRoll?.name" @height="setValue(service.finishedSize.heightParameterKey, $event)" />
+        <section v-if="layoutEnabled" class="space-y-4 rounded-box border border-primary/35 bg-primary/5 p-4" :aria-label='$t("Finished size and layout")'>
+          <div><h4 class="font-semibold">{{ $t("Finished size & layout") }}</h4><p class="mt-1 text-xs text-base-content/65">{{ $ui(materialWidthMode ? 'Enter the custom finished width and height in mm. Width is capped at the selected roll width.' : 'Enter the finished dimensions in mm: 1000 mm = 1 m.') }} {{ $t("The preview calculates stock for the whole item quantity.") }}</p></div>
+          <RollSizeFields v-if="materialWidthMode" :width="values[service.finishedSize.widthParameterKey] || ''" :height="values[service.finishedSize.heightParameterKey] || ''" :max-width="materialWidthLimit" :width-invalid="customWidthInvalid" :material-name="selectedRoll?.name" @width="setValue(service.finishedSize.widthParameterKey, $event)" @height="setValue(service.finishedSize.heightParameterKey, $event)" />
           <div class="grid gap-4 sm:grid-cols-2">
             <template v-for="parameter in layoutParams.filter((p: any) => !materialWidthMode || ![service.finishedSize.widthParameterKey, service.finishedSize.heightParameterKey].includes(p.key))" :key="parameter.id">
               <SelectField v-if="parameter.type === 'choice'" :model-value="values[parameter.key] || ''" :label="parameter.label" :invalid="parameterIsMissing(parameter)" :options="[{label: 'Select finished size…', value: ''}, ...parameterOptions(parameter)]" @update:model-value="setValue(parameter.key, $event)" />
               <FormField v-else class="gap-1"><span>{{ parameter.label }}</span><AppInput :model-value="values[parameter.key] || ''" type="number" min="0" step="any" :aria-label="parameter.label" @update:model-value="setValue(parameter.key, $event)" /></FormField>
             </template>
           </div>
-          <p class="text-xs text-base-content/65">{{ service.finishedSize.allowRotation ? 'Automatic rotation enabled — the preview shows the most efficient grid orientation.' : 'Rotation locked — the original artwork orientation is preserved.' }}</p>
+          <p class="text-xs text-base-content/65">{{ $ui(service.finishedSize.allowRotation ? 'Automatic rotation enabled — the preview shows the most efficient grid orientation.' : 'Rotation locked — the original artwork orientation is preserved.') }}</p>
         </section>
 
         <section v-if="optionParams.length" class="rounded-box border border-base-300 bg-base-100 p-4">
           <div class="flex items-start justify-between gap-3 border-b border-base-300 pb-3">
             <div>
-              <h4 class="text-sm font-semibold">Service options</h4>
-              <p class="mt-1 text-xs leading-5 text-base-content/60">Use the customer’s requested specifications.</p>
+              <h4 class="text-sm font-semibold">{{ $t("Service options") }}</h4>
+              <p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Use the customer’s requested specifications.") }}</p>
             </div>
-            <span class="badge badge-ghost shrink-0 text-xs">{{ optionParams.length }} option{{ optionParams.length === 1 ? '' : 's' }}</span>
+            <span class="badge badge-ghost shrink-0 text-xs">{{ optionParams.length }} {{ $t("option") }}{{ $ui(optionParams.length === 1 ? '' : 's') }}</span>
           </div>
           <div class="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
             <template v-for="parameter in optionParams" :key="parameter.id">
@@ -698,7 +711,7 @@ function save() {
                 <span class="text-xs text-base-content/60">{{ parameter.label }}<em v-if="parameterIsRequired(parameter)" class="text-error"> *</em></span>
                 <span class="flex h-10 items-center gap-2 rounded-field border border-base-300 bg-base-100 px-3 text-sm">
                   <input class="checkbox checkbox-sm" type="checkbox" :checked="values[parameter.key] === 'true'" @change="values[parameter.key] = ($event.target as HTMLInputElement).checked ? 'true' : 'false'" />
-                  <span>{{ values[parameter.key] === 'true' ? 'Enabled' : 'Disabled' }}</span>
+                  <span>{{ $ui(values[parameter.key] === 'true' ? 'Enabled' : 'Disabled') }}</span>
                 </span>
               </FormField>
               <SelectField
@@ -734,50 +747,50 @@ function save() {
                   :placeholder="parameter.defaultValue || parameter.type"
                   @update:model-value="setValue(parameter.key, $event)"
                 />
-                <small v-if="parameter.unit" class="text-xs text-base-content/50">{{ parameter.unit }}</small>
+                <small v-if="parameter.unit" class="text-xs text-base-content/50">{{ $ui(parameter.unit) }}</small>
               </FormField>
               <p v-if="parameter.materialSource && materialMessages[parameter.key]" class="text-xs leading-5 text-warning sm:col-span-2">{{ materialMessages[parameter.key] }}</p>
             </template>
           </div>
-          <p v-if="missingRequiredParameters" class="mt-3 text-xs text-warning">Complete the required options to add this item.</p>
+          <p v-if="missingRequiredParameters" class="mt-3 text-xs text-warning">{{ $t("Complete the required options to add this item.") }}</p>
         </section>
         <section v-else-if="!layoutEnabled && !needsLayoutSetup" class="rounded-box border border-dashed border-base-300 bg-base-100 p-4 text-sm text-base-content/60">
-          This service uses its standard configuration. No additional service options are required.
+          {{ $t("This service uses its standard configuration. No additional service options are required.") }}
         </section>
 
         <section class="rounded-box border border-base-300 bg-base-100 p-4">
           <div class="border-b border-base-300 pb-3">
-            <h4 class="text-sm font-semibold">Item details</h4>
-            <p class="mt-1 text-xs leading-5 text-base-content/60">Set the quantity and any notes for this order line.</p>
+            <h4 class="text-sm font-semibold">{{ $t("Item details") }}</h4>
+            <p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Set the quantity and any notes for this order line.") }}</p>
           </div>
           <div class="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
             <FormField class="gap-1">
-              <span class="text-xs text-base-content/60">Item quantity *</span>
+              <span class="text-xs text-base-content/60">{{ $t("Item quantity *") }}</span>
               <AppInput v-model="quantity" class="input w-full min-w-0" :class="{ 'input-error': quantityInvalid }" inputmode="decimal" placeholder="1" />
-              <small v-if="quantityInvalid" class="text-xs text-error">{{ service?.finishedSize?.quantityParameterKey ? 'Enter a positive whole number of finished pieces.' : 'Enter a quantity greater than zero.' }}</small>
+              <small v-if="quantityInvalid" class="text-xs text-error">{{ $ui(service?.finishedSize?.quantityParameterKey ? 'Enter a positive whole number of finished pieces.' : 'Enter a quantity greater than zero.') }}</small>
             </FormField>
-            <SelectField v-model="unit" label="Unit" :options="unitOptions" aria-label="Unit" />
+            <SelectField v-model="unit" :label='$t("Unit")' :options="unitOptions" :aria-label='$t("Unit")' />
             <FormField class="gap-1 sm:col-span-2">
-              <span class="text-xs text-base-content/60">Item notes <em class="font-normal text-base-content/50">optional</em></span>
-              <AppTextarea v-model="notes" rows="3" placeholder="Item-specific notes or instructions" />
+              <span class="text-xs text-base-content/60">{{ $t("Item notes") }} <em class="font-normal text-base-content/50">{{ $t("optional") }}</em></span>
+              <AppTextarea v-model="notes" rows="3" :placeholder='$t("Item-specific notes or instructions")' />
             </FormField>
           </div>
         </section>
 
         <section v-if="manualComponents.length || service" class="rounded-box border border-base-300 bg-base-100 p-4">
           <div class="border-b border-base-300 pb-3">
-            <h4 class="text-sm font-semibold">Pricing adjustments</h4>
-            <p class="mt-1 text-xs leading-5 text-base-content/60">Optional overrides. Pricing updates automatically after every change.</p>
+            <h4 class="text-sm font-semibold">{{ $t("Pricing adjustments") }}</h4>
+            <p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Optional overrides. Pricing updates automatically after every change.") }}</p>
           </div>
           <div class="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
             <FormField v-for="component in manualComponents" :key="component.id" class="gap-1">
               <span class="text-xs text-base-content/60">{{ component.name }}</span>
-              <AppInput :model-value="manualTexts[component.id] || ''" :money="currencyUnit" :placeholder="`Amount in ${currencyUnit}`" @update:model-value="updateMoneyText($event, component.id)" />
+              <AppInput :model-value="manualTexts[component.id] || ''" :money="currencyUnit" :placeholder="$ui(`Amount in ${currencyUnit}`)" @update:model-value="updateMoneyText($event, component.id)" />
             </FormField>
             <FormField class="gap-1" :class="manualComponents.length ? 'sm:col-span-2' : ''">
-              <span class="text-xs text-base-content/60">Selling price override <em class="font-normal text-base-content/50">optional</em></span>
-              <AppInput :model-value="overrideText" :class="{ 'input-error': overrideInvalid }" :money="currencyUnit" inputmode="decimal" :placeholder="`Optional ${currencyUnit} price`" @update:model-value="updateMoneyText($event, 'override')" />
-              <small v-if="overrideInvalid" class="text-xs text-error">Enter a valid amount.</small>
+              <span class="text-xs text-base-content/60">{{ $t("Selling price override") }} <em class="font-normal text-base-content/50">{{ $t("optional") }}</em></span>
+              <AppInput :model-value="overrideText" :class="{ 'input-error': overrideInvalid }" :money="currencyUnit" inputmode="decimal" :placeholder="$ui(`Optional ${currencyUnit} price`)" @update:model-value="updateMoneyText($event, 'override')" />
+              <small v-if="overrideInvalid" class="text-xs text-error">{{ $t("Enter a valid amount.") }}</small>
             </FormField>
           </div>
         </section>
@@ -786,46 +799,47 @@ function save() {
       <aside class="min-w-0 self-start rounded-box border border-base-300 bg-base-100 p-4 xl:sticky xl:top-0">
         <div class="flex items-start justify-between gap-3 border-b border-base-300 pb-3">
           <div>
-            <h4 class="text-sm font-semibold">Live price preview</h4>
-            <p class="mt-1 text-xs leading-5 text-base-content/60">Updates automatically as inputs change.</p>
+            <h4 class="text-sm font-semibold">{{ $t("Live price preview") }}</h4>
+            <p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Updates automatically as inputs change.") }}</p>
           </div>
-          <span class="badge badge-ghost shrink-0 gap-1 text-xs" aria-live="polite"><Calculator :size="13" aria-hidden="true" />{{ calculating ? 'Updating…' : pricing ? 'Updated' : 'Waiting' }}</span>
+          <span class="badge badge-ghost shrink-0 gap-1 text-xs" aria-live="polite"><Calculator :size="13" aria-hidden="true" />{{ $ui(calculating ? 'Updating…' : pricing ? 'Updated' : 'Waiting') }}</span>
         </div>
 
         <div v-if="pricing" class="mt-4 space-y-4" :class="{ 'opacity-60': calculating }">
           <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-            <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">Estimated cost · order total</span><strong class="mt-1 block text-sm">{{ formatMoney(totalEstimatedCost, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/50">{{ formatMoney(pricing.estimatedCostRial, currencyUnit) }} / {{ pricing.batchQuantity ? 'batch' : unit }}</span></div>
-            <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">Suggested price · order total</span><strong class="mt-1 block text-sm">{{ formatMoney(totalSuggestedPrice, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/50">{{ formatMoney(pricing.suggestedSellingPriceRial, currencyUnit) }} / {{ unit }}</span></div>
+            <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">{{ $t("Estimated cost · order total") }}</span><strong class="mt-1 block text-sm">{{ formatMoney(totalEstimatedCost, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/50">{{ formatMoney(pricing.estimatedCostRial, currencyUnit) }} / {{ $ui(pricing.batchQuantity ? 'batch' : unit) }}</span></div>
+            <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">{{ $t("Suggested price · order total") }}</span><strong class="mt-1 block text-sm">{{ formatMoney(totalSuggestedPrice, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/50">{{ formatMoney(pricing.suggestedSellingPriceRial, currencyUnit) }} / {{ $ui(unit) }}</span></div>
             <div v-for="layout in pricing.layouts || []" :key="layout.materialId" class="rounded-box border border-primary/30 bg-primary/5 p-3 text-sm space-y-2">
-              <strong>{{ layout.materialName }} · production layout</strong>
-              <p v-if="layout.itemsPerSheet">{{ layout.itemsPerSheet }} pieces per sheet · {{ layout.sheets }} sheets</p>
-              <p v-else>{{ layout.across }} across × {{ layout.rows }} rows · {{ Number(layout.lengthMM) / 1000 }} m of roll</p>
-              <p>{{ layout.consumedQuantity }} {{ layout.unit }} consumed · {{ layout.wastePercent.toFixed(1) }}% waste</p>
-              <p v-if="layout.rotated" class="text-primary">Rotate artwork 90° for this layout.<span v-if="layout.originalLengthMM"> Roll usage drops from {{ Number(layout.originalLengthMM) / 1000 }} m to {{ Number(layout.lengthMM) / 1000 }} m.</span></p>
-              <p v-else>Original orientation uses the least material (or rotation is disabled).</p>
+              <strong>{{ layout.materialName }} {{ $t("· production layout") }}</strong>
+              <p v-if="layout.itemsPerSheet">{{ layout.itemsPerSheet }} {{ $t("pieces per sheet ·") }} {{ layout.sheets }} {{ $t("sheets") }}</p>
+              <p v-else>{{ layout.across }} {{ $t("across ×") }} {{ layout.rows }} {{ $t("rows ·") }} {{ Number(layout.lengthMM) / 1000 }} {{ $t("m of roll") }}</p>
+              <p>{{ layout.consumedQuantity }} {{ $ui(layout.unit) }} {{ $t("consumed ·") }} {{ layout.wastePercent.toFixed(1) }}{{ $t("% waste") }}</p>
+              <p v-if="layout.wasteCostRial > 0">{{ $t("Estimated material waste cost:") }} {{ formatMoney(layout.wasteCostRial, currencyUnit) }} {{ $t("(included in material cost)") }}</p>
+              <p v-if="layout.rotated" class="text-primary">{{ $t("Rotate artwork 90° for this layout.") }}<span v-if="layout.originalLengthMM"> {{ $t("Roll usage drops from") }} {{ Number(layout.originalLengthMM) / 1000 }} {{ $t("m to") }} {{ Number(layout.lengthMM) / 1000 }} {{ $t("m.") }}</span></p>
+              <p v-else>{{ $t("Original orientation uses the least material (or rotation is disabled).") }}</p>
             </div>
-            <div class="rounded-box border border-primary/30 bg-primary/5 p-3"><span class="block text-xs text-base-content/60">Effective price · order total</span><strong class="mt-1 block text-lg text-primary">{{ formatMoney(totalEffectivePrice, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/60">{{ quantity || '1' }} {{ unit }} · {{ formatMoney(pricing.effectiveSellingPriceRial, currencyUnit) }} / {{ pricing.batchQuantity ? 'batch' : unit }}</span></div>
-            <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">Profit / margin</span><strong class="mt-1 block text-sm" :class="totalProfit < 0 ? 'text-error' : 'text-success'">{{ formatMoney(totalProfit, currencyUnit) }} · {{ pricing.marginPercentage }}%</strong></div>
+            <div class="rounded-box border border-primary/30 bg-primary/5 p-3"><span class="block text-xs text-base-content/60">{{ $t("Effective price · order total") }}</span><strong class="mt-1 block text-lg text-primary">{{ formatMoney(totalEffectivePrice, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/60">{{ $ui(quantity || '1') }} {{ $ui(unit) }} · {{ formatMoney(pricing.effectiveSellingPriceRial, currencyUnit) }} / {{ $ui(pricing.batchQuantity ? 'batch' : unit) }}</span></div>
+            <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">{{ $t("Profit / margin") }}</span><strong class="mt-1 block text-sm" :class="totalProfit < 0 ? 'text-error' : 'text-success'">{{ formatMoney(totalProfit, currencyUnit) }} · {{ pricing.marginPercentage }}%</strong></div>
           </div>
-          <p class="text-xs text-base-content/60">Selling prices round up to the next 100 tomans (1,000 rials).</p>
-          <div v-if="pricing.belowCost" class="rounded-box border border-warning/30 bg-warning/5 p-3 text-xs leading-5 text-warning">The selling price is below the estimated cost. Review the override or service pricing before adding.</div>
+          <p class="text-xs text-base-content/60">{{ $t("Selling prices round up to the next 100 tomans (1,000 rials).") }}</p>
+          <div v-if="pricing.belowCost" class="rounded-box border border-warning/30 bg-warning/5 p-3 text-xs leading-5 text-warning">{{ $t("The selling price is below the estimated cost. Review the override or service pricing before adding.") }}</div>
           <div v-if="pricing.components.length" class="divide-y divide-base-300 rounded-box border border-base-300">
-            <div v-for="component in pricing.components" :key="component.id" class="flex items-center justify-between gap-3 px-3 py-2 text-xs"><span class="min-w-0 truncate">{{ component.name }}</span><strong class="shrink-0">{{ component.enabled ? formatMoney(component.amountRial, currencyUnit) : 'Disabled' }}</strong></div>
+            <div v-for="component in pricing.components" :key="component.id" class="flex items-center justify-between gap-3 px-3 py-2 text-xs"><span class="min-w-0 truncate">{{ component.name }}</span><strong class="shrink-0">{{ $ui(component.enabled ? formatMoney(component.amountRial, currencyUnit) : 'Disabled') }}</strong></div>
           </div>
         </div>
-        <div v-else-if="calculating" class="mt-4 rounded-box border border-dashed border-primary/40 bg-primary/5 p-5 text-center text-sm text-base-content/70" aria-live="polite">Updating the price preview…</div>
-        <EmptyState v-else compact class="mt-4" title="Price preview pending" description="Complete the required details to see the order total."><template #icon><Calculator :size="21" aria-hidden="true" /></template></EmptyState>
+        <div v-else-if="calculating" class="mt-4 rounded-box border border-dashed border-primary/40 bg-primary/5 p-5 text-center text-sm text-base-content/70" aria-live="polite">{{ $t("Updating the price preview…") }}</div>
+        <EmptyState v-else compact class="mt-4" :title='$t("Price preview pending")' :description='$t("Complete the required details to see the order total.")'><template #icon><Calculator :size="21" aria-hidden="true" /></template></EmptyState>
 
       </aside>
     </div>
     </div>
     <footer class="flex shrink-0 items-center justify-between gap-3 border-t border-base-300 bg-base-100 p-3 sm:p-4">
-      <button class="btn btn-ghost btn-sm" type="button" :disabled="busy" @click="emit('cancel')">Cancel</button>
+      <button class="btn btn-ghost btn-sm" type="button" :disabled="busy" @click="emit('cancel')">{{ $t("Cancel") }}</button>
       <div class="flex min-w-0 items-center gap-3">
-        <span class="hidden truncate text-xs text-base-content/55 sm:block" aria-live="polite">{{ calculating ? 'Updating price…' : pricing ? `Total for ${quantity || '1'} ${unit}` : service ? 'Enter item details' : 'Service unavailable' }}</span>
+        <span class="hidden truncate text-xs text-base-content/55 sm:block" aria-live="polite">{{ $ui(calculating ? 'Updating price…' : pricing ? `Total for ${quantity || '1'} ${$ui(unit)}` : service ? 'Enter item details' : 'Service unavailable') }}</span>
         <button class="btn btn-primary btn-sm gap-2" type="button" data-enter-submit @click="save" :disabled="busy || !canAdd">
           <Plus :size="15" aria-hidden="true" />
-          <span>{{ initial ? 'Replace item' : `Add item to ${documentLabel}` }}</span>
+          <span>{{ $ui(initial ? 'Replace item' : `Add item to ${$ui(documentLabel)}`) }}</span>
         </button>
       </div>
     </footer>

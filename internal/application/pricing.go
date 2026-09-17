@@ -219,6 +219,12 @@ func (s *PricingService) calculateDefinition(ctx context.Context, request Pricin
 		}
 	}
 	seenLayouts := map[string]bool{}
+	materialCosts := map[string]int64{}
+	for _, component := range result.Components {
+		if component.Enabled && component.Type == domain.CostMaterial && component.MaterialID != "" {
+			materialCosts[component.MaterialID] += component.AmountRial
+		}
+	}
 	for _, component := range result.Components {
 		if !component.Enabled || component.MaterialID == "" || seenLayouts[component.MaterialID] || service.FinishedSize == nil || service.FinishedSize.QuantityParameterKey == "" {
 			continue
@@ -230,6 +236,10 @@ func (s *PricingService) calculateDefinition(ctx context.Context, request Pricin
 		layout, e := domain.CalculatePrintLayout(material, service, parameterMap)
 		if e != nil {
 			return PricingView{}, e
+		}
+		layout.WasteCostRial, e = domain.CalculateMaterialWasteCost(layout, materialCosts[component.MaterialID])
+		if e != nil {
+			return PricingView{}, fmt.Errorf("calculate material waste cost: %w", e)
 		}
 		view.Layouts = append(view.Layouts, layout)
 		seenLayouts[component.MaterialID] = true

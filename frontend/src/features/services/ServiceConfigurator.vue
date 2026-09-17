@@ -170,39 +170,39 @@ function typeLabel(type: string) {
 </script>
 
 <template>
-  <section aria-label="Service pricing configurator" class="min-w-0 space-y-5">
+  <section :aria-label='$t("Service pricing configurator")' class="min-w-0 space-y-5">
     <header class="flex min-w-0 flex-wrap items-start justify-between gap-3 border-b border-base-300 pb-4">
       <div class="min-w-0">
-        <p class="text-xs font-semibold uppercase tracking-wide text-primary">Live pricing preview</p>
+        <p class="text-xs font-semibold uppercase tracking-wide text-primary">{{ $t("Live pricing preview") }}</p>
         <h2 class="mt-1 flex min-w-0 items-center gap-2 text-base font-semibold">
           <Calculator :size="17" :stroke-width="1.8" aria-hidden="true" />
           <span class="truncate">{{ service.name }}</span>
         </h2>
-        <p class="mt-1 text-xs leading-5 text-base-content/60">Resolve the persisted parameters and inspect the ordered cost explanation.</p>
+        <p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Resolve the persisted parameters and inspect the ordered cost explanation.") }}</p>
       </div>
       <span v-if="loading" class="badge badge-ghost shrink-0 gap-1 text-xs">
-        <LoaderCircle :size="13" :stroke-width="1.8" aria-hidden="true" />Calculating
+        <LoaderCircle :size="13" :stroke-width="1.8" aria-hidden="true" />{{ $t("Calculating") }}
       </span>
     </header>
     <div class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(19rem,0.8fr)]">
       <div class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-200/25 p-4">
         <div class="flex min-w-0 items-start justify-between gap-3">
           <div>
-            <h3 class="text-sm font-semibold">Parameters</h3>
-            <p class="mt-1 text-xs text-base-content/60">Values used to calculate this service.</p>
+            <h3 class="text-sm font-semibold">{{ $t("Parameters") }}</h3>
+            <p class="mt-1 text-xs text-base-content/60">{{ $t("Values used to calculate this service.") }}</p>
           </div>
-          <span class="badge badge-ghost shrink-0 text-xs">{{ service.parameters.length }} inputs</span>
+          <span class="badge badge-ghost shrink-0 text-xs">{{ service.parameters.length }} {{ $t("inputs") }}</span>
         </div>
         <div v-if="service.parameters.length" class="min-w-0 space-y-3">
           <FormField class="gap-1" v-for="parameter in service.parameters" :key="parameter.id"
-            ><span>{{ parameter.label }}<em v-if="parameter.required">required</em></span>
+            ><span>{{ parameter.label }}<em v-if="parameter.required">{{ $t("required") }}</em></span>
             <AppInput
               class="input w-full min-w-0"
               v-if="parameter.type === 'integer' || parameter.type === 'decimal'"
               v-model="values[parameter.key]"
               type="text"
               inputmode="decimal"
-              :placeholder="parameter.defaultValue || 'Enter value'"
+              :placeholder="$ui(parameter.defaultValue || 'Enter value')"
             />
             <SelectField
               v-else-if="parameter.type === 'choice'"
@@ -245,57 +245,57 @@ function typeLabel(type: string) {
                 type="checkbox"
                 @change="updateBoolean(parameter.key, $event)"
               />
-              Enabled</span
+              {{ $t("Enabled") }}</span
             >
             <small
               v-if="parameter.unit || parameter.minValue || parameter.maxValue"
               class="block text-xs leading-5 text-base-content/60"
-              >{{ parameter.unit
-              }}<span v-if="parameter.minValue"> · min {{ parameter.minValue }}</span
-              ><span v-if="parameter.maxValue"> · max {{ parameter.maxValue }}</span></small
+              >{{ $ui(parameter.unit)
+              }}<span v-if="parameter.minValue"> {{ $t("· min") }} {{ parameter.minValue }}</span
+              ><span v-if="parameter.maxValue"> {{ $t("· max") }} {{ parameter.maxValue }}</span></small
             >
           </FormField>
         </div>
-        <EmptyState v-else compact title="No operator parameters" description="This service can be priced without additional operator input."><template #icon><Calculator :size="21" aria-hidden="true" /></template></EmptyState>
+        <EmptyState v-else compact :title='$t("No operator parameters")' :description='$t("This service can be priced without additional operator input.")'><template #icon><Calculator :size="21" aria-hidden="true" /></template></EmptyState>
       </div>
       <div class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-200/25 p-4">
         <div class="flex min-w-0 items-start justify-between gap-3">
           <div>
-          <h3 class="text-sm font-semibold">Price position</h3>
-          <p class="mt-1 text-xs text-base-content/60">Estimated economics for the current inputs.</p>
+          <h3 class="text-sm font-semibold">{{ $t("Price position") }}</h3>
+          <p class="mt-1 text-xs text-base-content/60">{{ $t("Estimated economics for the current inputs.") }}</p>
           </div>
-          <span v-if="result" class="badge badge-ghost shrink-0 text-xs">{{ result.marginPercentage }}% margin</span>
+          <span v-if="result" class="badge badge-ghost shrink-0 text-xs">{{ result.marginPercentage }}{{ $t("% margin") }}</span>
         </div>
         <div v-if="result" class="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-1">
           <div class="rounded-box border border-base-300 bg-base-100 p-3">
-            <span class="block text-xs text-base-content/60">Estimated cost</span><strong class="mt-1 block text-sm">{{ money(result.estimatedCostRial) }}</strong>
+            <span class="block text-xs text-base-content/60">{{ $t("Estimated cost") }}</span><strong class="mt-1 block text-sm">{{ money(result.estimatedCostRial) }}</strong>
           </div>
           <div class="rounded-box border border-base-300 bg-base-100 p-3">
-            <span class="block text-xs text-base-content/60">Suggested price</span><strong class="mt-1 block text-sm text-primary">{{ money(result.suggestedSellingPriceRial) }}</strong>
+            <span class="block text-xs text-base-content/60">{{ $t("Suggested price") }}</span><strong class="mt-1 block text-sm text-primary">{{ money(result.suggestedSellingPriceRial) }}</strong>
           </div>
           <div class="rounded-box border border-primary/30 bg-primary/5 p-3">
-            <span class="block text-xs text-base-content/60">Effective price</span><strong class="mt-1 block text-sm text-primary">{{ money(result.effectiveSellingPriceRial) }}</strong>
+            <span class="block text-xs text-base-content/60">{{ $t("Effective price") }}</span><strong class="mt-1 block text-sm text-primary">{{ money(result.effectiveSellingPriceRial) }}</strong>
           </div>
           <div class="rounded-box border border-base-300 bg-base-100 p-3">
-            <span class="block text-xs text-base-content/60">Profit</span><strong class="mt-1 block text-sm" :class="{ 'text-error': result.profitRial < 0, 'text-success': result.profitRial > 0 }">{{ signedMoney(result.profitRial) }}</strong>
+            <span class="block text-xs text-base-content/60">{{ $t("Profit") }}</span><strong class="mt-1 block text-sm" :class="{ 'text-error': result.profitRial < 0, 'text-success': result.profitRial > 0 }">{{ signedMoney(result.profitRial) }}</strong>
           </div>
         </div>
-        <EmptyState v-else compact title="No price preview yet" description="Enter the current inputs and calculate a price to see the estimate."><template #icon><Calculator :size="21" aria-hidden="true" /></template></EmptyState>
+        <EmptyState v-else compact :title='$t("No price preview yet")' :description='$t("Enter the current inputs and calculate a price to see the estimate.")'><template #icon><Calculator :size="21" aria-hidden="true" /></template></EmptyState>
         <div class="rounded-box border border-base-300 bg-base-100 p-3"
-          ><span class="text-xs font-semibold">Selling price override <em class="font-normal text-base-content/55">optional</em></span>
+          ><span class="text-xs font-semibold">{{ $t("Selling price override") }} <em class="font-normal text-base-content/55">{{ $t("optional") }}</em></span>
           <div class="mt-2 flex min-w-0 items-end gap-2">
-            <FormField :label="`Use ${typeLabel('fixed')} rule suggestion`"><AppInput
+            <FormField :label="$ui(`Use ${$ui(typeLabel('fixed'))} rule suggestion`)"><AppInput
               :model-value="overrideText"
               :money="props.currencyUnit"
               type="text"
               inputmode="decimal"
-              :placeholder="`Use ${typeLabel('fixed')} rule suggestion`"
+              :placeholder="$ui(`Use ${$ui(typeLabel('fixed'))} rule suggestion`)"
               @update:model-value="updateOverride"
             /></FormField><button
               class="btn btn-ghost btn-sm"
               v-if="overrideText"
               type="button"
-              aria-label="Clear selling price override"
+              :aria-label='$t("Clear selling price override")'
               @click="resetOverride"
             >
               <RotateCcw :size="14" :stroke-width="1.8" />
@@ -306,8 +306,8 @@ function typeLabel(type: string) {
           class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-100 p-3"
         >
           <div class="min-w-0">
-            <h3 class="text-sm font-semibold">Manual costs</h3>
-            <span class="mt-1 block text-xs text-base-content/60">Optional inputs</span>
+            <h3 class="text-sm font-semibold">{{ $t("Manual costs") }}</h3>
+            <span class="mt-1 block text-xs text-base-content/60">{{ $t("Optional inputs") }}</span>
           </div>
           <FormField
             class="gap-1"
@@ -326,20 +326,19 @@ function typeLabel(type: string) {
     </div>
     <div v-if="result" class="min-w-0 space-y-3">
       <div class="min-w-0 space-y-3">
-        <h3 class="text-sm font-semibold">Ordered cost breakdown</h3>
+        <h3 class="text-sm font-semibold">{{ $t("Ordered cost breakdown") }}</h3>
         <span
-          >{{ result.components.filter((component) => component.enabled).length }} enabled
-          components</span
+          >{{ result.components.filter((component) => component.enabled).length }} {{ $t("enabled components") }}</span
         >
       </div>
       <div v-if="result.components.length">
         <DataTable
           ><thead>
             <tr>
-              <th>Component</th>
-              <th>Basis</th>
-              <th>Explanation</th>
-              <th class="text-end">Amount</th>
+              <th>{{ $t("Component") }}</th>
+              <th>{{ $t("Basis") }}</th>
+              <th>{{ $t("Explanation") }}</th>
+              <th class="text-end">{{ $t("Amount") }}</th>
             </tr>
           </thead>
           <tbody>
@@ -354,7 +353,7 @@ function typeLabel(type: string) {
                   component.type
                 }}</span></DataTableCell
               ><DataTableCell numeric
-                >{{ component.enabled ? component.usageQuantity : '—'
+                >{{ $ui(component.enabled ? component.usageQuantity : '—')
                 }}<span v-if="component.percentage !== '0'">
                   · {{ component.percentage }}%</span
                 ></DataTableCell
@@ -364,7 +363,7 @@ function typeLabel(type: string) {
           </tbody></DataTable
         >
       </div>
-      <EmptyState v-else compact title="No cost breakdown yet" description="The calculated service has no cost components to display."><template #icon><Calculator :size="21" aria-hidden="true" /></template></EmptyState>
+      <EmptyState v-else compact :title='$t("No cost breakdown yet")' :description='$t("The calculated service has no cost components to display.")'><template #icon><Calculator :size="21" aria-hidden="true" /></template></EmptyState>
     </div>
   </section>
 </template>

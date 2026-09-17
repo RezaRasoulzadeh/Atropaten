@@ -110,6 +110,13 @@ export function rollWidthValue(material: any, margin: string): string {
   return String(Math.round((rawWidth - 2 * edge) * 1e6) / 1e6)
 }
 
+export function rollStockWidthValue(material: any): string {
+  const attribute = material?.attributes?.find((a: any) => a.key === 'width_mm')
+  const rawValue = attribute?.valueType === 'integer' ? attribute.integerValue : attribute?.decimalValue
+  const rawWidth = Number(rawValue)
+  return Number.isFinite(rawWidth) && rawWidth > 0 ? String(rawWidth) : ''
+}
+
 export function materialOptionsForParameter(service: any, parameter: any, materials: any[], values: Record<string, string>) {
   if (!parameter?.materialSource) return []
   const materialParameters = (service.parameters || []).filter((item: any) => item.materialSource || item.type === 'material-reference')

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import InspectorHeader from './InspectorHeader.vue';
+import { translateUi } from '../../i18n';
 const props = withDefaults(
   defineProps<{ title: string; subtitle?: string; stickyFooter?: boolean }>(),
   { stickyFooter: true },
 );
 </script>
 <template>
-  <aside class="min-w-0 overflow-visible rounded-box border border-base-300 bg-base-100" :aria-label="title">
+  <aside class="min-w-0 overflow-visible rounded-box border border-base-300 bg-base-100" :aria-label="translateUi(title)">
     <InspectorHeader :title="title" :subtitle="subtitle"
       ><slot name="header" /><slot name="action"
     /></InspectorHeader>

@@ -5,6 +5,7 @@ import { reportsApi } from '../../api/reports';
 import { currentCanonicalDate, formatDateTime } from '../../utils/date';
 import { formatMoney, type CurrencyUnit } from '../../utils/currency';
 import { normalizeError, useNotifications, useToast } from '../../ui/feedback';
+import { translateUi } from '../../i18n';
 import EmptyState from './EmptyState.vue';
 const props = defineProps<{ currencyUnit: CurrencyUnit; refreshKey: string }>();
 const emit = defineEmits<{ navigate: [view: string] }>();
@@ -71,7 +72,7 @@ onBeforeUnmount(() => {
       ref="trigger"
       class="btn btn-ghost btn-square relative"
       type="button"
-      :aria-label="`Notifications, ${feed.unreadCount.value} unread`"
+      :aria-label="$t('notifications.trigger', { count: feed.unreadCount.value })"
       :aria-expanded="open"
       aria-controls="notification-center"
       @click="open = !open"
@@ -87,22 +88,22 @@ onBeforeUnmount(() => {
     <section
       v-if="open"
       id="notification-center"
-      aria-label="Notifications"
+      :aria-label='$t("Notifications")'
       class="absolute end-0 top-full z-40 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-box border border-base-300 bg-base-100 shadow-lg"
     >
       <header class="flex items-center gap-2 border-b border-base-300 p-3">
-        <h2 class="flex-1 text-sm font-semibold">Notifications</h2>
+        <h2 class="flex-1 text-sm font-semibold">{{ $t("Notifications") }}</h2>
         <button
           class="btn btn-ghost btn-square btn-sm"
           :disabled="loading"
-          aria-label="Refresh notifications"
+          :aria-label='$t("Refresh notifications")'
           @click="refresh"
         >
           <RefreshCw :size="15" :class="{ 'animate-spin': loading }" />
         </button>
         <button
           class="btn btn-ghost btn-square btn-sm"
-          aria-label="Close notifications"
+          :aria-label='$t("Close notifications")'
           @click="close"
         >
           <X :size="16" />
@@ -117,14 +118,14 @@ onBeforeUnmount(() => {
             type="checkbox"
             class="checkbox checkbox-xs"
           />
-          Unread only</label
+          {{ $t("Unread only") }}</label
         >
         <button
           class="btn btn-ghost btn-xs"
           :disabled="!feed.unreadCount.value"
           @click="feed.markAllRead"
         >
-          <CheckCheck :size="14" /> Mark all read
+          <CheckCheck :size="14" /> {{ $t("Mark all read") }}
         </button>
       </div>
       <div
@@ -135,13 +136,13 @@ onBeforeUnmount(() => {
           v-if="loading && !feed.items.value.length"
           class="p-4 text-sm text-base-content/60"
         >
-          Loading notifications…
+          {{ $t("Loading notifications…") }}
         </p>
         <EmptyState
           v-else-if="!visible.length"
           compact
-          :title="unreadOnly ? 'No unread notifications' : 'No notifications right now'"
-          :description="unreadOnly ? 'You are all caught up.' : 'New activity will appear here.'"
+          :title="$t(unreadOnly ? 'No unread notifications' : 'No notifications right now')"
+          :description="$t(unreadOnly ? 'You are all caught up.' : 'New activity will appear here.')"
         >
           <template #icon><Bell :size="21" aria-hidden="true" /></template>
         </EmptyState>
@@ -159,9 +160,9 @@ onBeforeUnmount(() => {
             class="min-w-0 flex-1 text-start hover:text-primary"
             @click="activate(item.id, item.destination)"
           >
-            <span class="block text-sm font-semibold">{{ item.title }}</span>
+            <span class="block text-sm font-semibold">{{ translateUi(item.title) }}</span>
             <span class="block break-words text-xs text-base-content/60">{{
-              item.detail
+              translateUi(item.detail)
             }}</span>
             <span v-if="item.date" class="block text-xs text-base-content/60">{{
               formatDateTime(item.date)
@@ -175,7 +176,7 @@ onBeforeUnmount(() => {
           <button
             v-if="!feed.isRead(item.id)"
             class="btn btn-ghost btn-square btn-xs"
-            :aria-label="`Mark ${item.title} as read`"
+            :aria-label="$t('notifications.markRead', { title: translateUi(item.title) })"
             @click="feed.markRead(item.id)"
           >
             <CheckCheck :size="14" />

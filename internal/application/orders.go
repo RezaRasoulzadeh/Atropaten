@@ -44,6 +44,7 @@ type OrderInput struct {
 	Priority     string
 	Notes        string
 	DiscountRial int64
+	Items        []OrderItemInput
 }
 type OrderItemInput struct {
 	ServiceID                string
@@ -122,6 +123,13 @@ func (s *OrdersService) Create(ctx context.Context, input OrderInput) (OrderView
 		return OrderView{}, err
 	}
 	row.ID = id
+	for position, itemInput := range input.Items {
+		item, itemErr := s.buildConfiguredItem(ctx, row.ID, position, "", itemInput)
+		if itemErr != nil {
+			return OrderView{}, fmt.Errorf("order item %d: %w", position+1, itemErr)
+		}
+		row.Items = append(row.Items, item)
+	}
 	if err := row.RecalculateTotals(); err != nil {
 		return OrderView{}, err
 	}
@@ -274,54 +282,17 @@ func (s *OrdersService) saveConfiguredItem(ctx context.Context, id string, pos i
 	if err != nil {
 		return OrderView{}, err
 	}
-	if s.pricing == nil {
-		return OrderView{}, fmt.Errorf("pricing service unavailable")
+	existingID := ""
+	if pos >= 0 {
+		existingID = row.Items[pos].ID
 	}
-	price, err := s.pricing.Calculate(ctx, PricingRequest{Quantity: input.Quantity, ServiceID: input.ServiceID, Parameters: input.Parameters, ManualCosts: input.ManualCosts, SellingPriceOverrideRial: input.SellingPriceOverrideRial})
+	item, err := s.buildConfiguredItem(ctx, row.ID, pos, existingID, input)
 	if err != nil {
 		return OrderView{}, err
-	}
-	qty, err := parseOrderQuantity(input.Quantity, price)
-	if err != nil {
-		return OrderView{}, err
-	}
-	priceQuantity := qty
-	if price.BatchQuantity != "" {
-		priceQuantity = domain.QuantityScale
-	}
-	estimatedCostRial, err := domain.MulQuantityRial(priceQuantity, price.EstimatedCostRial)
-	if err != nil {
-		return OrderView{}, fmt.Errorf("estimated cost for quantity: %w", err)
-	}
-	if price.RoundingStepRial > 0 && price.RoundingStepRial != domain.DefaultMonetaryRoundingStepRial {
-		estimatedCostRial, err = domain.RoundMoneyUp(estimatedCostRial, price.RoundingStepRial)
-		if err != nil {
-			return OrderView{}, fmt.Errorf("round estimated cost for quantity: %w", err)
-		}
-	}
-	suggestedPriceRial, err := domain.MulQuantitySellingPriceRialWithStep(priceQuantity, price.SuggestedSellingPriceRial, price.RoundingStepRial)
-	if err != nil {
-		return OrderView{}, fmt.Errorf("suggested price for quantity: %w", err)
-	}
-	sellingPriceRial, err := domain.MulQuantitySellingPriceRialWithStep(priceQuantity, price.EffectiveSellingPriceRial, price.RoundingStepRial)
-	if err != nil {
-		return OrderView{}, fmt.Errorf("selling price for quantity: %w", err)
-	}
-	parametersJSON, _ := json.Marshal(price.Parameters)
-	componentsJSON, _ := json.Marshal(price.Components)
-	snapshotJSON, _ := json.Marshal(price)
-	item := domain.OrderItem{OrderID: row.ID, ServiceID: price.ServiceID, ServiceNameSnapshot: price.ServiceName, ServiceCodeSnapshot: price.ServiceCode, Quantity: qty, QuantityUnit: strings.TrimSpace(input.QuantityUnit), ResolvedParametersJSON: string(parametersJSON), CostBreakdownJSON: string(componentsJSON), PricingSnapshotJSON: string(snapshotJSON), EstimatedCostRial: estimatedCostRial, SuggestedPriceRial: suggestedPriceRial, SellingPriceRial: sellingPriceRial, Notes: strings.TrimSpace(input.Notes)}
-	if item.QuantityUnit == "" {
-		item.QuantityUnit = "unit"
 	}
 	if pos < 0 {
-		item.ID, err = randomID("ITM-")
-		if err != nil {
-			return OrderView{}, err
-		}
 		row.Items = append(row.Items, item)
 	} else {
-		item.ID = row.Items[pos].ID
 		row.Items[pos] = item
 	}
 	for i := range row.Items {
@@ -336,6 +307,56 @@ func (s *OrdersService) saveConfiguredItem(ctx context.Context, id string, pos i
 		return OrderView{}, err
 	}
 	return s.Get(ctx, row.ID)
+}
+
+func (s *OrdersService) buildConfiguredItem(ctx context.Context, orderID string, position int, existingID string, input OrderItemInput) (domain.OrderItem, error) {
+	if s.pricing == nil {
+		return domain.OrderItem{}, fmt.Errorf("pricing service unavailable")
+	}
+	price, err := s.pricing.Calculate(ctx, PricingRequest{Quantity: input.Quantity, ServiceID: input.ServiceID, Parameters: input.Parameters, ManualCosts: input.ManualCosts, SellingPriceOverrideRial: input.SellingPriceOverrideRial})
+	if err != nil {
+		return domain.OrderItem{}, err
+	}
+	qty, err := parseOrderQuantity(input.Quantity, price)
+	if err != nil {
+		return domain.OrderItem{}, err
+	}
+	priceQuantity := qty
+	if price.BatchQuantity != "" {
+		priceQuantity = domain.QuantityScale
+	}
+	estimatedCostRial, err := domain.MulQuantityRial(priceQuantity, price.EstimatedCostRial)
+	if err != nil {
+		return domain.OrderItem{}, fmt.Errorf("estimated cost for quantity: %w", err)
+	}
+	if price.RoundingStepRial > 0 && price.RoundingStepRial != domain.DefaultMonetaryRoundingStepRial {
+		estimatedCostRial, err = domain.RoundMoneyUp(estimatedCostRial, price.RoundingStepRial)
+		if err != nil {
+			return domain.OrderItem{}, fmt.Errorf("round estimated cost for quantity: %w", err)
+		}
+	}
+	suggestedPriceRial, err := domain.MulQuantitySellingPriceRialWithStep(priceQuantity, price.SuggestedSellingPriceRial, price.RoundingStepRial)
+	if err != nil {
+		return domain.OrderItem{}, fmt.Errorf("suggested price for quantity: %w", err)
+	}
+	sellingPriceRial, err := domain.MulQuantitySellingPriceRialWithStep(priceQuantity, price.EffectiveSellingPriceRial, price.RoundingStepRial)
+	if err != nil {
+		return domain.OrderItem{}, fmt.Errorf("selling price for quantity: %w", err)
+	}
+	parametersJSON, _ := json.Marshal(price.Parameters)
+	componentsJSON, _ := json.Marshal(price.Components)
+	snapshotJSON, _ := json.Marshal(price)
+	item := domain.OrderItem{ID: existingID, OrderID: orderID, Position: position, ServiceID: price.ServiceID, ServiceNameSnapshot: price.ServiceName, ServiceCodeSnapshot: price.ServiceCode, Quantity: qty, QuantityUnit: strings.TrimSpace(input.QuantityUnit), ResolvedParametersJSON: string(parametersJSON), CostBreakdownJSON: string(componentsJSON), PricingSnapshotJSON: string(snapshotJSON), EstimatedCostRial: estimatedCostRial, SuggestedPriceRial: suggestedPriceRial, SellingPriceRial: sellingPriceRial, Notes: strings.TrimSpace(input.Notes)}
+	if item.QuantityUnit == "" {
+		item.QuantityUnit = "unit"
+	}
+	if item.ID == "" {
+		item.ID, err = randomID("ITM-")
+		if err != nil {
+			return domain.OrderItem{}, err
+		}
+	}
+	return item, nil
 }
 func parseOrderQuantity(value string, price PricingView) (domain.Quantity, error) {
 	if strings.TrimSpace(value) != "" {

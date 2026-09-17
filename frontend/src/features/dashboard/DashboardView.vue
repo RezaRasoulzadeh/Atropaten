@@ -83,9 +83,9 @@ const initialLoading = computed(() => loading.value && !data.value);
   <div>
     <WorkspaceStickyStack>
       <WorkspaceHeader
-        :eyebrow="`${formatDate(data?.startDate || start)} → ${formatDate(data?.endDate || end)}`"
-        title="Dashboard"
-        description="Sales performance and orders to follow up."
+        :eyebrow="$ui(`${formatDate(data?.startDate || start)} → ${formatDate(data?.endDate || end)}`)"
+        :title='$t("Dashboard")'
+        :description='$t("Sales performance and orders to follow up.")'
       >
         <SelectField
           :model-value="period"
@@ -95,7 +95,7 @@ const initialLoading = computed(() => loading.value && !data.value);
             { label: 'Last 90 days', value: '90' },
             { label: 'Last 365 days', value: '365' },
           ]"
-          aria-label="Dashboard period"
+          :aria-label='$t("Dashboard period")'
           @update:model-value="period = $event"
         />
         <button
@@ -110,14 +110,14 @@ const initialLoading = computed(() => loading.value && !data.value);
               'animate-spin': refreshAnimation === 'infinite',
             }"
             :size="15"
-          /><span>Refresh</span></button
+          /><span>{{ $t("Refresh") }}</span></button
         ><button
           class="btn btn-primary gap-2"
           type="button"
           @click="emit('newOrder')"
         >
           <FilePlus2 :size="15" :stroke-width="1.8" aria-hidden="true" /><span
-            >New order</span
+            >{{ $t("New order") }}</span
           >
         </button>
       </WorkspaceHeader>
@@ -126,8 +126,8 @@ const initialLoading = computed(() => loading.value && !data.value);
       <section class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           :value="money(data?.revenueRial || 0)"
-          detail="Confirmed and closed orders, after discounts"
-          title="Sales"
+          :detail='$t("Confirmed and closed orders, after discounts")'
+          :title='$t("Sales")'
           :trend="loading ? 'Loading' : 'Period'"
           :icon="TrendingUp"
           accent="blue"
@@ -135,8 +135,8 @@ const initialLoading = computed(() => loading.value && !data.value);
         />
         <KpiCard
           :value="money(data?.grossProfitRial || 0)"
-          detail="Sales less expected order cost"
-          title="Gross profit"
+          :detail='$t("Sales less expected order cost")'
+          :title='$t("Gross profit")'
           trend="Period"
           :icon="BarChart3"
           accent="green"
@@ -144,8 +144,8 @@ const initialLoading = computed(() => loading.value && !data.value);
         />
         <KpiCard
           :value="money(data?.receivableRial || 0)"
-          :detail="`${data?.openInvoiceCount || 0} open invoices`"
-          title="Receivables"
+          :detail="$ui(`${data?.openInvoiceCount || 0} open invoices`)"
+          :title='$t("Receivables")'
           trend="Outstanding"
           :icon="HandCoins"
           accent="amber"
@@ -153,8 +153,8 @@ const initialLoading = computed(() => loading.value && !data.value);
         />
         <KpiCard
           :value="money(data?.payableRial || 0)"
-          detail="Outstanding supplier balance"
-          title="Payables"
+          :detail='$t("Outstanding supplier balance")'
+          :title='$t("Payables")'
           trend="Supplier"
           :icon="ReceiptText"
           accent="red"
@@ -162,13 +162,12 @@ const initialLoading = computed(() => loading.value && !data.value);
         />
       </section>
       <p class="text-xs text-base-content/60">
-        Confirmed and closed orders count as sales on their order date. Draft and cancelled orders are excluded.
-        Gross profit uses current expected production costs. Invoices and payments do not count an order again.
+        {{ $t("Confirmed and closed orders count as sales on their order date. Draft and cancelled orders are excluded. Gross profit uses current expected production costs. Invoices and payments do not count an order again.") }}
       </p>
       <div
         v-if="initialLoading"
         class="grid gap-4 xl:grid-cols-2"
-        aria-label="Loading dashboard charts"
+        :aria-label='$t("Loading dashboard charts")'
       >
         <div v-for="n in 2" :key="n" class="skeleton h-72 bg-base-300/70"></div>
       </div>
@@ -178,8 +177,8 @@ const initialLoading = computed(() => loading.value && !data.value);
         :currency-unit="currencyUnit"
       />
       <AppPanel
-        title="Orders needing attention"
-        subtitle="Unfinished confirmed orders and orders with reference attachments"
+        :title='$t("Orders needing attention")'
+        :subtitle='$t("Unfinished confirmed orders and orders with reference attachments")'
         :flush="true"
       >
         <template #action
@@ -187,30 +186,30 @@ const initialLoading = computed(() => loading.value && !data.value);
             class="btn btn-ghost btn-sm"
             @click="emit('navigate', 'Orders')"
           >
-            All orders
+            {{ $t("All orders") }}
           </button></template
         >
         <p v-if="initialLoading" class="p-4 text-sm text-base-content/60">
-          Loading orders…
+          {{ $t("Loading orders…") }}
         </p>
         <DataTable
           v-else-if="data?.ordersNeedingAttention?.length"
-          label="Orders needing attention"
+          :label='$t("Orders needing attention")'
         >
           <thead>
             <tr>
-              <th>Order / Customer</th>
-              <th>Follow-up</th>
-              <th>Fulfillment</th>
-              <th>Due date</th>
-              <th class="text-end">Total</th>
+              <th>{{ $t("Order / Customer") }}</th>
+              <th>{{ $t("Follow-up") }}</th>
+              <th>{{ $t("Fulfillment") }}</th>
+              <th>{{ $t("Due date") }}</th>
+              <th class="text-end">{{ $t("Total") }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="order in data.ordersNeedingAttention" :key="order.id">
               <td>
                 <button
-                  :aria-label="`Open order ${order.orderNumber}`"
+                  :aria-label="$ui(`Open order ${order.orderNumber}`)"
                   class="text-start font-semibold text-primary hover:underline"
                   @click="emit('openOrder', order.id)"
                 >
@@ -218,18 +217,18 @@ const initialLoading = computed(() => loading.value && !data.value);
                 ><span
                   class="block max-w-60 truncate text-xs text-base-content/60"
                   :title="order.customer"
-                  >{{ order.customer || 'Walk-in customer' }}</span
+                  >{{ $ui(order.customer || 'Walk-in customer') }}</span
                 >
               </td>
               <td>
                 <div class="flex flex-wrap gap-1">
                   <StatusBadge
                     v-if="order.commercialStatus === 'Confirmed'"
-                    label="Confirmed"
+                    :label='$t("Confirmed")'
                     tone="blue"
                   /><StatusBadge
                     v-if="order.referenceCount"
-                    :label="`${order.referenceCount} reference ${order.referenceCount === 1 ? 'file' : 'files'}`"
+                    :label="$ui(`${order.referenceCount} reference ${order.referenceCount === 1 ? 'file' : 'files'}`)"
                     tone="amber"
                   />
                 </div>
@@ -239,7 +238,7 @@ const initialLoading = computed(() => loading.value && !data.value);
               </td>
               <td>
                 {{
-                  order.dueDate ? formatDate(order.dueDate) : 'Not scheduled'
+                  $ui(order.dueDate ? formatDate(order.dueDate) : 'Not scheduled')
                 }}
               </td>
               <td class="text-end">{{ money(order.totalRial) }}</td>
@@ -249,31 +248,31 @@ const initialLoading = computed(() => loading.value && !data.value);
         <EmptyState
           v-else-if="data"
           compact
-          title="No follow-up orders"
-          description="Orders needing attention will appear here."
+          :title='$t("No follow-up orders")'
+          :description='$t("Orders needing attention will appear here.")'
         >
           <template #icon><ClipboardList :size="21" aria-hidden="true" /></template>
-          <template #action><button class="btn btn-primary btn-sm" type="button" @click="emit('navigate', 'Orders')">View orders</button></template>
+          <template #action><button class="btn btn-primary btn-sm" type="button" @click="emit('navigate', 'Orders')">{{ $t("View orders") }}</button></template>
         </EmptyState>
         <EmptyState
           v-else
           compact
-          title="Order data unavailable"
-          description="Refresh the dashboard to try loading the order summary again."
+          :title='$t("Order data unavailable")'
+          :description='$t("Refresh the dashboard to try loading the order summary again.")'
         >
           <template #icon><RefreshCw :size="21" aria-hidden="true" /></template>
-          <template #action><button class="btn btn-primary btn-sm" type="button" @click="load">Refresh dashboard</button></template>
+          <template #action><button class="btn btn-primary btn-sm" type="button" @click="load">{{ $t("Refresh dashboard") }}</button></template>
         </EmptyState>
       </AppPanel>
       <RegisterList
-        title="Production queue"
-        subtitle="Active production jobs"
+        :title='$t("Production queue")'
+        :subtitle='$t("Active production jobs")'
         :count="data?.production?.length || 0"
       >
         <div
           v-if="initialLoading"
           class="space-y-3 p-4"
-          aria-label="Loading production jobs"
+          :aria-label='$t("Loading production jobs")'
         >
           <div
             v-for="row in 3"
@@ -296,7 +295,7 @@ const initialLoading = computed(() => loading.value && !data.value);
                     job.orderNumber || job.id
                   }}</strong>
                   <span class="min-w-0 truncate text-xs text-base-content/60">{{
-                    job.customer || 'Walk-in customer'
+                    $ui(job.customer || 'Walk-in customer')
                   }}</span>
                 </div>
                 <StatusBadge
@@ -314,11 +313,11 @@ const initialLoading = computed(() => loading.value && !data.value);
         <EmptyState
           v-else
           compact
-          title="No active production jobs"
-          description="Active jobs will appear here once production is scheduled."
+          :title='$t("No active production jobs")'
+          :description='$t("Active jobs will appear here once production is scheduled.")'
         >
           <template #icon><Factory :size="21" aria-hidden="true" /></template>
-          <template #action><button class="btn btn-primary btn-sm" type="button" @click="emit('navigate', 'Production')">View production</button></template>
+          <template #action><button class="btn btn-primary btn-sm" type="button" @click="emit('navigate', 'Production')">{{ $t("View production") }}</button></template>
         </EmptyState>
       </RegisterList>
     </div>

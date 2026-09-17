@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { translateUi } from '../../i18n'
 import { Eye, Pencil } from 'lucide-vue-next'
 import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
@@ -48,28 +49,28 @@ function valueLabel(parameter: ParameterForm) {
 function quantityLabel() {
   const parameter = props.parameters.find((item) => item.key === props.form.pricingRule.parameterKey) || props.parameters.find((item) => item.key === 'quantity')
   const value = parameter ? props.values[parameter.key] || parameter.defaultValue : ''
-  return value ? `${value} ${parameter?.unit || props.form.defaultUnit}` : 'one unit'
+  return value ? `${value} ${translateUi(parameter?.unit || props.form.defaultUnit)}` : translateUi('one unit')
 }
 </script>
 
 <template>
   <div class="min-w-0 space-y-4">
     <ServiceOverviewIdentity :form="form" :active="active" />
-    <ServiceOverviewSection title="Estimated price" description="The result for the current test values.">
+    <ServiceOverviewSection :title='$t("Estimated price")' :description='$t("The result for the current test values.")'>
       <div v-if="result" class="space-y-3">
-        <div class="flex items-center justify-between gap-3"><strong class="text-xl tabular-nums" :class="result.hasMissing ? 'text-warning' : 'text-success'">{{ form.pricingRule.type === 'manual' ? 'Set in order' : result.hasMissing ? 'Needs setup' : formatMoney(result.sellingPriceRial, currencyUnit) }}</strong><span class="badge badge-ghost text-xs">{{ result.pricingLabel }}</span></div>
-        <p class="text-sm text-base-content/65">for {{ quantityLabel() }}</p>
-        <div class="flex items-center justify-between gap-3 border-t border-base-300 pt-3 text-sm"><span>Total cost</span><span class="tabular-nums">{{ formatMoney(result.totalCostRial, currencyUnit) }}</span></div>
+        <div class="flex items-center justify-between gap-3"><strong class="text-xl tabular-nums" :class="result.hasMissing ? 'text-warning' : 'text-success'">{{ $ui(form.pricingRule.type === 'manual' ? 'Set in order' : result.hasMissing ? 'Needs setup' : formatMoney(result.sellingPriceRial, currencyUnit)) }}</strong><span class="badge badge-ghost text-xs">{{ $ui(result.pricingLabel) }}</span></div>
+        <p class="text-sm text-base-content/65">{{ $t("for") }} {{ quantityLabel() }}</p>
+        <div class="flex items-center justify-between gap-3 border-t border-base-300 pt-3 text-sm"><span>{{ $t("Total cost") }}</span><span class="tabular-nums">{{ formatMoney(result.totalCostRial, currencyUnit) }}</span></div>
       </div>
-      <p v-else class="text-sm text-base-content/60">Enter test values to preview the price.</p>
+      <p v-else class="text-sm text-base-content/60">{{ $t("Enter test values to preview the price.") }}</p>
     </ServiceOverviewSection>
-    <ServiceOverviewSection title="Test inputs" description="Dynamic pricing choices and quantity values used for this test.">
-      <template #meta><button class="btn btn-ghost btn-xs gap-1" type="button" @click="$emit('edit')"><Pencil :size="13" aria-hidden="true" />Edit</button></template>
+    <ServiceOverviewSection :title='$t("Test inputs")' :description='$t("Dynamic pricing choices and quantity values used for this test.")'>
+      <template #meta><button class="btn btn-ghost btn-xs gap-1" type="button" @click="$emit('edit')"><Pencil :size="13" aria-hidden="true" />{{ $t("Edit") }}</button></template>
       <div v-if="displayedParameters.length" class="divide-y divide-base-300/70">
         <div v-for="parameter in displayedParameters" :key="parameter.id" class="flex min-w-0 items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0 text-sm"><span class="min-w-0 truncate">{{ testParameterLabel(form, parameter, parameters) }}<em v-if="parameter.required" class="text-error"> *</em></span><span class="max-w-[58%] break-words text-end text-base-content/75">{{ valueLabel(parameter) }}</span></div>
       </div>
-      <p v-else class="text-sm text-base-content/60">No operator parameters configured.</p>
+      <p v-else class="text-sm text-base-content/60">{{ $t("No operator parameters configured.") }}</p>
     </ServiceOverviewSection>
-    <div class="flex items-start gap-2 border-t border-base-300 pt-3 text-xs leading-5 text-base-content/65"><Eye class="mt-0.5 shrink-0 text-info" :size="15" aria-hidden="true" /><span>This is a live test preview. Change values in the form to see the result update.</span></div>
+    <div class="flex items-start gap-2 border-t border-base-300 pt-3 text-xs leading-5 text-base-content/65"><Eye class="mt-0.5 shrink-0 text-info" :size="15" aria-hidden="true" /><span>{{ $t("This is a live test preview. Change values in the form to see the result update.") }}</span></div>
   </div>
 </template>

@@ -18,6 +18,7 @@ export namespace domain {
 	    lengthMM: string;
 	    rotated: boolean;
 	    wastePercent: number;
+	    wasteCostRial: number;
 	    areaM2: string;
 	    originalLengthMM?: string;
 	
@@ -44,6 +45,7 @@ export namespace domain {
 	        this.lengthMM = source["lengthMM"];
 	        this.rotated = source["rotated"];
 	        this.wastePercent = source["wastePercent"];
+	        this.wasteCostRial = source["wasteCostRial"];
 	        this.areaM2 = source["areaM2"];
 	        this.originalLengthMM = source["originalLengthMM"];
 	    }
@@ -2180,27 +2182,6 @@ export namespace main {
 		    return a;
 		}
 	}
-	export class OrderInput {
-	    customerId: string;
-	    promisedAt?: string;
-	    priority: string;
-	    notes: string;
-	    discountRial: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new OrderInput(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.customerId = source["customerId"];
-	        this.promisedAt = source["promisedAt"];
-	        this.priority = source["priority"];
-	        this.notes = source["notes"];
-	        this.discountRial = source["discountRial"];
-	    }
-	}
-	
 	export class OrderItemInput {
 	    serviceId: string;
 	    parameters: Record<string, string>;
@@ -2225,6 +2206,48 @@ export namespace main {
 	        this.notes = source["notes"];
 	    }
 	}
+	export class OrderInput {
+	    customerId: string;
+	    promisedAt?: string;
+	    priority: string;
+	    notes: string;
+	    discountRial: number;
+	    items?: OrderItemInput[];
+
+	    static createFrom(source: any = {}) {
+	        return new OrderInput(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.customerId = source["customerId"];
+	        this.promisedAt = source["promisedAt"];
+	        this.priority = source["priority"];
+	        this.notes = source["notes"];
+	        this.discountRial = source["discountRial"];
+	        this.items = this.convertValues(source["items"], OrderItemInput);
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+
 	export class OutsourceInput {
 	    quantity: string;
 	    unitCostRial: number;
@@ -4135,4 +4158,3 @@ export namespace sqlite {
 	}
 
 }
-

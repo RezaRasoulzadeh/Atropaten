@@ -97,8 +97,8 @@ return runAction(async () => {
           <FileText :size="18" aria-hidden="true" />
         </span>
         <div class="min-w-0">
-          <h2 class="text-sm font-semibold leading-5">Invoice</h2>
-          <p class="mt-0.5 text-xs leading-4 text-base-content/60">Create, print, or post the commercial document.</p>
+          <h2 class="text-sm font-semibold leading-5">{{ $t("Invoice") }}</h2>
+          <p class="mt-0.5 text-xs leading-4 text-base-content/60">{{ $t("Create, print, or post the commercial document.") }}</p>
         </div>
       </div>
       <StatusBadge
@@ -115,22 +115,22 @@ return runAction(async () => {
             <FileText :size="22" aria-hidden="true" />
           </span>
           <div class="min-w-0">
-            <p class="text-[11px] font-medium uppercase tracking-wide text-primary/75">{{ invoice.status === 'Draft' ? 'Pre-invoice' : 'Final invoice' }}</p>
+            <p class="text-[11px] font-medium uppercase tracking-wide text-primary/75">{{ $ui(invoice.status === 'Draft' ? 'Pre-invoice' : 'Final invoice') }}</p>
             <h3 class="mt-0.5 truncate text-base font-semibold">{{ invoice.invoiceNumber }}</h3>
-            <p class="mt-1 text-xs text-base-content/60">{{ invoice.items.length }} line{{ invoice.items.length === 1 ? '' : 's' }} · {{ invoice.customerName || 'Walk-in customer' }}</p>
+            <p class="mt-1 text-xs text-base-content/60">{{ invoice.items.length }} {{ $t("line") }}{{ $ui(invoice.items.length === 1 ? '' : 's') }} · {{ $ui(invoice.customerName || 'Walk-in customer') }}</p>
           </div>
         </div>
         <dl class="grid min-w-0 grid-cols-3 gap-3 lg:border-s lg:ps-4">
           <div class="min-w-0">
-            <dt class="text-[11px] text-base-content/55">Total</dt>
+            <dt class="text-[11px] text-base-content/55">{{ $t("Total") }}</dt>
             <dd class="mt-1 truncate text-sm font-semibold tabular-nums">{{ formatMoney(invoice.totalRial, props.currencyUnit) }}</dd>
           </div>
           <div class="min-w-0">
-            <dt class="text-[11px] text-base-content/55">Paid</dt>
+            <dt class="text-[11px] text-base-content/55">{{ $t("Paid") }}</dt>
             <dd class="mt-1 truncate text-sm font-semibold tabular-nums text-success">{{ formatMoney(invoice.paidRial, props.currencyUnit) }}</dd>
           </div>
           <div class="min-w-0">
-            <dt class="text-[11px] text-base-content/55">Remaining</dt>
+            <dt class="text-[11px] text-base-content/55">{{ $t("Remaining") }}</dt>
             <dd class="mt-1 truncate text-sm font-semibold tabular-nums text-warning">{{ formatMoney(invoice.remainingRial, props.currencyUnit) }}</dd>
           </div>
         </dl>
@@ -138,27 +138,27 @@ return runAction(async () => {
 
       <div class="flex min-w-0 flex-wrap items-center justify-between gap-3 pt-4">
         <p class="text-xs leading-4 text-base-content/60">
-          {{ invoice.status === 'Draft' ? 'This document is not posted to accounting.' : 'This document is posted and ready as the final invoice.' }}
+          {{ $ui(invoice.status === 'Draft' ? 'This document is not posted to accounting.' : 'This document is posted and ready as the final invoice.') }}
         </p>
         <div class="flex flex-wrap items-center gap-2">
           <button v-if="invoice.status === 'Draft'" class="btn btn-ghost btn-sm gap-1.5" type="button" @click="printInvoice('pre')" :disabled="busy">
-            <Printer :size="14" aria-hidden="true" /> Print pre-invoice
+            <Printer :size="14" aria-hidden="true" /> {{ $t("Print pre-invoice") }}
           </button>
           <button v-if="invoice.status === 'Draft'" class="btn btn-primary btn-sm gap-1.5" type="button" @click="post" :disabled="busy">
-            <Plus :size="14" aria-hidden="true" /> Post invoice
+            <Plus :size="14" aria-hidden="true" /> {{ $t("Post invoice") }}
           </button>
           <button v-if="invoice.status === 'Posted' || invoice.status === 'Partially Paid' || invoice.status === 'Paid'" class="btn btn-primary btn-sm gap-1.5" type="button" @click="printInvoice('final')" :disabled="busy">
-            <Printer :size="14" aria-hidden="true" /> Print final invoice
+            <Printer :size="14" aria-hidden="true" /> {{ $t("Print final invoice") }}
           </button>
           <button v-if="invoice.status === 'Posted' || invoice.status === 'Partially Paid' || invoice.status === 'Paid'" class="btn btn-ghost btn-sm gap-1.5" type="button" @click="reverse" :disabled="busy">
-            <RotateCcw :size="14" aria-hidden="true" /> Void
+            <RotateCcw :size="14" aria-hidden="true" /> {{ $t("Void") }}
           </button>
         </div>
       </div>
     </div>
-    <EmptyState v-else compact title="No invoice linked" description="Create an invoice when this order is ready to bill.">
+    <EmptyState v-else compact :title='$t("No invoice linked")' :description='$t("Create an invoice when this order is ready to bill.")'>
       <template #icon><FileText :size="22" aria-hidden="true" /></template>
-      <template #action><button class="btn btn-primary btn-sm" type="button" @click="create" :disabled="busy"><Plus :size="15" aria-hidden="true" /> Create invoice</button></template>
+      <template #action><button class="btn btn-primary btn-sm" type="button" @click="create" :disabled="busy"><Plus :size="15" aria-hidden="true" /> {{ $t("Create invoice") }}</button></template>
     </EmptyState>
     <Teleport to="body">
       <div v-if="invoice" class="print-output">

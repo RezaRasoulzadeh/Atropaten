@@ -192,11 +192,11 @@ onBeforeUnmount(clearSelectedFiles);
           </div>
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2">
-              <h2 class="text-base font-semibold">Files</h2>
-              <span class="badge badge-sm">{{ attachments.length }} files</span>
+              <h2 class="text-base font-semibold">{{ $t("Files") }}</h2>
+              <span class="badge badge-sm">{{ attachments.length }} {{ $t("files") }}</span>
             </div>
             <p class="mt-1 text-xs text-base-content/60">
-              Add artwork and reference files to this order.
+              {{ $t("Add artwork and reference files to this order.") }}
             </p>
           </div>
         </div>
@@ -205,8 +205,8 @@ onBeforeUnmount(clearSelectedFiles);
       <div class="min-w-0 pt-4">
         <div data-enter-scope class="min-w-0 space-y-3">
           <div>
-            <h3 class="text-sm font-semibold">Add attachment</h3>
-            <p class="mt-1 text-xs text-base-content/60">Drop a file here or browse your computer. New files use the folder configured in Settings.</p>
+            <h3 class="text-sm font-semibold">{{ $t("Add attachment") }}</h3>
+            <p class="mt-1 text-xs text-base-content/60">{{ $t("Drop a file here or browse your computer. New files use the folder configured in Settings.") }}</p>
           </div>
           <div class="grid min-w-0 gap-3 sm:grid-cols-2">
             <div
@@ -232,8 +232,8 @@ onBeforeUnmount(clearSelectedFiles);
                 <FilePlus2 :size="20" aria-hidden="true" />
               </div>
               <template v-if="selectedFiles.length">
-                <strong class="text-sm">{{ selectedFiles.length }} file{{ selectedFiles.length === 1 ? '' : 's' }} selected</strong>
-                <span class="text-xs text-base-content/55">Ready to store in the order attachments folder</span>
+                <strong class="text-sm">{{ selectedFiles.length }} {{ $t("file") }}{{ $ui(selectedFiles.length === 1 ? '' : 's') }} {{ $t("selected") }}</strong>
+                <span class="text-xs text-base-content/55">{{ $t("Ready to store in the order attachments folder") }}</span>
                 <div class="grid w-full min-w-0 gap-2 text-start sm:grid-cols-2">
                   <div
                     v-for="file in selectedFiles"
@@ -256,53 +256,53 @@ onBeforeUnmount(clearSelectedFiles);
                     <button
                       class="btn btn-outline btn-error btn-square btn-xs shrink-0"
                       type="button"
-                      :aria-label="`Remove ${file.name}`"
-                      title="Remove from selection"
+                      :aria-label="$ui(`Remove ${file.name}`)"
+                      :title='$t("Remove from selection")'
                       @click.stop="removeSelectedFile(file)"
                     >
                       ×
                     </button>
                   </div>
                 </div>
-                <span class="text-xs text-primary">Drop more files or use Browse files to add to this selection</span>
+                <span class="text-xs text-primary">{{ $t("Drop more files or use Browse files to add to this selection") }}</span>
               </template>
               <template v-else>
-                <strong class="text-sm">Drop your file here</strong>
-                <span class="text-xs text-base-content/55">or click Browse file to choose it</span>
+                <strong class="text-sm">{{ $t("Drop your file here") }}</strong>
+                <span class="text-xs text-base-content/55">{{ $t("or click Browse file to choose it") }}</span>
               </template>
               <button class="btn btn-outline btn-sm mt-1" type="button" @click.stop="fileInput?.click()">
-                {{ selectedFiles.length ? 'Browse more files' : 'Browse files' }}
+                {{ $ui(selectedFiles.length ? 'Browse more files' : 'Browse files') }}
               </button>
             </div>
             <SelectField
               v-model="category"
-              label="Category"
+              :label='$t("Category")'
               :options="[
                 { label: 'Artwork', value: 'artwork' },
                 { label: 'Reference', value: 'reference' },
                 { label: 'Other', value: 'other' },
               ]"
             />
-            <FormField label="Notes"><AppInput
+            <FormField :label='$t("Notes")'><AppInput
               class="input w-full min-w-0"
               v-model="notes"
-              placeholder="Optional context for the team"
+              :placeholder='$t("Optional context for the team")'
             /></FormField>
           </div>
           <button class="btn btn-primary btn-sm w-fit gap-2" type="button" data-enter-submit @click="addFile" :disabled="busy || !selectedFiles.length">
             <Plus :size="14" aria-hidden="true" />
-            {{ busy ? 'Storing…' : 'Store attachment' }}
+            {{ $ui(busy ? 'Storing…' : 'Store attachment') }}
           </button>
         </div>
       </div>
 
       <div class="mt-4 border-t border-base-300 pt-4">
-        <LoadingState v-if="loading" label="Loading attachments…" />
+        <LoadingState v-if="loading" :label='$t("Loading attachments…")' />
         <EmptyState
           v-else-if="!attachments.length"
           compact
-          title="No files yet"
-          description="Files linked to this order will appear here."
+          :title='$t("No files yet")'
+          :description='$t("Files linked to this order will appear here.")'
         >
           <template #icon><FilePlus2 :size="21" aria-hidden="true" /></template>
         </EmptyState>
@@ -315,8 +315,8 @@ onBeforeUnmount(clearSelectedFiles);
             <button
               class="group grid size-10 shrink-0 place-items-center overflow-hidden rounded-box border border-base-300 bg-base-200 text-primary"
               type="button"
-              :aria-label="`Preview ${file.fileName}`"
-              title="Preview file"
+              :aria-label="$ui(`Preview ${file.fileName}`)"
+              :title='$t("Preview file")'
               @click="previewFile(file)"
             >
               <img
@@ -330,11 +330,11 @@ onBeforeUnmount(clearSelectedFiles);
             <div class="min-w-0">
               <div class="flex min-w-0 flex-wrap items-center gap-2">
                 <strong class="min-w-0 truncate text-sm" :title="file.fileName">{{ file.fileName }}</strong>
-                <span class="badge badge-ghost badge-sm capitalize">{{ file.category }}</span>
+                <span class="badge badge-ghost badge-sm capitalize">{{ $ui(file.category) }}</span>
               </div>
               <p class="mt-0.5 truncate text-[11px] text-base-content/55" :title="file.path">{{ file.path }}</p>
               <span class="mt-0.5 block text-[11px] text-base-content/45">
-                {{ file.mimeType || 'File' }}<template v-if="file.sizeBytes"> · {{ formatFileSize(file.sizeBytes) }}</template>
+                {{ $ui(file.mimeType || 'File') }}<template v-if="file.sizeBytes"> · {{ formatFileSize(file.sizeBytes) }}</template>
               </span>
               <small v-if="file.notes" class="mt-0.5 block truncate text-[11px] text-base-content/55" :title="file.notes">{{ file.notes }}</small>
             </div>
@@ -346,12 +346,12 @@ onBeforeUnmount(clearSelectedFiles);
                 :disabled="previewLoading"
               >
                 <Eye :size="14" aria-hidden="true" />
-                {{ previewLoading ? 'Opening…' : 'Preview' }}
+                {{ $ui(previewLoading ? 'Opening…' : 'Preview') }}
               </button>
               <button
                 class="btn btn-outline btn-error btn-square btn-xs"
-                aria-label="Remove attachment metadata"
-                title="Remove attachment"
+                :aria-label='$t("Remove attachment metadata")'
+                :title='$t("Remove attachment")'
                 type="button"
                 @click="removeFile(file.id)"
                 :disabled="busy || props.protectedContext"
@@ -369,7 +369,7 @@ onBeforeUnmount(clearSelectedFiles);
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       role="dialog"
       aria-modal="true"
-      :aria-label="`Preview ${preview.fileName}`"
+      :aria-label="$ui(`Preview ${preview.fileName}`)"
       @click.self="closePreview"
       @keydown.esc="closePreview"
       tabindex="-1"
@@ -382,9 +382,9 @@ onBeforeUnmount(clearSelectedFiles);
           </div>
           <div class="flex shrink-0 items-center gap-2">
             <button class="btn btn-outline btn-sm" type="button" :disabled="savingFile" @click="saveAttachment">
-              {{ savingFile ? 'Saving…' : 'Save as…' }}
+              {{ $ui(savingFile ? 'Saving…' : 'Save as…') }}
             </button>
-            <button class="btn btn-ghost btn-square btn-sm" type="button" aria-label="Close preview" @click="closePreview">
+            <button class="btn btn-ghost btn-square btn-sm" type="button" :aria-label='$t("Close preview")' @click="closePreview">
               <X :size="17" aria-hidden="true" />
             </button>
           </div>
@@ -407,13 +407,13 @@ onBeforeUnmount(clearSelectedFiles);
             v-else-if="preview.mimeType === 'application/pdf' || preview.mimeType.startsWith('text/')"
             class="h-[calc(100vh-10rem)] w-full rounded-box bg-base-100"
             :src="preview.url"
-            :title="`Preview ${preview.fileName}`"
+            :title="$ui(`Preview ${preview.fileName}`)"
           ></iframe>
           <div v-else class="max-w-md text-center">
             <FilePlus2 :size="34" class="mx-auto text-base-content/40" aria-hidden="true" />
-            <p class="mt-3 text-sm text-base-content/70">This file type cannot be previewed here.</p>
+            <p class="mt-3 text-sm text-base-content/70">{{ $t("This file type cannot be previewed here.") }}</p>
             <button class="btn btn-primary btn-sm mt-4" type="button" :disabled="savingFile" @click="saveAttachment">
-              {{ savingFile ? 'Saving…' : 'Save original file' }}
+              {{ $ui(savingFile ? 'Saving…' : 'Save original file') }}
             </button>
           </div>
         </div>

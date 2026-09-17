@@ -47,7 +47,7 @@ function itemCount(order: OrderRecord) {
 </script>
 
 <template>
-  <section class="order-detail-panel h-auto min-h-0 min-w-0 overflow-visible rounded-box border border-base-300 bg-base-100 xl:h-full xl:overflow-y-auto" aria-label="Order preview">
+  <section class="order-detail-panel h-auto min-h-0 min-w-0 overflow-visible rounded-box border border-base-300 bg-base-100 xl:h-full xl:overflow-y-auto" :aria-label='$t("Order preview")'>
     <div class="border-b border-base-300 p-3 sm:p-5">
       <div class="relative min-h-52 overflow-hidden rounded-box bg-base-300 sm:min-h-60">
         <div class="absolute inset-0 bg-gradient-to-br from-primary/20 via-base-300 to-base-200" aria-hidden="true"></div>
@@ -61,62 +61,62 @@ function itemCount(order: OrderRecord) {
               <h2 class="min-w-0 truncate text-xl font-semibold sm:text-2xl">{{ order.orderNumber }}</h2>
               <StatusBadge class="shrink-0" :label="orderStatus(order)" :tone="tone(orderStatus(order))" />
             </div>
-            <p class="mt-2 truncate text-sm text-base-content/65">{{ order.customerName || 'Walk-in customer' }}</p>
-            <p class="mt-1 text-xs text-base-content/50">Updated {{ formatDateTime(order.updatedAt || order.createdAt) }}</p>
+            <p class="mt-2 truncate text-sm text-base-content/65">{{ $ui(order.customerName || 'Walk-in customer') }}</p>
+            <p class="mt-1 text-xs text-base-content/50">{{ $t("Updated") }} {{ formatDateTime(order.updatedAt || order.createdAt) }}</p>
           </div>
         </div>
       </div>
 
       <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <button class="btn btn-outline btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('edit')"><Edit3 :size="14" aria-hidden="true" />Edit</button>
-        <button v-if="!order.archived" class="btn btn-outline btn-warning btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('archive')"><Archive :size="14" aria-hidden="true" />Archive</button>
-        <button v-else class="btn btn-outline btn-success btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('unarchive')"><RotateCcw :size="14" aria-hidden="true" />Unarchive</button>
-        <button class="btn btn-outline btn-error btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('remove')"><Trash2 :size="14" aria-hidden="true" />Remove</button>
+        <button class="btn btn-outline btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('edit')"><Edit3 :size="14" aria-hidden="true" />{{ $t("Edit") }}</button>
+        <button v-if="!order.archived" class="btn btn-outline btn-warning btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('archive')"><Archive :size="14" aria-hidden="true" />{{ $t("Archive") }}</button>
+        <button v-else class="btn btn-outline btn-success btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('unarchive')"><RotateCcw :size="14" aria-hidden="true" />{{ $t("Unarchive") }}</button>
+        <button class="btn btn-outline btn-error btn-sm w-full gap-2" type="button" :disabled="busy" @click="emit('remove')"><Trash2 :size="14" aria-hidden="true" />{{ $t("Remove") }}</button>
       </div>
 
       <div class="mt-4 grid min-w-0 divide-y divide-base-300 border-y border-base-300 sm:mt-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div class="flex items-center gap-3 py-3 sm:px-3 sm:first:pl-0">
           <FileText :size="20" class="shrink-0 text-primary" aria-hidden="true" />
-          <div class="min-w-0"><span class="block text-xs text-base-content/55">Order total</span><strong class="block truncate text-sm tabular-nums">{{ money(order.totalRial) }}</strong></div>
+          <div class="min-w-0"><span class="block text-xs text-base-content/55">{{ $t("Order total") }}</span><strong class="block truncate text-sm tabular-nums">{{ money(order.totalRial) }}</strong></div>
         </div>
         <div class="flex items-center gap-3 py-3 sm:px-3">
           <UserRound :size="20" class="shrink-0 text-primary" aria-hidden="true" />
-          <div class="min-w-0"><span class="block text-xs text-base-content/55">Payment</span><strong class="block truncate text-sm">{{ order.paymentStatus }}</strong></div>
+          <div class="min-w-0"><span class="block text-xs text-base-content/55">{{ $t("Payment") }}</span><strong class="block truncate text-sm">{{ $ui(order.paymentStatus) }}</strong></div>
         </div>
         <div class="flex items-center gap-3 py-3 sm:px-3 sm:pr-0">
           <CalendarDays :size="20" class="shrink-0 text-primary" aria-hidden="true" />
-          <div class="min-w-0"><span class="block text-xs text-base-content/55">Priority</span><strong class="block truncate text-sm">{{ order.priority }}</strong></div>
+          <div class="min-w-0"><span class="block text-xs text-base-content/55">{{ $t("Priority") }}</span><strong class="block truncate text-sm">{{ $ui(order.priority) }}</strong></div>
         </div>
       </div>
     </div>
 
-    <nav class="flex min-w-0 overflow-x-auto border-b border-base-300 px-2" aria-label="Order preview tabs">
-      <button class="shrink-0 border-b-2 px-3 py-3 text-sm transition-colors" :class="activeTab === 'overview' ? 'border-primary text-primary' : 'border-transparent text-base-content/65 hover:border-base-content/30 hover:text-base-content'" type="button" @click="activeTab = 'overview'">Overview</button>
-      <button class="shrink-0 border-b-2 px-3 py-3 text-sm transition-colors" :class="activeTab === 'items' ? 'border-primary text-primary' : 'border-transparent text-base-content/65 hover:border-base-content/30 hover:text-base-content'" type="button" @click="activeTab = 'items'">Items <span class="ms-1 text-xs text-base-content/50">{{ itemCount(order) }}</span></button>
+    <nav class="flex min-w-0 overflow-x-auto border-b border-base-300 px-2" :aria-label='$t("Order preview tabs")'>
+      <button class="shrink-0 border-b-2 px-3 py-3 text-sm transition-colors" :class="activeTab === 'overview' ? 'border-primary text-primary' : 'border-transparent text-base-content/65 hover:border-base-content/30 hover:text-base-content'" type="button" @click="activeTab = 'overview'">{{ $t("Overview") }}</button>
+      <button class="shrink-0 border-b-2 px-3 py-3 text-sm transition-colors" :class="activeTab === 'items' ? 'border-primary text-primary' : 'border-transparent text-base-content/65 hover:border-base-content/30 hover:text-base-content'" type="button" @click="activeTab = 'items'">{{ $t("Items") }} <span class="ms-1 text-xs text-base-content/50">{{ itemCount(order) }}</span></button>
     </nav>
 
     <div class="min-w-0 p-3 sm:p-4">
       <div v-if="activeTab === 'overview'" class="space-y-3">
         <div class="rounded-box border border-base-300 bg-base-200/20 p-3">
           <div class="flex items-center justify-between gap-3">
-            <h3 class="text-sm font-semibold">Financial summary</h3>
-            <span class="text-xs text-base-content/50">Order balance</span>
+            <h3 class="text-sm font-semibold">{{ $t("Financial summary") }}</h3>
+            <span class="text-xs text-base-content/50">{{ $t("Order balance") }}</span>
           </div>
           <dl class="mt-3 grid grid-cols-2 divide-x divide-y divide-base-300/70 overflow-hidden rounded-box border border-base-300/70 bg-base-100/35 sm:grid-cols-4 sm:divide-y-0">
             <div class="min-w-0 p-2.5 first:ps-3">
-              <dt class="truncate text-[11px] text-base-content/55">Total</dt>
+              <dt class="truncate text-[11px] text-base-content/55">{{ $t("Total") }}</dt>
               <dd class="mt-1 truncate text-sm font-semibold tabular-nums text-primary">{{ money(order.totalRial) }}</dd>
             </div>
             <div class="min-w-0 p-2.5">
-              <dt class="truncate text-[11px] text-base-content/55">Discount</dt>
+              <dt class="truncate text-[11px] text-base-content/55">{{ $t("Discount") }}</dt>
               <dd class="mt-1 truncate text-sm tabular-nums">{{ money(order.discountRial || 0) }}</dd>
             </div>
             <div class="min-w-0 p-2.5">
-              <dt class="truncate text-[11px] text-base-content/55">Paid</dt>
+              <dt class="truncate text-[11px] text-base-content/55">{{ $t("Paid") }}</dt>
               <dd class="mt-1 truncate text-sm tabular-nums text-success">{{ money(order.paidRial || 0) }}</dd>
             </div>
             <div class="min-w-0 p-2.5 last:pe-3">
-              <dt class="truncate text-[11px] text-base-content/55">Remaining</dt>
+              <dt class="truncate text-[11px] text-base-content/55">{{ $t("Remaining") }}</dt>
               <dd class="mt-1 truncate text-sm font-semibold tabular-nums text-warning">{{ money(order.remainingRial ?? order.totalRial) }}</dd>
             </div>
           </dl>
@@ -124,46 +124,46 @@ function itemCount(order: OrderRecord) {
 
         <div class="rounded-box border border-base-300 bg-base-200/20 p-3">
           <div class="flex items-center justify-between gap-3">
-            <h3 class="text-sm font-semibold">Production cost & margin</h3>
-            <span class="text-xs text-base-content/50">Expected job margin</span>
+            <h3 class="text-sm font-semibold">{{ $t("Production cost & margin") }}</h3>
+            <span class="text-xs text-base-content/50">{{ $t("Expected job margin") }}</span>
           </div>
           <dl class="mt-3 grid grid-cols-2 divide-x divide-base-300/70 overflow-hidden rounded-box border border-base-300/70 bg-base-100/35">
-            <div class="min-w-0 p-2.5 first:ps-3"><dt class="truncate text-[11px] text-base-content/55">Expected cost</dt><dd class="mt-1 truncate text-sm tabular-nums">{{ money(order.projectedCostRial || 0) }}</dd></div>
-            <div class="min-w-0 p-2.5 last:pe-3"><dt class="truncate text-[11px] text-base-content/55">Margin</dt><dd class="mt-1 truncate text-sm font-semibold tabular-nums" :class="(order.marginRial || 0) >= 0 ? 'text-success' : 'text-error'">{{ money(order.marginRial || 0) }}</dd></div>
+            <div class="min-w-0 p-2.5 first:ps-3"><dt class="truncate text-[11px] text-base-content/55">{{ $t("Expected cost") }}</dt><dd class="mt-1 truncate text-sm tabular-nums">{{ money(order.projectedCostRial || 0) }}</dd></div>
+            <div class="min-w-0 p-2.5 last:pe-3"><dt class="truncate text-[11px] text-base-content/55">{{ $t("Margin") }}</dt><dd class="mt-1 truncate text-sm font-semibold tabular-nums" :class="(order.marginRial || 0) >= 0 ? 'text-success' : 'text-error'">{{ money(order.marginRial || 0) }}</dd></div>
           </dl>
-          <p v-if="order.marginPercentage" class="mt-2 text-xs leading-5 text-base-content/55">{{ order.marginPercentage }}% of sales after discount. Expected cost includes recorded materials and outsourcing, remaining materials, and estimated machine, labor and overhead costs. Business profit uses posted invoices and expenses.</p>
+          <p v-if="order.marginPercentage" class="mt-2 text-xs leading-5 text-base-content/55">{{ order.marginPercentage }}{{ $t("% of sales after discount. Expected cost includes recorded materials and outsourcing, remaining materials, and estimated machine, labor and overhead costs. Business profit uses posted invoices and expenses.") }}</p>
         </div>
 
         <div class="rounded-box border border-base-300 bg-base-200/20 p-4">
           <div class="flex items-start gap-3">
             <span class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><UserRound :size="18" aria-hidden="true" /></span>
-            <div><h3 class="text-sm font-semibold">Customer and delivery</h3><p class="mt-1 text-xs leading-5 text-base-content/60">The order context used by your team.</p></div>
+            <div><h3 class="text-sm font-semibold">{{ $t("Customer and delivery") }}</h3><p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("The order context used by your team.") }}</p></div>
           </div>
           <dl class="mt-4 divide-y divide-base-300/70 text-sm">
-            <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Customer</dt><dd class="truncate text-end">{{ order.customerName || 'Walk-in customer' }}</dd></div>
-            <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Contact</dt><dd class="truncate text-end">{{ order.customerPhone || 'No contact details' }}</dd></div>
-            <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Created</dt><dd class="text-end">{{ formatDateTime(order.createdAt) }}</dd></div>
-            <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">Promised</dt><dd class="text-end">{{ order.promisedAt ? formatDateTime(order.promisedAt) : 'Not set' }}</dd></div>
-            <div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-base-content/60">Fulfillment</dt><dd class="text-end">{{ order.fulfillmentStatus }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">{{ $t("Customer") }}</dt><dd class="truncate text-end">{{ $ui(order.customerName || 'Walk-in customer') }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">{{ $t("Contact") }}</dt><dd class="truncate text-end">{{ $ui(order.customerPhone || 'No contact details') }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">{{ $t("Created") }}</dt><dd class="text-end">{{ formatDateTime(order.createdAt) }}</dd></div>
+            <div class="flex justify-between gap-3 py-2"><dt class="text-base-content/60">{{ $t("Promised") }}</dt><dd class="text-end">{{ $ui(order.promisedAt ? formatDateTime(order.promisedAt) : 'Not set') }}</dd></div>
+            <div class="flex justify-between gap-3 py-2 last:pb-0"><dt class="text-base-content/60">{{ $t("Fulfillment") }}</dt><dd class="text-end">{{ order.fulfillmentStatus }}</dd></div>
           </dl>
         </div>
 
         <div class="rounded-box border border-base-300 bg-base-200/20 p-4">
-          <div class="flex items-center justify-between gap-3"><div class="flex items-center gap-2"><Package :size="17" class="text-primary" aria-hidden="true" /><h3 class="text-sm font-semibold">Production</h3></div><strong class="text-sm">{{ order.productionJobCount }} job{{ order.productionJobCount === 1 ? '' : 's' }}</strong></div>
-          <div class="mt-3 flex flex-wrap gap-2 text-xs text-base-content/60"><span>{{ order.completedProductionJobs }} completed</span><span>·</span><span>{{ order.inProgressProductionJobs }} in progress</span></div>
+          <div class="flex items-center justify-between gap-3"><div class="flex items-center gap-2"><Package :size="17" class="text-primary" aria-hidden="true" /><h3 class="text-sm font-semibold">{{ $t("Production") }}</h3></div><strong class="text-sm">{{ order.productionJobCount }} {{ $t("job") }}{{ $ui(order.productionJobCount === 1 ? '' : 's') }}</strong></div>
+          <div class="mt-3 flex flex-wrap gap-2 text-xs text-base-content/60"><span>{{ order.completedProductionJobs }} {{ $t("completed") }}</span><span>·</span><span>{{ order.inProgressProductionJobs }} {{ $t("in progress") }}</span></div>
         </div>
 
-        <div v-if="order.notes" class="rounded-box border border-base-300 bg-base-200/20 p-4"><h3 class="text-sm font-semibold">Notes</h3><p class="mt-2 whitespace-pre-wrap text-sm leading-6 text-base-content/70">{{ order.notes }}</p></div>
+        <div v-if="order.notes" class="rounded-box border border-base-300 bg-base-200/20 p-4"><h3 class="text-sm font-semibold">{{ $t("Notes") }}</h3><p class="mt-2 whitespace-pre-wrap text-sm leading-6 text-base-content/70">{{ order.notes }}</p></div>
       </div>
 
       <div v-else class="space-y-2">
         <div v-for="item in order.items" :key="item.id" class="flex min-w-0 items-center gap-3 rounded-box border border-base-300 bg-base-200/20 px-3 py-2.5">
           <span class="grid size-9 shrink-0 place-items-center rounded-box bg-base-200 text-primary"><Package :size="18" aria-hidden="true" /></span>
-          <div class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ item.serviceName || 'Service item' }}</strong><span class="block truncate text-xs text-base-content/55">{{ item.serviceCode || 'No code' }} · {{ item.quantity }} {{ item.quantityUnit }}</span></div>
+          <div class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ $ui(item.serviceName || 'Service item') }}</strong><span class="block truncate text-xs text-base-content/55">{{ $ui(item.serviceCode || 'No code') }} · {{ item.quantity }} {{ item.quantityUnit }}</span></div>
           <span class="shrink-0 text-sm font-medium tabular-nums">{{ money(item.sellingPriceRial) }}</span>
         </div>
-        <div v-if="!order.items.length" class="rounded-box border border-dashed border-base-300 p-8 text-center text-sm text-base-content/60">No configured items.</div>
-        <div v-if="order.items.length" class="flex items-center justify-between gap-3 border-t border-base-300 pt-3 text-sm"><span class="text-base-content/60">Total</span><strong class="text-primary tabular-nums">{{ money(order.totalRial) }}</strong></div>
+        <div v-if="!order.items.length" class="rounded-box border border-dashed border-base-300 p-8 text-center text-sm text-base-content/60">{{ $t("No configured items.") }}</div>
+        <div v-if="order.items.length" class="flex items-center justify-between gap-3 border-t border-base-300 pt-3 text-sm"><span class="text-base-content/60">{{ $t("Total") }}</span><strong class="text-primary tabular-nums">{{ money(order.totalRial) }}</strong></div>
       </div>
     </div>
   </section>

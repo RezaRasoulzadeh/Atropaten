@@ -134,22 +134,22 @@ onMounted(load);
   <div class="min-w-0 space-y-3">
     <section class="min-w-0 border-b border-base-300 pb-4">
       <header class="mb-3">
-        <h2 class="text-sm font-semibold leading-5">Payment status</h2>
-        <p class="mt-1 text-xs leading-4 text-base-content/60">Paid and remaining amounts are derived by the backend.</p>
+        <h2 class="text-sm font-semibold leading-5">{{ $t("Payment status") }}</h2>
+        <p class="mt-1 text-xs leading-4 text-base-content/60">{{ $t("Paid and remaining amounts are derived by the backend.") }}</p>
       </header>
       <div class="grid min-w-0 gap-3 sm:grid-cols-3">
         <div class="rounded-box border border-base-300 bg-base-200/55 p-3">
-          <span class="block text-xs text-base-content/55">Order total</span>
+          <span class="block text-xs text-base-content/55">{{ $t("Order total") }}</span>
           <strong class="mt-1 block text-base tabular-nums">{{ money(order.totalRial) }}</strong>
         </div>
         <div class="rounded-box border border-base-300 bg-base-200/55 p-3">
-          <span class="block text-xs text-base-content/55">Paid</span>
+          <span class="block text-xs text-base-content/55">{{ $t("Paid") }}</span>
           <strong class="mt-1 block text-base tabular-nums text-success">{{
             money(order.paidRial || 0)
           }}</strong>
         </div>
         <div class="rounded-box border border-primary/25 bg-primary/5 p-3">
-          <span class="block text-xs text-base-content/55">Remaining</span>
+          <span class="block text-xs text-base-content/55">{{ $t("Remaining") }}</span>
           <strong class="mt-1 block text-base tabular-nums text-primary">{{
             money(order.remainingRial ?? order.totalRial)
           }}</strong>
@@ -158,17 +158,17 @@ onMounted(load);
       <form @submit.prevent="post" class="mt-4 grid min-w-0 gap-3 border-t border-base-300 pt-4 sm:grid-cols-2">
         <SelectField
           v-model="account"
-          label="Financial account"
+          :label='$t("Financial account")'
           :options="financial.map((value) => ({ label: value.name, value: value.id }))"
         /><SelectField
           v-model="method"
-          label="Method"
+          :label='$t("Method")'
           :options="paymentMethodOptions"
-        /><FormField class="sm:col-span-2" :label="`Amount (${props.currencyUnit})`"><div class="relative min-w-0"><AppInput
+        /><FormField class="sm:col-span-2" :label="$ui(`Amount (${$ui(props.currencyUnit)})`)"><div class="relative min-w-0"><AppInput
           class="pe-14"
           v-model="amount"
           :money="props.currencyUnit"
-          :placeholder="`Amount (${props.currencyUnit})`"
+          :placeholder="$ui(`Amount (${$ui(props.currencyUnit)})`)"
           inputmode="numeric"
           @update:model-value="formatAmountWhileTyping"
           @blur="
@@ -177,22 +177,22 @@ onMounted(load);
               props.currencyUnit,
             )
           "
-        /><button class="absolute inset-y-1 end-1 rounded px-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40" type="button" :disabled="busy || !maxPaymentRial" aria-label="Use maximum payment amount" @click="setMaximumPaymentAmount">Max</button></div><div class="payment-slider mt-2 w-full overflow-visible"><input class="range range-primary range-sm w-full" type="range" min="0" max="100" step="5" :value="paymentSliderValue" :disabled="busy || !maxPaymentRial" aria-label="Payment amount percentage slider" :aria-valuetext="`${Math.round(paymentSliderValue)}% of remaining balance`" @input="updatePaymentSlider" /><div class="mt-1 grid w-full grid-cols-5 px-2.5 text-center text-[10px] leading-3 text-base-content/40" aria-hidden="true"><span>|</span><span>|</span><span>|</span><span>|</span><span>|</span></div><div class="mt-1 grid w-full grid-cols-5 px-2.5 text-center text-xs leading-4 text-base-content/50" aria-hidden="true"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div></div></FormField><button class="btn btn-primary w-fit gap-2" type="submit" :disabled="busy">
+        /><button class="absolute inset-y-1 end-1 rounded px-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40" type="button" :disabled="busy || !maxPaymentRial" :aria-label='$t("Use maximum payment amount")' @click="setMaximumPaymentAmount">{{ $t("Max") }}</button></div><div class="payment-slider mt-2 w-full overflow-visible"><input class="range range-primary range-sm w-full" type="range" min="0" max="100" step="5" :value="paymentSliderValue" :disabled="busy || !maxPaymentRial" :aria-label='$t("Payment amount percentage slider")' :aria-valuetext="`${Math.round(paymentSliderValue)}% of remaining balance`" @input="updatePaymentSlider" /><div class="mt-1 grid w-full grid-cols-5 px-2.5 text-center text-[10px] leading-3 text-base-content/40" aria-hidden="true"><span>|</span><span>|</span><span>|</span><span>|</span><span>|</span></div><div class="mt-1 grid w-full grid-cols-5 px-2.5 text-center text-xs leading-4 text-base-content/50" aria-hidden="true"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div></div></FormField><button class="btn btn-primary w-fit gap-2" type="submit" :disabled="busy">
           <WalletCards :size="15" aria-hidden="true" />
-          {{ busy ? 'Posting…' : 'Post payment' }}
+          {{ $ui(busy ? 'Posting…' : 'Post payment') }}
         </button>
       </form>
     </section>
     <section class="min-w-0">
       <header class="mb-3">
-        <h2 class="text-sm font-semibold leading-5">Order payment history</h2>
-        <p class="mt-1 text-xs leading-4 text-base-content/60">Reversals preserve the original payment and journal entry.</p>
+        <h2 class="text-sm font-semibold leading-5">{{ $t("Order payment history") }}</h2>
+        <p class="mt-1 text-xs leading-4 text-base-content/60">{{ $t("Reversals preserve the original payment and journal entry.") }}</p>
       </header>
       <EmptyState
         v-if="!payments.length"
         compact
-        title="No allocated payments"
-        description="Payments posted against this order will appear here."
+        :title='$t("No allocated payments")'
+        :description='$t("Payments posted against this order will appear here.")'
       >
         <template #icon><WalletCards :size="22" aria-hidden="true" /></template>
       </EmptyState>
@@ -212,7 +212,7 @@ onMounted(load);
             :label="p.status"
             :tone="p.status === 'posted' ? 'green' : 'slate'"
           /><button class="btn btn-ghost btn-sm" v-if="p.status === 'posted'" @click="reverse(p)" :disabled="busy">
-            Reverse
+            {{ $t("Reverse") }}
           </button></span
         >
       </div>

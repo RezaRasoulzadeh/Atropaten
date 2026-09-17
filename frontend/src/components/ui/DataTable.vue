@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translateUi } from '../../i18n';
 defineProps<{ label?: string }>();
 </script>
 <template>
@@ -6,7 +7,7 @@ defineProps<{ label?: string }>();
     class="data-table min-w-0 overflow-x-auto"
     tabindex="0"
     role="region"
-    :aria-label="label || 'Data table'"
+    :aria-label="translateUi(label || 'Data table')"
   >
     <table class="table table-sm w-full text-sm">
       <slot />

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ChevronRight } from 'lucide-vue-next'
+import { translateUi } from '../../i18n'
 
 export type WorkspaceBreadcrumbItem = {
   label: string
@@ -14,11 +15,11 @@ const emit = defineEmits<{ navigate: [index: number] }>()
 </script>
 
 <template>
-  <nav class="workspace-breadcrumb flex min-w-0 items-center gap-1.5 text-sm" aria-label="Breadcrumb">
+  <nav class="workspace-breadcrumb flex min-w-0 items-center gap-1.5 text-sm" :aria-label='$t("Breadcrumb")'>
     <template v-for="(item, index) in items" :key="`${item.label}-${index}`">
       <ChevronRight v-if="index > 0" :size="15" class="shrink-0 text-base-content/45" aria-hidden="true" />
-      <span v-if="item.current || index === items.length - 1" class="min-w-0 truncate text-base-content">{{ item.label }}</span>
-      <a v-else class="workspace-breadcrumb-link min-w-0 truncate" :href="item.href || '#'" @click.prevent="emit('navigate', index)">{{ item.label }}</a>
+      <span v-if="item.current || index === items.length - 1" class="min-w-0 truncate text-base-content">{{ translateUi(item.label) }}</span>
+      <a v-else class="workspace-breadcrumb-link min-w-0 truncate" :href="item.href || '#'" @click.prevent="emit('navigate', index)">{{ translateUi(item.label) }}</a>
     </template>
   </nav>
 </template>

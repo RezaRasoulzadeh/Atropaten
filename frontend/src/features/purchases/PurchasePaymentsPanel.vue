@@ -115,50 +115,50 @@ function allocated(payment: PaymentRecord) {
 </script>
 
 <template>
-  <section data-enter-scope class="space-y-3 rounded-box border border-base-300 p-4" aria-label="Purchase payments">
-    <h3 class="text-sm font-semibold">Payment</h3>
+  <section data-enter-scope class="space-y-3 rounded-box border border-base-300 p-4" :aria-label='$t("Purchase payments")'>
+    <h3 class="text-sm font-semibold">{{ $t("Payment") }}</h3>
     <dl class="grid grid-cols-2 gap-3 text-xs">
-      <div><dt class="text-base-content/60">Paid (cash / cleared checks)</dt><dd class="mt-1 font-semibold text-success">{{ money(purchase.paidRial) }}</dd></div>
-      <div><dt class="text-base-content/60">Remaining</dt><dd class="mt-1 font-semibold">{{ money(purchase.remainingRial) }}</dd></div>
-      <div v-if="pending"><dt class="text-base-content/60">Pending checks</dt><dd class="mt-1 text-warning">{{ money(pending) }}</dd></div>
+      <div><dt class="text-base-content/60">{{ $t("Paid (cash / cleared checks)") }}</dt><dd class="mt-1 font-semibold text-success">{{ money(purchase.paidRial) }}</dd></div>
+      <div><dt class="text-base-content/60">{{ $t("Remaining") }}</dt><dd class="mt-1 font-semibold">{{ money(purchase.remainingRial) }}</dd></div>
+      <div v-if="pending"><dt class="text-base-content/60">{{ $t("Pending checks") }}</dt><dd class="mt-1 text-warning">{{ money(pending) }}</dd></div>
     </dl>
-    <p v-if="purchase.status === 'Draft'" class="text-xs text-base-content/60">Not paid yet. Post the purchase, then record payment here now or later.</p>
+    <p v-if="purchase.status === 'Draft'" class="text-xs text-base-content/60">{{ $t("Not paid yet. Post the purchase, then record payment here now or later.") }}</p>
     <template v-else-if="purchase.status === 'Posted' && available > 0">
       <div class="grid gap-3 sm:grid-cols-2">
-        <FormField><span>Pay from</span><SelectField v-model="account" :disabled="busy" :options="[{ label: 'Select cash or bank account', value: '' }, ...financial.filter(a => a.active).map(a => ({ label: a.name, value: a.id }))]" /></FormField>
-        <FormField><span>Method</span><SelectField v-model="method" :disabled="busy || !account" :options="methods" /></FormField>
-        <FormField class="sm:col-span-2" :label="`Amount (${currencyUnit})`">
+        <FormField><span>{{ $t("Pay from") }}</span><SelectField v-model="account" :disabled="busy" :options="[{ label: 'Select cash or bank account', value: '' }, ...financial.filter(a => a.active).map(a => ({ label: a.name, value: a.id }))]" /></FormField>
+        <FormField><span>{{ $t("Method") }}</span><SelectField v-model="method" :disabled="busy || !account" :options="methods" /></FormField>
+        <FormField class="sm:col-span-2" :label="$ui(`Amount (${$ui(currencyUnit)})`)">
           <div class="relative min-w-0">
-            <AppInput v-model="amount" :money="currencyUnit" class="pe-14" :disabled="busy" :placeholder="`Amount (${currencyUnit})`" inputmode="numeric" @blur="amount = formatMoneyInput(parseMoneyInput(amount, currencyUnit) || 0, currencyUnit)" />
-            <button class="absolute inset-y-1 end-1 rounded px-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40" type="button" :disabled="busy || !loaded || !available" aria-label="Use maximum payment amount" @click="amount = formatMoneyInput(available, currencyUnit)">Max</button>
+            <AppInput v-model="amount" :money="currencyUnit" class="pe-14" :disabled="busy" :placeholder="$ui(`Amount (${$ui(currencyUnit)})`)" inputmode="numeric" @blur="amount = formatMoneyInput(parseMoneyInput(amount, currencyUnit) || 0, currencyUnit)" />
+            <button class="absolute inset-y-1 end-1 rounded px-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40" type="button" :disabled="busy || !loaded || !available" :aria-label='$t("Use maximum payment amount")' @click="amount = formatMoneyInput(available, currencyUnit)">{{ $t("Max") }}</button>
           </div>
           <div class="payment-slider mt-2 w-full overflow-visible">
-            <input class="range range-primary range-sm w-full" type="range" min="0" max="100" step="5" :value="paymentSliderValue" :disabled="busy || !loaded || !available" aria-label="Payment amount percentage slider" :aria-valuetext="`${Math.round(paymentSliderValue)}% of available unpaid balance`" @input="updatePaymentSlider" />
+            <input class="range range-primary range-sm w-full" type="range" min="0" max="100" step="5" :value="paymentSliderValue" :disabled="busy || !loaded || !available" :aria-label='$t("Payment amount percentage slider")' :aria-valuetext="`${Math.round(paymentSliderValue)}% of available unpaid balance`" @input="updatePaymentSlider" />
             <div class="mt-1 grid w-full grid-cols-5 px-2.5 text-center text-[10px] leading-3 text-base-content/40" aria-hidden="true"><span v-for="tick in [0, 25, 50, 75, 100]" :key="tick">|</span></div>
             <div class="mt-1 grid w-full grid-cols-5 px-2.5 text-center text-xs leading-4 text-base-content/50" aria-hidden="true"><span v-for="tick in [0, 25, 50, 75, 100]" :key="tick">{{ tick }}</span></div>
           </div>
         </FormField>
         <template v-if="account && method === 'check'">
-          <FormField><span>Check number</span><AppInput v-model="checkNumber" class="input w-full" :disabled="busy" /></FormField>
-          <FormField><span>Due date</span><JalaliDatePicker v-model="dueDate" :disabled="busy" /></FormField>
+          <FormField><span>{{ $t("Check number") }}</span><AppInput v-model="checkNumber" class="input w-full" :disabled="busy" /></FormField>
+          <FormField><span>{{ $t("Due date") }}</span><JalaliDatePicker v-model="dueDate" :disabled="busy" /></FormField>
         </template>
       </div>
-      <button type="button" class="btn btn-primary btn-sm" :disabled="busy || loading || !loaded || !account" data-enter-submit @click="record">{{ method === 'check' ? 'Create check draft' : 'Record payment' }}</button>
-      <p class="text-xs leading-5 text-base-content/60">Selecting an account does not pay the purchase. Cash/bank payments reduce the supplier payable when recorded. Delivered checks move it to checks payable; clearing records cash paid.</p>
+      <button type="button" class="btn btn-primary btn-sm" :disabled="busy || loading || !loaded || !account" data-enter-submit @click="record">{{ $ui(method === 'check' ? 'Create check draft' : 'Record payment') }}</button>
+      <p class="text-xs leading-5 text-base-content/60">{{ $t("Selecting an account does not pay the purchase. Cash/bank payments reduce the supplier payable when recorded. Delivered checks move it to checks payable; clearing records cash paid.") }}</p>
     </template>
-    <p v-if="loading" class="text-xs text-base-content/60">Loading payment history…</p>
+    <p v-if="loading" class="text-xs text-base-content/60">{{ $t("Loading payment history…") }}</p>
     <div v-for="payment in payments" :key="payment.id" class="flex flex-wrap items-center justify-between gap-2 border-t border-base-300 pt-2 text-xs">
-      <span>{{ payment.paymentNumber }} · {{ money(allocated(payment)) }} · {{ payment.status }}</span>
-      <button v-if="payment.status === 'posted'" type="button" class="btn btn-ghost btn-xs" :disabled="busy" @click="reverse(payment)">Reverse</button>
+      <span>{{ payment.paymentNumber }} · {{ money(allocated(payment)) }} · {{ $ui(payment.status) }}</span>
+      <button v-if="payment.status === 'posted'" type="button" class="btn btn-ghost btn-xs" :disabled="busy" @click="reverse(payment)">{{ $t("Reverse") }}</button>
     </div>
     <div v-for="check in checks" :key="check.id" class="space-y-2 border-t border-base-300 pt-2 text-xs">
-      <p>Check {{ check.checkNumber }} · {{ money(check.amountRial) }} · {{ check.status }}</p>
+      <p>{{ $t("Check") }} {{ check.checkNumber }} · {{ money(check.amountRial) }} · {{ $ui(check.status) }}</p>
       <div class="flex flex-wrap gap-2">
-        <button v-if="check.status === 'Draft'" type="button" class="btn btn-outline btn-xs" :disabled="busy" @click="transition(check, 'Issued')">Issue</button>
-        <button v-if="check.status === 'Issued'" type="button" class="btn btn-outline btn-xs" :disabled="busy" @click="transition(check, 'Delivered')">Mark delivered</button>
-        <button v-if="check.status === 'Delivered'" type="button" class="btn btn-outline btn-xs" :disabled="busy" @click="transition(check, 'Cleared')">Mark cleared</button>
-        <button v-if="['Draft', 'Issued'].includes(check.status)" type="button" class="btn btn-ghost btn-xs" :disabled="busy" @click="transition(check, 'Cancelled')">Cancel check</button>
-        <button v-if="['Delivered', 'Cleared'].includes(check.status)" type="button" class="btn btn-ghost btn-xs" :disabled="busy" @click="transition(check, 'Returned')">Return check</button>
+        <button v-if="check.status === 'Draft'" type="button" class="btn btn-outline btn-xs" :disabled="busy" @click="transition(check, 'Issued')">{{ $t("Issue") }}</button>
+        <button v-if="check.status === 'Issued'" type="button" class="btn btn-outline btn-xs" :disabled="busy" @click="transition(check, 'Delivered')">{{ $t("Mark delivered") }}</button>
+        <button v-if="check.status === 'Delivered'" type="button" class="btn btn-outline btn-xs" :disabled="busy" @click="transition(check, 'Cleared')">{{ $t("Mark cleared") }}</button>
+        <button v-if="['Draft', 'Issued'].includes(check.status)" type="button" class="btn btn-ghost btn-xs" :disabled="busy" @click="transition(check, 'Cancelled')">{{ $t("Cancel check") }}</button>
+        <button v-if="['Delivered', 'Cleared'].includes(check.status)" type="button" class="btn btn-ghost btn-xs" :disabled="busy" @click="transition(check, 'Returned')">{{ $t("Return check") }}</button>
       </div>
     </div>
   </section>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { translateUi } from '../../i18n';
 import {
   CheckCircle2,
   CircleDot,
@@ -47,6 +48,6 @@ const icon = computed(() => {
     "
   >
     <component :is="icon" :size="11" :stroke-width="2" aria-hidden="true" />
-    {{ label }}
+    {{ translateUi(label) }}
   </span>
 </template>

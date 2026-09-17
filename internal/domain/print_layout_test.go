@@ -16,6 +16,14 @@ func TestBannerLayoutAndWaste(t *testing.T) {
 	if !layout.Rotated || layout.LengthMM != "1000" || layout.OriginalLengthMM != "3000" || layout.ConsumedQuantity != "1" || math.Abs(layout.WastePercent-6.25) > 0.001 {
 		t.Fatalf("unexpected banner layout: %+v", layout)
 	}
+	if wasteCost, err := CalculateMaterialWasteCost(layout, 100_000); err != nil || wasteCost != 6_250 {
+		t.Fatalf("waste cost = %d, %v; want 6250 Rial", wasteCost, err)
+	}
+	parameters["w"] = ResolvedParameter{Value: "3300"}
+	if _, err := CalculatePrintLayout(material, service, parameters); err == nil {
+		t.Fatal("finished width greater than the material width was accepted")
+	}
+	parameters["w"] = ResolvedParameter{Value: "1000"}
 	parameters["q"] = ResolvedParameter{Quantity: 3 * QuantityScale}
 	layout, err = CalculatePrintLayout(material, service, parameters)
 	if err != nil || layout.LengthMM != "3000" || layout.Rotated {

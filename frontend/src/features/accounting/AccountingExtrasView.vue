@@ -243,15 +243,15 @@ reportError(e);
 });
 }
 </script>
-<template><div class="min-w-0 space-y-4"><LoadingState v-if="pageLoading" label="Loading records…" /><div v-show="!pageLoading" class="min-w-0 space-y-4">
+<template><div class="min-w-0 space-y-4"><LoadingState v-if="pageLoading" :label='$t("Loading records…")' /><div v-show="!pageLoading" class="min-w-0 space-y-4">
 <div class="flex min-w-0 items-start gap-3 rounded-box border border-base-300 bg-base-200/35 p-4">
   <span class="grid size-9 shrink-0 place-items-center rounded-box bg-primary/10 text-primary"><ArrowRightLeft :size="18" /></span>
-  <div class="min-w-0"><p class="text-sm font-semibold">{{ tab === 'Expenses' ? 'Expense control' : 'Treasury transfers' }}</p><p class="mt-0.5 text-xs leading-5 text-base-content/60">{{ tab === 'Expenses' ? 'Track operating costs against the account that funded them.' : 'Move funds between financial accounts while keeping a complete audit trail.' }}</p></div>
+  <div class="min-w-0"><p class="text-sm font-semibold">{{ $ui(tab === 'Expenses' ? 'Expense control' : 'Treasury transfers') }}</p><p class="mt-0.5 text-xs leading-5 text-base-content/60">{{ $ui(tab === 'Expenses' ? 'Track operating costs against the account that funded them.' : 'Move funds between financial accounts while keeping a complete audit trail.') }}</p></div>
 </div>
-<template v-if="tab==='Expenses'"><AppPanel :title="editingExpense ? 'Edit expense' : 'Post expense'" :subtitle="editingExpense ? 'Update the expense and its accounting entry.' : 'Record the category, payee and funding account.'"><form @submit.prevent="createExpense" class="min-w-0 space-y-3"><FormGrid :columns="3">
+<template v-if="tab==='Expenses'"><AppPanel :title="$ui(editingExpense ? 'Edit expense' : 'Post expense')" :subtitle="$ui(editingExpense ? 'Update the expense and its accounting entry.' : 'Record the category, payee and funding account.')"><form @submit.prevent="createExpense" class="min-w-0 space-y-3"><FormGrid :columns="3">
           <SelectField
             v-model="expense.categoryAccountId"
-            label="Category"
+            :label='$t("Category")'
             :options="
               props.accounts
                 .filter((account) => account.type === 'expense' && account.code !== '5000')
@@ -262,44 +262,44 @@ reportError(e);
             "
           /><SelectField
             v-model="expense.financialAccountId"
-            label="Financial account"
+            :label='$t("Financial account")'
             :options="
               props.financial.filter((account) => account.active).map((account) => ({ label: accountLabel(account), value: account.id }))
             "
-          /><FormField label="Description"><AppInput
+          /><FormField :label='$t("Description")'><AppInput
             class="input w-full min-w-0"
             v-model="expense.description"
-            placeholder="Description"
-          /></FormField><FormField label="Payee"><AppInput
+            :placeholder='$t("Description")'
+          /></FormField><FormField :label='$t("Payee")'><AppInput
             class="input w-full min-w-0"
             v-model="expense.payee"
-            placeholder="Payee"
+            :placeholder='$t("Payee")'
           /></FormField><SelectField
             v-model="expense.supplierId"
-            label="Supplier"
+            :label='$t("Supplier")'
             :options="[
               { label: 'No supplier', value: '' },
               ...props.suppliers.map((supplier) => ({ label: supplier.name, value: supplier.id })),
             ]"
-          /><FormField :label="`Amount (${props.currencyUnit})`"><AppInput
+          /><FormField :label="$ui(`Amount (${$ui(props.currencyUnit)})`)"><AppInput
             class="input w-full min-w-0"
             v-model="expense.amount"
             :money="props.currencyUnit"
             required
             inputmode="numeric"
-            :placeholder="`Amount (${props.currencyUnit})`"
-          /></FormField><div class="flex flex-wrap items-center gap-2"><button v-if="editingExpense" class="btn btn-ghost" type="button" @click="cancelExpenseEdit">Cancel</button><button class="btn btn-primary" type="submit" :disabled="busy"><Plus :size="15" /> {{ editingExpense ? 'Save expense' : 'Post expense' }}</button></div>
+            :placeholder="$ui(`Amount (${$ui(props.currencyUnit)})`)"
+          /></FormField><div class="flex flex-wrap items-center gap-2"><button v-if="editingExpense" class="btn btn-ghost" type="button" @click="cancelExpenseEdit">{{ $t("Cancel") }}</button><button class="btn btn-primary" type="submit" :disabled="busy"><Plus :size="15" /> {{ $ui(editingExpense ? 'Save expense' : 'Post expense') }}</button></div>
         </FormGrid></form></AppPanel>
 <SearchFilterBar>
-  <template #search><SearchField v-model="historyQuery" label="Search expenses and purchases" placeholder="Search number, supplier, description, or account" /></template>
+  <template #search><SearchField v-model="historyQuery" :label='$t("Search expenses and purchases")' :placeholder='$t("Search number, supplier, description, or account")' /></template>
   <template #filters>
-    <SelectField v-model="historyType" label="Record type" :options="['All', 'Expenses', 'Purchases'].map((value) => ({ label: value, value }))" />
-    <SelectField v-model="historyStatus" label="Status" :options="['All', 'Posted', 'Reversed', 'Draft', 'Cancelled', 'Archived'].map((value) => ({ label: value, value }))" />
+    <SelectField v-model="historyType" :label='$t("Record type")' :options="['All', 'Expenses', 'Purchases'].map((value) => ({ label: value, value }))" />
+    <SelectField v-model="historyStatus" :label='$t("Status")' :options="['All', 'Posted', 'Reversed', 'Draft', 'Cancelled', 'Archived'].map((value) => ({ label: value, value }))" />
   </template>
-  <template #count><span>{{ filteredHistory.length }} of {{ historyEntries.length }} records</span></template>
-  <template #actions><button v-if="historyQuery || historyType !== 'All' || historyStatus !== 'All'" class="btn btn-primary btn-sm" type="button" @click="clearHistoryFilters">Clear filters</button></template>
+  <template #count><span>{{ filteredHistory.length }} {{ $t("of") }} {{ historyEntries.length }} {{ $t("records") }}</span></template>
+  <template #actions><button v-if="historyQuery || historyType !== 'All' || historyStatus !== 'All'" class="btn btn-primary btn-sm" type="button" @click="clearHistoryFilters">{{ $t("Clear filters") }}</button></template>
 </SearchFilterBar>
-<RegisterList title="Expense and purchase history" subtitle="Expenses and supplier purchases share one searchable financial history." :count="filteredHistory.length">
+<RegisterList :title='$t("Expense and purchase history")' :subtitle='$t("Expenses and supplier purchases share one searchable financial history.")' :count="filteredHistory.length">
   <div v-if="filteredHistory.length">
     <RegisterRow v-for="entry in filteredHistory" :key="`${entry.kind}-${entry.id}`" :interactive="false" sidecar>
       <template #icon><ArrowRightLeft :size="17" :stroke-width="1.8" aria-hidden="true" /></template>
@@ -314,29 +314,29 @@ reportError(e);
       </template>
       <template #meta>
         <div class="mt-2 grid min-w-0 grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2">
-          <div class="min-w-0"><span class="block text-base-content/50">Funding account</span><span class="block break-words text-base-content/80">{{ financialAccountName(entry.accountId) }}</span></div>
-          <div><span class="block text-base-content/50">Date</span><span class="block text-base-content/80">{{ formatDateTime(entry.date) }}</span></div>
+          <div class="min-w-0"><span class="block text-base-content/50">{{ $t("Funding account") }}</span><span class="block break-words text-base-content/80">{{ financialAccountName(entry.accountId) }}</span></div>
+          <div><span class="block text-base-content/50">{{ $t("Date") }}</span><span class="block text-base-content/80">{{ formatDateTime(entry.date) }}</span></div>
         </div>
       </template>
       <template #status><div class="flex flex-col items-end gap-2"><strong class="text-sm tabular-nums text-primary">{{ formatMoney(entry.amount, currencyUnit) }}</strong><StatusBadge :label="entry.status" :tone="historyStatusTone(entry.status)" /></div></template>
       <template #actions>
         <div v-if="entry.expense" class="flex flex-wrap justify-end gap-2">
-          <button class="btn btn-outline btn-info btn-sm gap-1" type="button" @click.stop="startExpenseEdit(entry.expense)" :disabled="busy"><Edit3 :size="14" /> Edit</button>
-          <button class="btn btn-outline btn-error btn-sm gap-1" type="button" @click.stop="removeExpense(entry.expense)" :disabled="busy"><Trash2 :size="14" /> Remove</button>
+          <button class="btn btn-outline btn-info btn-sm gap-1" type="button" @click.stop="startExpenseEdit(entry.expense)" :disabled="busy"><Edit3 :size="14" /> {{ $t("Edit") }}</button>
+          <button class="btn btn-outline btn-error btn-sm gap-1" type="button" @click.stop="removeExpense(entry.expense)" :disabled="busy"><Trash2 :size="14" /> {{ $t("Remove") }}</button>
         </div>
-        <span v-else class="whitespace-nowrap text-xs text-base-content/45">Read only</span>
+        <span v-else class="whitespace-nowrap text-xs text-base-content/45">{{ $t("Read only") }}</span>
       </template>
     </RegisterRow>
   </div>
-  <EmptyState v-else title="No matching records" description="Try a different search or filter.">
+  <EmptyState v-else :title='$t("No matching records")' :description='$t("Try a different search or filter.")'>
     <template #icon><ReceiptText :size="21" aria-hidden="true" /></template>
-    <template #action><button class="btn btn-primary btn-sm" type="button" @click="clearHistoryFilters">Clear filters</button></template>
+    <template #action><button class="btn btn-primary btn-sm" type="button" @click="clearHistoryFilters">{{ $t("Clear filters") }}</button></template>
   </EmptyState>
 </RegisterList></template>
-<template v-else><AppPanel title="Post transfer" subtitle="Move funds between cash and bank accounts."><form @submit.prevent="createTransfer" class="min-w-0 space-y-3"><FormGrid :columns="3">
+<template v-else><AppPanel :title='$t("Post transfer")' :subtitle='$t("Move funds between cash and bank accounts.")'><form @submit.prevent="createTransfer" class="min-w-0 space-y-3"><FormGrid :columns="3">
           <SelectField
             v-model="transfer.sourceFinancialAccountId"
-            label="From account"
+            :label='$t("From account")'
             :options="
               props.financial.filter((account) => account.active).map((account) => ({
                 label: `From ${accountLabel(account)}`,
@@ -345,23 +345,23 @@ reportError(e);
             "
           /><SelectField
             v-model="transfer.destinationFinancialAccountId"
-            label="To account"
+            :label='$t("To account")'
             :options="
               props.financial.filter((account) => account.active).map((account) => ({ label: `To ${accountLabel(account)}`, value: account.id }))
             "
-          /><FormField :label="`Amount (${props.currencyUnit})`"><AppInput
+          /><FormField :label="$ui(`Amount (${$ui(props.currencyUnit)})`)"><AppInput
             class="input w-full min-w-0"
             v-model="transfer.amount"
             :money="props.currencyUnit"
             required
             inputmode="numeric"
-            :placeholder="`Amount (${props.currencyUnit})`"
-          /></FormField><FormField label="Reference"><AppInput
+            :placeholder="$ui(`Amount (${$ui(props.currencyUnit)})`)"
+          /></FormField><FormField :label='$t("Reference")'><AppInput
             class="input w-full min-w-0"
             v-model="transfer.reference"
-            placeholder="Reference"
+            :placeholder='$t("Reference")'
           /></FormField><button class="btn btn-primary" type="submit" :disabled="busy">
-            <ArrowRightLeft :size="15" /> Post transfer
+            <ArrowRightLeft :size="15" /> {{ $t("Post transfer") }}
           </button>
-        </FormGrid></form></AppPanel><AppPanel title="Transfer history" subtitle="Every transfer remains traceable and can be reversed." flush><DataTable v-if="transfers.length"><thead><tr><th>Transfer</th><th>Reference</th><th>Date</th><th class="text-end">Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr v-for="v in transfers" :key="v.id"><DataTableCell><strong>{{v.transferNumber}}</strong></DataTableCell><DataTableCell>{{v.reference || '—'}}</DataTableCell><DataTableCell>{{formatDateTime(v.transferDate)}}</DataTableCell><DataTableCell numeric>{{formatMoney(v.amountRial,currencyUnit)}}</DataTableCell><DataTableCell><StatusBadge :label="v.status" :tone="v.status==='Posted'?'green':'slate'" /></DataTableCell><DataTableCell><button v-if="v.status==='Posted'" class="btn btn-ghost btn-sm" @click="reverseTransfer(v)" :disabled="busy"><RotateCcw :size="14" /> Reverse</button></DataTableCell></tr></tbody></DataTable><EmptyState v-else compact title="No transfers" description="Transfers between financial accounts will appear here."><template #icon><ArrowRightLeft :size="21" aria-hidden="true" /></template></EmptyState></AppPanel></template>
+        </FormGrid></form></AppPanel><AppPanel :title='$t("Transfer history")' :subtitle='$t("Every transfer remains traceable and can be reversed.")' flush><DataTable v-if="transfers.length"><thead><tr><th>{{ $t("Transfer") }}</th><th>{{ $t("Reference") }}</th><th>{{ $t("Date") }}</th><th class="text-end">{{ $t("Amount") }}</th><th>{{ $t("Status") }}</th><th>{{ $t("Actions") }}</th></tr></thead><tbody><tr v-for="v in transfers" :key="v.id"><DataTableCell><strong>{{v.transferNumber}}</strong></DataTableCell><DataTableCell>{{$ui(v.reference || '—')}}</DataTableCell><DataTableCell>{{formatDateTime(v.transferDate)}}</DataTableCell><DataTableCell numeric>{{formatMoney(v.amountRial,currencyUnit)}}</DataTableCell><DataTableCell><StatusBadge :label="v.status" :tone="v.status==='Posted'?'green':'slate'" /></DataTableCell><DataTableCell><button v-if="v.status==='Posted'" class="btn btn-ghost btn-sm" @click="reverseTransfer(v)" :disabled="busy"><RotateCcw :size="14" /> {{ $t("Reverse") }}</button></DataTableCell></tr></tbody></DataTable><EmptyState v-else compact :title='$t("No transfers")' :description='$t("Transfers between financial accounts will appear here.")'><template #icon><ArrowRightLeft :size="21" aria-hidden="true" /></template></EmptyState></AppPanel></template>
 </div></div></template>

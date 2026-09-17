@@ -95,9 +95,9 @@ async function create(orderId: string) {
     <WorkspaceStickyStack>
       <WorkspaceHeader
         :show-breadcrumb="true"
-        eyebrow="Finance / receivables"
-        title="Invoices"
-        description="Review saved commercial snapshots, payment progress, and posting history."
+        :eyebrow='$t("Finance / receivables")'
+        :title='$t("Invoices")'
+        :description='$t("Review saved commercial snapshots, payment progress, and posting history.")'
       >
       </WorkspaceHeader>
 
@@ -105,14 +105,14 @@ async function create(orderId: string) {
         <template #search>
           <SearchField
             v-model="query"
-            label="Search invoices"
-            placeholder="Invoice, customer, or order"
+            :label='$t("Search invoices")'
+            :placeholder='$t("Invoice, customer, or order")'
           />
         </template>
         <template #filters>
           <SelectField
             v-model="status"
-            label="Status"
+            :label='$t("Status")'
             :options="
               ['All', 'Draft', 'Posted', 'Partially Paid', 'Paid', 'Voided'].map((value) => ({
                 label: value,
@@ -122,7 +122,7 @@ async function create(orderId: string) {
           />
         </template>
         <template #count>
-          <span>{{ filtered.length }} of {{ rows.length }} shown</span>
+          <span>{{ filtered.length }} {{ $t("of") }} {{ rows.length }} {{ $t("shown") }}</span>
         </template>
         <template #actions>
           <button
@@ -131,41 +131,41 @@ async function create(orderId: string) {
             type="button"
             @click="clearFilters"
           >
-            Clear
+            {{ $t("Clear") }}
           </button>
         </template>
       </SearchFilterBar>
     </WorkspaceStickyStack>
 
     <AppPanel
-      title="Invoice register"
-      subtitle="Select a row to open the full invoice workspace."
+      :title='$t("Invoice register")'
+      :subtitle='$t("Select a row to open the full invoice workspace.")'
       :flush="true"
     >
-      <template #action><span class="text-xs text-base-content/60">{{ filtered.length }} shown</span></template>
+      <template #action><span class="text-xs text-base-content/60">{{ filtered.length }} {{ $t("shown") }}</span></template>
 
-      <LoadingState v-if="loading" label="Loading invoices…" />
+      <LoadingState v-if="loading" :label='$t("Loading invoices…")' />
       <EmptyState
         v-else-if="!filtered.length"
-        title="No invoices in this view"
-        :description="rows.length ? 'Adjust the search or status filter.' : 'Create an invoice from a priced order below.'"
+        :title='$t("No invoices in this view")'
+        :description="$ui(rows.length ? 'Adjust the search or status filter.' : 'Create an invoice from a priced order below.')"
       >
         <template #icon><FileText :size="22" aria-hidden="true" /></template>
         <template #action>
           <button v-if="rows.length" class="btn btn-primary btn-sm" type="button" @click="clearFilters">
-            Clear filters
+            {{ $t("Clear filters") }}
           </button>
         </template>
       </EmptyState>
-      <DataTable v-else label="Invoice register">
+      <DataTable v-else :label='$t("Invoice register")'>
         <thead>
           <tr>
-            <th scope="col" class="w-[17%]">Invoice</th>
-            <th scope="col" class="w-[25%]">Customer</th>
-            <th scope="col" class="w-[17%]">Order</th>
-            <th scope="col" class="w-[16%]">Issued / due</th>
-            <th scope="col" class="w-[8%] text-center">Lines</th>
-            <th scope="col" class="w-[17%] text-end">Total</th>
+            <th scope="col" class="w-[17%]">{{ $t("Invoice") }}</th>
+            <th scope="col" class="w-[25%]">{{ $t("Customer") }}</th>
+            <th scope="col" class="w-[17%]">{{ $t("Order") }}</th>
+            <th scope="col" class="w-[16%]">{{ $t("Issued / due") }}</th>
+            <th scope="col" class="w-[8%] text-center">{{ $t("Lines") }}</th>
+            <th scope="col" class="w-[17%] text-end">{{ $t("Total") }}</th>
           </tr>
         </thead>
         <tbody>
@@ -177,26 +177,26 @@ async function create(orderId: string) {
           >
             <DataTableCell>
               <strong class="block whitespace-nowrap text-sm">{{ value.invoiceNumber }}</strong>
-              <span class="mt-1 block text-xs text-base-content/55">{{ value.items.length }} line items</span>
+              <span class="mt-1 block text-xs text-base-content/55">{{ value.items.length }} {{ $t("line items") }}</span>
             </DataTableCell>
             <DataTableCell>
-              <strong class="block max-w-64 truncate text-sm font-medium">{{ value.customerName || 'Walk-in customer' }}</strong>
+              <strong class="block max-w-64 truncate text-sm font-medium">{{ $ui(value.customerName || 'Walk-in customer') }}</strong>
               <StatusBadge class="mt-1" :label="value.status" :tone="tone(value.status)" />
             </DataTableCell>
             <DataTableCell>
-              <span class="block max-w-44 truncate text-sm">{{ value.orderId || 'No order link' }}</span>
-              <span class="mt-1 block text-xs text-base-content/55">Saved snapshot</span>
+              <span class="block max-w-44 truncate text-sm">{{ $ui(value.orderId || 'No order link') }}</span>
+              <span class="mt-1 block text-xs text-base-content/55">{{ $t("Saved snapshot") }}</span>
             </DataTableCell>
             <DataTableCell>
               <span class="block whitespace-nowrap text-sm">{{ formatDateTime(value.issueDate) }}</span>
-              <span class="mt-1 block whitespace-nowrap text-xs text-base-content/55">Due {{ value.dueDate ? formatDateTime(value.dueDate) : 'on receipt' }}</span>
+              <span class="mt-1 block whitespace-nowrap text-xs text-base-content/55">{{ $t("Due") }} {{ $ui(value.dueDate ? formatDateTime(value.dueDate) : 'on receipt') }}</span>
             </DataTableCell>
             <DataTableCell class="text-center">
               <span class="badge badge-ghost min-w-8 justify-center tabular-nums">{{ value.items.length }}</span>
             </DataTableCell>
             <DataTableCell numeric>
               <strong class="text-sm text-primary">{{ formatMoney(value.totalRial, props.currencyUnit) }}</strong>
-              <span class="mt-1 block text-xs text-base-content/55">{{ formatMoney(value.remainingRial, props.currencyUnit) }} due</span>
+              <span class="mt-1 block text-xs text-base-content/55">{{ formatMoney(value.remainingRial, props.currencyUnit) }} {{ $t("due") }}</span>
             </DataTableCell>
           </DataTableRow>
         </tbody>
@@ -204,11 +204,11 @@ async function create(orderId: string) {
     </AppPanel>
 
     <AppPanel
-      title="Orders ready to invoice"
-      subtitle="Creating an invoice copies the order's stored pricing snapshots exactly."
+      :title='$t("Orders ready to invoice")'
+      :subtitle="$t('Creating an invoice copies the order\'s stored pricing snapshots exactly.')"
       :flush="true"
     >
-      <template #action><span class="text-xs text-base-content/60">{{ readyOrders.length }} ready</span></template>
+      <template #action><span class="text-xs text-base-content/60">{{ readyOrders.length }} {{ $t("ready") }}</span></template>
       <div v-if="readyOrders.length" class="divide-y divide-base-300">
         <div
           v-for="order in readyOrders"
@@ -216,17 +216,17 @@ async function create(orderId: string) {
           class="flex min-w-0 flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-base-200/60"
         >
           <div class="min-w-0">
-            <strong class="block truncate text-sm">{{ order.orderNumber }} · {{ order.customerName || 'Walk-in customer' }}</strong>
+            <strong class="block truncate text-sm">{{ order.orderNumber }} · {{ $ui(order.customerName || 'Walk-in customer') }}</strong>
             <span class="mt-1 block truncate text-xs text-base-content/60">
-              {{ order.items.length }} items · {{ formatMoney(order.totalRial, props.currencyUnit) }}
+              {{ order.items.length }} {{ $t("items ·") }} {{ formatMoney(order.totalRial, props.currencyUnit) }}
             </span>
           </div>
           <button class="btn btn-primary btn-sm shrink-0" type="button" :disabled="busy" @click="create(order.id)">
-            <Plus :size="14" /> Create invoice
+            <Plus :size="14" /> {{ $t("Create invoice") }}
           </button>
         </div>
       </div>
-      <EmptyState v-else title="All priced orders are invoiced" description="New eligible orders will appear here." />
+      <EmptyState v-else :title='$t("All priced orders are invoiced")' :description='$t("New eligible orders will appear here.")' />
     </AppPanel>
   </div>
 </template>

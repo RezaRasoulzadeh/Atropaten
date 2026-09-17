@@ -26,18 +26,18 @@ function shopValue(value: string | undefined, fallback = '—') {
   <article class="invoice-print-document">
     <header class="invoice-print-header">
       <div class="invoice-print-brand">
-        <div class="invoice-print-mark">A</div>
+        <div class="invoice-print-mark">{{ $t("A") }}</div>
         <div>
-          <p class="invoice-print-kicker">{{ shopValue(shop?.shopName, 'Atropaten') }}</p>
-          <h1>{{ shopValue(shop?.shopSubtitle, 'Commercial invoice') }}</h1>
+          <p class="invoice-print-kicker">{{ $ui(shopValue(shop?.shopName, 'Atropaten')) }}</p>
+          <h1>{{ $ui(shopValue(shop?.shopSubtitle, 'Commercial invoice')) }}</h1>
           <p v-if="shop?.address" class="invoice-print-muted">{{ shop.address }}</p>
           <p v-if="shop?.phone || shop?.email" class="invoice-print-muted">
-            {{ [shop?.phone, shop?.email].filter(Boolean).join(' · ') }}
+            {{ $ui([shop?.phone, shop?.email].filter(Boolean).join(' · ')) }}
           </p>
         </div>
       </div>
       <div class="invoice-print-heading">
-        <p class="invoice-print-kicker">{{ props.documentType === 'pre' ? 'Pre-invoice' : 'Final invoice' }}</p>
+        <p class="invoice-print-kicker">{{ $ui(props.documentType === 'pre' ? 'Pre-invoice' : 'Final invoice') }}</p>
         <strong>{{ invoice.invoiceNumber }}</strong>
         <span>{{ formatDateTime(invoice.issueDate) }}</span>
       </div>
@@ -45,39 +45,39 @@ function shopValue(value: string | undefined, fallback = '—') {
 
     <section class="invoice-print-title-row">
       <div>
-        <p class="invoice-print-label">Billed to</p>
-        <h2>{{ shopValue(invoice.customerName, 'Walk-in customer') }}</h2>
+        <p class="invoice-print-label">{{ $t("Billed to") }}</p>
+        <h2>{{ $ui(shopValue(invoice.customerName, 'Walk-in customer')) }}</h2>
         <p v-if="invoice.customerPhone" class="invoice-print-muted">{{ invoice.customerPhone }}</p>
       </div>
       <div class="invoice-print-status">
-        <span class="invoice-print-label">Status</span>
-        <strong>{{ invoice.status }}</strong>
+        <span class="invoice-print-label">{{ $t("Status") }}</span>
+        <strong>{{ $ui(invoice.status) }}</strong>
       </div>
     </section>
 
     <section class="invoice-print-meta">
-      <div><span>Invoice date</span><strong>{{ formatDateTime(invoice.issueDate) }}</strong></div>
-      <div><span>Due date</span><strong>{{ invoice.dueDate ? formatDateTime(invoice.dueDate) : 'On receipt' }}</strong></div>
-      <div><span>Order reference</span><strong>{{ shopValue(invoice.orderId) }}</strong></div>
-      <div><span>Currency</span><strong>{{ props.currencyUnit === 'Toman' ? 'Iranian Toman' : 'Iranian Rial' }}</strong></div>
+      <div><span>{{ $t("Invoice date") }}</span><strong>{{ formatDateTime(invoice.issueDate) }}</strong></div>
+      <div><span>{{ $t("Due date") }}</span><strong>{{ $ui(invoice.dueDate ? formatDateTime(invoice.dueDate) : 'On receipt') }}</strong></div>
+      <div><span>{{ $t("Order reference") }}</span><strong>{{ shopValue(invoice.orderId) }}</strong></div>
+      <div><span>{{ $t("Currency") }}</span><strong>{{ $ui(props.currencyUnit === 'Toman' ? 'Iranian Toman' : 'Iranian Rial') }}</strong></div>
     </section>
 
     <section class="invoice-print-section">
       <div class="invoice-print-section-heading">
         <div>
-          <p class="invoice-print-kicker">Commercial snapshot</p>
-          <h2>Invoice lines</h2>
+          <p class="invoice-print-kicker">{{ $t("Commercial snapshot") }}</p>
+          <h2>{{ $t("Invoice lines") }}</h2>
         </div>
-        <span>{{ invoice.items.length }} {{ invoice.items.length === 1 ? 'line' : 'lines' }}</span>
+        <span>{{ invoice.items.length }} {{ $ui(invoice.items.length === 1 ? 'line' : 'lines') }}</span>
       </div>
       <table class="invoice-print-table">
         <thead>
           <tr>
             <th class="invoice-print-index">#</th>
-            <th>Description</th>
-            <th>Quantity</th>
-            <th class="invoice-print-number">Unit price</th>
-            <th class="invoice-print-number">Line total</th>
+            <th>{{ $t("Description") }}</th>
+            <th>{{ $t("Quantity") }}</th>
+            <th class="invoice-print-number">{{ $t("Unit price") }}</th>
+            <th class="invoice-print-number">{{ $t("Line total") }}</th>
           </tr>
         </thead>
         <tbody>
@@ -92,7 +92,7 @@ function shopValue(value: string | undefined, fallback = '—') {
             <td class="invoice-print-number"><strong>{{ money(line.lineTotalRial) }}</strong></td>
           </tr>
           <tr v-if="!invoice.items.length">
-            <td colspan="5" class="invoice-print-empty">No invoice lines.</td>
+            <td colspan="5" class="invoice-print-empty">{{ $t("No invoice lines.") }}</td>
           </tr>
         </tbody>
       </table>
@@ -100,22 +100,22 @@ function shopValue(value: string | undefined, fallback = '—') {
 
     <section class="invoice-print-bottom">
       <div v-if="invoice.notes || shop?.documentNotes" class="invoice-print-notes">
-        <p class="invoice-print-label">Notes</p>
+        <p class="invoice-print-label">{{ $t("Notes") }}</p>
         <p v-if="invoice.notes" class="invoice-print-note-text">{{ invoice.notes }}</p>
         <p v-if="shop?.documentNotes" class="invoice-print-note-text">{{ shop.documentNotes }}</p>
       </div>
       <dl class="invoice-print-totals">
-        <div><dt>Subtotal</dt><dd>{{ money(invoice.subtotalRial) }}</dd></div>
-        <div><dt>Discount</dt><dd>{{ money(invoice.discountRial) }}</dd></div>
-        <div class="invoice-print-total"><dt>Total</dt><dd>{{ money(invoice.totalRial) }}</dd></div>
-        <div class="invoice-print-paid"><dt>Paid</dt><dd>{{ money(invoice.paidRial) }}</dd></div>
-        <div class="invoice-print-remaining"><dt>Remaining</dt><dd>{{ money(invoice.remainingRial) }}</dd></div>
+        <div><dt>{{ $t("Subtotal") }}</dt><dd>{{ money(invoice.subtotalRial) }}</dd></div>
+        <div><dt>{{ $t("Discount") }}</dt><dd>{{ money(invoice.discountRial) }}</dd></div>
+        <div class="invoice-print-total"><dt>{{ $t("Total") }}</dt><dd>{{ money(invoice.totalRial) }}</dd></div>
+        <div class="invoice-print-paid"><dt>{{ $t("Paid") }}</dt><dd>{{ money(invoice.paidRial) }}</dd></div>
+        <div class="invoice-print-remaining"><dt>{{ $t("Remaining") }}</dt><dd>{{ money(invoice.remainingRial) }}</dd></div>
       </dl>
     </section>
 
     <footer class="invoice-print-footer">
-      <span>{{ shopValue(shop?.documentFooter, 'Thank you for your business.') }}</span>
-      <span>{{ invoice.invoiceNumber }} · {{ invoice.status }}</span>
+      <span>{{ $ui(shopValue(shop?.documentFooter, 'Thank you for your business.')) }}</span>
+      <span>{{ invoice.invoiceNumber }} · {{ $ui(invoice.status) }}</span>
     </footer>
   </article>
 </template>

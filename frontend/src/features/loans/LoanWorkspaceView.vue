@@ -183,74 +183,74 @@ async function reversePayment(payment: LoanPaymentRecord) {
   <div class="min-w-0 space-y-4">
     <WorkspaceStickyStack>
       <WorkspaceHeader
-        eyebrow="Finance / financing / loan"
-        :title="loan?.loanNumber || (creating ? 'New loan' : 'Loan workspace')"
-        :description="creating ? 'Open a payable or receivable loan with a persisted installment schedule.' : `${loan?.counterpartyName || 'Loan'} · ${loan?.direction === 'payable' ? 'Payable' : 'Receivable'}`"
+        :eyebrow='$t("Finance / financing / loan")'
+        :title="$ui(loan?.loanNumber || (creating ? 'New loan' : 'Loan workspace'))"
+        :description="$ui(creating ? 'Open a payable or receivable loan with a persisted installment schedule.' : `${loan?.counterpartyName || 'Loan'} · ${$ui(loan?.direction === 'payable' ? 'Payable' : 'Receivable')}`)"
       >
         <template #leading>
           <button class="btn btn-ghost btn-sm gap-1.5" type="button" @click="emit('back')">
-            <ArrowLeft :size="16" aria-hidden="true" />
-            <span class="hidden sm:inline">Loans</span>
+            <ArrowLeft class="rtl-directional-arrow" :size="16" aria-hidden="true" />
+            <span class="hidden sm:inline">{{ $t("Loans") }}</span>
           </button>
         </template>
         <StatusBadge v-if="loan" :label="loan.status" :tone="tone(loan.status)" />
       </WorkspaceHeader>
     </WorkspaceStickyStack>
 
-    <LoadingState v-if="loading" label="Loading loan workspace…" />
+    <LoadingState v-if="loading" :label='$t("Loading loan workspace…")' />
 
     <form v-else-if="creating" class="min-w-0" @submit.prevent="create">
-      <AppPanel title="Open a new loan" subtitle="Opening the loan posts principal to cash/bank and the loan balance.">
+      <AppPanel :title='$t("Open a new loan")' :subtitle='$t("Opening the loan posts principal to cash/bank and the loan balance.")'>
         <FormGrid>
-          <SelectField v-model="form.direction" label="Type" :options="directionOptions" />
-          <FormField label="Counterparty"><AppInput v-model="form.counterpartyName" class="input w-full min-w-0" required placeholder="Customer, supplier, or lender" /></FormField>
-          <FormField label="Principal (Rial)"><AppInput v-model="form.principalRial" class="input w-full min-w-0" money="Rial" inputmode="numeric" /></FormField>
-          <FormField label="Interest / fees (Rial)"><AppInput v-model="form.interestFeeRial" class="input w-full min-w-0" money="Rial" inputmode="numeric" /></FormField>
-          <FormField label="Start date"><JalaliDatePicker v-model="form.startDate" /></FormField>
-          <FormField label="End date"><JalaliDatePicker v-model="form.endDate" /></FormField>
-          <FormField label="Installments"><AppInput v-model="form.installmentCount" class="input w-full min-w-0" type="number" min="1" /></FormField>
-          <SelectField v-model="form.financialAccountId" label="Cash / bank account" :options="accounts.map((account) => ({ label: account.name, value: account.id }))" />
+          <SelectField v-model="form.direction" :label='$t("Type")' :options="directionOptions" />
+          <FormField :label='$t("Counterparty")'><AppInput v-model="form.counterpartyName" class="input w-full min-w-0" required :placeholder='$t("Customer, supplier, or lender")' /></FormField>
+          <FormField :label='$t("Principal (Rial)")'><AppInput v-model="form.principalRial" class="input w-full min-w-0" money="Rial" inputmode="numeric" /></FormField>
+          <FormField :label='$t("Interest / fees (Rial)")'><AppInput v-model="form.interestFeeRial" class="input w-full min-w-0" money="Rial" inputmode="numeric" /></FormField>
+          <FormField :label='$t("Start date")'><JalaliDatePicker v-model="form.startDate" /></FormField>
+          <FormField :label='$t("End date")'><JalaliDatePicker v-model="form.endDate" /></FormField>
+          <FormField :label='$t("Installments")'><AppInput v-model="form.installmentCount" class="input w-full min-w-0" type="number" min="1" /></FormField>
+          <SelectField v-model="form.financialAccountId" :label='$t("Cash / bank account")' :options="accounts.map((account) => ({ label: account.name, value: account.id }))" />
         </FormGrid>
-        <FormField class="mt-4" label="Notes"><AppTextarea v-model="form.notes" rows="3" /></FormField>
+        <FormField class="mt-4" :label='$t("Notes")'><AppTextarea v-model="form.notes" rows="3" /></FormField>
         <div class="mt-5 flex flex-wrap justify-end gap-2">
-          <button class="btn btn-ghost" type="button" @click="emit('back')">Cancel</button>
-          <button class="btn btn-primary" type="submit" :disabled="busy"><Plus :size="15" /> Open loan</button>
+          <button class="btn btn-ghost" type="button" @click="emit('back')">{{ $t("Cancel") }}</button>
+          <button class="btn btn-primary" type="submit" :disabled="busy"><Plus :size="15" /> {{ $t("Open loan") }}</button>
         </div>
       </AppPanel>
     </form>
 
-    <EmptyState v-else-if="!loan" title="Loan unavailable" description="This loan could not be loaded. Return to the loan register and try again.">
+    <EmptyState v-else-if="!loan" :title='$t("Loan unavailable")' :description='$t("This loan could not be loaded. Return to the loan register and try again.")'>
       <template #icon><CircleDollarSign :size="22" aria-hidden="true" /></template>
-      <template #action><button class="btn btn-primary btn-sm" type="button" @click="emit('back')">Back to loans</button></template>
+      <template #action><button class="btn btn-primary btn-sm" type="button" @click="emit('back')">{{ $t("Back to loans") }}</button></template>
     </EmptyState>
 
     <template v-else>
       <div class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div class="min-w-0 space-y-4">
-          <AppPanel title="Loan overview" subtitle="Current financing position and persisted schedule.">
+          <AppPanel :title='$t("Loan overview")' :subtitle='$t("Current financing position and persisted schedule.")'>
             <div class="grid min-w-0 gap-4 sm:grid-cols-[minmax(0,1fr)_18rem] sm:items-start">
               <div class="flex min-w-0 items-start gap-3">
                 <div class="grid size-11 shrink-0 place-items-center rounded-box bg-primary/15 text-primary"><CircleDollarSign :size="23" aria-hidden="true" /></div>
                 <div class="min-w-0">
-                  <p class="text-xs font-medium uppercase tracking-wide text-primary/80">{{ loan.direction === 'payable' ? 'Payable loan' : 'Receivable loan' }}</p>
+                  <p class="text-xs font-medium uppercase tracking-wide text-primary/80">{{ $ui(loan.direction === 'payable' ? 'Payable loan' : 'Receivable loan') }}</p>
                   <p class="mt-1 text-2xl font-bold tabular-nums">{{ formatMoney(loan.principalRial + loan.interestFeeRial, props.currencyUnit) }}</p>
-                  <p class="mt-1 text-xs text-base-content/60">{{ loan.counterpartyName }} · {{ loan.installments.length }} installments</p>
+                  <p class="mt-1 text-xs text-base-content/60">{{ loan.counterpartyName }} · {{ loan.installments.length }} {{ $t("installments") }}</p>
                 </div>
               </div>
               <dl class="grid min-w-0 gap-2 rounded-box border border-base-300 bg-base-200/30 p-3 text-sm">
-                <div class="flex items-center justify-between gap-3"><dt class="text-xs text-base-content/55">Started</dt><dd class="text-end text-xs">{{ date(loan.startDate) }}</dd></div>
-                <div class="flex items-center justify-between gap-3"><dt class="text-xs text-base-content/55">End date</dt><dd class="text-end text-xs">{{ loan.endDate ? date(loan.endDate) : 'Open term' }}</dd></div>
-                <div class="flex items-center justify-between gap-3"><dt class="text-xs text-base-content/55">Account</dt><dd class="max-w-36 truncate text-end text-xs">{{ loan.financialAccountId || 'No account' }}</dd></div>
+                <div class="flex items-center justify-between gap-3"><dt class="text-xs text-base-content/55">{{ $t("Started") }}</dt><dd class="text-end text-xs">{{ date(loan.startDate) }}</dd></div>
+                <div class="flex items-center justify-between gap-3"><dt class="text-xs text-base-content/55">{{ $t("End date") }}</dt><dd class="text-end text-xs">{{ $ui(loan.endDate ? date(loan.endDate) : 'Open term') }}</dd></div>
+                <div class="flex items-center justify-between gap-3"><dt class="text-xs text-base-content/55">{{ $t("Account") }}</dt><dd class="max-w-36 truncate text-end text-xs">{{ $ui(loan.financialAccountId || 'No account') }}</dd></div>
               </dl>
             </div>
           </AppPanel>
 
-          <AppPanel title="Installment schedule" :subtitle="`${loan.installments.length} scheduled installments`" :flush="true">
-            <DataTable v-if="loan.installments.length" label="Loan installment schedule">
-              <thead><tr><th scope="col">Installment</th><th scope="col">Due</th><th scope="col" class="text-end">Paid</th><th scope="col" class="text-end">Remaining</th><th scope="col">Status</th></tr></thead>
+          <AppPanel :title='$t("Installment schedule")' :subtitle="$ui(`${loan.installments.length} scheduled installments`)" :flush="true">
+            <DataTable v-if="loan.installments.length" :label='$t("Loan installment schedule")'>
+              <thead><tr><th scope="col">{{ $t("Installment") }}</th><th scope="col">{{ $t("Due") }}</th><th scope="col" class="text-end">{{ $t("Paid") }}</th><th scope="col" class="text-end">{{ $t("Remaining") }}</th><th scope="col">{{ $t("Status") }}</th></tr></thead>
               <tbody>
                 <tr v-for="installment in loan.installments" :key="installment.id">
-                  <DataTableCell><strong>#{{ installment.position + 1 }}</strong><span class="mt-1 block text-xs text-base-content/55">{{ formatMoney(installment.totalDueRial, props.currencyUnit) }} due</span></DataTableCell>
+                  <DataTableCell><strong>#{{ installment.position + 1 }}</strong><span class="mt-1 block text-xs text-base-content/55">{{ formatMoney(installment.totalDueRial, props.currencyUnit) }} {{ $t("due") }}</span></DataTableCell>
                   <DataTableCell>{{ date(installment.dueDate) }}</DataTableCell>
                   <DataTableCell numeric>{{ formatMoney(installment.paidRial, props.currencyUnit) }}</DataTableCell>
                   <DataTableCell numeric>{{ formatMoney(installment.remainingRial, props.currencyUnit) }}</DataTableCell>
@@ -258,44 +258,44 @@ async function reversePayment(payment: LoanPaymentRecord) {
                 </tr>
               </tbody>
             </DataTable>
-            <EmptyState v-else title="No installments" description="This loan has no generated schedule."><template #icon><CalendarDays :size="21" aria-hidden="true" /></template></EmptyState>
+            <EmptyState v-else :title='$t("No installments")' :description='$t("This loan has no generated schedule.")'><template #icon><CalendarDays :size="21" aria-hidden="true" /></template></EmptyState>
           </AppPanel>
 
-          <AppPanel v-if="loan.notes" title="Notes" subtitle="Captured when this loan was opened."><p class="whitespace-pre-wrap text-sm leading-6">{{ loan.notes }}</p></AppPanel>
+          <AppPanel v-if="loan.notes" :title='$t("Notes")' :subtitle='$t("Captured when this loan was opened.")'><p class="whitespace-pre-wrap text-sm leading-6">{{ loan.notes }}</p></AppPanel>
         </div>
 
         <aside class="min-w-0 space-y-4">
-          <AppPanel title="Balance" subtitle="Derived from posted allocations.">
+          <AppPanel :title='$t("Balance")' :subtitle='$t("Derived from posted allocations.")'>
             <dl class="grid min-w-0 gap-1 text-sm">
-              <div class="flex items-center justify-between gap-4 border-b border-base-300 py-2"><dt class="text-xs text-base-content/60">Principal remaining</dt><dd class="text-end tabular-nums">{{ formatMoney(loan.remainingPrincipalRial, props.currencyUnit) }}</dd></div>
-              <div class="flex items-center justify-between gap-4 border-b border-base-300 py-2"><dt class="text-xs text-base-content/60">Interest remaining</dt><dd class="text-end tabular-nums">{{ formatMoney(loan.remainingInterestRial, props.currencyUnit) }}</dd></div>
-              <div class="flex items-center justify-between gap-4 border-b border-base-300 py-3 font-semibold"><dt>Remaining</dt><dd class="text-end tabular-nums text-primary">{{ formatMoney(loan.remainingPrincipalRial + loan.remainingInterestRial, props.currencyUnit) }}</dd></div>
-              <div class="flex items-center justify-between gap-4 py-2"><dt class="text-xs text-base-content/60">Overdue</dt><dd class="text-end tabular-nums text-warning">{{ formatMoney(loan.overdueRial, props.currencyUnit) }}</dd></div>
+              <div class="flex items-center justify-between gap-4 border-b border-base-300 py-2"><dt class="text-xs text-base-content/60">{{ $t("Principal remaining") }}</dt><dd class="text-end tabular-nums">{{ formatMoney(loan.remainingPrincipalRial, props.currencyUnit) }}</dd></div>
+              <div class="flex items-center justify-between gap-4 border-b border-base-300 py-2"><dt class="text-xs text-base-content/60">{{ $t("Interest remaining") }}</dt><dd class="text-end tabular-nums">{{ formatMoney(loan.remainingInterestRial, props.currencyUnit) }}</dd></div>
+              <div class="flex items-center justify-between gap-4 border-b border-base-300 py-3 font-semibold"><dt>{{ $t("Remaining") }}</dt><dd class="text-end tabular-nums text-primary">{{ formatMoney(loan.remainingPrincipalRial + loan.remainingInterestRial, props.currencyUnit) }}</dd></div>
+              <div class="flex items-center justify-between gap-4 py-2"><dt class="text-xs text-base-content/60">{{ $t("Overdue") }}</dt><dd class="text-end tabular-nums text-warning">{{ formatMoney(loan.overdueRial, props.currencyUnit) }}</dd></div>
             </dl>
           </AppPanel>
 
-          <AppPanel data-enter-scope title="Record payment" subtitle="Allocate a payment to one installment.">
+          <AppPanel data-enter-scope :title='$t("Record payment")' :subtitle='$t("Allocate a payment to one installment.")'>
             <FormGrid>
-              <SelectField v-model="pay.installmentId" label="Installment" :options="[{ label: 'Select installment', value: '' }, ...loan.installments.filter((item) => item.remainingRial > 0).map((item) => ({ label: `#${item.position + 1} · ${formatMoney(item.remainingRial, props.currencyUnit)}`, value: item.id }))]" />
-              <SelectField v-model="pay.financialAccountId" label="Cash / bank account" :options="[{ label: 'Select account', value: '' }, ...accounts.map((account) => ({ label: account.name, value: account.id }))]" />
-              <FormField label="Principal (Rial)"><AppInput v-model="pay.principalRial" class="input w-full min-w-0" money="Rial" inputmode="numeric" /></FormField>
-              <FormField label="Interest (Rial)"><AppInput v-model="pay.interestRial" class="input w-full min-w-0" money="Rial" inputmode="numeric" /></FormField>
+              <SelectField v-model="pay.installmentId" :label='$t("Installment")' :options="[{ label: 'Select installment', value: '' }, ...loan.installments.filter((item) => item.remainingRial > 0).map((item) => ({ label: `#${item.position + 1} · ${formatMoney(item.remainingRial, props.currencyUnit)}`, value: item.id }))]" />
+              <SelectField v-model="pay.financialAccountId" :label='$t("Cash / bank account")' :options="[{ label: 'Select account', value: '' }, ...accounts.map((account) => ({ label: account.name, value: account.id }))]" />
+              <FormField :label='$t("Principal (Rial)")'><AppInput v-model="pay.principalRial" class="input w-full min-w-0" money="Rial" inputmode="numeric" /></FormField>
+              <FormField :label='$t("Interest (Rial)")'><AppInput v-model="pay.interestRial" class="input w-full min-w-0" money="Rial" inputmode="numeric" /></FormField>
             </FormGrid>
-            <button class="btn btn-primary btn-sm mt-4 w-full" type="button" :disabled="busy" data-enter-submit @click="recordPayment">Record payment</button>
+            <button class="btn btn-primary btn-sm mt-4 w-full" type="button" :disabled="busy" data-enter-submit @click="recordPayment">{{ $t("Record payment") }}</button>
           </AppPanel>
 
-          <AppPanel title="Payment history" subtitle="Posted allocations and reversals.">
-            <DataTable v-if="payments.length" label="Loan payment history">
-              <thead><tr><th scope="col">Posted</th><th scope="col" class="text-end">Amount</th><th scope="col">Action</th></tr></thead>
+          <AppPanel :title='$t("Payment history")' :subtitle='$t("Posted allocations and reversals.")'>
+            <DataTable v-if="payments.length" :label='$t("Loan payment history")'>
+              <thead><tr><th scope="col">{{ $t("Posted") }}</th><th scope="col" class="text-end">{{ $t("Amount") }}</th><th scope="col">{{ $t("Action") }}</th></tr></thead>
               <tbody>
                 <tr v-for="payment in payments" :key="payment.id">
                   <DataTableCell><span class="whitespace-nowrap">{{ date(payment.paidAt) }}</span><span class="mt-1 block text-xs text-base-content/55">{{ payment.paymentNumber }}</span></DataTableCell>
                   <DataTableCell numeric>{{ formatMoney(payment.amountRial, props.currencyUnit) }}</DataTableCell>
-                  <DataTableCell><button v-if="payment.status === 'Posted'" class="btn btn-ghost btn-sm" type="button" :disabled="busy" @click="reversePayment(payment)"><RotateCcw :size="14" /> Reverse</button><StatusBadge v-else :label="payment.status" tone="slate" /></DataTableCell>
+                  <DataTableCell><button v-if="payment.status === 'Posted'" class="btn btn-ghost btn-sm" type="button" :disabled="busy" @click="reversePayment(payment)"><RotateCcw :size="14" /> {{ $t("Reverse") }}</button><StatusBadge v-else :label="payment.status" tone="slate" /></DataTableCell>
                 </tr>
               </tbody>
             </DataTable>
-            <EmptyState v-else title="No payments" description="Payments recorded against this loan will appear here."><template #icon><CircleDollarSign :size="21" aria-hidden="true" /></template></EmptyState>
+            <EmptyState v-else :title='$t("No payments")' :description='$t("Payments recorded against this loan will appear here.")'><template #icon><CircleDollarSign :size="21" aria-hidden="true" /></template></EmptyState>
           </AppPanel>
         </aside>
       </div>

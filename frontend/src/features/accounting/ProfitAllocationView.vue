@@ -119,62 +119,62 @@ async function close() {
 
 <template>
   <div class="min-w-0 space-y-4">
-    <LoadingState v-if="pageLoading" label="Loading fiscal periods…" />
+    <LoadingState v-if="pageLoading" :label='$t("Loading fiscal periods…")' />
     <template v-else>
       <div class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <AppPanel title="Fiscal periods" subtitle="Close once; the profit-sharing snapshot is preserved forever." :flush="true">
-          <DataTable v-if="periods.length" label="Fiscal periods">
-            <thead><tr><th scope="col">Period</th><th scope="col">Dates</th><th scope="col">Status</th><th scope="col" class="text-end">Profit / loss</th></tr></thead>
+        <AppPanel :title='$t("Fiscal periods")' :subtitle='$t("Close once; the profit-sharing snapshot is preserved forever.")' :flush="true">
+          <DataTable v-if="periods.length" :label='$t("Fiscal periods")'>
+            <thead><tr><th scope="col">{{ $t("Period") }}</th><th scope="col">{{ $t("Dates") }}</th><th scope="col">{{ $t("Status") }}</th><th scope="col" class="text-end">{{ $t("Profit / loss") }}</th></tr></thead>
             <tbody>
               <DataTableRow v-for="period in periods" :key="period.id" interactive :selected="selectedId === period.id" @activate="selectedId = period.id">
-                <DataTableCell><strong>{{ period.name }}</strong><span class="mt-1 block text-xs text-base-content/55">{{ period.allocations.length }} allocations</span></DataTableCell>
-                <DataTableCell><span class="block whitespace-nowrap">{{ formatDateTime(period.startDate) }}</span><span class="mt-1 block whitespace-nowrap text-xs text-base-content/55">to {{ formatDateTime(period.endDate) }}</span></DataTableCell>
+                <DataTableCell><strong>{{ period.name }}</strong><span class="mt-1 block text-xs text-base-content/55">{{ period.allocations.length }} {{ $t("allocations") }}</span></DataTableCell>
+                <DataTableCell><span class="block whitespace-nowrap">{{ formatDateTime(period.startDate) }}</span><span class="mt-1 block whitespace-nowrap text-xs text-base-content/55">{{ $t("to") }} {{ formatDateTime(period.endDate) }}</span></DataTableCell>
                 <DataTableCell><StatusBadge :label="period.status" :tone="periodTone(period.status)" /></DataTableCell>
                 <DataTableCell numeric><strong class="text-primary">{{ money(period.profitLossRial) }}</strong></DataTableCell>
               </DataTableRow>
             </tbody>
           </DataTable>
-          <EmptyState v-else title="No fiscal periods" description="Create a period to preview and close profit allocation."><template #icon><CalendarDays :size="22" aria-hidden="true" /></template></EmptyState>
+          <EmptyState v-else :title='$t("No fiscal periods")' :description='$t("Create a period to preview and close profit allocation.")'><template #icon><CalendarDays :size="22" aria-hidden="true" /></template></EmptyState>
         </AppPanel>
 
-        <AppPanel title="New fiscal period" subtitle="Use the ledger snapshot to calculate owner allocations.">
+        <AppPanel :title='$t("New fiscal period")' :subtitle='$t("Use the ledger snapshot to calculate owner allocations.")'>
           <form class="min-w-0 space-y-4" @submit.prevent="createPeriod">
-            <FormField label="Period name"><AppInput v-model="form.name" class="input w-full min-w-0" required placeholder="1405" /></FormField>
+            <FormField :label='$t("Period name")'><AppInput v-model="form.name" class="input w-full min-w-0" required placeholder="1405" /></FormField>
             <FormGrid>
-              <FormField label="Start date"><JalaliDatePicker v-model="form.startDate" /></FormField>
-              <FormField label="End date"><JalaliDatePicker v-model="form.endDate" /></FormField>
+              <FormField :label='$t("Start date")'><JalaliDatePicker v-model="form.startDate" /></FormField>
+              <FormField :label='$t("End date")'><JalaliDatePicker v-model="form.endDate" /></FormField>
             </FormGrid>
-            <button class="btn btn-primary w-full" type="submit" :disabled="busy"><Plus :size="15" /> Create period</button>
+            <button class="btn btn-primary w-full" type="submit" :disabled="busy"><Plus :size="15" /> {{ $t("Create period") }}</button>
           </form>
         </AppPanel>
       </div>
 
-      <AppPanel v-if="selected" title="Closing preview" subtitle="Revenue − COGS − expenses, calculated from journal lines only.">
+      <AppPanel v-if="selected" :title='$t("Closing preview")' :subtitle='$t("Revenue − COGS − expenses, calculated from journal lines only.")'>
         <template #action>
           <StatusBadge :label="selected.status" :tone="periodTone(selected.status)" />
         </template>
         <div class="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div class="rounded-box border border-base-300 bg-base-200/30 p-3"><span class="block text-xs text-base-content/55">Revenue</span><strong class="mt-1 block tabular-nums">{{ money(selected.revenueRial) }}</strong></div>
-          <div class="rounded-box border border-base-300 bg-base-200/30 p-3"><span class="block text-xs text-base-content/55">COGS</span><strong class="mt-1 block tabular-nums">{{ money(selected.cogsRial) }}</strong></div>
-          <div class="rounded-box border border-base-300 bg-base-200/30 p-3"><span class="block text-xs text-base-content/55">Expenses</span><strong class="mt-1 block tabular-nums">{{ money(selected.expensesRial) }}</strong></div>
-          <div class="rounded-box border border-primary/20 bg-primary/5 p-3"><span class="block text-xs text-primary/70">Profit / loss</span><strong class="mt-1 block tabular-nums text-primary">{{ money(selected.profitLossRial) }}</strong></div>
+          <div class="rounded-box border border-base-300 bg-base-200/30 p-3"><span class="block text-xs text-base-content/55">{{ $t("Revenue") }}</span><strong class="mt-1 block tabular-nums">{{ money(selected.revenueRial) }}</strong></div>
+          <div class="rounded-box border border-base-300 bg-base-200/30 p-3"><span class="block text-xs text-base-content/55">{{ $t("COGS") }}</span><strong class="mt-1 block tabular-nums">{{ money(selected.cogsRial) }}</strong></div>
+          <div class="rounded-box border border-base-300 bg-base-200/30 p-3"><span class="block text-xs text-base-content/55">{{ $t("Expenses") }}</span><strong class="mt-1 block tabular-nums">{{ money(selected.expensesRial) }}</strong></div>
+          <div class="rounded-box border border-primary/20 bg-primary/5 p-3"><span class="block text-xs text-primary/70">{{ $t("Profit / loss") }}</span><strong class="mt-1 block tabular-nums text-primary">{{ money(selected.profitLossRial) }}</strong></div>
         </div>
         <div class="mt-4 flex flex-wrap justify-end gap-2">
-          <button class="btn btn-ghost btn-sm" type="button" :disabled="busy" @click="preview"><RefreshCw :size="14" /> Refresh preview</button>
-          <button v-if="selected.status === 'Open'" class="btn btn-primary btn-sm" type="button" :disabled="busy" @click="close"><CheckCircle2 :size="14" /> Close period</button>
+          <button class="btn btn-ghost btn-sm" type="button" :disabled="busy" @click="preview"><RefreshCw :size="14" /> {{ $t("Refresh preview") }}</button>
+          <button v-if="selected.status === 'Open'" class="btn btn-primary btn-sm" type="button" :disabled="busy" @click="close"><CheckCircle2 :size="14" /> {{ $t("Close period") }}</button>
         </div>
         <div class="mt-5 border-t border-base-300 pt-4">
-          <h3 class="text-sm font-semibold">Owner allocation</h3>
+          <h3 class="text-sm font-semibold">{{ $t("Owner allocation") }}</h3>
           <div v-if="(selected.previewAllocations?.length ? selected.previewAllocations : selected.allocations).length" class="mt-2 divide-y divide-base-300 rounded-box border border-base-300 bg-base-200/20">
             <div v-for="allocation in (selected.previewAllocations?.length ? selected.previewAllocations : selected.allocations)" :key="allocation.ownerId" class="flex min-w-0 flex-wrap items-center justify-between gap-3 px-3 py-2.5 text-sm">
               <span class="min-w-0 truncate">{{ ownerName(allocation.ownerId) }} <span class="text-xs text-base-content/55">· {{ allocation.profitSharingBps / 100 }}%</span></span>
               <strong class="shrink-0 tabular-nums">{{ money(allocation.amountRial) }}</strong>
             </div>
           </div>
-          <EmptyState v-else title="No owner allocations" description="Add active owners with profit shares to calculate allocation."><template #icon><Users :size="21" aria-hidden="true" /></template></EmptyState>
+          <EmptyState v-else :title='$t("No owner allocations")' :description='$t("Add active owners with profit shares to calculate allocation.")'><template #icon><Users :size="21" aria-hidden="true" /></template></EmptyState>
         </div>
       </AppPanel>
-      <EmptyState v-else title="Select a fiscal period" description="Choose a period above to preview its profit allocation."><template #icon><CalendarDays :size="22" aria-hidden="true" /></template></EmptyState>
+      <EmptyState v-else :title='$t("Select a fiscal period")' :description='$t("Choose a period above to preview its profit allocation.")'><template #icon><CalendarDays :size="22" aria-hidden="true" /></template></EmptyState>
     </template>
   </div>
 </template>

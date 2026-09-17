@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translateUi } from '../../i18n';
 import type { Component } from 'vue';
 
 defineProps<{
@@ -19,12 +20,12 @@ defineEmits<{ select: [] }>();
       collapsed ? 'btn-square justify-center px-0' : 'w-full justify-start px-3',
     ]"
     type="button"
-    :title="collapsed ? label : undefined"
-    :aria-label="collapsed ? label : undefined"
+    :title="collapsed ? translateUi(label) : undefined"
+    :aria-label="collapsed ? translateUi(label) : undefined"
     :aria-current="active ? 'page' : undefined"
     @click="$emit('select')"
   >
     <component :is="icon" :size="17" :stroke-width="1.8" aria-hidden="true" />
-    <span v-if="!collapsed">{{ label }}</span>
+    <span v-if="!collapsed">{{ translateUi(label) }}</span>
   </button>
 </template>

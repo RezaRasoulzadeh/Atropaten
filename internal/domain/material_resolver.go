@@ -126,6 +126,9 @@ func finishedDimensionsFit(service Service, material Material, selected map[stri
 		if !ok {
 			return false
 		}
+		if width > rollWidth {
+			return false
+		}
 		return rollWidth/width > 0 || (service.FinishedSize.AllowRotation && rollWidth/height > 0)
 	default:
 		return true

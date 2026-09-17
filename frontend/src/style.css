@@ -263,6 +263,21 @@ input[type='number']::-webkit-outer-spin-button {
   transform: translateX(0.2rem);
 }
 
+[dir="rtl"] .workspace-breadcrumb > svg,
+[dir="rtl"] .register-row-arrow {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .rtl-directional-arrow,
+[dir="rtl"] button[aria-label*="صفحه"] > svg {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .group:hover .register-row-arrow,
+[dir="rtl"] .group:focus-visible .register-row-arrow {
+  transform: rotate(180deg) translateX(0.2rem);
+}
+
 .material-register-desktop-only,
 .purchase-register-desktop-only {
   display: none !important;

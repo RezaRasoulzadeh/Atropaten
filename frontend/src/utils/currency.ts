@@ -1,3 +1,6 @@
+import { getLocale } from '../i18n'
+import { formatLocalizedNumber } from './number'
+
 /**
  * Canonical money values are always stored and calculated as Iranian Rial.
  * Toman is a presentation/input preference only: 1 toman = 10 rial.
@@ -31,10 +34,11 @@ export function convertRial(amountRial: number, unit: CurrencyUnit): number {
 export function formatMoney(amountRial: number, unit: CurrencyUnit): string {
   const amount = convertRial(amountRial, unit)
   const hasFractionalToman = unit === 'Toman' && amountRial % 10 !== 0
-  const formatted = new Intl.NumberFormat('en-US', {
+  const formatted = formatLocalizedNumber(amount, {
     maximumFractionDigits: hasFractionalToman ? 1 : 0,
-  }).format(amount)
-  return `${formatted} ${currencyLabels[unit]}`
+  })
+  const currencyLabel = getLocale() === 'fa' ? (unit === 'Toman' ? 'تومان' : 'ریال') : currencyLabels[unit]
+  return `${formatted} ${currencyLabel}`
 }
 
 export function formatSignedMoney(amountRial: number, unit: CurrencyUnit, sign: '+' | '−'): string {

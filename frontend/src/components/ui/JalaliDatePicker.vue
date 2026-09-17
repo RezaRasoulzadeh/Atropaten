@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-vue-next';
+import { getLocale } from '../../i18n';
 import {
   currentCanonicalDate,
   formatDate,
@@ -8,10 +9,11 @@ import {
   fromJalaliDate,
   jalaliMonthLength,
   jalaliMonthStartOffset,
-  jalaliWeekdays,
+  jalaliWeekdaysForLocale,
   toJalaliDate,
   type JalaliDate,
 } from '../../utils/date';
+import { localizeDigits } from '../../utils/number';
 
 const props = withDefaults(defineProps<{ modelValue: string | null; placeholder?: string; disabled?: boolean }>(), {
   placeholder: 'Select Jalali date',
@@ -28,6 +30,8 @@ const isOpen = ref(false);
 const popoverStyle = ref({ top: '0px', left: '0px' });
 const today = currentCanonicalDate();
 const calendarMonth = ref<JalaliDate>(toJalaliDate(today));
+const weekdays = computed(jalaliWeekdaysForLocale);
+const isPersian = computed(() => getLocale() === 'fa');
 
 const displayValue = computed(() => (props.modelValue ? formatDate(props.modelValue) : ''));
 const monthLabel = computed(() =>
@@ -157,7 +161,7 @@ onBeforeUnmount(() => {
         readonly
         :disabled="disabled"
         :placeholder="placeholder"
-        aria-label="Promised date"
+        :aria-label='$t("Promised date")'
         :aria-expanded="isOpen"
         aria-haspopup="dialog"
         @click="openPicker"
@@ -168,7 +172,7 @@ onBeforeUnmount(() => {
         class="btn btn-ghost btn-square btn-sm absolute inset-e-1 top-1/2 -translate-y-1/2"
         type="button"
         :disabled="disabled"
-        aria-label="Open Jalali calendar"
+        :aria-label='$t("Open Jalali calendar")'
         :aria-expanded="isOpen"
         @click="openPicker"
       >
@@ -183,32 +187,32 @@ onBeforeUnmount(() => {
         class="fixed z-50 min-w-72 rounded-box border border-base-300 bg-base-100 p-3 shadow-xl"
         :style="popoverStyle"
         role="dialog"
-        aria-label="Jalali calendar"
+        :aria-label='$t("Jalali calendar")'
       >
       <div class="flex items-center justify-between gap-2">
         <button
           class="btn btn-ghost btn-square btn-sm"
           type="button"
-          aria-label="Previous Jalali month"
+          :aria-label='$t("Previous Jalali month")'
           @click="shiftMonth(-1)"
         >
-          <ChevronLeft :size="16" :stroke-width="1.8" aria-hidden="true" />
+          <component :is="isPersian ? ChevronRight : ChevronLeft" :size="16" :stroke-width="1.8" aria-hidden="true" />
         </button>
         <strong class="text-sm">{{ monthLabel }}</strong>
         <button
           class="btn btn-ghost btn-square btn-sm"
           type="button"
-          aria-label="Next Jalali month"
+          :aria-label='$t("Next Jalali month")'
           @click="shiftMonth(1)"
         >
-          <ChevronRight :size="16" :stroke-width="1.8" aria-hidden="true" />
+          <component :is="isPersian ? ChevronLeft : ChevronRight" :size="16" :stroke-width="1.8" aria-hidden="true" />
         </button>
       </div>
       <div
         class="mt-2 grid grid-cols-7 gap-1 text-center text-xs leading-4 text-base-content/50"
         aria-hidden="true"
       >
-        <span v-for="weekday in jalaliWeekdays" :key="weekday">{{ weekday }}</span>
+        <span v-for="weekday in weekdays" :key="weekday">{{ weekday }}</span>
       </div>
       <div class="mt-1 grid grid-cols-7 gap-1" role="grid" :aria-label="monthLabel">
         <span
@@ -225,24 +229,24 @@ onBeforeUnmount(() => {
             }"
             type="button"
             role="gridcell"
-            :aria-label="`${day} ${monthLabel}`"
+            :aria-label="$ui(`${localizeDigits(day)} ${monthLabel}`)"
             :aria-selected="isSelected(day)"
             @click="selectDay(day)"
           >
-            {{ day }}
+            {{ localizeDigits(day) }}
           </button>
         </span>
       </div>
       <div class="mt-3 flex items-center justify-between border-t border-base-300 pt-2">
-        <button class="btn btn-ghost btn-sm" type="button" @click="selectToday">Today</button>
+        <button class="btn btn-ghost btn-sm" type="button" @click="selectToday">{{ $t("Today") }}</button>
         <button
           v-if="modelValue"
           class="btn btn-ghost btn-sm gap-1"
           type="button"
-          aria-label="Clear promised date"
+          :aria-label='$t("Clear promised date")'
           @click="clearDate"
         >
-          <X :size="14" :stroke-width="1.8" aria-hidden="true" />Clear
+          <X :size="14" :stroke-width="1.8" aria-hidden="true" />{{ $t("Clear") }}
         </button>
       </div>
       </div>

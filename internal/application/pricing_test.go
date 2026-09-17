@@ -134,6 +134,37 @@ func TestPricingServiceCalculatesMaterialBackedChoiceByResolvedMaterial(t *testi
 	}
 }
 
+func TestPricingServiceIncludesRollWasteCostInLayoutPreview(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	roll := domain.Material{
+		ID: "MAT-banner", Name: "3.2 m banner roll", Kind: domain.MaterialKindRollMedia, Active: true,
+		ConsumptionUnit: "meter", ConversionFactor: domain.QuantityScale, HighestPurchaseUnitCostRial: 100_000,
+		Attributes: []domain.MaterialAttributeValue{{Key: "width_mm", ValueType: domain.MaterialAttributeDecimal, DecimalValue: 3200 * domain.QuantityScale}},
+	}
+	service, err := domain.NewService("SVC-banner-layout", domain.ServiceDraft{
+		Name: "Banner layout",
+		Parameters: []domain.ServiceParameterDraft{
+			{ID: "P-roll", Key: "roll", Label: "Material", Type: domain.ParameterMaterialReference, Required: true},
+			{ID: "P-width", Key: "w", Label: "Width", Type: domain.ParameterDecimal, Required: true},
+			{ID: "P-height", Key: "h", Label: "Height", Type: domain.ParameterDecimal, Required: true},
+			{ID: "P-quantity", Key: "q", Label: "Pieces", Type: domain.ParameterInteger, Required: true},
+		},
+		Components:   []domain.ServiceCostComponentDraft{{ID: "C-roll", Name: "Roll material", Type: domain.CostMaterial, UsageMode: domain.UsageParameter, ParameterKey: "roll", UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true}},
+		FinishedSize: &domain.ServiceFinishedSizeDefinition{AllowCustom: true, AllowRotation: true, WidthParameterKey: "w", HeightParameterKey: "h", QuantityParameterKey: "q"},
+	}, now)
+	if err != nil {
+		t.Fatalf("create service: %v", err)
+	}
+	pricing := NewPricingService(&serviceRepositoryStub{service: service}, materialLookupStub{items: []domain.Material{roll}}, machineLookupStub{})
+	result, err := pricing.Calculate(context.Background(), PricingRequest{ServiceID: service.ID, Quantity: "1", Parameters: map[string]string{"roll": roll.ID, "w": "1000", "h": "3000"}})
+	if err != nil {
+		t.Fatalf("calculate layout price: %v", err)
+	}
+	if result.EstimatedCostRial != 100_000 || len(result.Layouts) != 1 || result.Layouts[0].WasteCostRial != 6_250 {
+		t.Fatalf("layout pricing=%+v; want 100000 total and 6250 Rial waste allocation", result)
+	}
+}
+
 func TestPricingServiceDoesNotInferMaterialFromChoiceLabels(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	_, err := domain.NewService("SVC-choice-paper", domain.ServiceDraft{

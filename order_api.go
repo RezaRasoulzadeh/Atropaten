@@ -7,11 +7,12 @@ import (
 )
 
 type OrderInput struct {
-	CustomerID   string  `json:"customerId"`
-	PromisedAt   *string `json:"promisedAt"`
-	Priority     string  `json:"priority"`
-	Notes        string  `json:"notes"`
-	DiscountRial int64   `json:"discountRial"`
+	CustomerID   string           `json:"customerId"`
+	PromisedAt   *string          `json:"promisedAt"`
+	Priority     string           `json:"priority"`
+	Notes        string           `json:"notes"`
+	DiscountRial int64            `json:"discountRial"`
+	Items        []OrderItemInput `json:"items,omitempty"`
 }
 type OrderItemInput struct {
 	ServiceID                string            `json:"serviceId"`
@@ -256,7 +257,11 @@ func orderInput(i OrderInput) (application.OrderInput, error) {
 		}
 		p = &v
 	}
-	return application.OrderInput{CustomerID: i.CustomerID, PromisedAt: p, Priority: i.Priority, Notes: i.Notes, DiscountRial: i.DiscountRial}, nil
+	items := make([]application.OrderItemInput, 0, len(i.Items))
+	for _, item := range i.Items {
+		items = append(items, itemInput(item))
+	}
+	return application.OrderInput{CustomerID: i.CustomerID, PromisedAt: p, Priority: i.Priority, Notes: i.Notes, DiscountRial: i.DiscountRial, Items: items}, nil
 }
 func itemInput(i OrderItemInput) application.OrderItemInput {
 	return application.OrderItemInput{ServiceID: i.ServiceID, Parameters: i.Parameters, ManualCosts: i.ManualCosts, SellingPriceOverrideRial: i.SellingPriceOverrideRial, Quantity: i.Quantity, QuantityUnit: i.QuantityUnit, Notes: i.Notes}

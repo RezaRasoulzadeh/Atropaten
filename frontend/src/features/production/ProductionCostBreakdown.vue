@@ -14,26 +14,26 @@ function money(value: number) {
 </script>
 
 <template>
-  <section class="min-w-0" :class="embedded ? '' : 'rounded-box border border-base-300 bg-base-100/45 p-4'" aria-label="Production cost breakdown">
-    <h3 class="text-sm font-semibold">Cost</h3>
+  <section class="min-w-0" :class="embedded ? '' : 'rounded-box border border-base-300 bg-base-100/45 p-4'" :aria-label='$t("Production cost breakdown")'>
+    <h3 class="text-sm font-semibold">{{ $t("Cost") }}</h3>
     <dl class="mt-3 border-b border-base-300 pb-3 text-sm">
       <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <dt class="text-xs text-base-content/60">Original order estimate</dt>
+        <dt class="text-xs text-base-content/60">{{ $t("Original order estimate") }}</dt>
         <dd class="whitespace-nowrap tabular-nums">{{ money(job.estimatedCostRial) }}</dd>
       </div>
     </dl>
     <dl class="mt-1 divide-y divide-base-300/70 text-sm">
       <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2">
-        <dt class="text-xs text-base-content/60">Consumed materials</dt>
+        <dt class="text-xs text-base-content/60">{{ $t("Consumed materials") }}</dt>
         <dd class="whitespace-nowrap tabular-nums">{{ money(job.actualMaterialCostRial) }}</dd>
       </div>
       <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2">
-        <dt class="text-xs text-base-content/60">Material waste</dt>
+        <dt class="text-xs text-base-content/60">{{ $t("Material waste") }}</dt>
         <dd class="whitespace-nowrap tabular-nums">{{ money(job.actualWasteCostRial) }}</dd>
       </div>
       <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2">
         <dt class="text-xs text-base-content/60">
-          Outsourcing
+          {{ $t("Outsourcing") }}
           <span v-if="Number(job.outsourceQuantity) > 0" class="mt-0.5 block text-base-content/45">
             {{ job.outsourceQuantity }} {{ job.quantityUnit }} × {{ money(job.outsourceUnitCostRial) }} / {{ job.quantityUnit }}
           </span>
@@ -41,26 +41,24 @@ function money(value: number) {
         <dd class="whitespace-nowrap tabular-nums">{{ money(job.actualOutsourcedCostRial) }}</dd>
       </div>
       <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2">
-        <dt class="text-xs text-base-content/60">Remaining materials estimate</dt>
+        <dt class="text-xs text-base-content/60">{{ $t("Remaining materials estimate") }}</dt>
         <dd class="whitespace-nowrap tabular-nums">{{ money(job.remainingMaterialCostRial) }}</dd>
       </div>
       <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2">
-        <dt class="text-xs text-base-content/60">Machine, labor &amp; other estimates</dt>
+        <dt class="text-xs text-base-content/60">{{ $t("Machine, labor & other estimates") }}</dt>
         <dd class="whitespace-nowrap tabular-nums">{{ money(job.estimatedConversionCostRial) }}</dd>
       </div>
       <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2 font-semibold">
-        <dt class="text-xs">Expected total cost</dt>
+        <dt class="text-xs">{{ $t("Expected total cost") }}</dt>
         <dd class="whitespace-nowrap tabular-nums">{{ money(job.projectedCostRial) }}</dd>
       </div>
     </dl>
     <p v-if="job.projectedCostRial !== job.estimatedCostRial" class="mt-3 text-xs text-base-content/70">
       {{ money(Math.abs(job.projectedCostRial - job.estimatedCostRial)) }}
-      {{ job.projectedCostRial < job.estimatedCostRial ? 'below' : 'above' }} the original order estimate.
+      {{ $ui(job.projectedCostRial < job.estimatedCostRial ? 'below' : 'above') }} {{ $t("the original order estimate.") }}
     </p>
     <p class="mt-3 text-xs leading-5 text-base-content/55">
-      Total includes the five components above; the original estimate is for comparison only.
-      Quoted materials use the highest purchase price; consumed materials use the stock's weighted average cost, net of returns and corrections.
-      Remaining materials use current stock cost. Other production costs keep their saved estimates.
+      {{ $t("Total includes the five components above; the original estimate is for comparison only. Quoted materials use the highest purchase price; consumed materials use the stock's weighted average cost, net of returns and corrections. Remaining materials use current stock cost. Other production costs keep their saved estimates.") }}
     </p>
   </section>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="T extends string">
 import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
+import { translateUi } from '../../i18n';
 defineOptions({ inheritAttrs: false });
 const props = defineProps<{
   modelValue: T;
@@ -56,7 +57,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutsideClick)
       :for="String($attrs.id || id)"
       class="text-xs leading-4"
       :class="invalid ? 'text-error' : 'text-base-content/65'"
-      >{{ label }}</label
+      >{{ translateUi(label) }}</label
     >
     <div class="dropdown relative w-full" :class="{ 'dropdown-open': open }">
       <button
@@ -66,7 +67,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutsideClick)
         :class="{ 'select-error': invalid }"
         type="button"
         :disabled="isDisabled"
-        :aria-label="ariaLabel || label || 'Select an option'"
+        :aria-label="translateUi(ariaLabel || label || 'Select an option')"
         aria-haspopup="listbox"
         :aria-expanded="open"
         :aria-invalid="invalid || undefined"
@@ -74,13 +75,13 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutsideClick)
         @keydown.esc.prevent="open = false"
         @keydown.down.prevent="open = true"
       >
-        {{ selectedOption?.label || (!options.length ? 'No options available' : '') }}
+        {{ translateUi(selectedOption?.label || (!options.length ? 'No options available' : '')) }}
       </button>
       <ul
         v-if="open"
         class="dropdown-content menu z-50 mt-1 max-h-60 w-max min-w-full flex-nowrap overflow-y-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-lg"
         role="listbox"
-        :aria-label="ariaLabel || label || 'Select an option'"
+        :aria-label="translateUi(ariaLabel || label || 'Select an option')"
       >
         <li v-for="option in options" :key="option.value">
           <button
@@ -92,7 +93,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutsideClick)
             :class="option.value === modelValue ? 'active' : ''"
             @click.stop.prevent="choose(option.value)"
           >
-            {{ option.label }}
+            {{ translateUi(option.label) }}
           </button>
         </li>
       </ul>

@@ -1,4 +1,6 @@
 import { isValidJalaaliDate, toGregorian, toJalaali } from 'jalaali-js'
+import { getLocale } from '../i18n'
+import { localizeDigits } from './number'
 
 /**
  * Application dates stay calendar-neutral as ISO date strings or timestamps.
@@ -12,7 +14,7 @@ export interface JalaliDate {
   day: number
 }
 
-const jalaliMonths = [
+const englishJalaliMonths = [
   'Farvardin',
   'Ordibehesht',
   'Khordad',
@@ -27,7 +29,27 @@ const jalaliMonths = [
   'Esfand',
 ]
 
+const persianJalaliMonths = [
+  'فروردین',
+  'اردیبهشت',
+  'خرداد',
+  'تیر',
+  'مرداد',
+  'شهریور',
+  'مهر',
+  'آبان',
+  'آذر',
+  'دی',
+  'بهمن',
+  'اسفند',
+]
+
 export const jalaliWeekdays = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+const persianJalaliWeekdays = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه']
+
+export function jalaliWeekdaysForLocale(): string[] {
+  return getLocale() === 'fa' ? persianJalaliWeekdays : jalaliWeekdays
+}
 
 const tehranDateParts = new Intl.DateTimeFormat('en-US', {
   calendar: 'gregory',
@@ -77,12 +99,13 @@ function canonicalParts(value: CanonicalDate): {
 
 export function formatDate(value: CanonicalDate): string {
   const jalali = toJalaliDate(value)
-  return `${jalali.day} ${jalaliMonths[jalali.month - 1]} ${jalali.year}`
+  const months = getLocale() === 'fa' ? persianJalaliMonths : englishJalaliMonths
+  return `${localizeDigits(jalali.day)} ${months[jalali.month - 1]} ${localizeDigits(jalali.year)}`
 }
 
 export function formatDateTime(value: CanonicalDate): string {
   const { hour, minute } = canonicalParts(value)
-  return `${formatDate(value)} · ${pad(hour)}:${pad(minute)}`
+  return `${formatDate(value)} · ${localizeDigits(pad(hour))}:${localizeDigits(pad(minute))}`
 }
 
 export function parseJalaliDate(value: string): CanonicalDate | null {
@@ -127,7 +150,8 @@ export function jalaliMonthStartOffset(year: number, month: number): number {
 }
 
 export function formatJalaliMonth(year: number, month: number): string {
-  return `${jalaliMonths[month - 1]} ${year}`
+  const months = getLocale() === 'fa' ? persianJalaliMonths : englishJalaliMonths
+  return `${months[month - 1]} ${localizeDigits(year)}`
 }
 
 export function currentCanonicalDate(): CanonicalDate {

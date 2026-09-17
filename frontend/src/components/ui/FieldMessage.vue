@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translateUi } from '../../i18n';
 withDefaults(defineProps<{ message?: string; tone?: 'error' | 'help' }>(), { tone: 'help' });
 </script>
 <template>
@@ -7,6 +8,6 @@ withDefaults(defineProps<{ message?: string; tone?: 'error' | 'help' }>(), { ton
     class="text-xs leading-4"
     :class="tone === 'error' ? 'text-error' : 'text-base-content/60'"
   >
-    {{ message }}
+    {{ translateUi(message) }}
   </p>
 </template>

@@ -10,6 +10,7 @@ import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
 import type { CurrencyUnit } from '../../utils/currency'
+import { formatLocalizedNumber } from '../../utils/number'
 import { componentNeedsPercentage, componentNeedsRate } from './serviceFields'
 import { isChoiceParameter, isMachineParameter, isMaterialParameter, isNumericParameter } from './serviceComponentSync'
 
@@ -146,24 +147,24 @@ function usesFixedQuantitySourceSelector() {
       <summary v-if="hideSummary" class="hidden" aria-hidden="true"></summary>
       <summary v-else class="flex min-w-0 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
         <div class="flex min-w-0 items-center gap-3">
-          <span class="grid size-8 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-semibold text-primary tabular-nums">{{ String(index + 1).padStart(2, '0') }}</span>
+          <span class="grid size-8 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-semibold text-primary tabular-nums">{{ $ui(String(index + 1).padStart(2, '0')) }}</span>
           <div class="min-w-0">
-            <strong class="block truncate text-sm">{{ component.name || 'New cost' }}</strong>
-            <small class="block truncate text-xs text-base-content/60">{{ typeLabel(component.type) }} · {{ component.enabled ? 'Included in price' : 'Not included' }}</small>
+            <strong class="block truncate text-sm">{{ $ui(component.name || 'New cost') }}</strong>
+            <small class="block truncate text-xs text-base-content/60">{{ $ui(typeLabel(component.type)) }} · {{ $ui(component.enabled ? 'Included in price' : 'Not included') }}</small>
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-1">
-          <button class="btn btn-ghost btn-sm" type="button" :disabled="index === 0" :aria-label="`Move ${component.name || 'cost'} up`" @click.stop.prevent="emit('move', -1)"><ChevronUp :size="14" aria-hidden="true" /></button>
-          <button class="btn btn-ghost btn-sm" type="button" :disabled="index === count - 1" :aria-label="`Move ${component.name || 'cost'} down`" @click.stop.prevent="emit('move', 1)"><ChevronDown :size="14" aria-hidden="true" /></button>
-          <button class="btn btn-outline btn-error btn-sm" type="button" :aria-label="`Remove ${component.name || 'cost'}`" @click.stop.prevent="emit('remove')"><Trash2 :size="14" aria-hidden="true" /></button>
+          <button class="btn btn-ghost btn-sm" type="button" :disabled="index === 0" :aria-label="$ui(`Move ${component.name || 'cost'} up`)" @click.stop.prevent="emit('move', -1)"><ChevronUp :size="14" aria-hidden="true" /></button>
+          <button class="btn btn-ghost btn-sm" type="button" :disabled="index === count - 1" :aria-label="$ui(`Move ${component.name || 'cost'} down`)" @click.stop.prevent="emit('move', 1)"><ChevronDown :size="14" aria-hidden="true" /></button>
+          <button class="btn btn-outline btn-error btn-sm" type="button" :aria-label="$ui(`Remove ${component.name || 'cost'}`)" @click.stop.prevent="emit('remove')"><Trash2 :size="14" aria-hidden="true" /></button>
           <ChevronDown class="ml-1 shrink-0 transition-transform group-open:rotate-180" :size="16" aria-hidden="true" />
         </div>
       </summary>
 
       <div class="min-w-0 space-y-4 border-t border-base-300 bg-base-200/20 px-4 py-4">
         <div class="grid min-w-0 gap-3 rounded-box border border-primary/20 bg-primary/5 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)]">
-          <FormField class="gap-1"><span>What is this cost?</span><AppInput v-model="component.name" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.name.trim() }" type="text" required placeholder="Paper, printer, or finishing" /></FormField>
-          <SelectField v-model="component.type" label="Cost type" :options="[
+          <FormField class="gap-1"><span>{{ $t("What is this cost?") }}</span><AppInput v-model="component.name" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.name.trim() }" type="text" required :placeholder='$t("Paper, printer, or finishing")' /></FormField>
+          <SelectField v-model="component.type" :label='$t("Cost type")' :options="[
             { label: 'Material or paper', value: 'material' },
             { label: 'Machine', value: 'machine' },
             { label: 'Another service', value: 'service' },
@@ -176,98 +177,98 @@ function usesFixedQuantitySourceSelector() {
           ]" @update:model-value="emit('changeType')" />
         </div>
 
-        <label class="flex items-start gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2.5 text-sm"><input class="checkbox mt-0.5" v-model="component.enabled" type="checkbox" /><span><strong class="block font-medium">Include this cost in pricing</strong><small class="mt-0.5 block text-xs text-base-content/60">Turn this off to keep the setup without charging for it yet.</small></span></label>
-        <div v-if="componentIssues(component).length" class="rounded-box border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs leading-5 text-base-content/75"><strong class="block font-medium text-warning">Complete this cost before saving</strong><span>Choose or enter: {{ componentIssues(component).join(', ') }}.</span></div>
+        <label class="flex items-start gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2.5 text-sm"><input class="checkbox mt-0.5" v-model="component.enabled" type="checkbox" /><span><strong class="block font-medium">{{ $t("Include this cost in pricing") }}</strong><small class="mt-0.5 block text-xs text-base-content/60">{{ $t("Turn this off to keep the setup without charging for it yet.") }}</small></span></label>
+        <div v-if="componentIssues(component).length" class="rounded-box border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs leading-5 text-base-content/75"><strong class="block font-medium text-warning">{{ $t("Complete this cost before saving") }}</strong><span>{{ $t("Choose or enter:") }} {{ $ui(componentIssues(component).join(', ')) }}.</span></div>
 
         <div v-if="component.type === 'material'" class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-100 p-3">
-          <div><h4 class="text-sm font-semibold">Which material is used?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">Choose one fixed stock item, or let the operator choose the material when placing the order.</p></div>
-          <SelectField :model-value="materialSource(component)" label="Material selection" :options="[
+          <div><h4 class="text-sm font-semibold">{{ $t("Which material is used?") }}</h4><p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Choose one fixed stock item, or let the operator choose the material when placing the order.") }}</p></div>
+          <SelectField :model-value="materialSource(component)" :label='$t("Material selection")' :options="[
             { label: 'Always use one material', value: 'fixed' },
             { label: 'Let the operator choose a material', value: 'parameter' },
           ]" @update:model-value="updateMaterialSource(component, $event)" />
-          <SelectField v-if="materialSource(component) === 'fixed'" v-model="component.referenceId" label="Material" :invalid="props.showErrors && !component.referenceId" :options="[
+          <SelectField v-if="materialSource(component) === 'fixed'" v-model="component.referenceId" :label='$t("Material")' :invalid="props.showErrors && !component.referenceId" :options="[
             { label: 'Select an active material', value: '' },
             ...materials.filter((material) => material.active).map((material) => ({ label: `${material.name}${material.sku ? ` · ${material.sku}` : ''}`, value: material.id })),
           ]" />
           <div v-else class="space-y-2">
-            <SelectField v-model="component.parameterKey" label="Which operator input chooses it?" :invalid="props.showErrors && !component.parameterKey" :options="[
+            <SelectField v-model="component.parameterKey" :label='$t("Which operator input chooses it?")' :invalid="props.showErrors && !component.parameterKey" :options="[
               { label: 'Select a material or paper input', value: '' },
               ...materialParameters().map((parameter) => ({ label: `${parameter.label || parameter.key} · ${parameter.type === 'choice' ? 'choices' : 'materials'}`, value: parameter.key })),
             ]" />
-            <p class="text-xs leading-5 text-base-content/60">Connect this cost to an inventory-backed material input. The selected material ID is used in pricing.</p>
+            <p class="text-xs leading-5 text-base-content/60">{{ $t("Connect this cost to an inventory-backed material input. The selected material ID is used in pricing.") }}</p>
           </div>
         </div>
 
         <div v-else-if="component.type === 'machine'" class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-100 p-3">
-          <div><h4 class="text-sm font-semibold">Which machine does the work?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">Use one fixed machine, or let the operator choose a machine when placing the order.</p></div>
-          <SelectField :model-value="machineSource(component)" label="Machine selection" :options="[
+          <div><h4 class="text-sm font-semibold">{{ $t("Which machine does the work?") }}</h4><p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Use one fixed machine, or let the operator choose a machine when placing the order.") }}</p></div>
+          <SelectField :model-value="machineSource(component)" :label='$t("Machine selection")' :options="[
             { label: 'Always use one machine', value: 'fixed' },
             { label: 'Let the operator choose a machine', value: 'parameter' },
           ]" @update:model-value="updateMachineSource(component, $event)" />
-          <SelectField v-if="machineSource(component) === 'fixed'" v-model="component.referenceId" label="Machine" :invalid="props.showErrors && !component.referenceId" :options="[
+          <SelectField v-if="machineSource(component) === 'fixed'" v-model="component.referenceId" :label='$t("Machine")' :invalid="props.showErrors && !component.referenceId" :options="[
             { label: 'Select an active machine', value: '' },
             ...machines.filter((machine) => machine.active).map((machine) => ({ label: `${machine.name}${machine.code ? ` · ${machine.code}` : ''}`, value: machine.id })),
           ]" />
           <div v-else class="space-y-2">
-            <SelectField v-model="component.parameterKey" label="Which operator input chooses it?" :invalid="props.showErrors && !component.parameterKey" :options="[
+            <SelectField v-model="component.parameterKey" :label='$t("Which operator input chooses it?")' :invalid="props.showErrors && !component.parameterKey" :options="[
               { label: 'Select a machine input', value: '' },
               ...machineParameters().map((parameter) => ({ label: `${parameter.label || parameter.key} · ${parameter.type === 'choice' ? 'choices' : 'machines'}`, value: parameter.key })),
             ]" />
-            <p class="text-xs leading-5 text-base-content/60">Connect this cost to a machine input that stores an explicit machine ID.</p>
+            <p class="text-xs leading-5 text-base-content/60">{{ $t("Connect this cost to a machine input that stores an explicit machine ID.") }}</p>
           </div>
           <div class="space-y-2 border-t border-base-300 pt-4">
-            <SelectField v-if="machineSource(component) === 'fixed'" :model-value="component.rateId" label="Machine rate" :options="[
+            <SelectField v-if="machineSource(component) === 'fixed'" :model-value="component.rateId" :label='$t("Machine rate")' :options="[
               { label: machineRates(component).length ? 'Use the machine standard rate' : 'No rate profiles configured', value: '' },
-              ...machineRates(component).map((rate) => ({ label: `${rate.name} · ${rate.rateRial.toLocaleString()} / ${rate.rateBasis}`, value: rate.id })),
+              ...machineRates(component).map((rate) => ({ label: `${rate.name} · ${formatLocalizedNumber(rate.rateRial)} / ${rate.rateBasis}`, value: rate.id })),
             ]" @update:model-value="updateRateId(component, $event)" />
-            <SelectField :model-value="component.rateParameterKey" label="Rate varies with (optional)" :options="[
+            <SelectField :model-value="component.rateParameterKey" :label='$t("Rate varies with (optional)")' :options="[
               { label: 'Use the selected machine rate', value: '' },
               ...choiceParameters().map((parameter) => ({ label: `${parameter.label || parameter.key} · matches a machine rate`, value: parameter.key })),
             ]" @update:model-value="updateRateParameter(component, $event)" />
-            <p class="text-xs leading-5 text-base-content/60">For example, add “Black & white” and “Full color” rates to the machine, then connect this cost to the Color input. Each option is matched to the rate profile’s selector value or name.</p>
+            <p class="text-xs leading-5 text-base-content/60">{{ $t("For example, add “Black & white” and “Full color” rates to the machine, then connect this cost to the Color input. Each option is matched to the rate profile’s selector value or name.") }}</p>
           </div>
         </div>
 
         <div v-else-if="component.type === 'service'" class="min-w-0 space-y-4 rounded-box border border-base-300 bg-base-100 p-3">
-          <div><h4 class="text-sm font-semibold">Which service is included?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">The selected service's estimated cost will be included in this service. Its own components are evaluated using their default values.</p></div>
-          <SelectField v-model="component.referenceId" label="Service" :invalid="props.showErrors && !component.referenceId" :options="[
+          <div><h4 class="text-sm font-semibold">{{ $t("Which service is included?") }}</h4><p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("The selected service's estimated cost will be included in this service. Its own components are evaluated using their default values.") }}</p></div>
+          <SelectField v-model="component.referenceId" :label='$t("Service")' :invalid="props.showErrors && !component.referenceId" :options="[
             { label: 'Select an active service', value: '' },
             ...services.filter((service) => service.active && service.id !== currentServiceId).map((service) => ({ label: `${service.name}${service.code ? ` · ${service.code}` : ''}`, value: service.id })),
           ]" />
-          <p v-if="currentServiceId" class="text-xs leading-5 text-base-content/60">A service cannot include itself. Circular service dependencies are also rejected when you save.</p>
+          <p v-if="currentServiceId" class="text-xs leading-5 text-base-content/60">{{ $t("A service cannot include itself. Circular service dependencies are also rejected when you save.") }}</p>
         </div>
 
         <div v-if="usesQuantitySource()" class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
-          <div><h4 class="text-sm font-semibold">How much is used?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">Set the amount consumed for one service unit. Use an operator input when it changes with the order.</p></div>
-          <SelectField v-if="usesFixedQuantitySourceSelector()" v-model="component.usageMode" label="Quantity comes from" :options="[
+          <div><h4 class="text-sm font-semibold">{{ $t("How much is used?") }}</h4><p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Set the amount consumed for one service unit. Use an operator input when it changes with the order.") }}</p></div>
+          <SelectField v-if="usesFixedQuantitySourceSelector()" v-model="component.usageMode" :label='$t("Quantity comes from")' :options="[
             { label: 'A fixed amount', value: 'fixed' },
             { label: 'An operator input', value: 'parameter' },
           ]" />
           <FormGrid v-if="usesQuantityFields()">
-            <FormField class="gap-1"><span>Amount per service</span><AppInput v-model="component.usageQuantity" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.usageQuantity.trim() }" type="text" inputmode="decimal" placeholder="1" /></FormField>
-            <FormField class="gap-1"><span>Multiply by</span><AppInput v-model="component.multiplier" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.multiplier.trim() }" type="text" inputmode="decimal" placeholder="1" /></FormField>
+            <FormField class="gap-1"><span>{{ $t("Amount per service") }}</span><AppInput v-model="component.usageQuantity" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.usageQuantity.trim() }" type="text" inputmode="decimal" placeholder="1" /></FormField>
+            <FormField class="gap-1"><span>{{ $t("Multiply by") }}</span><AppInput v-model="component.multiplier" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.multiplier.trim() }" type="text" inputmode="decimal" placeholder="1" /></FormField>
           </FormGrid>
-          <SelectField v-if="component.usageMode === 'parameter' && usesFixedQuantitySourceSelector()" v-model="component.parameterKey" label="Which quantity input?" :invalid="props.showErrors && !component.parameterKey" :options="[
+          <SelectField v-if="component.usageMode === 'parameter' && usesFixedQuantitySourceSelector()" v-model="component.parameterKey" :label='$t("Which quantity input?")' :invalid="props.showErrors && !component.parameterKey" :options="[
             { label: 'Select a quantity input', value: '' },
             ...numericParameters().map((parameter) => ({ label: `${parameter.label || parameter.key}${parameter.unit ? ` · ${parameter.unit}` : ''}`, value: parameter.key })),
           ]" />
         </div>
 
         <div v-if="componentNeedsRate(component.type)" class="min-w-0 space-y-3 rounded-box border border-base-300 bg-base-100 p-3">
-          <div><h4 class="text-sm font-semibold">What does it cost?</h4><p class="mt-1 text-xs leading-5 text-base-content/60">Enter the rate for this cost. Material and machine rates come from their records.</p></div>
+          <div><h4 class="text-sm font-semibold">{{ $t("What does it cost?") }}</h4><p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Enter the rate for this cost. Material and machine rates come from their records.") }}</p></div>
           <FormGrid>
-            <FormField><span>{{ component.type === 'manual' ? 'Manual amount' : 'Rate' }} ({{ currencyUnit }})</span><AppInput :model-value="component.rateInput" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.rateInput.trim() }" :money="currencyUnit" type="text" inputmode="decimal" placeholder="0" @update:model-value="emit('changeRate', $event)" /></FormField>
-            <SelectField v-if="component.type === 'labor' || component.type === 'outsourced'" v-model="component.rateBasis" label="Rate is charged per" :options="[{ label: 'Unit', value: 'unit' }, { label: 'Minute', value: 'minute' }, { label: 'Hour', value: 'hour' }]" />
+            <FormField><span>{{ $ui(component.type === 'manual' ? 'Manual amount' : 'Rate') }} ({{ currencyUnit }})</span><AppInput :model-value="component.rateInput" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.rateInput.trim() }" :money="currencyUnit" type="text" inputmode="decimal" placeholder="0" @update:model-value="emit('changeRate', $event)" /></FormField>
+            <SelectField v-if="component.type === 'labor' || component.type === 'outsourced'" v-model="component.rateBasis" :label='$t("Rate is charged per")' :options="[{ label: 'Unit', value: 'unit' }, { label: 'Minute', value: 'minute' }, { label: 'Hour', value: 'hour' }]" />
           </FormGrid>
         </div>
 
         <div v-if="componentNeedsPercentage(component.type)" class="rounded-box border border-base-300 bg-base-100 p-3">
-          <FormField><span>{{ component.type === 'waste' ? 'Waste percentage' : 'Overhead percentage' }}</span><AppInput v-model="component.percentage" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.percentage.trim() }" type="text" inputmode="decimal" placeholder="For example, 7" /><small class="text-xs leading-5 text-base-content/60">Applied to the costs that come before this item.</small></FormField>
+          <FormField><span>{{ $ui(component.type === 'waste' ? 'Waste percentage' : 'Overhead percentage') }}</span><AppInput v-model="component.percentage" class="input w-full min-w-0" :class="{ 'input-error': props.showErrors && !component.percentage.trim() }" type="text" inputmode="decimal" :placeholder='$t("For example, 7")' /><small class="text-xs leading-5 text-base-content/60">{{ $t("Applied to the costs that come before this item.") }}</small></FormField>
         </div>
 
         <details class="rounded-box border border-base-300 bg-base-100 px-3 py-2">
-          <summary class="cursor-pointer text-xs font-semibold text-base-content/70">Optional note</summary>
-          <FormField class="mt-3"><span>Note for your team</span><AppInput v-model="component.notes" class="input w-full min-w-0" type="text" placeholder="Explain this cost or its source" /></FormField>
+          <summary class="cursor-pointer text-xs font-semibold text-base-content/70">{{ $t("Optional note") }}</summary>
+          <FormField class="mt-3"><span>{{ $t("Note for your team") }}</span><AppInput v-model="component.notes" class="input w-full min-w-0" type="text" :placeholder='$t("Explain this cost or its source")' /></FormField>
         </details>
       </div>
     </details>

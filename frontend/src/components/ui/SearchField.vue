@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { translateUi } from '../../i18n';
 import { Search } from 'lucide-vue-next';
 
 withDefaults(
@@ -33,7 +34,7 @@ defineExpose({ focus });
 
 <template>
   <label class="form-control min-w-0 gap-1">
-    <span v-if="label" class="text-xs leading-4 text-base-content/60">{{ label }}</span>
+    <span v-if="label" class="text-xs leading-4 text-base-content/60">{{ translateUi(label) }}</span>
     <span class="relative block min-w-0">
       <Search
         class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 text-base-content/70"
@@ -48,8 +49,8 @@ defineExpose({ focus });
         :value="modelValue"
         type="search"
         @keydown.enter.prevent
-        :placeholder="placeholder"
-        :aria-label="ariaLabel || label || undefined"
+        :placeholder="translateUi(placeholder)"
+        :aria-label="translateUi(ariaLabel || label || undefined)"
         autocomplete="off"
         @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       />

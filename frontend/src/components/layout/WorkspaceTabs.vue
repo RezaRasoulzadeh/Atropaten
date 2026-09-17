@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translateUi } from '../../i18n';
 defineProps<{
   tabs: string[];
   activeTab: string;
@@ -10,7 +11,7 @@ defineEmits<{ change: [tab: string] }>();
 <template>
   <nav
     class="flex gap-1 overflow-x-auto border-b border-base-300"
-    aria-label="Workspace tabs"
+    :aria-label='$t("Workspace tabs")'
     role="tablist"
   >
     <button
@@ -23,7 +24,7 @@ defineEmits<{ change: [tab: string] }>();
       role="tab"
       @click="$emit('change', tab)"
     >
-      {{ tab }}
+      {{ translateUi(tab) }}
     </button>
   </nav>
 </template>

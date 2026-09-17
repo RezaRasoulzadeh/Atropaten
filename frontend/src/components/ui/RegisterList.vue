@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translateUi } from '../../i18n';
 withDefaults(
   defineProps<{
     title: string;
@@ -18,8 +19,8 @@ withDefaults(
       class="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-base-300 px-4 py-3"
     >
       <div class="min-w-0">
-        <h2 class="truncate text-sm font-semibold">{{ title }}</h2>
-        <p v-if="subtitle" class="mt-0.5 text-xs leading-4 text-base-content/60">{{ subtitle }}</p>
+        <h2 class="truncate text-sm font-semibold">{{ translateUi(title) }}</h2>
+        <p v-if="subtitle" class="mt-0.5 text-xs leading-4 text-base-content/60">{{ translateUi(subtitle) }}</p>
       </div>
       <div class="flex shrink-0 items-center gap-2">
         <span v-if="count !== undefined" class="badge badge-sm badge-ghost text-xs leading-4 tabular-nums">{{ count }}</span>

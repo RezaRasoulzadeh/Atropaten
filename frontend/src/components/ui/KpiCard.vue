@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { translateUi } from '../../i18n';
 import type { Component } from 'vue';
 
 const props = withDefaults(
@@ -33,17 +34,17 @@ const auraTone = computed(() => accentClass[props.accent]);
     <article class="card h-full rounded-box border border-base-300 bg-base-100 shadow-none">
       <div class="card-body gap-2 p-4">
         <div class="flex items-center justify-between gap-3">
-          <span class="text-sm font-semibold text-base-content/80">{{ title }}</span>
+          <span class="text-sm font-semibold text-base-content/80">{{ translateUi(title) }}</span>
           <span :class="auraTone"
             ><component :is="icon" :size="16" :stroke-width="1.8" aria-hidden="true"
           /></span>
         </div>
-        <p v-if="!loading" class="m-0 text-2xl font-bold">{{ value }}</p>
-        <div v-else class="skeleton h-8 w-32 bg-base-300/70" aria-label="Loading value"></div>
+        <p v-if="!loading" class="m-0 text-2xl font-bold">{{ translateUi(value) }}</p>
+        <div v-else class="skeleton h-8 w-32 bg-base-300/70" :aria-label='$t("Loading value")'></div>
         <div class="flex items-center justify-between gap-2 text-xs text-base-content/60">
-          <span v-if="!loading">{{ detail }}</span>
+          <span v-if="!loading">{{ translateUi(detail) }}</span>
           <span v-else class="skeleton h-4 w-36 bg-base-300/70" aria-hidden="true"></span>
-          <span v-if="!loading" :class="auraTone">{{ trend }}</span>
+          <span v-if="!loading" :class="auraTone">{{ translateUi(trend) }}</span>
           <span v-else class="skeleton h-4 w-16 bg-base-300/70" aria-hidden="true"></span>
         </div>
       </div>

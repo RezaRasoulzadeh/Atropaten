@@ -25,6 +25,7 @@ type PrintLayout struct {
 	LengthMM         string  `json:"lengthMM"`
 	Rotated          bool    `json:"rotated"`
 	WastePercent     float64 `json:"wastePercent"`
+	WasteCostRial    int64   `json:"wasteCostRial"`
 	AreaM2           string  `json:"areaM2"`
 	OriginalLengthMM string  `json:"originalLengthMM,omitempty"`
 }
@@ -94,6 +95,9 @@ func CalculatePrintLayout(material Material, service Service, parameters map[str
 		if !ok {
 			return result, fmt.Errorf("material needs physical roll width")
 		}
+		if width > rw {
+			return result, fmt.Errorf("finished width cannot exceed the selected material width")
+		}
 		if rw <= 2*margin || rw > Quantity(math.MaxInt64)-gap {
 			return result, fmt.Errorf("invalid roll width or margins")
 		}
@@ -128,4 +132,44 @@ func CalculatePrintLayout(material Material, service Service, parameters map[str
 	result.WastePercent = math.Max(0, 100*(1-finishedArea/area))
 	result.AreaM2 = areaQuantity.String()
 	return result, nil
+}
+
+// CalculateMaterialWasteCost allocates the consumed material cost to the
+// unused area in a layout. The returned amount is informational: the full
+// consumed material cost already includes this waste.
+func CalculateMaterialWasteCost(layout PrintLayout, materialCostRial int64) (int64, error) {
+	if materialCostRial < 0 {
+		return 0, fmt.Errorf("material cost cannot be negative")
+	}
+	consumedArea, err := ParseQuantity(layout.AreaM2)
+	if err != nil || consumedArea <= 0 {
+		return 0, fmt.Errorf("layout material area must be positive")
+	}
+	width, err := ParseQuantity(layout.FinishedWidthMM)
+	if err != nil || width <= 0 {
+		return 0, fmt.Errorf("layout finished width must be positive")
+	}
+	height, err := ParseQuantity(layout.FinishedHeightMM)
+	if err != nil || height <= 0 {
+		return 0, fmt.Errorf("layout finished height must be positive")
+	}
+	quantity, err := ParseQuantity(layout.Quantity)
+	if err != nil || quantity <= 0 {
+		return 0, fmt.Errorf("layout quantity must be positive")
+	}
+	finishedArea := new(big.Int).Mul(big.NewInt(int64(width)), big.NewInt(int64(height)))
+	finishedArea.Mul(finishedArea, big.NewInt(int64(quantity)))
+	finishedArea.Quo(finishedArea, big.NewInt(QuantityScale*QuantityScale*1_000_000))
+	consumed := big.NewInt(int64(consumedArea))
+	if finishedArea.Cmp(consumed) >= 0 {
+		return 0, nil
+	}
+	wastedArea := new(big.Int).Sub(consumed, finishedArea)
+	numerator := new(big.Int).Mul(big.NewInt(materialCostRial), wastedArea)
+	numerator.Add(numerator, new(big.Int).Sub(consumed, big.NewInt(1)))
+	numerator.Quo(numerator, consumed)
+	if !numerator.IsInt64() {
+		return 0, fmt.Errorf("material waste cost exceeds Rial range")
+	}
+	return numerator.Int64(), nil
 }

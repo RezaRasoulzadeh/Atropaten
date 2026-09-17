@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Inbox } from 'lucide-vue-next'
+import { translateUi } from '../../i18n'
 
 withDefaults(
   defineProps<{
@@ -25,8 +26,8 @@ withDefaults(
       <slot name="icon"><Inbox :size="22" :stroke-width="1.7" aria-hidden="true" /></slot>
     </div>
     <div class="min-w-0 max-w-xl">
-      <h3 class="text-sm font-semibold leading-5">{{ title }}</h3>
-      <p v-if="description" class="mt-1 text-xs leading-5 text-base-content/60">{{ description }}</p>
+      <h3 class="text-sm font-semibold leading-5">{{ translateUi(title) }}</h3>
+      <p v-if="description" class="mt-1 text-xs leading-5 text-base-content/60">{{ translateUi(description) }}</p>
       <div v-if="$slots.action" class="empty-state-action mt-3"><slot name="action" /></div>
     </div>
   </section>

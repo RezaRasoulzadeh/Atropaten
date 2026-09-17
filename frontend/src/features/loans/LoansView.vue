@@ -90,77 +90,77 @@ onMounted(load)
     <WorkspaceStickyStack>
       <WorkspaceHeader
         :show-breadcrumb="true"
-        eyebrow="Finance / financing"
-        title="Loans"
-        description="Track payable and receivable loans, scheduled installments, overdue balances, and reversible payments."
+        :eyebrow='$t("Finance / financing")'
+        :title='$t("Loans")'
+        :description='$t("Track payable and receivable loans, scheduled installments, overdue balances, and reversible payments.")'
       >
         <button class="btn btn-primary" type="button" @click="emit('new-loan')">
-          <Plus :size="16" /> New loan
+          <Plus :size="16" /> {{ $t("New loan") }}
         </button>
       </WorkspaceHeader>
 
       <SearchFilterBar>
         <template #search>
-          <SearchField v-model="query" label="Search loans" placeholder="Loan, counterparty, or account" />
+          <SearchField v-model="query" :label='$t("Search loans")' :placeholder='$t("Loan, counterparty, or account")' />
         </template>
         <template #filters>
-          <SelectField v-model="view" label="View" :options="viewOptions" />
+          <SelectField v-model="view" :label='$t("View")' :options="viewOptions" />
         </template>
-        <template #count><span>{{ filtered.length }} of {{ rows.length }} loans</span></template>
+        <template #count><span>{{ filtered.length }} {{ $t("of") }} {{ rows.length }} {{ $t("loans") }}</span></template>
         <template #actions>
           <button v-if="query || view !== 'All'" class="btn btn-ghost btn-sm" type="button" @click="clearFilters">
-            Clear
+            {{ $t("Clear") }}
           </button>
         </template>
       </SearchFilterBar>
     </WorkspaceStickyStack>
 
-    <AppPanel title="Loan register" subtitle="Select a row to open the full loan workspace." :flush="true">
-      <template #action><span class="text-xs text-base-content/60">{{ filtered.length }} shown</span></template>
-      <LoadingState v-if="pageLoading" label="Loading loans…" />
+    <AppPanel :title='$t("Loan register")' :subtitle='$t("Select a row to open the full loan workspace.")' :flush="true">
+      <template #action><span class="text-xs text-base-content/60">{{ filtered.length }} {{ $t("shown") }}</span></template>
+      <LoadingState v-if="pageLoading" :label='$t("Loading loans…")' />
       <EmptyState
         v-else-if="!filtered.length"
-        title="No loans in this view"
-        :description="rows.length ? 'Adjust the search or view filter.' : 'Open a loan to start tracking a financing schedule.'"
+        :title='$t("No loans in this view")'
+        :description="$ui(rows.length ? 'Adjust the search or view filter.' : 'Open a loan to start tracking a financing schedule.')"
       >
         <template #icon><CircleDollarSign :size="22" aria-hidden="true" /></template>
         <template #action>
-          <button v-if="rows.length" class="btn btn-primary btn-sm" type="button" @click="clearFilters">Clear filters</button>
-          <button v-else class="btn btn-primary btn-sm gap-2" type="button" @click="emit('new-loan')"><Plus :size="15" aria-hidden="true" /> Create loan</button>
+          <button v-if="rows.length" class="btn btn-primary btn-sm" type="button" @click="clearFilters">{{ $t("Clear filters") }}</button>
+          <button v-else class="btn btn-primary btn-sm gap-2" type="button" @click="emit('new-loan')"><Plus :size="15" aria-hidden="true" /> {{ $t("Create loan") }}</button>
         </template>
       </EmptyState>
-      <DataTable v-else label="Loan register">
+      <DataTable v-else :label='$t("Loan register")'>
         <thead>
           <tr>
-            <th scope="col" class="w-[17%]">Loan</th>
-            <th scope="col" class="w-[23%]">Counterparty</th>
-            <th scope="col" class="w-[14%]">Type</th>
-            <th scope="col" class="w-[15%]">Started</th>
-            <th scope="col" class="w-[18%] text-end">Remaining</th>
-            <th scope="col" class="w-[13%]">Status</th>
+            <th scope="col" class="w-[17%]">{{ $t("Loan") }}</th>
+            <th scope="col" class="w-[23%]">{{ $t("Counterparty") }}</th>
+            <th scope="col" class="w-[14%]">{{ $t("Type") }}</th>
+            <th scope="col" class="w-[15%]">{{ $t("Started") }}</th>
+            <th scope="col" class="w-[18%] text-end">{{ $t("Remaining") }}</th>
+            <th scope="col" class="w-[13%]">{{ $t("Status") }}</th>
           </tr>
         </thead>
         <tbody>
           <DataTableRow v-for="value in filtered" :key="value.id" interactive @activate="emit('open-loan', value.id)">
             <DataTableCell>
               <strong class="block whitespace-nowrap text-sm">{{ value.loanNumber }}</strong>
-              <span class="mt-1 block text-xs text-base-content/55">{{ value.installments.length }} installments</span>
+              <span class="mt-1 block text-xs text-base-content/55">{{ value.installments.length }} {{ $t("installments") }}</span>
             </DataTableCell>
             <DataTableCell>
               <strong class="block max-w-56 truncate text-sm font-medium">{{ value.counterpartyName }}</strong>
-              <span class="mt-1 block max-w-56 truncate text-xs text-base-content/55">{{ value.financialAccountId || 'No account' }}</span>
+              <span class="mt-1 block max-w-56 truncate text-xs text-base-content/55">{{ $ui(value.financialAccountId || 'No account') }}</span>
             </DataTableCell>
             <DataTableCell>
-              <span class="block text-sm">{{ value.direction === 'payable' ? 'Payable' : 'Receivable' }}</span>
-              <span class="mt-1 block text-xs text-base-content/55">{{ formatMoney(value.principalRial, props.currencyUnit) }} principal</span>
+              <span class="block text-sm">{{ $ui(value.direction === 'payable' ? 'Payable' : 'Receivable') }}</span>
+              <span class="mt-1 block text-xs text-base-content/55">{{ formatMoney(value.principalRial, props.currencyUnit) }} {{ $t("principal") }}</span>
             </DataTableCell>
             <DataTableCell>
               <span class="block whitespace-nowrap text-sm">{{ date(value.startDate) }}</span>
-              <span class="mt-1 block whitespace-nowrap text-xs text-base-content/55">{{ value.endDate ? `Ends ${date(value.endDate)}` : 'Open term' }}</span>
+              <span class="mt-1 block whitespace-nowrap text-xs text-base-content/55">{{ $ui(value.endDate ? `Ends ${date(value.endDate)}` : 'Open term') }}</span>
             </DataTableCell>
             <DataTableCell numeric>
               <strong class="text-sm text-primary">{{ formatMoney(value.remainingPrincipalRial + value.remainingInterestRial, props.currencyUnit) }}</strong>
-              <span class="mt-1 block text-xs text-base-content/55">{{ value.overdueRial ? `${formatMoney(value.overdueRial, props.currencyUnit)} overdue` : 'On schedule' }}</span>
+              <span class="mt-1 block text-xs text-base-content/55">{{ $ui(value.overdueRial ? `${formatMoney(value.overdueRial, props.currencyUnit)} overdue` : 'On schedule') }}</span>
             </DataTableCell>
             <DataTableCell><StatusBadge :label="value.status" :tone="tone(value.status)" /></DataTableCell>
           </DataTableRow>

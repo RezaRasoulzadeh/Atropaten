@@ -8,7 +8,7 @@ defineProps<{
 <template>
   <section class="min-w-0 border-b border-base-300 pb-4 last:border-0 last:pb-0">
     <header class="mb-3">
-      <h3 class="text-sm font-semibold leading-5">{{ title }}</h3>
+      <h3 class="text-sm font-semibold leading-5">{{ $ui(title) }}</h3>
       <p v-if="description" class="mt-0.5 text-xs leading-4 text-base-content/60">{{ description }}</p>
     </header>
     <div class="grid gap-3 sm:grid-cols-2">

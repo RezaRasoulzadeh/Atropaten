@@ -58,8 +58,11 @@ import ToastHost from '../components/ui/ToastHost.vue';
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue';
 import EmptyState from '../components/ui/EmptyState.vue';
 import { normalizeError, useToast } from '../ui/feedback';
+import { useI18n } from 'vue-i18n';
+import { setLocale, type Locale } from '../i18n';
 
 interface NavigationItem {
+  view: string;
   label: string;
   icon: Component;
 }
@@ -76,44 +79,45 @@ interface SearchIndexEntry extends GlobalSearchResult {
   searchText: string;
 }
 
-const navigationSections: { label: string; items: NavigationItem[] }[] = [
+const { t, locale } = useI18n();
+const navigationSections = computed<{ label: string; items: NavigationItem[] }[]>(() => [
   {
-    label: 'Workspace',
+    label: t('navigation.sections.workspace'),
     items: [
-      { label: 'Dashboard', icon: LayoutDashboard },
-      { label: 'Orders', icon: ClipboardList },
-      { label: 'Production', icon: Printer },
-      { label: 'Customers', icon: Users },
+      { view: 'Dashboard', label: t('navigation.views.Dashboard'), icon: LayoutDashboard },
+      { view: 'Orders', label: t('navigation.views.Orders'), icon: ClipboardList },
+      { view: 'Production', label: t('navigation.views.Production'), icon: Printer },
+      { view: 'Customers', label: t('navigation.views.Customers'), icon: Users },
     ],
   },
   {
-    label: 'Catalog & purchasing',
+    label: t('navigation.sections.catalog'),
     items: [
-      { label: 'Services', icon: BriefcaseBusiness },
-      { label: 'Materials', icon: Package },
-      { label: 'Machines', icon: Factory },
-      { label: 'Purchases', icon: ShoppingCart },
-      { label: 'Suppliers', icon: Truck },
+      { view: 'Services', label: t('navigation.views.Services'), icon: BriefcaseBusiness },
+      { view: 'Materials', label: t('navigation.views.Materials'), icon: Package },
+      { view: 'Machines', label: t('navigation.views.Machines'), icon: Factory },
+      { view: 'Purchases', label: t('navigation.views.Purchases'), icon: ShoppingCart },
+      { view: 'Suppliers', label: t('navigation.views.Suppliers'), icon: Truck },
     ],
   },
   {
-    label: 'Finance',
+    label: t('navigation.sections.finance'),
     items: [
-      { label: 'Accounting', icon: Calculator },
-      { label: 'Invoices', icon: ReceiptText },
-      { label: 'Checks', icon: Landmark },
-      { label: 'Loans', icon: CircleDollarSign },
-      { label: 'Owners', icon: UserRound },
+      { view: 'Accounting', label: t('navigation.views.Accounting'), icon: Calculator },
+      { view: 'Invoices', label: t('navigation.views.Invoices'), icon: ReceiptText },
+      { view: 'Checks', label: t('navigation.views.Checks'), icon: Landmark },
+      { view: 'Loans', label: t('navigation.views.Loans'), icon: CircleDollarSign },
+      { view: 'Owners', label: t('navigation.views.Owners'), icon: UserRound },
     ],
   },
   {
-    label: 'Insights & setup',
+    label: t('navigation.sections.insights'),
     items: [
-      { label: 'Reports', icon: BarChart3 },
-      { label: 'Settings', icon: Settings },
+      { view: 'Reports', label: t('navigation.views.Reports'), icon: BarChart3 },
+      { view: 'Settings', label: t('navigation.views.Settings'), icon: Settings },
     ],
   },
-];
+]);
 
 const activeView = ref('Dashboard');
 const isSidebarCollapsed = ref(false);
@@ -151,6 +155,11 @@ const payments = ref<PaymentRecord[]>([]);
 const transfers = ref<TransferRecord[]>([]);
 const globalSearchLoading = ref(true);
 const toast = useToast();
+const selectedLocale = computed(() => locale.value as Locale);
+
+function changeLocale(value: Locale) {
+  setLocale(value);
+}
 
 function searchValue(value: unknown) {
   return value == null ? '' : String(value);
@@ -253,9 +262,9 @@ const searchResults = computed(() => {
 });
 
 const currentView = computed(() => ({
-  eyebrow: 'Atropaten workspace',
-  title: activeView.value,
-  description: 'This workspace is ready for the next product milestone.',
+  eyebrow: t('workspace.eyebrow'),
+  title: t(`navigation.views.${activeView.value}`),
+  description: t('workspace.description'),
 }));
 
 function selectView(label: string) {
@@ -522,16 +531,18 @@ function showToast(message: string) {
 
     <div class="drawer-content grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)]">
       <AppToolbar
-        class="sticky top-0 z-20"
+        class="sticky top-0 z-50"
         :search-query="searchQuery"
         :search-results="searchResults"
         :search-loading="globalSearchLoading"
         :currency-unit="currencyUnit"
+        :locale="selectedLocale"
         :collapsed="toolbarCollapsed"
         @toggle-sidebar="toggleSidebar"
         @update:search-query="searchQuery = $event"
         @select-search-result="selectSearchResult"
         @update:currency-unit="currencyUnit = $event"
+        @update:locale="changeLocale"
         @new-order="openNewOrder"
         @navigate="selectView"
       >
@@ -727,12 +738,12 @@ function showToast(message: string) {
           <EmptyState
             v-else
             key="empty"
-            title="Workspace view unavailable"
-            :description="`${currentView.title} is not available yet. Return to the dashboard to continue.`"
+            :title="t('navigation.unavailable')"
+            :description="t('navigation.unavailableDescription', { view: currentView.title })"
           >
             <template #action>
               <button class="btn btn-primary" type="button" @click="selectView('Dashboard')">
-                Back to dashboard
+                {{ t('navigation.backToDashboard') }}
               </button>
             </template>
           </EmptyState>
@@ -743,7 +754,7 @@ function showToast(message: string) {
     <div class="drawer-side z-30">
       <label
         for="atropaten-drawer"
-        aria-label="Close navigation"
+        :aria-label="t('navigation.close')"
         class="drawer-overlay"
         @click.prevent="isDrawerOpen = false"
       ></label>
@@ -751,7 +762,7 @@ function showToast(message: string) {
         ref="drawerPanel"
         class="flex h-full min-h-full max-h-full flex-col overflow-hidden border-e border-base-300 bg-base-100"
         :class="sidebarCollapsed ? 'w-[4.5rem]' : 'w-[14.5rem]'"
-        aria-label="Primary navigation"
+        :aria-label="t('navigation.primary')"
       >
         <div
           class="navbar min-h-16 shrink-0 border-b border-base-300 bg-base-100"
@@ -761,11 +772,11 @@ function showToast(message: string) {
             class="grid size-8 shrink-0 place-items-center rounded bg-primary font-bold text-primary-content"
             aria-hidden="true"
           >
-            A
+            {{ $t("A") }}
           </div>
           <div v-if="!sidebarCollapsed" class="min-w-0">
-            <span class="block truncate text-sm font-bold">Atropaten</span>
-            <span class="block text-xs leading-4 text-base-content/60">Print shop control</span>
+            <span class="block truncate text-sm font-bold">{{ $t("Atropaten") }}</span>
+            <span class="block text-xs leading-4 text-base-content/60">{{ t('brand.tagline') }}</span>
           </div>
         </div>
 
@@ -781,12 +792,12 @@ function showToast(message: string) {
             </p>
             <SidebarNavItem
               v-for="item in section.items"
-              :key="item.label"
+              :key="item.view"
               :label="item.label"
               :icon="item.icon"
-              :active="activeView === item.label"
+              :active="activeView === item.view"
               :collapsed="sidebarCollapsed"
-              @select="selectView(item.label)"
+              @select="selectView(item.view)"
             />
           </div>
         </nav>
@@ -794,9 +805,9 @@ function showToast(message: string) {
         <div class="shrink-0 border-t border-base-300 p-3 text-xs text-base-content/60">
           <div class="flex items-center gap-2">
             <span class="size-2 shrink-0 rounded-full bg-success" aria-hidden="true"></span>
-            <span v-if="!sidebarCollapsed">Local workspace</span>
+            <span v-if="!sidebarCollapsed">{{ t('brand.localWorkspace') }}</span>
           </div>
-          <div v-if="!sidebarCollapsed" class="mt-1 text-xs leading-4">v0.1</div>
+          <div v-if="!sidebarCollapsed" class="mt-1 text-xs leading-4">{{ $t("v0.1") }}</div>
         </div>
       </aside>
     </div>

@@ -51,25 +51,25 @@ function valueLabel(parameter: ParameterForm) {
 <template>
   <div class="min-w-0 space-y-4">
     <ServiceOverviewIdentity v-if="showIdentity !== false" :form="form" :active="active" />
-    <ServiceOverviewSection title="Order fields" description="Values customers will see when ordering this service.">
+    <ServiceOverviewSection :title='$t("Order fields")' :description='$t("Values customers will see when ordering this service.")'>
       <div v-if="form.parameters.length" class="divide-y divide-base-300/70">
         <div v-for="parameter in form.parameters" :key="parameter.id" class="flex min-w-0 items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
           <div class="min-w-0">
-            <span class="block truncate text-sm">{{ parameter.label || 'Parameter' }}<em v-if="parameter.required" class="text-error"> *</em></span>
-            <small v-if="parameter.unit || parameter.minValue || parameter.maxValue" class="mt-1 block text-xs leading-4 text-base-content/55">{{ parameter.unit || form.defaultUnit }}<span v-if="parameter.minValue"> · min {{ parameter.minValue }}</span><span v-if="parameter.maxValue"> · max {{ parameter.maxValue }}</span></small>
+            <span class="block truncate text-sm">{{ $ui(parameter.label || 'Parameter') }}<em v-if="parameter.required" class="text-error"> *</em></span>
+            <small v-if="parameter.unit || parameter.minValue || parameter.maxValue" class="mt-1 block text-xs leading-4 text-base-content/55">{{ $ui(parameter.unit || form.defaultUnit) }}<span v-if="parameter.minValue"> {{ $t("· min") }} {{ parameter.minValue }}</span><span v-if="parameter.maxValue"> {{ $t("· max") }} {{ parameter.maxValue }}</span></small>
           </div>
           <span class="max-w-[58%] break-words text-end text-sm text-base-content/75">{{ valueLabel(parameter) }}</span>
         </div>
       </div>
-      <p v-else class="text-sm leading-5 text-base-content/60">Choose a parameter template to preview the order form.</p>
+      <p v-else class="text-sm leading-5 text-base-content/60">{{ $t("Choose a parameter template to preview the order form.") }}</p>
     </ServiceOverviewSection>
-    <ServiceOverviewSection v-if="showMaterialEstimate !== false && materialGroups.length" title="Estimated material cost" description="Based on the selected default in each material group.">
+    <ServiceOverviewSection v-if="showMaterialEstimate !== false && materialGroups.length" :title='$t("Estimated material cost")' :description='$t("Based on the selected default in each material group.")'>
       <div v-if="selectedDefaultMaterial" class="flex min-w-0 items-center justify-between gap-3">
-        <div class="min-w-0"><strong class="block truncate text-sm">{{ selectedDefaultMaterial.name }}</strong><small class="mt-1 block truncate text-xs text-base-content/55">Default material{{ selectedDefaultMaterial.sku ? ` · ${selectedDefaultMaterial.sku}` : '' }}</small></div>
-        <strong class="shrink-0 text-sm tabular-nums">{{ formatMoney(selectedDefaultMaterialCost, currencyUnit || 'Rial') }}</strong>
+        <div class="min-w-0"><strong class="block truncate text-sm">{{ selectedDefaultMaterial.name }}</strong><small class="mt-1 block truncate text-xs text-base-content/55">{{ $t("Default material") }}{{ $ui(selectedDefaultMaterial.sku ? ` · ${selectedDefaultMaterial.sku}` : '') }}</small></div>
+        <strong class="shrink-0 text-sm tabular-nums">{{ $ui(formatMoney(selectedDefaultMaterialCost, currencyUnit || 'Rial')) }}</strong>
       </div>
-      <p v-else class="rounded-box border border-dashed border-warning/40 bg-warning/5 p-3 text-xs leading-5 text-warning">Choose a default for every material group and map that combination to an inventory material to see its estimate.</p>
+      <p v-else class="rounded-box border border-dashed border-warning/40 bg-warning/5 p-3 text-xs leading-5 text-warning">{{ $t("Choose a default for every material group and map that combination to an inventory material to see its estimate.") }}</p>
     </ServiceOverviewSection>
   </div>
-  <div class="mt-4 flex gap-2 border-t border-base-300 pt-3 text-xs leading-5 text-base-content/70"><Eye class="mt-0.5 shrink-0 text-info" :size="16" aria-hidden="true" /><span>This is a live preview. Changes to parameters are reflected here immediately.</span></div>
+  <div class="mt-4 flex gap-2 border-t border-base-300 pt-3 text-xs leading-5 text-base-content/70"><Eye class="mt-0.5 shrink-0 text-info" :size="16" aria-hidden="true" /><span>{{ $t("This is a live preview. Changes to parameters are reflected here immediately.") }}</span></div>
 </template>

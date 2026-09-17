@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import WorkspaceBreadcrumb from './WorkspaceBreadcrumb.vue';
+import { translateUi } from '../../i18n';
 
 defineProps<{
   eyebrow?: string;
@@ -19,13 +20,13 @@ function navigateBreadcrumb(index: number) {
     <div class="flex min-w-0 items-end gap-3">
       <div v-if="$slots.leading" class="shrink-0"><slot name="leading" /></div>
       <div class="min-w-0">
-      <p class="mb-0.5 text-xs font-semibold leading-4 text-primary">{{ eyebrow }}</p>
+      <p class="mb-0.5 text-xs font-semibold leading-4 text-primary">{{ translateUi(eyebrow) }}</p>
       <div class="flex min-w-0 items-center gap-2">
-        <h1 class="m-0 min-w-0 truncate text-2xl font-bold leading-8 tracking-tight text-primary">{{ title }}</h1>
+        <h1 class="m-0 min-w-0 truncate text-2xl font-bold leading-8 tracking-tight text-primary">{{ translateUi(title) }}</h1>
         <slot name="title-suffix" />
       </div>
       <p v-if="description" class="mt-0.5 max-w-[80vw] text-xs leading-4 text-base-content/65">
-        {{ description }}
+        {{ translateUi(description) }}
       </p>
       <WorkspaceBreadcrumb
         v-if="showBreadcrumb"

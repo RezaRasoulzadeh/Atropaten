@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { translateUi } from '../../i18n';
 withDefaults(
   defineProps<{
     label: string;
@@ -18,8 +19,8 @@ withDefaults(
       size === 'sm' ? 'btn-sm h-8 min-h-8 w-8' : 'h-10 min-h-10 w-10',
     ]"
     :type="type"
-    :aria-label="label"
-    :title="label"
+    :aria-label="translateUi(label)"
+    :title="translateUi(label)"
     :disabled="disabled"
   >
     <slot />
