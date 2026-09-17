@@ -136,15 +136,28 @@ jobs:
           "installer=$($installer.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "checksum=$checksumFile" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
-      - name: Create draft GitHub release
+      - name: Update Windows prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          gh release create $env:GITHUB_REF_NAME `
-            "${{ steps.package.outputs.installer }}" `
-            "${{ steps.package.outputs.checksum }}" `
-            --title "Atropaten $env:GITHUB_REF_NAME for Windows x64" `
-            --generate-notes `
-            --draft `
-            --verify-tag
+          $tag = $env:GITHUB_REF_NAME
+          $title = "Atropaten $tag Beta for Windows x64"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag `
+              "${{ steps.package.outputs.installer }}" `
+              "${{ steps.package.outputs.checksum }}" `
+              --clobber
+            gh release edit $tag `
+              --title $title `
+              --prerelease
+          } else {
+            gh release create $tag `
+              "${{ steps.package.outputs.installer }}" `
+              "${{ steps.package.outputs.checksum }}" `
+              --title $title `
+              --generate-notes `
+              --prerelease `
+              --verify-tag
+          }
