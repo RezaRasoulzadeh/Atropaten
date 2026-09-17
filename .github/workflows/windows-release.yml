@@ -1,0 +1,135 @@
+name: Windows release candidate
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  windows-release-candidate:
+    runs-on: windows-2022
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Check tag matches application version
+        shell: pwsh
+        run: |
+          $project = Get-Content wails.json -Raw | ConvertFrom-Json
+          $metadataVersion = $project.info.productVersion
+          $source = Get-Content internal/platform/paths.go -Raw
+          if ($source -notmatch 'const\s+ApplicationVersion\s*=\s*"([^"]+)"') {
+            throw 'ApplicationVersion was not found in internal/platform/paths.go.'
+          }
+          $applicationVersion = $Matches[1]
+          if ($applicationVersion -ne $metadataVersion) {
+            throw "Application version '$applicationVersion' does not match Windows metadata version '$metadataVersion'."
+          }
+
+          $expectedTag = "v$metadataVersion"
+          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+            throw "Release tag '$env:GITHUB_REF_NAME' must match product version '$expectedTag'."
+          }
+
+      - name: Install Windows build tools
+        shell: pwsh
+        run: |
+          choco install nsis --yes --no-progress
+
+          $nsisPath = "${env:ProgramFiles(x86)}\NSIS"
+          if (-not (Test-Path (Join-Path $nsisPath 'makensis.exe'))) {
+            throw "NSIS installation did not provide makensis.exe at '$nsisPath'."
+          }
+          $nsisPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+          $gccCandidates = @(
+            'C:\msys64\mingw64\bin',
+            'C:\msys64\ucrt64\bin',
+            'C:\mingw64\bin'
+          )
+          $gccPath = $gccCandidates | Where-Object { Test-Path (Join-Path $_ 'gcc.exe') } | Select-Object -First 1
+          if (-not $gccPath) {
+            throw 'A MinGW GCC toolchain is required for the SQLite cgo driver.'
+          }
+          $gccPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Test Go backend
+        run: go test ./...
+
+      - name: Test order and service forms
+        working-directory: frontend
+        run: npm run test:forms
+
+      - name: Test English and Persian UI
+        working-directory: frontend
+        run: npm run test:i18n
+
+      - name: Test purchase payment flow
+        working-directory: frontend
+        run: npm run test:purchases
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install Wails CLI
+        shell: pwsh
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+          $goBin = Join-Path (go env GOPATH) 'bin'
+          $goBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Build Windows 10 x64 app and installer
+        run: wails build --clean --target windows/amd64 --nsis
+
+      - name: Verify installer and calculate checksum
+        id: package
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem build/bin -Filter '*installer.exe' | Select-Object -First 1
+          if (-not $installer -or $installer.Length -le 0) {
+            throw 'Wails did not produce a Windows NSIS installer.'
+          }
+
+          $exe = Get-Item build/bin/Atropaten.exe -ErrorAction SilentlyContinue
+          if (-not $exe -or $exe.Length -le 0) {
+            throw 'Wails did not produce build/bin/Atropaten.exe.'
+          }
+
+          $checksumFile = Join-Path $installer.DirectoryName "$($installer.Name).sha256"
+          $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($installer.Name)" | Set-Content -Path $checksumFile -Encoding ascii
+
+          "installer=$($installer.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "checksum=$checksumFile" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Create draft GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release create $env:GITHUB_REF_NAME `
+            "${{ steps.package.outputs.installer }}" `
+            "${{ steps.package.outputs.checksum }}" `
+            --title "Atropaten $env:GITHUB_REF_NAME for Windows x64" `
+            --generate-notes `
+            --draft `
+            --verify-tag
