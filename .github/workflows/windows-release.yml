@@ -71,9 +71,6 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Test Go backend
-        run: go test ./...
-
       - name: Test order and service forms
         working-directory: frontend
         run: npm run test:forms
@@ -89,6 +86,9 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: npm run build
+
+      - name: Test Go backend
+        run: go test ./...
 
       - name: Install Wails CLI
         shell: pwsh
