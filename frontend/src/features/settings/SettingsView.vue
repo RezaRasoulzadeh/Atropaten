@@ -83,7 +83,25 @@ async function chooseAttachmentDirectory() {
 return runAction(async () => {
   try {
     const path = await reportsApi.selectAttachmentDirectory();
-    if (path) form.value.attachmentDirectory = path;
+    if (path) {
+      const persistedSettings = await reportsApi.settings();
+      await reportsApi.saveSettings({...persistedSettings, attachmentDirectory: path});
+      form.value.attachmentDirectory = path;
+      paths.value = await reportsApi.dataPaths();
+    }
+  } catch (e) {
+reportError(e);
+  }
+
+});
+}
+async function resetAttachmentDirectory() {
+return runAction(async () => {
+  try {
+    const persistedSettings = await reportsApi.settings();
+    await reportsApi.saveSettings({...persistedSettings, attachmentDirectory: ''});
+    form.value.attachmentDirectory = '';
+    paths.value = await reportsApi.dataPaths();
   } catch (e) {
 reportError(e);
   }
@@ -190,7 +208,7 @@ reportError(e);
 <AppPanel :title='$t("Backup & restore")' :subtitle='$t("Backups include the database and managed files.")'>
 <dl v-if="paths" class="space-y-3 text-sm"><div v-for="item in [{label:'Data location',value:paths.root},{label:'Database',value:paths.database},{label:'Version / schema',value:paths.applicationVersion+' · v'+paths.schemaVersion},{label:'Backups folder',value:paths.backups}]" :key="item.label"><dt class="text-xs text-base-content/60">{{$ui(item.label)}}</dt><dd class="mt-1 wrap-anywhere">{{item.value}}</dd></div></dl>
 <div class="space-y-3 border-t border-base-300 pt-3">
-<div class="space-y-2"><div><h3 class="text-sm font-semibold">{{ $t("File storage") }}</h3><p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Choose the global folder where new order attachments are stored.") }}</p></div><FormField :label='$t("Attachments directory")' :help='$t("Leave empty to use Atropaten’s application-managed folder.")'><div class="flex min-w-0 gap-2"><AppInput :model-value="form.attachmentDirectory || paths?.attachments || 'Application-managed attachments folder'" readonly /><button class="btn btn-outline shrink-0" type="button" :disabled="busy || backupBusy" @click="chooseAttachmentDirectory">{{ $t("Browse") }}</button><button v-if="form.attachmentDirectory" class="btn btn-ghost shrink-0" type="button" :disabled="busy || backupBusy" @click="form.attachmentDirectory = ''">{{ $t("Reset") }}</button></div></FormField></div>
+<div class="space-y-2"><div><h3 class="text-sm font-semibold">{{ $t("File storage") }}</h3><p class="mt-1 text-xs leading-5 text-base-content/60">{{ $t("Choose the global folder where new order attachments are stored.") }}</p></div><FormField :label='$t("Attachments directory")' :help='$t("Leave empty to use Atropaten’s application-managed folder.")'><div class="flex min-w-0 gap-2"><AppInput :model-value="form.attachmentDirectory || paths?.attachments || 'Application-managed attachments folder'" readonly /><button class="btn btn-outline shrink-0" type="button" :disabled="busy || backupBusy" @click="chooseAttachmentDirectory">{{ $t("Browse") }}</button><button v-if="form.attachmentDirectory" class="btn btn-ghost shrink-0" type="button" :disabled="busy || backupBusy" @click="resetAttachmentDirectory">{{ $t("Reset") }}</button></div></FormField></div>
 <FormField :label='$t("Backup directory")' :help='$t("Leave empty to use the application-managed backups folder.")'><div class="flex min-w-0 gap-2"><AppInput v-model="form.backupDirectory" :placeholder='$t("Application-managed backup folder")' /><button class="btn btn-outline shrink-0" type="button" :disabled="busy || backupBusy" @click="chooseBackupDirectory">{{ $t("Browse") }}</button></div></FormField>
 <div class="flex flex-wrap gap-2"><button class="btn btn-primary" type="button" :disabled="backupBusy || busy" @click="createBackup">{{ $t("Create backup") }}</button><button class="btn btn-outline" type="button" :disabled="backupBusy || busy" @click="chooseBackup">{{ $t("Choose backup") }}</button></div>
 </div>

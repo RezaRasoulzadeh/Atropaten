@@ -49,6 +49,18 @@ func (a *App) syncBackupDirectory(s *platform.BackupService) error {
 	return s.SetAttachmentsDirectory(settings.AttachmentDirectory)
 }
 
+func (a *App) syncAttachmentDirectory(s *platform.BackupService) error {
+	reporting, err := a.reportingService()
+	if err != nil {
+		return err
+	}
+	settings, err := reporting.ShopSettings(a.materialContext())
+	if err != nil {
+		return err
+	}
+	return s.SetAttachmentsDirectory(settings.AttachmentDirectory)
+}
+
 func (a *App) GetDataPaths() (DataPathsDTO, error) {
 	s, err := a.backupService()
 	if err != nil {

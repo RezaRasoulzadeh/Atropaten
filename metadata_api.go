@@ -143,6 +143,13 @@ func (a *App) ImportAttachment(ownerType, ownerID, fileName, mimeType, contentBa
 	if e != nil {
 		return AttachmentDTO{}, e
 	}
+	backup, e := a.backupService()
+	if e != nil {
+		return AttachmentDTO{}, e
+	}
+	if e = a.syncAttachmentDirectory(backup); e != nil {
+		return AttachmentDTO{}, fmt.Errorf("sync attachment directory: %w", e)
+	}
 	ownerType = strings.TrimSpace(ownerType)
 	ownerID = strings.TrimSpace(ownerID)
 	fileName = filepath.Base(strings.ReplaceAll(strings.TrimSpace(fileName), "\\", "/"))
@@ -157,12 +164,7 @@ func (a *App) ImportAttachment(ownerType, ownerID, fileName, mimeType, contentBa
 		return AttachmentDTO{}, fmt.Errorf("attachment file is empty")
 	}
 
-	directoryRoot := a.paths.Attachments
-	if reporting, reportingErr := a.reportingService(); reportingErr == nil {
-		if settings, settingsErr := reporting.ShopSettings(a.materialContext()); settingsErr == nil && strings.TrimSpace(settings.AttachmentDirectory) != "" {
-			directoryRoot = strings.TrimSpace(settings.AttachmentDirectory)
-		}
-	}
+	directoryRoot := backup.Paths().Attachments
 	directory, e := filepath.Abs(filepath.Join(directoryRoot, ownerType, ownerID))
 	if e != nil {
 		return AttachmentDTO{}, fmt.Errorf("resolve attachment directory: %w", e)
