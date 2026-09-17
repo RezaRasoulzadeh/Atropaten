@@ -94,7 +94,18 @@ async function createBackup() {
 return runAction(async () => {
   backupBusy.value = true;
   try {
-    lastBackup.value = await reportsApi.createBackup();
+    // The directory picker updates the form immediately, but the Go backup
+    // service reads the persisted setting. Save only this setting first so a
+    // newly selected folder is the folder that actually receives the archive.
+    const persistedSettings = await reportsApi.settings();
+    if ((persistedSettings.backupDirectory ?? '').trim() !== form.value.backupDirectory.trim()) {
+      await reportsApi.saveSettings({
+        ...persistedSettings,
+        backupDirectory: form.value.backupDirectory,
+      });
+      paths.value = await reportsApi.dataPaths();
+    }
+    lastBackup.value = await reportsApi.createBackup(form.value.backupDirectory);
     backupPath.value = lastBackup.value.path;
     emit('notify', 'Backup created and verified.');
   } catch (e) {

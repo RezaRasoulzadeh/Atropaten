@@ -47,6 +47,8 @@ export function CloseFiscalPeriod(arg1:string,arg2:string):Promise<main.FiscalPe
 
 export function CreateBackup():Promise<main.BackupInfoDTO>;
 
+export function CreateBackupTo(arg1:string):Promise<main.BackupInfoDTO>;
+
 export function CreateCheck(arg1:main.CheckInputDTO):Promise<main.CheckDTO>;
 
 export function CreateCustomer(arg1:main.CustomerInput):Promise<main.CustomerDTO>;

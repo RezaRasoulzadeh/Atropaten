@@ -90,6 +90,10 @@ export function CreateBackup() {
   return window['go']['main']['App']['CreateBackup']();
 }
 
+export function CreateBackupTo(arg1) {
+  return window['go']['main']['App']['CreateBackupTo'](arg1);
+}
+
 export function CreateCheck(arg1) {
   return window['go']['main']['App']['CreateCheck'](arg1);
 }

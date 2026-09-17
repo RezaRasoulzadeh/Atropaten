@@ -1,5 +1,5 @@
 import {
-  CreateBackup,
+  CreateBackupTo,
   GetDataPaths,
   GetDashboard,
   GetLastBackup,
@@ -199,8 +199,8 @@ export const reportsApi = {
   lastBackup() {
     return GetLastBackup() as unknown as Promise<BackupInfoRecord>
   },
-  createBackup() {
-    return CreateBackup() as unknown as Promise<BackupInfoRecord>
+  createBackup(directory = '') {
+    return CreateBackupTo(directory) as unknown as Promise<BackupInfoRecord>
   },
   verifyBackup(path: string) {
     return VerifyBackup(path) as unknown as Promise<BackupInfoRecord>

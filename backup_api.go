@@ -75,6 +75,20 @@ func (a *App) CreateBackup() (BackupInfoDTO, error) {
 	v, err := s.Create(a.materialContext())
 	return backupInfoDTO(v), err
 }
+func (a *App) CreateBackupTo(directory string) (BackupInfoDTO, error) {
+	s, err := a.backupService()
+	if err != nil {
+		return BackupInfoDTO{}, err
+	}
+	// The destination comes from the current settings screen. Apply it
+	// directly for this request so a stale persisted setting cannot redirect
+	// the archive back to the application-managed folder.
+	if err = s.SetBackupDirectory(directory); err != nil {
+		return BackupInfoDTO{}, err
+	}
+	v, err := s.Create(a.materialContext())
+	return backupInfoDTO(v), err
+}
 func (a *App) VerifyBackup(path string) (BackupInfoDTO, error) {
 	s, err := a.backupService()
 	if err != nil {
