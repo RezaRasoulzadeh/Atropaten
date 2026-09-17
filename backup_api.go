@@ -99,6 +99,12 @@ func (a *App) RestoreBackup(path string) (BackupInfoDTO, error) {
 	if err != nil {
 		return BackupInfoDTO{}, err
 	}
+	// Restore uses the currently configured attachment root for the staged
+	// managed files. Re-read settings before swapping so a restart does not
+	// silently restore into the default directory instead of the saved one.
+	if err = a.syncBackupDirectory(s); err != nil {
+		return BackupInfoDTO{}, err
+	}
 	v, err := s.Restore(a.materialContext(), path, a.closeForRestore, a.reopenAfterRestore)
 	return backupInfoDTO(v), err
 }

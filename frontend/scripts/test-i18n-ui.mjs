@@ -53,7 +53,7 @@ const cases = [
   ['3 line items', '3 آیتم فاکتور'],
   ['4 scheduled installments', '4 قسط زمان‌بندی‌شده'],
   ['Select cash or bank account', 'انتخاب حساب نقدی یا بانکی'],
-  ['Always use one material', 'همیشه از یک مادهٔ اولیه استفاده شود'],
+  ['Always use one material', 'همیشه از یک مادهٔ اولیه استفاده بشه'],
   ['Configured usage / finished piece', 'مصرف تنظیم‌شده برای هر قطعهٔ نهایی'],
   ['Movements', 'گردش‌ها'],
   ['Data location', 'محل ذخیرهٔ داده‌ها'],
@@ -65,6 +65,19 @@ const cases = [
   ['Ink', 'جوهر'],
   ['Chemical', 'مواد شیمیایی'],
   ['free', 'آزاد'],
+  ['On receipt', 'هنگام دریافت'],
+  ['Cost per', 'هزینهٔ هر'],
+  ['Accounts', 'حساب‌ها'],
+  ['Transfers / Treasury', 'انتقال‌ها / خزانه‌داری'],
+  ['Profit Allocation', 'تقسیم سود'],
+  ['Payments', 'پرداخت‌ها'],
+  ['posted', 'ثبت‌شده'],
+  ['reversed', 'برگشت‌خورده'],
+  ['Posted purchase PUR-1001', 'خرید ثبت‌شده PUR-1001'],
+  ['Posted invoice INV-1001', 'فاکتور ثبت‌شده INV-1001'],
+  ['receive check CHK-1001', 'دریافت چک CHK-1001'],
+  ['invoice cogs', 'بهای تمام‌شدهٔ فاکتور'],
+  ['payment allocation adjustment', 'اصلاح تخصیص پرداخت'],
 ]
 
 for (const [source, expected] of cases) {

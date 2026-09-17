@@ -88,7 +88,9 @@ func (a *App) closeForRestore() error {
 		return nil
 	}
 	err := a.database.Close()
-	a.database = nil
+	if err == nil {
+		a.database = nil
+	}
 	return err
 }
 

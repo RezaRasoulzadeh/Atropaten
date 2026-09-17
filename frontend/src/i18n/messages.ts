@@ -73,7 +73,7 @@ export const messages = {
   fa: {
     language: {
       label: 'زبان',
-      english: 'English',
+      english: 'انگلیسی',
       persian: 'فارسی',
     },
     brand: {

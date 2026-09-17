@@ -17,7 +17,7 @@ import {
   type ShopSettingsRecord,
 } from '../../api/reports';
 import { confirmAction } from '../../ui/feedback';
-const emit = defineEmits<{ notify: [message: string] }>();
+const emit = defineEmits<{ notify: [message: string]; restored: [] }>();
 const form = ref<ShopSettingsRecord>({
   shopName: '',
   shopSubtitle: '',
@@ -147,6 +147,17 @@ return runAction(async () => {
   backupBusy.value = true;
   try {
     lastBackup.value = await reportsApi.restoreBackup(backupPath.value);
+    const [settings, dataPaths] = await Promise.all([
+      reportsApi.settings(),
+      reportsApi.dataPaths(),
+    ]);
+    form.value = {
+      ...settings,
+      backupDirectory: settings.backupDirectory ?? '',
+      attachmentDirectory: settings.attachmentDirectory ?? '',
+    };
+    paths.value = dataPaths;
+    emit('restored');
     emit('notify', 'Backup restored successfully.');
   } catch (e) {
 reportError(e);

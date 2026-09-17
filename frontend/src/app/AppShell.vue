@@ -357,6 +357,16 @@ async function loadGlobalSearchData() {
   globalSearchLoading.value = false;
 }
 
+async function refreshWorkspaceData() {
+  await Promise.all([
+    loadOrderCatalog(),
+    loadOrders(),
+    loadSuppliers(),
+    loadPurchases(),
+    loadGlobalSearchData(),
+  ]);
+}
+
 async function openDashboardOrder(orderId: string) {
   await Promise.all([loadOrders(), loadOrderCatalog()]);
   if (orders.value.some(order => order.id === orderId)) openOrder(orderId);
@@ -733,7 +743,7 @@ function showToast(message: string) {
             @notify="showToast"
           />
 
-          <SettingsView v-else-if="activeView === 'Settings'" key="settings" @notify="showToast" />
+          <SettingsView v-else-if="activeView === 'Settings'" key="settings" @notify="showToast" @restored="refreshWorkspaceData" />
 
           <EmptyState
             v-else
