@@ -71,6 +71,21 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Select Chromium browser for form smoke test
+        shell: pwsh
+        run: |
+          $browserCandidates = @(
+            (Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'),
+            (Join-Path $env:ProgramFiles 'Microsoft\Edge\Application\msedge.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe')
+          )
+          $browserPath = $browserCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $browserPath) {
+            throw 'A Chromium browser is required for the order/service form smoke test.'
+          }
+          "CHROME_BIN=$browserPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Test order and service forms
         working-directory: frontend
         run: npm run test:forms
