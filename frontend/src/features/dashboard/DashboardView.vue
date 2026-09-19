@@ -23,6 +23,7 @@ import RegisterRow from '../../components/ui/RegisterRow.vue';
 import EmptyState from '../../components/ui/EmptyState.vue';
 import { reportsApi, type DashboardRecord } from '../../api/reports';
 import { formatMoney } from '../../utils/currency';
+import { formatLocalizedNumber } from '../../utils/number';
 import { formatDate, currentCanonicalDate } from '../../utils/date';
 import { normalizeError, useToast } from '../../ui/feedback';
 const props = defineProps<{ currencyUnit: 'Rial' | 'Toman' }>();
@@ -46,6 +47,7 @@ const start = computed(() => {
   return date.toISOString().slice(0, 10);
 });
 const money = (v: number) => formatMoney(v, props.currencyUnit);
+const localizedCount = (v: number) => formatLocalizedNumber(v);
 async function load() {
   if (loading.value) return;
   loading.value = true;
@@ -144,7 +146,7 @@ const initialLoading = computed(() => loading.value && !data.value);
         />
         <KpiCard
           :value="money(data?.receivableRial || 0)"
-          :detail="$ui(`${data?.openInvoiceCount || 0} open invoice${data?.openInvoiceCount === 1 ? '' : 's'}`)"
+          :detail="$ui(`${localizedCount(data?.openInvoiceCount || 0)} open invoice${data?.openInvoiceCount === 1 ? '' : 's'}`)"
           :title='$t("Receivables")'
           trend="Outstanding"
           :icon="HandCoins"

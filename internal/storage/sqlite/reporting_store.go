@@ -491,7 +491,7 @@ func (s *Store) Dashboard(ctx context.Context, start, end time.Time) (domain.Das
 	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(credit_rial-debit_rial),0) FROM journal_lines WHERE account_id='ACC-AP'`).Scan(&d.PayableRial); err != nil {
 		return d, err
 	}
-	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM invoices WHERE status IN ('Posted','Partially Paid')`).Scan(&d.OpenInvoiceCount)
+	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM invoices i WHERE i.status IN ('Posted','Partially Paid','Paid') AND i.total_rial>COALESCE((SELECT SUM(a.amount_rial) FROM payment_allocations a JOIN payments p ON p.id=a.payment_id WHERE a.reversed=0 AND p.status='posted' AND ((a.target_type='invoice' AND a.target_id=i.id) OR (a.target_type='order' AND a.target_id=i.order_id))),0)`).Scan(&d.OpenInvoiceCount)
 	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM orders WHERE promised_at>=? AND promised_at<? AND commercial_status<>'Cancelled'`, from, until).Scan(&d.DueOrderCount)
 	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM orders WHERE promised_at<? AND promised_at IS NOT NULL AND fulfillment_status<>'Delivered' AND commercial_status<>'Cancelled'`, from).Scan(&d.OverdueOrderCount)
 	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM orders WHERE fulfillment_status='In Production'`).Scan(&d.InProductionCount)

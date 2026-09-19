@@ -1,3 +1,5 @@
+import { normalizeDigits } from './number'
+
 // Invoice DTOs expose fixed-scale units as an integer string (1,000,000 = 1).
 // Format with integer arithmetic so large and fractional quantities stay exact.
 export function formatQuantityUnits(value: string): string {
@@ -9,7 +11,7 @@ export function formatQuantityUnits(value: string): string {
 }
 
 export function formatQuantityInput(value: string): string {
-  const normalized = value.replace(/,/g, '')
+  const normalized = normalizeDigits(value).replace(/,/g, '')
   if (!normalized || !/^\d*(\.\d*)?$/.test(normalized)) return value
   const [integer, fraction] = normalized.split('.')
   const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
@@ -17,5 +19,5 @@ export function formatQuantityInput(value: string): string {
 }
 
 export function parseQuantityInput(value: string): string {
-  return value.replace(/,/g, '')
+  return normalizeDigits(value).replace(/,/g, '')
 }

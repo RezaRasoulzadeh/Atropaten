@@ -1,5 +1,5 @@
 import { getLocale } from '../i18n'
-import { formatLocalizedNumber } from './number'
+import { formatLocalizedNumber, normalizeDigits } from './number'
 
 /**
  * Canonical money values are always stored and calculated as Iranian Rial.
@@ -55,7 +55,7 @@ export function formatMoneyInput(amountRial: number, unit: CurrencyUnit): string
 
 /** Group the value while preserving the fraction the user is still typing. */
 export function formatMoneyInputWhileTyping(value: string, unit: CurrencyUnit): string {
-  const normalized = value.replaceAll(',', '')
+  const normalized = normalizeDigits(value).replaceAll(',', '')
   if (normalized === '' || normalized === '-') return value
   if (!/^-?\d*(?:\.\d*)?$/.test(normalized)) return value
   const [whole = '', fraction] = normalized.split('.')
@@ -66,7 +66,7 @@ export function formatMoneyInputWhileTyping(value: string, unit: CurrencyUnit): 
 }
 
 export function parseMoneyInput(value: string, unit: CurrencyUnit): number | null {
-  const normalized = value.trim().replaceAll(',', '')
+  const normalized = normalizeDigits(value).trim().replaceAll(',', '')
   if (!/^-?\d+(?:\.\d+)?$/.test(normalized)) return null
   const negative = normalized.startsWith('-')
   const unsigned = negative ? normalized.slice(1) : normalized

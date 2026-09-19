@@ -70,7 +70,7 @@ const methodLabel = computed(() => ({ markup: 'Markup', 'fixed-margin': 'Fixed m
     <ServiceOverviewSection :title='$t("Cost estimate")' :description='$t("The estimated cost used by the selected pricing method.")'>
       <template #meta><Calculator :size="16" class="text-primary" aria-hidden="true" /></template>
       <div v-if="breakdown.length" class="mt-3 space-y-2">
-        <div v-for="item in breakdown" :key="item.name" class="flex min-w-0 items-center gap-2 text-sm"><span class="size-2 shrink-0 rounded-full" :class="item.missing ? 'bg-warning' : 'bg-primary'"></span><span class="min-w-0 flex-1 truncate">{{ item.name }}</span><span class="shrink-0 tabular-nums" :class="item.missing ? 'text-warning' : ''">{{ $ui(item.missing ? 'Needs setup' : formatMoney(item.amount, currencyUnit)) }}</span></div>
+        <div v-for="item in breakdown" :key="item.name" class="flex min-w-0 items-center gap-2 text-sm"><span class="size-2 shrink-0 rounded-full" :class="item.missing ? 'bg-warning' : 'bg-primary'"></span><span class="min-w-0 flex-1 truncate">{{ $ui(item.name) }}</span><span class="shrink-0 tabular-nums" :class="item.missing ? 'text-warning' : ''">{{ $ui(item.missing ? 'Needs setup' : formatMoney(item.amount, currencyUnit)) }}</span></div>
       </div>
       <div class="mt-3 flex items-center justify-between gap-3 border-t border-base-300/75 pt-2.5 text-sm"><span class="font-medium">{{ $t("Total cost") }}</span><strong class="text-base tabular-nums">{{ formatMoney(estimatedCostRial, currencyUnit) }}</strong></div>
     </ServiceOverviewSection>

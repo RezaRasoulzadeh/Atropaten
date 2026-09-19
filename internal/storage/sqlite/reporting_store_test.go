@@ -285,6 +285,48 @@ func TestDashboardOrderFollowUpAndPipeline(t *testing.T) {
 	}
 }
 
+func TestDashboardOpenInvoiceCountUsesRemainingBalance(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "dashboard-open-invoices.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	now := time.Date(2026, 3, 22, 0, 0, 0, 0, time.UTC)
+	customer := domain.Customer{ID: "CUS-dashboard-open", Name: "Dashboard Customer", Active: true, CreatedAt: now, UpdatedAt: now}
+	if err = s.SaveCustomer(ctx, customer); err != nil {
+		t.Fatal(err)
+	}
+	order := domain.NewOrder("ORD-dashboard-open", customer.ID, now)
+	order.CustomerNameSnapshot = customer.Name
+	order.CommercialStatus = domain.CommercialConfirmed
+	order.Items = []domain.OrderItem{{ID: "ITEM-dashboard-open", OrderID: order.ID, Position: 0, ServiceNameSnapshot: "Printing", Quantity: domain.QuantityScale, QuantityUnit: "piece", SellingPriceRial: 1000}}
+	if err = order.RecalculateTotals(); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.CreateOrder(ctx, order); err != nil {
+		t.Fatal(err)
+	}
+	invoice, err := application.NewInvoicesService(s, s).CreateFromOrder(ctx, order.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.PostInvoice(ctx, invoice.ID); err != nil {
+		t.Fatal(err)
+	}
+	dashboard, err := s.Dashboard(ctx, now, now)
+	if err != nil || dashboard.OpenInvoiceCount != 1 {
+		t.Fatalf("open invoice count before payment=%d err=%v", dashboard.OpenInvoiceCount, err)
+	}
+	if _, err = s.CreatePayment(ctx, domain.Payment{ID: "PAY-dashboard-open", Direction: domain.PaymentIncoming, Method: domain.PaymentCash, FinancialAccountID: "FIN-CASH", CustomerID: customer.ID, AmountRial: 1000, PostedAt: now, CreatedAt: now, Allocations: []domain.PaymentAllocation{{ID: "ALLOC-dashboard-open", TargetType: "invoice", TargetID: invoice.ID, AmountRial: 1000}}}); err != nil {
+		t.Fatal(err)
+	}
+	dashboard, err = s.Dashboard(ctx, now, now)
+	if err != nil || dashboard.OpenInvoiceCount != 0 {
+		t.Fatalf("open invoice count after payment=%d err=%v", dashboard.OpenInvoiceCount, err)
+	}
+}
+
 func TestDashboardTrendReconcilesAndIncludesZeroDays(t *testing.T) {
 	s, err := Open(filepath.Join(t.TempDir(), "trend.db"))
 	if err != nil {

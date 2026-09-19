@@ -9,7 +9,7 @@ import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
-import { calculateServiceTest, isAutomaticVariationParameter, isMachineRateParameter, machineGroupOptions, machineRateOptions, testParameterLabel, visibleTestParameters, type TestPricingResult, type TestValues } from './serviceTestPricing'
+import { calculateServiceTest, isAutomaticVariationParameter, isMachineRateParameter, machineGroupOptions, machineRateOptions, outsourcedDefaultCostRial, outsourcedDefaultLines, testParameterLabel, visibleTestParameters, type TestPricingResult, type TestValues } from './serviceTestPricing'
 import type { ParameterForm, ServiceForm } from './types'
 import { translateUi } from '../../i18n'
 import RollSizeFields from './RollSizeFields.vue'
@@ -138,7 +138,22 @@ watch(
 const result = computed<TestPricingResult>(() => {
   if (!props.form.finishedSize?.quantityParameterKey) return calculateServiceTest(props.form, props.values, props.materials, props.machines, props.services)
   const p = draftPrice.value
-  return { lines: p?.components.map(c => ({name:c.name,detail:c.explanation,amount:c.amountRial,missing:false})) || [], totalCostRial:p?.estimatedCostRial || 0, markupRial:p ? p.suggestedSellingPriceRial-p.estimatedCostRial : 0, sellingPriceRial:p?.effectiveSellingPriceRial || 0, pricingLabel:'Complete batch',profitRial:p?.profitRial || 0,marginPercentage:Number(p?.marginPercentage || 0),belowCost:p?.belowCost || false,hasMissing:!p }
+  const outsourcedCost = outsourcedDefaultCostRial(props.form)
+  const totalCostRial = (p?.estimatedCostRial || 0) + outsourcedCost
+  const lines = [
+    ...(p?.components.map(c => ({ name: c.name, detail: c.explanation, amount: c.amountRial, missing: false })) || []),
+    ...outsourcedDefaultLines(props.form),
+  ]
+  let sellingPriceRial = p?.effectiveSellingPriceRial || 0
+  let markupRial = p ? p.suggestedSellingPriceRial - p.estimatedCostRial : 0
+  if (p && props.form.pricingRule.type === 'markup') {
+    markupRial = Math.ceil(totalCostRial * (Number(props.form.pricingRule.markupPercentage) || 0) / 100)
+    sellingPriceRial = totalCostRial + markupRial
+  } else if (p && props.form.pricingRule.type === 'fixed-margin') {
+    sellingPriceRial = totalCostRial + props.form.pricingRule.fixedMarginRial
+  }
+  const profitRial = sellingPriceRial - totalCostRial
+  return { lines, totalCostRial, markupRial, sellingPriceRial, pricingLabel: 'Complete batch', profitRial, marginPercentage: sellingPriceRial ? profitRial / sellingPriceRial * 100 : 0, belowCost: p ? sellingPriceRial < totalCostRial : false, hasMissing: !p }
 })
 watch(result, r => emit('update:result', r), {immediate:true})
 </script>
@@ -193,7 +208,7 @@ watch(result, r => emit('update:result', r), {immediate:true})
           <div class="rounded-box border border-base-300 bg-base-100/30 p-3">
             <h3 class="text-sm font-semibold">{{ $t("Cost breakdown") }}</h3>
             <div v-if="result.lines.length" class="mt-3 divide-y divide-base-300/70">
-              <div v-for="line in result.lines" :key="`${line.name}-${line.detail}`" class="flex min-w-0 items-center gap-2 py-2 first:pt-0 last:pb-0 text-sm"><span class="size-2 shrink-0 rounded-full" :class="line.missing ? 'bg-warning' : 'bg-primary'"></span><span class="min-w-0 flex-1"><span class="block truncate">{{ line.name }}</span><small class="block truncate text-xs text-base-content/55">{{ $ui(line.detail) }}</small></span><span class="shrink-0 tabular-nums" :class="line.missing ? 'text-warning' : ''">{{ $ui(line.missing ? 'Needs setup' : formatMoney(line.amount, currencyUnit)) }}</span></div>
+              <div v-for="line in result.lines" :key="`${line.name}-${line.detail}`" class="flex min-w-0 items-center gap-2 py-2 first:pt-0 last:pb-0 text-sm"><span class="size-2 shrink-0 rounded-full" :class="line.missing ? 'bg-warning' : 'bg-primary'"></span><span class="min-w-0 flex-1"><span class="block truncate">{{ $ui(line.name) }}</span><small class="block truncate text-xs text-base-content/55">{{ $ui(line.detail) }}</small></span><span class="shrink-0 tabular-nums" :class="line.missing ? 'text-warning' : ''">{{ $ui(line.missing ? 'Needs setup' : formatMoney(line.amount, currencyUnit)) }}</span></div>
             </div>
             <p v-else class="mt-3 text-sm text-base-content/60">{{ $t("Add a cost component to calculate this service.") }}</p>
             <div class="mt-3 flex items-center justify-between gap-3 border-t border-base-300 pt-3 text-sm"><span class="font-semibold">{{ $t("Total cost") }}</span><strong class="tabular-nums">{{ formatMoney(result.totalCostRial, currencyUnit) }}</strong></div>
