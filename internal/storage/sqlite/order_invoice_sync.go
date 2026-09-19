@@ -13,7 +13,7 @@ import (
 	"Atropaten/internal/domain"
 )
 
-const orderItemsSelect = `SELECT id,order_id,display_order,service_id,service_name_snapshot,service_code_snapshot,quantity_units,quantity_unit,resolved_parameters_json,cost_breakdown_json,pricing_snapshot_json,estimated_cost_rial,suggested_price_rial,selling_price_rial,notes FROM order_items WHERE order_id=? AND removed_at IS NULL ORDER BY display_order,id`
+const orderItemsSelect = `SELECT id,order_id,display_order,service_id,service_name_snapshot,service_code_snapshot,quantity_units,quantity_unit,resolved_parameters_json,cost_breakdown_json,pricing_snapshot_json,estimated_cost_rial,suggested_price_rial,selling_price_rial,outsourced_cost_rial,outsourced_shipping_rial,outsourced_supplier_id,outsourced_notes,notes FROM order_items WHERE order_id=? AND removed_at IS NULL ORDER BY display_order,id`
 
 func loadOrderTx(ctx context.Context, tx *sql.Tx, id string) (domain.Order, error) {
 	o, err := scanOrder(tx.QueryRowContext(ctx, orderSelect+` WHERE id=?`, id))

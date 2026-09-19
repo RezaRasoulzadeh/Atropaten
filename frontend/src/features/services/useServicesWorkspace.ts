@@ -54,6 +54,12 @@ watch(
   () => {
     for (const component of form.value.components)
       component.rateInput = formatMoneyInput(component.rateRial, props.currencyUnit);
+    form.value.defaultOutsourcedCostInput = form.value.defaultOutsourcedCostRial > 0
+      ? formatMoneyInput(form.value.defaultOutsourcedCostRial, props.currencyUnit)
+      : '';
+    form.value.defaultOutsourcedShippingInput = form.value.defaultOutsourcedShippingRial > 0
+      ? formatMoneyInput(form.value.defaultOutsourcedShippingRial, props.currencyUnit)
+      : '';
     const rule = form.value.pricingRule;
     if (rule) {
       rule.fixedPriceInput = formatMoneyInput(rule.fixedPriceRial, props.currencyUnit);
@@ -80,6 +86,11 @@ function emptyForm(): ServiceForm {
     imagePath: '',
     defaultUnit: 'piece',
     defaultPriority: 'Normal',
+    fulfillmentMode: 'in-house',
+    defaultOutsourcedCostRial: 0,
+    defaultOutsourcedCostInput: '',
+    defaultOutsourcedShippingRial: 0,
+    defaultOutsourcedShippingInput: '',
     parameters: [],
     components: [],
     pricingRule: {
@@ -180,6 +191,11 @@ function startEdit() {
     imagePath: service.imagePath || '',
     defaultUnit: service.defaultUnit || 'piece',
     defaultPriority: service.defaultPriority || 'Normal',
+    fulfillmentMode: service.fulfillmentMode === 'outsourced' ? 'outsourced' : 'in-house',
+    defaultOutsourcedCostRial: service.defaultOutsourcedCostRial || 0,
+    defaultOutsourcedCostInput: service.defaultOutsourcedCostRial ? formatMoneyInput(service.defaultOutsourcedCostRial, props.currencyUnit) : '',
+    defaultOutsourcedShippingRial: service.defaultOutsourcedShippingRial || 0,
+    defaultOutsourcedShippingInput: service.defaultOutsourcedShippingRial ? formatMoneyInput(service.defaultOutsourcedShippingRial, props.currencyUnit) : '',
     parameters: service.parameters.map((parameter) => ({
       id: parameter.id,
       key: parameter.key,
@@ -540,6 +556,7 @@ function removeOption(parameter: ParameterForm, index: number) {
   if (parameter.defaultValue === removed) parameter.defaultValue = '';
 }
 function categorySetupIssues() {
+  if (form.value.fulfillmentMode === 'outsourced') return [];
   const requirements = serviceCategoryRequirements(form.value.category);
   const hasMaterial = form.value.parameters.some(
     (parameter) => parameter.type === 'material-reference' || (parameter.type === 'choice' && Boolean(parameter.materialSource)),
@@ -565,6 +582,10 @@ return runAction(async () => {
     toast.error('Enter a service name.', 'Services');
     return;
   }
+  if (form.value.fulfillmentMode === 'outsourced' && form.value.defaultOutsourcedCostRial <= 0) {
+    toast.error('Enter the default outsourced cost for this service.', 'Services');
+    return;
+  }
   const setupIssues = categorySetupIssues();
   if (setupIssues.length) {
     toast.error(`Complete the ${setupIssues.join(' and ')} required for the ${form.value.category} category.`, 'Services');
@@ -581,6 +602,9 @@ return runAction(async () => {
       imagePath: form.value.imagePath,
       defaultUnit: form.value.defaultUnit,
       defaultPriority: form.value.defaultPriority,
+      fulfillmentMode: form.value.fulfillmentMode,
+      defaultOutsourcedCostRial: form.value.defaultOutsourcedCostRial,
+      defaultOutsourcedShippingRial: form.value.defaultOutsourcedShippingRial,
       parameters: form.value.parameters.map((parameter) => ({ ...parameter })),
       components: form.value.components.map((component) => ({
         id: component.id,

@@ -37,18 +37,21 @@ type MaterialAttributeFilterInput struct {
 }
 
 type ServiceInput struct {
-	Name             string                        `json:"name"`
-	Code             string                        `json:"code"`
-	Category         string                        `json:"category"`
-	Description      string                        `json:"description"`
-	ImagePath        string                        `json:"imagePath"`
-	DefaultUnit      string                        `json:"defaultUnit"`
-	DefaultPriority  string                        `json:"defaultPriority"`
-	Parameters       []ServiceParameterInput       `json:"parameters"`
-	Components       []ServiceCostComponentInput   `json:"components"`
-	PricingRule      *PricingRuleInput             `json:"pricingRule"`
-	FinishedSize     *FinishedSizeInput            `json:"finishedSize"`
-	MaterialVariants []ServiceMaterialVariantInput `json:"materialVariants"`
+	Name                          string                        `json:"name"`
+	Code                          string                        `json:"code"`
+	Category                      string                        `json:"category"`
+	Description                   string                        `json:"description"`
+	ImagePath                     string                        `json:"imagePath"`
+	DefaultUnit                   string                        `json:"defaultUnit"`
+	DefaultPriority               string                        `json:"defaultPriority"`
+	FulfillmentMode               string                        `json:"fulfillmentMode"`
+	DefaultOutsourcedCostRial     int64                         `json:"defaultOutsourcedCostRial"`
+	DefaultOutsourcedShippingRial int64                         `json:"defaultOutsourcedShippingRial"`
+	Parameters                    []ServiceParameterInput       `json:"parameters"`
+	Components                    []ServiceCostComponentInput   `json:"components"`
+	PricingRule                   *PricingRuleInput             `json:"pricingRule"`
+	FinishedSize                  *FinishedSizeInput            `json:"finishedSize"`
+	MaterialVariants              []ServiceMaterialVariantInput `json:"materialVariants"`
 }
 
 type ServiceMaterialVariantInput struct {
@@ -177,22 +180,25 @@ type MaterialAttributeFilterDTO struct {
 }
 
 type ServiceDTO struct {
-	ID               string                      `json:"id"`
-	Name             string                      `json:"name"`
-	Code             string                      `json:"code"`
-	Category         string                      `json:"category"`
-	Description      string                      `json:"description"`
-	ImagePath        string                      `json:"imagePath"`
-	DefaultUnit      string                      `json:"defaultUnit"`
-	DefaultPriority  string                      `json:"defaultPriority"`
-	Active           bool                        `json:"active"`
-	CreatedAt        string                      `json:"createdAt"`
-	UpdatedAt        string                      `json:"updatedAt"`
-	Parameters       []ServiceParameterDTO       `json:"parameters"`
-	Components       []ServiceCostComponentDTO   `json:"components"`
-	PricingRule      *PricingRuleDTO             `json:"pricingRule"`
-	FinishedSize     *FinishedSizeDTO            `json:"finishedSize"`
-	MaterialVariants []ServiceMaterialVariantDTO `json:"materialVariants"`
+	ID                            string                      `json:"id"`
+	Name                          string                      `json:"name"`
+	Code                          string                      `json:"code"`
+	Category                      string                      `json:"category"`
+	Description                   string                      `json:"description"`
+	ImagePath                     string                      `json:"imagePath"`
+	DefaultUnit                   string                      `json:"defaultUnit"`
+	DefaultPriority               string                      `json:"defaultPriority"`
+	FulfillmentMode               string                      `json:"fulfillmentMode"`
+	DefaultOutsourcedCostRial     int64                       `json:"defaultOutsourcedCostRial"`
+	DefaultOutsourcedShippingRial int64                       `json:"defaultOutsourcedShippingRial"`
+	Active                        bool                        `json:"active"`
+	CreatedAt                     string                      `json:"createdAt"`
+	UpdatedAt                     string                      `json:"updatedAt"`
+	Parameters                    []ServiceParameterDTO       `json:"parameters"`
+	Components                    []ServiceCostComponentDTO   `json:"components"`
+	PricingRule                   *PricingRuleDTO             `json:"pricingRule"`
+	FinishedSize                  *FinishedSizeDTO            `json:"finishedSize"`
+	MaterialVariants              []ServiceMaterialVariantDTO `json:"materialVariants"`
 }
 
 type ServiceMaterialVariantDTO struct {
@@ -594,7 +600,7 @@ func applicationServiceInput(input ServiceInput) (application.ServiceInput, erro
 		}
 		variants = append(variants, domain.ServiceMaterialVariant{ID: variant.ID, MaterialID: variant.MaterialID, Values: values, SellingPriceRial: variant.SellingPriceRial, Position: index, Active: variant.Active})
 	}
-	return application.ServiceInput{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, ImagePath: input.ImagePath, DefaultUnit: input.DefaultUnit, DefaultPriority: input.DefaultPriority, Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: finishedSize, MaterialVariants: variants}, nil
+	return application.ServiceInput{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, ImagePath: input.ImagePath, DefaultUnit: input.DefaultUnit, DefaultPriority: input.DefaultPriority, FulfillmentMode: input.FulfillmentMode, DefaultOutsourcedCostRial: input.DefaultOutsourcedCostRial, DefaultOutsourcedShippingRial: input.DefaultOutsourcedShippingRial, Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: finishedSize, MaterialVariants: variants}, nil
 }
 
 func applicationCostComponentInput(input ServiceCostComponentInput) application.CostComponentInput {
@@ -690,7 +696,7 @@ func serviceDTO(view application.ServiceView) ServiceDTO {
 		}
 		variants = append(variants, ServiceMaterialVariantDTO{ID: variant.ID, MaterialID: variant.MaterialID, Values: values, SellingPriceRial: variant.SellingPriceRial, Position: variant.Position, Active: variant.Active})
 	}
-	return ServiceDTO{ID: view.ID, Name: view.Name, Code: view.Code, Category: view.Category, Description: view.Description, ImagePath: view.ImagePath, DefaultUnit: view.DefaultUnit, DefaultPriority: view.DefaultPriority, Active: view.Active, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt, Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: finishedSize, MaterialVariants: variants}
+	return ServiceDTO{ID: view.ID, Name: view.Name, Code: view.Code, Category: view.Category, Description: view.Description, ImagePath: view.ImagePath, DefaultUnit: view.DefaultUnit, DefaultPriority: view.DefaultPriority, FulfillmentMode: view.FulfillmentMode, DefaultOutsourcedCostRial: view.DefaultOutsourcedCostRial, DefaultOutsourcedShippingRial: view.DefaultOutsourcedShippingRial, Active: view.Active, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt, Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: finishedSize, MaterialVariants: variants}
 }
 
 func materialParameterSourceDTO(source *domain.MaterialParameterSource) *MaterialParameterSourceDTO {

@@ -46,23 +46,26 @@ type PricingComponentView struct {
 }
 
 type PricingView struct {
-	BatchQuantity             string                  `json:"batchQuantity,omitempty"`
-	Layouts                   []domain.PrintLayout    `json:"layouts,omitempty"`
-	ServiceID                 string                  `json:"serviceId"`
-	ServiceName               string                  `json:"serviceName"`
-	ServiceCode               string                  `json:"serviceCode"`
-	Parameters                []ResolvedParameterView `json:"parameters"`
-	Components                []PricingComponentView  `json:"components"`
-	EstimatedCostRial         int64                   `json:"estimatedCostRial"`
-	SuggestedSellingPriceRial int64                   `json:"suggestedSellingPriceRial"`
-	EffectiveSellingPriceRial int64                   `json:"effectiveSellingPriceRial"`
-	ProfitRial                int64                   `json:"profitRial"`
-	MarginPercentage          string                  `json:"marginPercentage"`
-	Warnings                  []string                `json:"warnings"`
-	BelowCost                 bool                    `json:"belowCost"`
-	RoundingStepRial          int64                   `json:"roundingStepRial"`
-	FinishedWidthMM           string                  `json:"finishedWidthMM"`
-	FinishedHeightMM          string                  `json:"finishedHeightMM"`
+	BatchQuantity                 string                  `json:"batchQuantity,omitempty"`
+	Layouts                       []domain.PrintLayout    `json:"layouts,omitempty"`
+	ServiceID                     string                  `json:"serviceId"`
+	ServiceName                   string                  `json:"serviceName"`
+	ServiceCode                   string                  `json:"serviceCode"`
+	FulfillmentMode               string                  `json:"fulfillmentMode"`
+	DefaultOutsourcedCostRial     int64                   `json:"defaultOutsourcedCostRial"`
+	DefaultOutsourcedShippingRial int64                   `json:"defaultOutsourcedShippingRial"`
+	Parameters                    []ResolvedParameterView `json:"parameters"`
+	Components                    []PricingComponentView  `json:"components"`
+	EstimatedCostRial             int64                   `json:"estimatedCostRial"`
+	SuggestedSellingPriceRial     int64                   `json:"suggestedSellingPriceRial"`
+	EffectiveSellingPriceRial     int64                   `json:"effectiveSellingPriceRial"`
+	ProfitRial                    int64                   `json:"profitRial"`
+	MarginPercentage              string                  `json:"marginPercentage"`
+	Warnings                      []string                `json:"warnings"`
+	BelowCost                     bool                    `json:"belowCost"`
+	RoundingStepRial              int64                   `json:"roundingStepRial"`
+	FinishedWidthMM               string                  `json:"finishedWidthMM"`
+	FinishedHeightMM              string                  `json:"finishedHeightMM"`
 }
 
 type PricingService struct {
@@ -488,7 +491,7 @@ func (s *PricingService) resolveMaterialBackedParameters(ctx context.Context, se
 }
 
 func pricingView(service domain.Service, result domain.PricingResult) PricingView {
-	view := PricingView{ServiceID: result.ServiceID, ServiceName: result.ServiceName, ServiceCode: service.Code, EstimatedCostRial: result.EstimatedCostRial, SuggestedSellingPriceRial: result.SuggestedSellingPriceRial, EffectiveSellingPriceRial: result.EffectiveSellingPriceRial, ProfitRial: result.ProfitRial, MarginPercentage: result.MarginPercentage.String(), Warnings: result.Warnings, BelowCost: result.BelowCost}
+	view := PricingView{ServiceID: result.ServiceID, ServiceName: result.ServiceName, ServiceCode: service.Code, FulfillmentMode: service.FulfillmentMode, DefaultOutsourcedCostRial: service.DefaultOutsourcedCostRial, DefaultOutsourcedShippingRial: service.DefaultOutsourcedShippingRial, EstimatedCostRial: result.EstimatedCostRial, SuggestedSellingPriceRial: result.SuggestedSellingPriceRial, EffectiveSellingPriceRial: result.EffectiveSellingPriceRial, ProfitRial: result.ProfitRial, MarginPercentage: result.MarginPercentage.String(), Warnings: result.Warnings, BelowCost: result.BelowCost}
 	for _, parameter := range result.Parameters {
 		label := parameter.Key
 		for _, definition := range service.Parameters {

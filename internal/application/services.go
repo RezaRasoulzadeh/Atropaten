@@ -42,18 +42,21 @@ type ParameterInput struct {
 }
 
 type ServiceInput struct {
-	Name             string
-	Code             string
-	Category         string
-	Description      string
-	ImagePath        string
-	DefaultUnit      string
-	DefaultPriority  string
-	Parameters       []ParameterInput
-	Components       []CostComponentInput
-	PricingRule      *PricingRuleInput
-	FinishedSize     *domain.ServiceFinishedSizeDefinition
-	MaterialVariants []domain.ServiceMaterialVariant
+	Name                          string
+	Code                          string
+	Category                      string
+	Description                   string
+	ImagePath                     string
+	DefaultUnit                   string
+	DefaultPriority               string
+	FulfillmentMode               string
+	DefaultOutsourcedCostRial     int64
+	DefaultOutsourcedShippingRial int64
+	Parameters                    []ParameterInput
+	Components                    []CostComponentInput
+	PricingRule                   *PricingRuleInput
+	FinishedSize                  *domain.ServiceFinishedSizeDefinition
+	MaterialVariants              []domain.ServiceMaterialVariant
 }
 
 type CostComponentInput struct {
@@ -120,22 +123,25 @@ type ParameterView struct {
 }
 
 type ServiceView struct {
-	ID               string
-	Name             string
-	Code             string
-	Category         string
-	Description      string
-	ImagePath        string
-	DefaultUnit      string
-	DefaultPriority  string
-	Active           bool
-	CreatedAt        string
-	UpdatedAt        string
-	Parameters       []ParameterView
-	Components       []CostComponentView
-	PricingRule      *PricingRuleView
-	FinishedSize     *domain.ServiceFinishedSizeDefinition
-	MaterialVariants []domain.ServiceMaterialVariant
+	ID                            string
+	Name                          string
+	Code                          string
+	Category                      string
+	Description                   string
+	ImagePath                     string
+	DefaultUnit                   string
+	DefaultPriority               string
+	FulfillmentMode               string
+	DefaultOutsourcedCostRial     int64
+	DefaultOutsourcedShippingRial int64
+	Active                        bool
+	CreatedAt                     string
+	UpdatedAt                     string
+	Parameters                    []ParameterView
+	Components                    []CostComponentView
+	PricingRule                   *PricingRuleView
+	FinishedSize                  *domain.ServiceFinishedSizeDefinition
+	MaterialVariants              []domain.ServiceMaterialVariant
 }
 
 type CostComponentView struct {
@@ -833,7 +839,7 @@ func (s *ServicesService) parseDraft(ctx context.Context, input ServiceInput, se
 		variant.Position = len(variants)
 		variants = append(variants, variant)
 	}
-	return domain.ServiceDraft{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, ImagePath: input.ImagePath, DefaultUnit: input.DefaultUnit, DefaultPriority: domain.Priority(strings.TrimSpace(input.DefaultPriority)), Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: input.FinishedSize, MaterialVariants: variants}, nil
+	return domain.ServiceDraft{Name: input.Name, Code: input.Code, Category: input.Category, Description: input.Description, ImagePath: input.ImagePath, DefaultUnit: input.DefaultUnit, DefaultPriority: domain.Priority(strings.TrimSpace(input.DefaultPriority)), FulfillmentMode: strings.TrimSpace(input.FulfillmentMode), DefaultOutsourcedCostRial: input.DefaultOutsourcedCostRial, DefaultOutsourcedShippingRial: input.DefaultOutsourcedShippingRial, Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: input.FinishedSize, MaterialVariants: variants}, nil
 }
 
 func (s *ServicesService) parseComponent(input CostComponentInput) (domain.ServiceCostComponentDraft, error) {
@@ -1096,7 +1102,7 @@ func serviceView(service domain.Service) ServiceView {
 		variant.Values = values
 		variants = append(variants, variant)
 	}
-	return ServiceView{ID: service.ID, Name: service.Name, Code: service.Code, Category: service.Category, Description: service.Description, ImagePath: service.ImagePath, DefaultUnit: service.DefaultUnit, DefaultPriority: string(service.DefaultPriority), Active: service.Active, CreatedAt: service.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: service.UpdatedAt.UTC().Format(time.RFC3339Nano), Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: service.FinishedSize, MaterialVariants: variants}
+	return ServiceView{ID: service.ID, Name: service.Name, Code: service.Code, Category: service.Category, Description: service.Description, ImagePath: service.ImagePath, DefaultUnit: service.DefaultUnit, DefaultPriority: string(service.DefaultPriority), FulfillmentMode: service.FulfillmentMode, DefaultOutsourcedCostRial: service.DefaultOutsourcedCostRial, DefaultOutsourcedShippingRial: service.DefaultOutsourcedShippingRial, Active: service.Active, CreatedAt: service.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: service.UpdatedAt.UTC().Format(time.RFC3339Nano), Parameters: parameters, Components: components, PricingRule: pricingRule, FinishedSize: service.FinishedSize, MaterialVariants: variants}
 }
 
 func newID(prefix string) (string, error) {

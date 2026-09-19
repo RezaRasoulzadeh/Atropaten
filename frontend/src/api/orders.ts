@@ -28,6 +28,10 @@ export interface OrderItemRecord {
   estimatedCostRial: number
   suggestedPriceRial: number
   sellingPriceRial: number
+  outsourcedCostRial: number
+  outsourcedShippingRial: number
+  outsourcedSupplierId: string
+  outsourcedNotes: string
   notes: string
 }
 export interface OrderRecord {
@@ -78,6 +82,10 @@ export interface OrderItemPayload {
   sellingPriceOverrideRial: number | null
   quantity: string
   quantityUnit: string
+  outsourcedCostRial: number
+  outsourcedShippingRial: number
+  outsourcedSupplierId: string
+  outsourcedNotes: string
   notes: string
 }
 

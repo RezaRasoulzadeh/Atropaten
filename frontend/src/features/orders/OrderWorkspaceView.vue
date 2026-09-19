@@ -32,6 +32,7 @@ const props = defineProps<{
   services: any[];
   materials: any[];
   machines: any[];
+  suppliers?: any[];
   isNew?: boolean;
 }>();
 
@@ -77,10 +78,14 @@ const customerOptions = computed(() => [
     .filter((value) => value.active || value.id === customerId.value)
     .map((value) => ({ label: value.name, value: value.id })),
 ]);
+function selectableService(service: any) {
+  return Boolean(String(service?.id || '').trim()) && service?.active !== false;
+}
+
 const filteredCatalogServices = computed(() => {
   const query = serviceQuery.value.trim().toLowerCase();
   return props.services.filter((service) => {
-    if (!service.active && service.id !== selectedServiceForEditor.value) return false;
+    if (!selectableService(service) && service.id !== selectedServiceForEditor.value) return false;
     if (!query) return true;
     return [service.name, service.code, service.category].some((value) => String(value || '').toLowerCase().includes(query));
   });
@@ -285,8 +290,12 @@ reportError(error);
 }
 
 function openItemEditor(serviceId = '') {
+  const requestedId = String(serviceId || '').trim();
+  const selected = requestedId
+    ? props.services.find((service) => String(service?.id || '').trim() === requestedId)
+    : props.services.find(selectableService);
   editingItem.value = null;
-  selectedServiceForEditor.value = serviceId;
+  selectedServiceForEditor.value = String(selected?.id || '');
   editorOpen.value = true;
 }
 
@@ -417,7 +426,7 @@ reportError(error);
             <SearchField v-model="serviceQuery" class="mt-3" :placeholder='$t("Search services…")' :aria-label='$t("Search services")' />
           </div>
           <div class="min-h-0 flex-1 space-y-2 overflow-y-auto pt-3">
-            <button v-for="service in filteredCatalogServices" :key="service.id" class="flex w-full min-w-0 items-center gap-2 rounded-box border border-base-300 bg-base-100 p-2.5 text-start transition-colors hover:border-primary/50 hover:bg-primary/5" type="button" @click="openItemEditor(service.id)">
+            <button v-for="service in filteredCatalogServices" :key="service.id" class="flex w-full min-w-0 items-center gap-2 rounded-box border border-base-300 bg-base-100 p-2.5 text-start transition-colors hover:border-primary/50 hover:bg-primary/5" type="button" @click.stop="openItemEditor(service.id)">
               <span class="grid size-10 shrink-0 place-items-center overflow-hidden rounded-box border border-base-300 bg-base-200 bg-cover bg-center text-primary" :style="service.imagePath ? { backgroundImage: `url('${service.imagePath}')` } : undefined"><Layers3 v-if="!service.imagePath" :size="18" aria-hidden="true" /></span>
               <span class="min-w-0"><strong class="block truncate text-sm">{{ service.name }}</strong><span class="mt-0.5 block truncate text-xs text-base-content/55">{{ $ui(service.code || service.category || 'Service') }}</span><span class="mt-0.5 block text-xs text-primary">{{ $t("Add item") }}</span></span>
             </button>
@@ -633,9 +642,11 @@ reportError(error);
     <div v-if="editorOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 sm:p-6" role="dialog" aria-modal="true" :aria-label='$t("Configure order service item")' @click.self="closeItemEditor">
       <div class="w-full max-w-4xl overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-2xl">
         <OrderItemConfigurator
+          :key="editingItem?.id || selectedServiceForEditor || 'new-order-item'"
           :services="services"
           :materials="materials"
           :machines="machines"
+          :suppliers="suppliers"
           :currency-unit="currencyUnit"
           :initial="editingItem"
           :preset-service-id="selectedServiceForEditor"

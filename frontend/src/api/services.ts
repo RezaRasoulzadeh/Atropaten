@@ -85,6 +85,9 @@ export type ServicePayload = {
   imagePath: string
   defaultUnit: string
   defaultPriority: string
+  fulfillmentMode: 'in-house' | 'outsourced'
+  defaultOutsourcedCostRial: number
+  defaultOutsourcedShippingRial: number
   parameters: ServiceParameterPayload[]
   components: ServiceCostComponentPayload[]
   pricingRule: PricingRulePayload | null

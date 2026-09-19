@@ -1,8 +1,8 @@
 # Pre-release integration audit
 
-Date: 2026-09-07
+Date: 2026-09-19
 
-This audit covers the persisted M0–M6 product as implemented on schema v13. It is a repair record, not a new feature specification. The review followed the task priority order and exercised the existing SQLite/application boundaries with focused cross-domain tests.
+This audit covers the persisted M0–M6 product as implemented on schema v44. It is a repair record, not a new feature specification. The review followed the task priority order and exercised the existing SQLite/application boundaries with focused cross-domain tests.
 
 ## Audited areas
 
@@ -34,12 +34,13 @@ This audit covers the persisted M0–M6 product as implemented on schema v13. It
 7. Attachment metadata could be deleted while referenced by proof history. Proof-linked attachment metadata is now protected, preserving the proof’s historical link.
 8. Backup creation silently skipped managed files outside the application attachment root. It now fails explicitly (and rejects symlink/directory entries) instead of producing an incomplete backup.
 9. New proof versions could be created directly as Approved/Rejected/Waiting, bypassing the controlled version workflow. The application boundary now requires Draft or Ready for a new version; later workflow changes use preserved version records and validated transitions.
+10. Outsourced services lacked a service-level cost default and some catalog selections did not reliably open the order-item configurator. Service creation now stores a default outsourced item cost and optional shipping, order items prefill those values with optional per-order overrides, and existing in-house paper/roll flows remain unchanged. The migration supplies zero defaults for existing records and preserves prior order snapshots.
 
 ## Verification performed
 
 The regression suite includes the existing M0–M6 tests plus new tests for inventory overflow, reservation-safe purchase cancellation, allocation party derivation, catalog purge/protection, proof-linked attachment protection, external managed-file backup rejection, and journal-derived dashboard totals. The complete Go suite passed with a writable temporary cache.
 
-The frontend production build and `git diff --check` are run as the final handoff validation for this audit.
+The frontend translation smoke tests, production build, complete Go suite, and `git diff --check` are run as the final handoff validation for this audit.
 
 ## Remaining manual/native Windows validation
 

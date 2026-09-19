@@ -54,6 +54,10 @@ type OrderItemInput struct {
 	Quantity                 string
 	QuantityUnit             string
 	Notes                    string
+	OutsourcedCostRial       int64
+	OutsourcedShippingRial   int64
+	OutsourcedSupplierID     string
+	OutsourcedNotes          string
 }
 type OrderView struct {
 	ProjectedCostRial                                                     int64
@@ -78,6 +82,8 @@ type OrderItemView struct {
 	Quantity, QuantityUnit                                         string
 	ResolvedParametersJSON, CostBreakdownJSON, PricingSnapshotJSON string
 	EstimatedCostRial, SuggestedPriceRial, SellingPriceRial        int64
+	OutsourcedCostRial, OutsourcedShippingRial                     int64
+	OutsourcedSupplierID, OutsourcedNotes                          string
 	Notes                                                          string
 }
 
@@ -317,6 +323,26 @@ func (s *OrdersService) buildConfiguredItem(ctx context.Context, orderID string,
 	if err != nil {
 		return domain.OrderItem{}, err
 	}
+	if input.OutsourcedCostRial < 0 || input.OutsourcedShippingRial < 0 {
+		return domain.OrderItem{}, fmt.Errorf("outsourced cost and shipping cannot be negative")
+	}
+	outsourcedCost, outsourcedShipping := input.OutsourcedCostRial, input.OutsourcedShippingRial
+	outsourcedSupplierID, outsourcedNotes := strings.TrimSpace(input.OutsourcedSupplierID), strings.TrimSpace(input.OutsourcedNotes)
+	if price.FulfillmentMode != domain.ServiceFulfillmentOutsourced {
+		outsourcedCost, outsourcedShipping = 0, 0
+		outsourcedSupplierID, outsourcedNotes = "", ""
+	} else {
+		if outsourcedCost == 0 {
+			outsourcedCost = price.DefaultOutsourcedCostRial
+		}
+		if outsourcedShipping == 0 {
+			outsourcedShipping = price.DefaultOutsourcedShippingRial
+		}
+	}
+	if outsourcedCost > (1<<63-1)-outsourcedShipping {
+		return domain.OrderItem{}, fmt.Errorf("outsourced cost and shipping exceed the supported money range")
+	}
+	outsourcedTotal := outsourcedCost + outsourcedShipping
 	qty, err := parseOrderQuantity(input.Quantity, price)
 	if err != nil {
 		return domain.OrderItem{}, err
@@ -335,6 +361,10 @@ func (s *OrdersService) buildConfiguredItem(ctx context.Context, orderID string,
 			return domain.OrderItem{}, fmt.Errorf("round estimated cost for quantity: %w", err)
 		}
 	}
+	if estimatedCostRial > (1<<63-1)-outsourcedTotal {
+		return domain.OrderItem{}, fmt.Errorf("estimated cost for quantity exceeds the supported money range")
+	}
+	estimatedCostRial += outsourcedTotal
 	suggestedPriceRial, err := domain.MulQuantitySellingPriceRialWithStep(priceQuantity, price.SuggestedSellingPriceRial, price.RoundingStepRial)
 	if err != nil {
 		return domain.OrderItem{}, fmt.Errorf("suggested price for quantity: %w", err)
@@ -346,7 +376,7 @@ func (s *OrdersService) buildConfiguredItem(ctx context.Context, orderID string,
 	parametersJSON, _ := json.Marshal(price.Parameters)
 	componentsJSON, _ := json.Marshal(price.Components)
 	snapshotJSON, _ := json.Marshal(price)
-	item := domain.OrderItem{ID: existingID, OrderID: orderID, Position: position, ServiceID: price.ServiceID, ServiceNameSnapshot: price.ServiceName, ServiceCodeSnapshot: price.ServiceCode, Quantity: qty, QuantityUnit: strings.TrimSpace(input.QuantityUnit), ResolvedParametersJSON: string(parametersJSON), CostBreakdownJSON: string(componentsJSON), PricingSnapshotJSON: string(snapshotJSON), EstimatedCostRial: estimatedCostRial, SuggestedPriceRial: suggestedPriceRial, SellingPriceRial: sellingPriceRial, Notes: strings.TrimSpace(input.Notes)}
+	item := domain.OrderItem{ID: existingID, OrderID: orderID, Position: position, ServiceID: price.ServiceID, ServiceNameSnapshot: price.ServiceName, ServiceCodeSnapshot: price.ServiceCode, Quantity: qty, QuantityUnit: strings.TrimSpace(input.QuantityUnit), ResolvedParametersJSON: string(parametersJSON), CostBreakdownJSON: string(componentsJSON), PricingSnapshotJSON: string(snapshotJSON), EstimatedCostRial: estimatedCostRial, SuggestedPriceRial: suggestedPriceRial, SellingPriceRial: sellingPriceRial, OutsourcedCostRial: outsourcedCost, OutsourcedShippingRial: outsourcedShipping, OutsourcedSupplierID: outsourcedSupplierID, OutsourcedNotes: outsourcedNotes, Notes: strings.TrimSpace(input.Notes)}
 	if item.QuantityUnit == "" {
 		item.QuantityUnit = "unit"
 	}
@@ -504,7 +534,7 @@ func orderView(o domain.Order) OrderView {
 		v.PromisedAt = &x
 	}
 	for _, i := range o.Items {
-		v.Items = append(v.Items, OrderItemView{ID: i.ID, Position: i.Position, ServiceID: i.ServiceID, ServiceName: i.ServiceNameSnapshot, ServiceCode: i.ServiceCodeSnapshot, Quantity: i.Quantity.String(), QuantityUnit: i.QuantityUnit, ResolvedParametersJSON: i.ResolvedParametersJSON, CostBreakdownJSON: i.CostBreakdownJSON, PricingSnapshotJSON: i.PricingSnapshotJSON, EstimatedCostRial: i.EstimatedCostRial, SuggestedPriceRial: i.SuggestedPriceRial, SellingPriceRial: i.SellingPriceRial, Notes: i.Notes})
+		v.Items = append(v.Items, OrderItemView{ID: i.ID, Position: i.Position, ServiceID: i.ServiceID, ServiceName: i.ServiceNameSnapshot, ServiceCode: i.ServiceCodeSnapshot, Quantity: i.Quantity.String(), QuantityUnit: i.QuantityUnit, ResolvedParametersJSON: i.ResolvedParametersJSON, CostBreakdownJSON: i.CostBreakdownJSON, PricingSnapshotJSON: i.PricingSnapshotJSON, EstimatedCostRial: i.EstimatedCostRial, SuggestedPriceRial: i.SuggestedPriceRial, SellingPriceRial: i.SellingPriceRial, OutsourcedCostRial: i.OutsourcedCostRial, OutsourcedShippingRial: i.OutsourcedShippingRial, OutsourcedSupplierID: i.OutsourcedSupplierID, OutsourcedNotes: i.OutsourcedNotes, Notes: i.Notes})
 	}
 	return v
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/mattn/go-sqlite3"
 )
 
-const CurrentSchemaVersion = 42
+const CurrentSchemaVersion = 44
 
 // SnapshotTo uses SQLite's online backup API so a live WAL database is copied
 // from a consistent SQLite snapshot rather than by copying its files.

@@ -594,6 +594,7 @@ function showToast(message: string) {
                 :services="catalogServices"
                 :materials="catalogMaterials"
                 :machines="catalogMachines"
+                :suppliers="suppliers"
                 :is-new="selectedOrderId?.startsWith('new-order-') ?? false"
                 @back="closeOrderWorkspace"
                 @removed="removeOrder"

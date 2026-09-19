@@ -31,21 +31,24 @@ const (
 var parameterKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 type Service struct {
-	ID              string
-	Name            string
-	Code            string
-	Category        string
-	Description     string
-	ImagePath       string
-	DefaultUnit     string
-	DefaultPriority Priority
-	Active          bool
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	Parameters      []ServiceParameter
-	Components      []ServiceCostComponent
-	PricingRule     *ServicePricingRule
-	FinishedSize    *ServiceFinishedSizeDefinition
+	ID                            string
+	Name                          string
+	Code                          string
+	Category                      string
+	Description                   string
+	ImagePath                     string
+	DefaultUnit                   string
+	DefaultPriority               Priority
+	FulfillmentMode               string
+	DefaultOutsourcedCostRial     int64
+	DefaultOutsourcedShippingRial int64
+	Active                        bool
+	CreatedAt                     time.Time
+	UpdatedAt                     time.Time
+	Parameters                    []ServiceParameter
+	Components                    []ServiceCostComponent
+	PricingRule                   *ServicePricingRule
+	FinishedSize                  *ServiceFinishedSizeDefinition
 	// MaterialVariants contains explicit service-time mappings from a complete
 	// set of material-backed option values to one physical inventory material.
 	// It is optional so legacy services continue to resolve through their
@@ -54,19 +57,27 @@ type Service struct {
 }
 
 type ServiceDraft struct {
-	Name             string
-	Code             string
-	Category         string
-	Description      string
-	ImagePath        string
-	DefaultUnit      string
-	DefaultPriority  Priority
-	Parameters       []ServiceParameterDraft
-	Components       []ServiceCostComponentDraft
-	PricingRule      *ServicePricingRuleDraft
-	FinishedSize     *ServiceFinishedSizeDefinition
-	MaterialVariants []ServiceMaterialVariant
+	Name                          string
+	Code                          string
+	Category                      string
+	Description                   string
+	ImagePath                     string
+	DefaultUnit                   string
+	DefaultPriority               Priority
+	FulfillmentMode               string
+	DefaultOutsourcedCostRial     int64
+	DefaultOutsourcedShippingRial int64
+	Parameters                    []ServiceParameterDraft
+	Components                    []ServiceCostComponentDraft
+	PricingRule                   *ServicePricingRuleDraft
+	FinishedSize                  *ServiceFinishedSizeDefinition
+	MaterialVariants              []ServiceMaterialVariant
 }
+
+const (
+	ServiceFulfillmentInHouse    = "in-house"
+	ServiceFulfillmentOutsourced = "outsourced"
+)
 
 // ServiceMaterialVariant is the immutable selection rule used by new orders.
 // Values are keyed by service parameter key and contain canonical option
@@ -275,23 +286,31 @@ type ServiceParameterDraft struct {
 
 func NewService(id string, draft ServiceDraft, now time.Time) (Service, error) {
 	service := Service{
-		ID:              strings.TrimSpace(id),
-		Name:            strings.TrimSpace(draft.Name),
-		Code:            strings.TrimSpace(draft.Code),
-		Category:        strings.TrimSpace(draft.Category),
-		Description:     strings.TrimSpace(draft.Description),
-		ImagePath:       strings.TrimSpace(draft.ImagePath),
-		DefaultUnit:     strings.TrimSpace(draft.DefaultUnit),
-		DefaultPriority: draft.DefaultPriority,
-		Active:          true,
-		CreatedAt:       now.UTC(),
-		UpdatedAt:       now.UTC(),
+		ID:                        strings.TrimSpace(id),
+		Name:                      strings.TrimSpace(draft.Name),
+		Code:                      strings.TrimSpace(draft.Code),
+		Category:                  strings.TrimSpace(draft.Category),
+		Description:               strings.TrimSpace(draft.Description),
+		ImagePath:                 strings.TrimSpace(draft.ImagePath),
+		DefaultUnit:               strings.TrimSpace(draft.DefaultUnit),
+		DefaultPriority:           draft.DefaultPriority,
+		FulfillmentMode:           strings.TrimSpace(draft.FulfillmentMode),
+		DefaultOutsourcedCostRial: draft.DefaultOutsourcedCostRial, DefaultOutsourcedShippingRial: draft.DefaultOutsourcedShippingRial,
+		Active:    true,
+		CreatedAt: now.UTC(),
+		UpdatedAt: now.UTC(),
 	}
 	if service.DefaultUnit == "" {
 		service.DefaultUnit = "piece"
 	}
 	if service.DefaultPriority == "" {
 		service.DefaultPriority = PriorityNormal
+	}
+	if service.FulfillmentMode == "" {
+		service.FulfillmentMode = ServiceFulfillmentInHouse
+	}
+	if service.DefaultOutsourcedCostRial < 0 || service.DefaultOutsourcedShippingRial < 0 {
+		return Service{}, validationError("outsourcedCost", "cannot be negative")
 	}
 	service.Parameters = make([]ServiceParameter, len(draft.Parameters))
 	for index, parameter := range draft.Parameters {
@@ -362,6 +381,12 @@ func (s Service) Validate() error {
 	}
 	if s.CreatedAt.IsZero() || s.UpdatedAt.IsZero() {
 		return validationError("timestamps", "are required")
+	}
+	if s.FulfillmentMode != ServiceFulfillmentInHouse && s.FulfillmentMode != ServiceFulfillmentOutsourced {
+		return validationError("fulfillmentMode", "must be in-house or outsourced")
+	}
+	if s.DefaultOutsourcedCostRial < 0 || s.DefaultOutsourcedShippingRial < 0 {
+		return validationError("outsourcedCost", "cannot be negative")
 	}
 	machineRateParameters := make(map[string]struct{})
 	for _, component := range s.Components {

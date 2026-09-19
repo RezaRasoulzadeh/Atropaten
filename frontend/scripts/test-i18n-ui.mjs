@@ -78,6 +78,16 @@ const cases = [
   ['receive check CHK-1001', 'دریافت چک CHK-1001'],
   ['invoice cogs', 'بهای تمام‌شدهٔ فاکتور'],
   ['payment allocation adjustment', 'اصلاح تخصیص پرداخت'],
+  ['Outsourced service', 'خدمت برون‌سپاری‌شده'],
+  ['Outsourced fulfillment', 'انجام خدمت برون‌سپاری‌شده'],
+  ['Optional IRT cost', 'هزینهٔ اختیاری IRT'],
+  ['Optional IRT shipping', 'ارسال اختیاری IRT'],
+  ['IRT cost', 'هزینهٔ IRT'],
+  ['Order-time supplier cost', 'هزینهٔ تأمین‌کننده هنگام سفارش'],
+  ['Default outsourced item cost', 'هزینهٔ پیش‌فرض آیتم برون‌سپاری'],
+  ['Default outsourced shipping', 'ارسال پیش‌فرض برون‌سپاری'],
+  ['Optional IRT cost', 'هزینهٔ اختیاری IRT'],
+  ['Enter the outsourced item cost.', 'هزینهٔ آیتم برون‌سپاری را وارد کنید.'],
 ]
 
 for (const [source, expected] of cases) {

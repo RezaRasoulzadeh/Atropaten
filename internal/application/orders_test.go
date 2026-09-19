@@ -90,6 +90,65 @@ func TestCreateOrderDoesNotPersistWhenAnyConfiguredItemIsInvalid(t *testing.T) {
 	}
 }
 
+func TestOutsourcedItemCostsAreOptionalLineCosts(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	service, err := domain.NewService("SVC-outsourced", domain.ServiceDraft{
+		Name: "External finishing", FulfillmentMode: domain.ServiceFulfillmentOutsourced,
+		DefaultOutsourcedCostRial: 350, DefaultOutsourcedShippingRial: 50,
+		PricingRule: &domain.ServicePricingRuleDraft{Type: domain.PricingFixed, FixedPriceRial: 2_000},
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository := newOrderRepositoryStub()
+	pricing := NewPricingService(&serviceRepositoryStub{service: service}, materialLookupStub{}, machineLookupStub{})
+	orders := NewOrdersService(repository, nil, pricing)
+	view, err := orders.Create(context.Background(), OrderInput{Items: []OrderItemInput{{
+		ServiceID: service.ID, Quantity: "1", QuantityUnit: "job", OutsourcedCostRial: 350, OutsourcedShippingRial: 50,
+		OutsourcedSupplierID: "SUP-1", OutsourcedNotes: "Vendor quote",
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := view.Items[0]
+	if item.OutsourcedCostRial != 350 || item.OutsourcedShippingRial != 50 || item.OutsourcedSupplierID != "SUP-1" || item.OutsourcedNotes != "Vendor quote" {
+		t.Fatalf("outsourced fields were not preserved: %+v", item)
+	}
+	if item.EstimatedCostRial != 400 || item.SellingPriceRial != 2_000 {
+		t.Fatalf("outsourced line cost changed the wrong totals: %+v", item)
+	}
+	defaultView, err := orders.Create(context.Background(), OrderInput{Items: []OrderItemInput{{
+		ServiceID: service.ID, Quantity: "1", QuantityUnit: "job",
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := defaultView.Items[0]; got.OutsourcedCostRial != 350 || got.OutsourcedShippingRial != 50 || got.EstimatedCostRial != 400 {
+		t.Fatalf("service outsourced defaults were not applied: %+v", got)
+	}
+	if _, err = orders.Create(context.Background(), OrderInput{Items: []OrderItemInput{{
+		ServiceID: service.ID, Quantity: "1", OutsourcedCostRial: -1,
+	}}}); err == nil {
+		t.Fatal("negative outsourced cost was accepted")
+	}
+	inHouse, err := domain.NewService("SVC-in-house", domain.ServiceDraft{
+		Name: "Internal finishing", PricingRule: &domain.ServicePricingRuleDraft{Type: domain.PricingFixed, FixedPriceRial: 2_000},
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inHouseOrders := NewOrdersService(newOrderRepositoryStub(), nil, NewPricingService(&serviceRepositoryStub{service: inHouse}, materialLookupStub{}, machineLookupStub{}))
+	inHouseView, err := inHouseOrders.Create(context.Background(), OrderInput{Items: []OrderItemInput{{
+		ServiceID: inHouse.ID, Quantity: "1", OutsourcedCostRial: 500, OutsourcedShippingRial: 100, OutsourcedSupplierID: "SUP-1", OutsourcedNotes: "must be ignored",
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := inHouseView.Items[0]; got.EstimatedCostRial != 0 || got.OutsourcedCostRial != 0 || got.OutsourcedShippingRial != 0 || got.OutsourcedSupplierID != "" || got.OutsourcedNotes != "" {
+		t.Fatalf("in-house item retained outsourced fields: %+v", got)
+	}
+}
+
 func testOrdersService(t *testing.T) (*OrdersService, *orderRepositoryStub) {
 	t.Helper()
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)

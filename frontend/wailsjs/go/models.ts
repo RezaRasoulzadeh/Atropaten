@@ -1,5 +1,5 @@
 export namespace domain {
-	
+
 	export class PrintLayout {
 	    finishedWidthMM: string;
 	    finishedHeightMM: string;
@@ -21,11 +21,11 @@ export namespace domain {
 	    wasteCostRial: number;
 	    areaM2: string;
 	    originalLengthMM?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PrintLayout(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.finishedWidthMM = source["finishedWidthMM"];
@@ -54,7 +54,7 @@ export namespace domain {
 }
 
 export namespace main {
-	
+
 	export class AccountDTO {
 	    id: string;
 	    code: string;
@@ -63,11 +63,11 @@ export namespace main {
 	    active: boolean;
 	    system: boolean;
 	    balanceRial: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new AccountDTO(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -91,11 +91,11 @@ export namespace main {
 	    notes: string;
 	    sizeBytes?: number;
 	    createdAt: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new AttachmentDTO(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -2069,6 +2069,10 @@ export namespace main {
 	    suggestedPriceRial: number;
 	    sellingPriceRial: number;
 	    notes: string;
+	    outsourcedCostRial: number;
+	    outsourcedShippingRial: number;
+	    outsourcedSupplierId: string;
+	    outsourcedNotes: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new OrderItemDTO(source);
@@ -2090,6 +2094,10 @@ export namespace main {
 	        this.suggestedPriceRial = source["suggestedPriceRial"];
 	        this.sellingPriceRial = source["sellingPriceRial"];
 	        this.notes = source["notes"];
+	        this.outsourcedCostRial = source["outsourcedCostRial"];
+	        this.outsourcedShippingRial = source["outsourcedShippingRial"];
+	        this.outsourcedSupplierId = source["outsourcedSupplierId"];
+	        this.outsourcedNotes = source["outsourcedNotes"];
 	    }
 	}
 	export class OrderDTO {
@@ -2190,6 +2198,10 @@ export namespace main {
 	    quantity: string;
 	    quantityUnit: string;
 	    notes: string;
+	    outsourcedCostRial: number;
+	    outsourcedShippingRial: number;
+	    outsourcedSupplierId: string;
+	    outsourcedNotes: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new OrderItemInput(source);
@@ -2204,6 +2216,10 @@ export namespace main {
 	        this.quantity = source["quantity"];
 	        this.quantityUnit = source["quantityUnit"];
 	        this.notes = source["notes"];
+	        this.outsourcedCostRial = source["outsourcedCostRial"];
+	        this.outsourcedShippingRial = source["outsourcedShippingRial"];
+	        this.outsourcedSupplierId = source["outsourcedSupplierId"];
+	        this.outsourcedNotes = source["outsourcedNotes"];
 	    }
 	}
 	export class OrderInput {
@@ -2709,6 +2725,9 @@ export namespace main {
 	    serviceId: string;
 	    serviceName: string;
 	    serviceCode: string;
+	    fulfillmentMode: string;
+	    defaultOutsourcedCostRial: number;
+	    defaultOutsourcedShippingRial: number;
 	    parameters: ResolvedParameterDTO[];
 	    components: PricingComponentDTO[];
 	    estimatedCostRial: number;
@@ -2733,6 +2752,9 @@ export namespace main {
 	        this.serviceId = source["serviceId"];
 	        this.serviceName = source["serviceName"];
 	        this.serviceCode = source["serviceCode"];
+	        this.fulfillmentMode = source["fulfillmentMode"];
+	        this.defaultOutsourcedCostRial = source["defaultOutsourcedCostRial"];
+	        this.defaultOutsourcedShippingRial = source["defaultOutsourcedShippingRial"];
 	        this.parameters = this.convertValues(source["parameters"], ResolvedParameterDTO);
 	        this.components = this.convertValues(source["components"], PricingComponentDTO);
 	        this.estimatedCostRial = source["estimatedCostRial"];
@@ -3774,6 +3796,9 @@ export namespace main {
 	    imagePath: string;
 	    defaultUnit: string;
 	    defaultPriority: string;
+	    fulfillmentMode: string;
+	    defaultOutsourcedCostRial: number;
+	    defaultOutsourcedShippingRial: number;
 	    active: boolean;
 	    createdAt: string;
 	    updatedAt: string;
@@ -3797,6 +3822,9 @@ export namespace main {
 	        this.imagePath = source["imagePath"];
 	        this.defaultUnit = source["defaultUnit"];
 	        this.defaultPriority = source["defaultPriority"];
+	        this.fulfillmentMode = source["fulfillmentMode"];
+	        this.defaultOutsourcedCostRial = source["defaultOutsourcedCostRial"];
+	        this.defaultOutsourcedShippingRial = source["defaultOutsourcedShippingRial"];
 	        this.active = source["active"];
 	        this.createdAt = source["createdAt"];
 	        this.updatedAt = source["updatedAt"];
@@ -3907,6 +3935,9 @@ export namespace main {
 	    imagePath: string;
 	    defaultUnit: string;
 	    defaultPriority: string;
+	    fulfillmentMode: string;
+	    defaultOutsourcedCostRial: number;
+	    defaultOutsourcedShippingRial: number;
 	    parameters: ServiceParameterInput[];
 	    components: ServiceCostComponentInput[];
 	    pricingRule?: PricingRuleInput;
@@ -3926,6 +3957,9 @@ export namespace main {
 	        this.imagePath = source["imagePath"];
 	        this.defaultUnit = source["defaultUnit"];
 	        this.defaultPriority = source["defaultPriority"];
+	        this.fulfillmentMode = source["fulfillmentMode"];
+	        this.defaultOutsourcedCostRial = source["defaultOutsourcedCostRial"];
+	        this.defaultOutsourcedShippingRial = source["defaultOutsourcedShippingRial"];
 	        this.parameters = this.convertValues(source["parameters"], ServiceParameterInput);
 	        this.components = this.convertValues(source["components"], ServiceCostComponentInput);
 	        this.pricingRule = this.convertValues(source["pricingRule"], PricingRuleInput);

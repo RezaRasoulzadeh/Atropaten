@@ -22,6 +22,10 @@ type OrderItemInput struct {
 	Quantity                 string            `json:"quantity"`
 	QuantityUnit             string            `json:"quantityUnit"`
 	Notes                    string            `json:"notes"`
+	OutsourcedCostRial       int64             `json:"outsourcedCostRial"`
+	OutsourcedShippingRial   int64             `json:"outsourcedShippingRial"`
+	OutsourcedSupplierID     string            `json:"outsourcedSupplierId"`
+	OutsourcedNotes          string            `json:"outsourcedNotes"`
 }
 type OrderDTO struct {
 	ProjectedCostRial        int64          `json:"projectedCostRial"`
@@ -71,6 +75,10 @@ type OrderItemDTO struct {
 	SuggestedPriceRial     int64  `json:"suggestedPriceRial"`
 	SellingPriceRial       int64  `json:"sellingPriceRial"`
 	Notes                  string `json:"notes"`
+	OutsourcedCostRial     int64  `json:"outsourcedCostRial"`
+	OutsourcedShippingRial int64  `json:"outsourcedShippingRial"`
+	OutsourcedSupplierID   string `json:"outsourcedSupplierId"`
+	OutsourcedNotes        string `json:"outsourcedNotes"`
 }
 
 func (a *App) orderService() (*application.OrdersService, error) {
@@ -264,12 +272,12 @@ func orderInput(i OrderInput) (application.OrderInput, error) {
 	return application.OrderInput{CustomerID: i.CustomerID, PromisedAt: p, Priority: i.Priority, Notes: i.Notes, DiscountRial: i.DiscountRial, Items: items}, nil
 }
 func itemInput(i OrderItemInput) application.OrderItemInput {
-	return application.OrderItemInput{ServiceID: i.ServiceID, Parameters: i.Parameters, ManualCosts: i.ManualCosts, SellingPriceOverrideRial: i.SellingPriceOverrideRial, Quantity: i.Quantity, QuantityUnit: i.QuantityUnit, Notes: i.Notes}
+	return application.OrderItemInput{ServiceID: i.ServiceID, Parameters: i.Parameters, ManualCosts: i.ManualCosts, SellingPriceOverrideRial: i.SellingPriceOverrideRial, Quantity: i.Quantity, QuantityUnit: i.QuantityUnit, Notes: i.Notes, OutsourcedCostRial: i.OutsourcedCostRial, OutsourcedShippingRial: i.OutsourcedShippingRial, OutsourcedSupplierID: i.OutsourcedSupplierID, OutsourcedNotes: i.OutsourcedNotes}
 }
 func orderDTO(v application.OrderView) OrderDTO {
 	o := OrderDTO{ProjectedCostRial: v.ProjectedCostRial, ID: v.ID, OrderNumber: v.OrderNumber, CustomerID: v.CustomerID, CustomerName: v.CustomerName, CustomerPhone: v.CustomerPhone, Notes: v.Notes, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt, PromisedAt: v.PromisedAt, Priority: v.Priority, CommercialStatus: v.CommercialStatus, FulfillmentStatus: v.FulfillmentStatus, PaymentStatus: v.PaymentStatus, Archived: v.Archived, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, TotalRial: v.TotalRial, EstimatedCostRial: v.EstimatedCostRial, ActualCostRial: v.ActualCostRial, MarginRial: v.MarginRial, MarginPercentage: v.MarginPercentage, PaidRial: v.PaidRial, RemainingRial: v.RemainingRial, InvoiceID: v.InvoiceID, InvoiceStatus: v.InvoiceStatus, InvoicedTotalRial: v.InvoicedTotalRial, ProductionJobCount: v.ProductionJobCount, CompletedProductionJobs: v.CompletedProductionJobs, InProgressProductionJobs: v.InProgressProductionJobs}
 	for _, i := range v.Items {
-		o.Items = append(o.Items, OrderItemDTO{ID: i.ID, Position: i.Position, ServiceID: i.ServiceID, ServiceName: i.ServiceName, ServiceCode: i.ServiceCode, Quantity: i.Quantity, QuantityUnit: i.QuantityUnit, ResolvedParametersJSON: i.ResolvedParametersJSON, CostBreakdownJSON: i.CostBreakdownJSON, PricingSnapshotJSON: i.PricingSnapshotJSON, EstimatedCostRial: i.EstimatedCostRial, SuggestedPriceRial: i.SuggestedPriceRial, SellingPriceRial: i.SellingPriceRial, Notes: i.Notes})
+		o.Items = append(o.Items, OrderItemDTO{ID: i.ID, Position: i.Position, ServiceID: i.ServiceID, ServiceName: i.ServiceName, ServiceCode: i.ServiceCode, Quantity: i.Quantity, QuantityUnit: i.QuantityUnit, ResolvedParametersJSON: i.ResolvedParametersJSON, CostBreakdownJSON: i.CostBreakdownJSON, PricingSnapshotJSON: i.PricingSnapshotJSON, EstimatedCostRial: i.EstimatedCostRial, SuggestedPriceRial: i.SuggestedPriceRial, SellingPriceRial: i.SellingPriceRial, OutsourcedCostRial: i.OutsourcedCostRial, OutsourcedShippingRial: i.OutsourcedShippingRial, OutsourcedSupplierID: i.OutsourcedSupplierID, OutsourcedNotes: i.OutsourcedNotes, Notes: i.Notes})
 	}
 	return o
 }

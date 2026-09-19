@@ -19,7 +19,7 @@ import ServiceOverviewSection from './ServiceOverviewSection.vue'
 import type { MaterialAttributeDefinitionRecord, MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
-import type { CurrencyUnit } from '../../utils/currency'
+import { formatMoneyInput, parseMoneyInput, type CurrencyUnit } from '../../utils/currency'
 import ServiceMachinesStep from './ServiceMachinesStep.vue'
 import type { PredefinedParameter, ServiceForm } from './types'
 import type { TestPricingResult, TestValues } from './serviceTestPricing'
@@ -58,23 +58,39 @@ const testValues = ref<TestValues>({})
 const testResult = ref<TestPricingResult | null>(null)
 const imagePreview = computed(() => props.form.imagePath || '')
 const categoryRequirements = computed(() => serviceCategoryRequirements(props.form.category))
-const steps = [
-  { number: 1, title: 'Basic', description: 'Name, category, description' },
-  { number: 2, title: 'Materials', description: 'Group stock choices by order options' },
-  { number: 3, title: 'Machines', description: 'Group machine rates and costs' },
-  { number: 4, title: 'Pricing', description: 'How the price is calculated' },
-  { number: 5, title: 'Test', description: 'Try it with real values' },
-]
+type ServiceStepKey = 'basic' | 'materials' | 'machines' | 'outsourcing' | 'pricing' | 'test'
+const isOutsourced = computed(() => props.form.fulfillmentMode === 'outsourced')
+const defaultOutsourcedCostInvalid = computed(() => isOutsourced.value && props.form.defaultOutsourcedCostRial <= 0)
+const defaultOutsourcedShippingInvalid = computed(() => props.form.defaultOutsourcedShippingRial < 0)
+const steps = computed(() => isOutsourced.value
+  ? [
+      { number: 1, key: 'basic' as ServiceStepKey, title: 'Basic', description: 'Name, category, description' },
+      { number: 2, key: 'outsourcing' as ServiceStepKey, title: 'Outsourcing', description: 'External fulfillment and order costs' },
+      { number: 3, key: 'pricing' as ServiceStepKey, title: 'Pricing', description: 'How the price is calculated' },
+      { number: 4, key: 'test' as ServiceStepKey, title: 'Test', description: 'Try it with real values' },
+    ]
+  : [
+      { number: 1, key: 'basic' as ServiceStepKey, title: 'Basic', description: 'Name, category, description' },
+      { number: 2, key: 'materials' as ServiceStepKey, title: 'Materials', description: 'Group stock choices by order options' },
+      { number: 3, key: 'machines' as ServiceStepKey, title: 'Machines', description: 'Group machine rates and costs' },
+      { number: 4, key: 'pricing' as ServiceStepKey, title: 'Pricing', description: 'How the price is calculated' },
+      { number: 5, key: 'test' as ServiceStepKey, title: 'Test', description: 'Try it with real values' },
+    ])
+const activeStepKey = computed<ServiceStepKey>(() => steps.value[activeStep.value - 1]?.key || 'basic')
+watch(isOutsourced, () => {
+  if (activeStep.value > steps.value.length) activeStep.value = steps.value.length
+})
 
 function submit() {
   if (props.busy || props.isSaving) return
-  if (activeStep.value < steps.length) next()
+  if (activeStep.value < steps.value.length) next()
   else emit('save')
 }
 
 function goToStep(number: number) {
   reconcileCostComponents(props.form.components, props.form.parameters)
-  if (number === 2 || number === 3) ensureSuggestedCostComponents(props.form.components, props.form.parameters)
+  const step = steps.value[number - 1]
+  if (step?.key === 'materials' || step?.key === 'machines') ensureSuggestedCostComponents(props.form.components, props.form.parameters)
   activeStep.value = number
 }
 function requestSave() {
@@ -89,7 +105,7 @@ function next() {
     const formElement = document.querySelector<HTMLFormElement>('#service-editor')
     if (formElement && !formElement.reportValidity()) return
   }
-  if (activeStep.value < steps.length) goToStep(activeStep.value + 1)
+  if (activeStep.value < steps.value.length) goToStep(activeStep.value + 1)
 }
 function previous() {
   if (activeStep.value > 1) goToStep(activeStep.value - 1)
@@ -110,6 +126,16 @@ function onImageSelected(event: Event) {
 function clearImage() {
   props.form.imagePath = ''
 }
+function updateOutsourcedDefaultMoney(text: string, field: 'cost' | 'shipping') {
+  const inputKey = field === 'cost' ? 'defaultOutsourcedCostInput' : 'defaultOutsourcedShippingInput'
+  const valueKey = field === 'cost' ? 'defaultOutsourcedCostRial' : 'defaultOutsourcedShippingRial'
+  props.form[inputKey] = text
+  const parsed = parseMoneyInput(text, props.currencyUnit)
+  if (parsed !== null && parsed >= 0) {
+    props.form[valueKey] = parsed
+    props.form[inputKey] = formatMoneyInput(parsed, props.currencyUnit)
+  }
+}
 function categoryOptions() {
   const defaults: string[] = [...SERVICE_CATEGORIES]
   const current = props.form.category.trim()
@@ -125,16 +151,18 @@ function stepClass(number: number) {
   return 'wizard-step-idle'
 }
 function stepDescription(number: number, fallback: string) {
-  if (number === 2) {
+  const key = steps.value[number - 1]?.key
+  if (key === 'materials') {
     const materialGroups = props.form.parameters.filter((parameter) => parameter.type === 'choice' && parameter.materialSource).length
     return `${materialGroups} material group${materialGroups === 1 ? '' : 's'} · ${props.form.parameters.length} order input${props.form.parameters.length === 1 ? '' : 's'}`
   }
-  if (number === 3) {
+  if (key === 'machines') {
     const machineGroups = props.form.components.filter((component) => component.type === 'machine').length
     return `${machineGroups} machine group${machineGroups === 1 ? '' : 's'} · defaults drive estimate`
   }
-  if (number === 4) return props.form.pricingRule?.type === 'manual' ? 'Manual price setup' : 'Selling price rules'
-  if (number === 5) return testResult.value ? 'Test result available' : 'Try it with real values'
+  if (key === 'outsourcing') return 'Set default supplier cost and shipping'
+  if (key === 'pricing') return props.form.pricingRule?.type === 'manual' ? 'Manual price setup' : 'Selling price rules'
+  if (key === 'test') return testResult.value ? 'Test result available' : 'Try it with real values'
   return fallback
 }
 function generateServiceCode(name: string) {
@@ -165,7 +193,7 @@ watch(
 watch(
   () => props.form.parameters,
   () => {
-    if (activeStep.value < 2) return
+    if (activeStepKey.value !== 'materials' && activeStepKey.value !== 'machines') return
     const hasCostParameter = props.form.parameters.some((parameter) => parameter.type === 'material-reference' || parameter.type === 'machine-reference' || (parameter.type === 'choice' && Boolean(parameter.materialSource)))
     if (hasCostParameter) ensureSuggestedCostComponents(props.form.components, props.form.parameters)
   },
@@ -201,11 +229,15 @@ watch(
       <div class="grid min-h-0 min-w-0 flex-1 gap-4 overflow-visible xl:grid-cols-[minmax(0,1fr)_20rem] xl:overflow-hidden">
         <section class="service-wizard-form-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/20 p-4 sm:p-6 xl:overflow-y-auto">
         <form id="service-editor" class="service-editor min-w-0" :aria-busy="busy || isSaving" @submit.prevent="submit">
-          <section v-if="activeStep === 1" class="min-w-0 space-y-6">
+          <section v-if="activeStepKey === 'basic'" class="min-w-0 space-y-6">
             <div class="grid min-w-0 gap-4 sm:grid-cols-2">
               <FormField class="gap-1 sm:col-span-2"><span>{{ $t("Service name") }} <em class="text-error">*</em></span><AppInput v-model="form.name" class="input w-full min-w-0" :class="{ 'input-error': validationAttempted && !form.name.trim() }" type="text" required :placeholder='$t("Business card printing")' autocomplete="off" /><small class="text-xs leading-5 text-base-content/60">{{ $t("A clear name shown to your team and customers.") }}</small></FormField>
               <FormField class="gap-1"><span>{{ $t("Code") }} <em class="text-error">*</em></span><AppInput v-model="form.code" class="input w-full min-w-0" type="text" required :placeholder='$t("Auto-generated")' autocomplete="off" @update:model-value="markCodeEdited" /><small class="text-xs leading-5 text-base-content/60">{{ $t("Generated from the service name. Edit it to use a custom code.") }}</small></FormField>
               <FormField class="gap-1"><span>{{ $t("Category") }} <em class="text-error">*</em></span><SelectField v-model="form.category" :options="categoryOptions()" :aria-label='$t("Service category")' /><small class="text-xs leading-5 text-base-content/60">{{ $t("Helps organize services in lists and reports.") }}</small></FormField>
+              <FormField class="gap-1 sm:col-span-2"><span>{{ $t("Fulfillment") }} <em class="text-error">*</em></span><SelectField v-model="form.fulfillmentMode" :aria-label='$t("Service fulfillment")' :options="[
+                { label: 'In-house production', value: 'in-house' },
+                { label: 'Outsourced service', value: 'outsourced' },
+              ]" /><small class="text-xs leading-5 text-base-content/60">{{ $ui(form.fulfillmentMode === 'outsourced' ? 'An external supplier fulfills this service. Set its default supplier cost in the Outsourcing step; order lines can override it when a quote changes.' : 'Your team fulfills this service using the configured materials, machines, and production flow.') }}</small></FormField>
               <FormField class="gap-1"><span>{{ $t("Default unit") }} <em class="text-error">*</em></span><SelectField v-model="form.defaultUnit" :aria-label='$t("Default service unit")' :options="[
                 { label: 'Piece', value: 'piece' },
                 { label: 'Sheet', value: 'sheet' },
@@ -224,7 +256,7 @@ watch(
             </div>
           </section>
 
-          <section v-else-if="activeStep === 2">
+          <section v-else-if="activeStepKey === 'materials'">
           <ServiceMaterialsStep
             :category="form.category"
             :parameters="form.parameters"
@@ -237,7 +269,7 @@ watch(
           />
           <ServiceLayoutSetup v-if="serviceCategorySupportsLayout(form.category)" :form="form" />
           </section>
-          <section v-else-if="activeStep === 3">
+          <section v-else-if="activeStepKey === 'machines'">
           <ServiceMachinesStep
             :components="form.components"
             :parameters="form.parameters"
@@ -246,8 +278,31 @@ watch(
             :required="categoryRequirements.machine"
           />
           </section>
+          <section v-else-if="activeStepKey === 'outsourcing'" class="min-w-0 space-y-5">
+            <div>
+              <h2 class="text-xl font-semibold">{{ $t("Outsourced service setup") }}</h2>
+              <p class="mt-1 max-w-2xl text-sm leading-6 text-base-content/65">{{ $t("This service is fulfilled outside the shop. Set the default supplier cost here; it is reused automatically when the service is added to an order.") }}</p>
+            </div>
+            <div class="rounded-box border border-info/30 bg-info/10 p-4 text-sm leading-6">
+              <strong class="block">{{ $t("Service cost defaults") }}</strong>
+              <span class="text-base-content/70">{{ $t("The default item cost is stored on the service and included in estimated cost. Order-time values remain optional overrides for supplier quotes.") }}</span>
+            </div>
+            <div class="grid min-w-0 gap-4 sm:grid-cols-2">
+              <FormField class="gap-1">
+                <span>{{ $t("Default outsourced item cost") }} <em class="text-error">*</em></span>
+                <AppInput :model-value="form.defaultOutsourcedCostInput" :class="{ 'input-error': validationAttempted && defaultOutsourcedCostInvalid }" :money="currencyUnit" inputmode="decimal" :placeholder="$ui(`${$ui(currencyUnit)} cost`)" required @update:model-value="updateOutsourcedDefaultMoney($event, 'cost')" />
+                <small class="text-xs leading-5 text-base-content/60">{{ $t("Used automatically for new order items unless an order-specific supplier quote is entered.") }}</small>
+                <small v-if="validationAttempted && defaultOutsourcedCostInvalid" class="text-xs text-error">{{ $t("Enter the default outsourced cost for this service.") }}</small>
+              </FormField>
+              <FormField class="gap-1">
+                <span>{{ $t("Default outsourced shipping") }} <em class="font-normal text-base-content/50">{{ $t("optional") }}</em></span>
+                <AppInput :model-value="form.defaultOutsourcedShippingInput" :class="{ 'input-error': validationAttempted && defaultOutsourcedShippingInvalid }" :money="currencyUnit" inputmode="decimal" :placeholder="$ui(`Optional ${$ui(currencyUnit)} shipping`)" @update:model-value="updateOutsourcedDefaultMoney($event, 'shipping')" />
+                <small class="text-xs leading-5 text-base-content/60">{{ $t("Applied to new order items when shipping is predictable.") }}</small>
+              </FormField>
+            </div>
+          </section>
           <ServicePricingStep
-            v-else-if="activeStep === 4"
+            v-else-if="activeStepKey === 'pricing'"
             :pricing-rule="form.pricingRule"
             :parameters="form.parameters"
             :components="form.components"
@@ -259,7 +314,7 @@ watch(
             :show-errors="validationAttempted"
           />
           <ServiceTestStep
-            v-else-if="activeStep === 5"
+            v-else-if="activeStepKey === 'test'"
             :form="form"
             :parameters="form.parameters"
             :materials="materials"
@@ -279,11 +334,11 @@ watch(
         </section>
 
         <aside class="service-wizard-preview-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/35 p-4 xl:overflow-y-auto">
-        <ServiceCostBreakdownPreview v-if="activeStep === 2 || activeStep === 3" :form="form" :active="active" :components="form.components" :parameters="form.parameters" :materials="materials" :machines="machines" :services="services" :currency-unit="currencyUnit" @update:total="pricingCostEstimate = $event" @update:breakdown="pricingBreakdown = $event" />
-        <ServiceOrderPreview v-if="activeStep === 2 || activeStep === 3" :form="form" :materials="materials" :machines="machines" :currency-unit="currencyUnit" :show-identity="false" :show-material-estimate="false" :active="active" />
-        <ServicePricingPreview v-if="activeStep === 4" :form="form" :active="active" :pricing-rule="form.pricingRule" :parameters="form.parameters" :materials="materials" :machines="machines" :estimated-cost-rial="pricingCostEstimate" :breakdown="pricingBreakdown" :currency-unit="currencyUnit" />
-        <ServiceTestPreview v-if="activeStep === 5" :form="form" :active="active" :parameters="form.parameters" :values="testValues" :materials="materials" :machines="machines" :result="testResult" :currency-unit="currencyUnit" @edit="goToStep(2)" />
-        <template v-if="activeStep === 1">
+        <ServiceCostBreakdownPreview v-if="activeStepKey === 'materials' || activeStepKey === 'machines'" :form="form" :active="active" :components="form.components" :parameters="form.parameters" :materials="materials" :machines="machines" :services="services" :currency-unit="currencyUnit" @update:total="pricingCostEstimate = $event" @update:breakdown="pricingBreakdown = $event" />
+        <ServiceOrderPreview v-if="activeStepKey === 'materials' || activeStepKey === 'machines'" :form="form" :materials="materials" :machines="machines" :currency-unit="currencyUnit" :show-identity="false" :show-material-estimate="false" :active="active" />
+        <ServicePricingPreview v-if="activeStepKey === 'pricing'" :form="form" :active="active" :pricing-rule="form.pricingRule" :parameters="form.parameters" :materials="materials" :machines="machines" :estimated-cost-rial="pricingCostEstimate" :breakdown="pricingBreakdown" :currency-unit="currencyUnit" />
+        <ServiceTestPreview v-if="activeStepKey === 'test'" :form="form" :active="active" :parameters="form.parameters" :values="testValues" :materials="materials" :machines="machines" :result="testResult" :currency-unit="currencyUnit" @edit="goToStep(isOutsourced ? 3 : 2)" />
+        <template v-if="activeStepKey === 'basic'">
         <div class="space-y-4">
           <ServiceOverviewIdentity :form="form" :active="active" />
           <ServiceOverviewSection :title='$t("Configuration")' :description='$t("Current defaults for this service.")'>

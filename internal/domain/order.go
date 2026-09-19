@@ -71,6 +71,8 @@ type OrderItem struct {
 	QuantityUnit                                                   string
 	ResolvedParametersJSON, CostBreakdownJSON, PricingSnapshotJSON string
 	EstimatedCostRial, SuggestedPriceRial, SellingPriceRial        int64
+	OutsourcedCostRial, OutsourcedShippingRial                     int64
+	OutsourcedSupplierID, OutsourcedNotes                          string
 	Notes                                                          string
 }
 
@@ -98,7 +100,7 @@ func (o Order) Validate() error {
 		if item.ID == "" || item.OrderID != o.ID || item.Position != i {
 			return validationError("items", "must have contiguous positions and belong to the order")
 		}
-		if item.ServiceNameSnapshot == "" || item.SellingPriceRial < 0 || item.EstimatedCostRial < 0 || item.SuggestedPriceRial < 0 {
+		if item.ServiceNameSnapshot == "" || item.SellingPriceRial < 0 || item.EstimatedCostRial < 0 || item.SuggestedPriceRial < 0 || item.OutsourcedCostRial < 0 || item.OutsourcedShippingRial < 0 {
 			return validationError("item", "contains invalid snapshot or money")
 		}
 	}

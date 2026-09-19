@@ -117,6 +117,11 @@ export type ServiceForm = {
   imagePath: string;
   defaultUnit: string;
   defaultPriority: string;
+  fulfillmentMode: 'in-house' | 'outsourced';
+  defaultOutsourcedCostRial: number;
+  defaultOutsourcedCostInput: string;
+  defaultOutsourcedShippingRial: number;
+  defaultOutsourcedShippingInput: string;
   parameters: ParameterForm[];
   components: ComponentForm[];
   pricingRule: PricingRuleForm;

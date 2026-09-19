@@ -487,5 +487,8 @@
   "In House": "تولید داخل",
   "Uncategorized": "بدون دسته‌بندی",
   "Default profile": "نمایهٔ پیش‌فرض",
-  "Matches any value": "با هر مقداری منطبقه"
+  "Matches any value": "با هر مقداری منطبقه",
+  "Optional ${currencyUnit} cost": "هزینهٔ اختیاری {arg0}",
+  "Optional ${currencyUnit} shipping": "ارسال اختیاری {arg0}",
+  "${currencyUnit} cost": "هزینهٔ {arg0}"
 }

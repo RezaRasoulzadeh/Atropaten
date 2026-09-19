@@ -971,6 +971,19 @@ var migrations = []migration{{
 		PRAGMA writable_schema = OFF;`,
 		run: refreshMachineRateBasisSchema,
 	},
+	{
+		version: 43,
+		sql: `ALTER TABLE services ADD COLUMN fulfillment_mode TEXT NOT NULL DEFAULT 'in-house' CHECK(fulfillment_mode IN ('in-house', 'outsourced'));
+		ALTER TABLE order_items ADD COLUMN outsourced_cost_rial INTEGER NOT NULL DEFAULT 0 CHECK(outsourced_cost_rial >= 0);
+		ALTER TABLE order_items ADD COLUMN outsourced_shipping_rial INTEGER NOT NULL DEFAULT 0 CHECK(outsourced_shipping_rial >= 0);
+		ALTER TABLE order_items ADD COLUMN outsourced_supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL;
+		ALTER TABLE order_items ADD COLUMN outsourced_notes TEXT NOT NULL DEFAULT '';`,
+	},
+	{
+		version: 44,
+		sql: `ALTER TABLE services ADD COLUMN default_outsourced_cost_rial INTEGER NOT NULL DEFAULT 0 CHECK(default_outsourced_cost_rial >= 0);
+		ALTER TABLE services ADD COLUMN default_outsourced_shipping_rial INTEGER NOT NULL DEFAULT 0 CHECK(default_outsourced_shipping_rial >= 0);`,
+	},
 }
 
 // SQLite does not support altering a CHECK constraint. Rebuilding machines is
@@ -1578,7 +1591,7 @@ func (s *Store) DeleteMachine(ctx context.Context, machineID string) error {
 }
 
 func (s *Store) ListServices(ctx context.Context, includeArchived bool) ([]domain.Service, error) {
-	query := `SELECT id, name, code, category, description, image_path, default_unit, default_priority, active, created_at, updated_at, material_variants_json FROM services`
+	query := `SELECT id, name, code, category, description, image_path, default_unit, default_priority, fulfillment_mode, default_outsourced_cost_rial, default_outsourced_shipping_rial, active, created_at, updated_at, material_variants_json FROM services`
 	if !includeArchived {
 		query += ` WHERE active = 1`
 	}
@@ -1626,7 +1639,7 @@ func (s *Store) ListServices(ctx context.Context, includeArchived bool) ([]domai
 }
 
 func (s *Store) GetService(ctx context.Context, id string) (domain.Service, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, name, code, category, description, image_path, default_unit, default_priority, active, created_at, updated_at, material_variants_json FROM services WHERE id = ?`, id)
+	row := s.db.QueryRowContext(ctx, `SELECT id, name, code, category, description, image_path, default_unit, default_priority, fulfillment_mode, default_outsourced_cost_rial, default_outsourced_shipping_rial, active, created_at, updated_at, material_variants_json FROM services WHERE id = ?`, id)
 	service, err := scanService(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return domain.Service{}, domain.ErrServiceNotFound
@@ -2030,6 +2043,9 @@ func (s *Store) saveMaterialParameterSource(ctx context.Context, tx *sql.Tx, par
 }
 
 func (s *Store) SaveServiceDefinition(ctx context.Context, service domain.Service) error {
+	if service.FulfillmentMode == "" {
+		service.FulfillmentMode = domain.ServiceFulfillmentInHouse
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin service definition write: %w", err)
@@ -2042,8 +2058,8 @@ func (s *Store) SaveServiceDefinition(ctx context.Context, service domain.Servic
 	if err != nil {
 		return rollback(fmt.Errorf("encode service material variants: %w", err))
 	}
-	result, err := tx.ExecContext(ctx, `UPDATE services SET name = ?, code = ?, category = ?, description = ?, image_path = ?, default_unit = ?, default_priority = ?, active = ?, updated_at = ?, material_variants_json = ? WHERE id = ?`,
-		service.Name, service.Code, service.Category, service.Description, service.ImagePath, service.DefaultUnit, string(service.DefaultPriority), boolToInt(service.Active), service.UpdatedAt.UTC().Format(time.RFC3339Nano), string(variantsJSON), service.ID)
+	result, err := tx.ExecContext(ctx, `UPDATE services SET name = ?, code = ?, category = ?, description = ?, image_path = ?, default_unit = ?, default_priority = ?, fulfillment_mode = ?, default_outsourced_cost_rial = ?, default_outsourced_shipping_rial = ?, active = ?, updated_at = ?, material_variants_json = ? WHERE id = ?`,
+		service.Name, service.Code, service.Category, service.Description, service.ImagePath, service.DefaultUnit, string(service.DefaultPriority), service.FulfillmentMode, service.DefaultOutsourcedCostRial, service.DefaultOutsourcedShippingRial, boolToInt(service.Active), service.UpdatedAt.UTC().Format(time.RFC3339Nano), string(variantsJSON), service.ID)
 	if err != nil {
 		return rollback(fmt.Errorf("update service: %w", err))
 	}
@@ -2052,8 +2068,8 @@ func (s *Store) SaveServiceDefinition(ctx context.Context, service domain.Servic
 		return rollback(fmt.Errorf("check service update: %w", err))
 	}
 	if updated == 0 {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO services (id, name, code, category, description, image_path, default_unit, default_priority, active, created_at, updated_at, material_variants_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			service.ID, service.Name, service.Code, service.Category, service.Description, service.ImagePath, service.DefaultUnit, string(service.DefaultPriority), boolToInt(service.Active), service.CreatedAt.UTC().Format(time.RFC3339Nano), service.UpdatedAt.UTC().Format(time.RFC3339Nano), string(variantsJSON)); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO services (id, name, code, category, description, image_path, default_unit, default_priority, fulfillment_mode, default_outsourced_cost_rial, default_outsourced_shipping_rial, active, created_at, updated_at, material_variants_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			service.ID, service.Name, service.Code, service.Category, service.Description, service.ImagePath, service.DefaultUnit, string(service.DefaultPriority), service.FulfillmentMode, service.DefaultOutsourcedCostRial, service.DefaultOutsourcedShippingRial, boolToInt(service.Active), service.CreatedAt.UTC().Format(time.RFC3339Nano), service.UpdatedAt.UTC().Format(time.RFC3339Nano), string(variantsJSON)); err != nil {
 			return rollback(fmt.Errorf("insert service: %w", err))
 		}
 	}
@@ -2313,9 +2329,11 @@ func scanService(row scanner) (domain.Service, error) {
 	var service domain.Service
 	var active int
 	var defaultPriority string
+	var fulfillmentMode string
+	var defaultOutsourcedCostRial, defaultOutsourcedShippingRial int64
 	var created, updated string
 	var variantsJSON string
-	if err := row.Scan(&service.ID, &service.Name, &service.Code, &service.Category, &service.Description, &service.ImagePath, &service.DefaultUnit, &defaultPriority, &active, &created, &updated, &variantsJSON); err != nil {
+	if err := row.Scan(&service.ID, &service.Name, &service.Code, &service.Category, &service.Description, &service.ImagePath, &service.DefaultUnit, &defaultPriority, &fulfillmentMode, &defaultOutsourcedCostRial, &defaultOutsourcedShippingRial, &active, &created, &updated, &variantsJSON); err != nil {
 		return domain.Service{}, err
 	}
 	if strings.TrimSpace(variantsJSON) != "" && strings.TrimSpace(variantsJSON) != "[]" {
@@ -2329,6 +2347,12 @@ func scanService(row scanner) (domain.Service, error) {
 	}
 	if service.DefaultPriority == "" {
 		service.DefaultPriority = domain.PriorityNormal
+	}
+	service.FulfillmentMode = fulfillmentMode
+	service.DefaultOutsourcedCostRial = defaultOutsourcedCostRial
+	service.DefaultOutsourcedShippingRial = defaultOutsourcedShippingRial
+	if service.FulfillmentMode == "" {
+		service.FulfillmentMode = domain.ServiceFulfillmentInHouse
 	}
 	service.Active = active == 1
 	var err error
@@ -2802,7 +2826,7 @@ func insertOrder(ctx context.Context, tx *sql.Tx, order domain.Order) error {
 }
 func insertOrderItems(ctx context.Context, tx *sql.Tx, order domain.Order) error {
 	for _, item := range order.Items {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO order_items(id,order_id,display_order,service_id,service_name_snapshot,service_code_snapshot,quantity_units,quantity_unit,resolved_parameters_json,cost_breakdown_json,pricing_snapshot_json,estimated_cost_rial,suggested_price_rial,selling_price_rial,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, item.ID, order.ID, item.Position, item.ServiceID, item.ServiceNameSnapshot, item.ServiceCodeSnapshot, int64(item.Quantity), item.QuantityUnit, item.ResolvedParametersJSON, item.CostBreakdownJSON, item.PricingSnapshotJSON, item.EstimatedCostRial, item.SuggestedPriceRial, item.SellingPriceRial, item.Notes); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO order_items(id,order_id,display_order,service_id,service_name_snapshot,service_code_snapshot,quantity_units,quantity_unit,resolved_parameters_json,cost_breakdown_json,pricing_snapshot_json,estimated_cost_rial,suggested_price_rial,selling_price_rial,outsourced_cost_rial,outsourced_shipping_rial,outsourced_supplier_id,outsourced_notes,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, item.ID, order.ID, item.Position, item.ServiceID, item.ServiceNameSnapshot, item.ServiceCodeSnapshot, int64(item.Quantity), item.QuantityUnit, item.ResolvedParametersJSON, item.CostBreakdownJSON, item.PricingSnapshotJSON, item.EstimatedCostRial, item.SuggestedPriceRial, item.SellingPriceRial, item.OutsourcedCostRial, item.OutsourcedShippingRial, nullableString(item.OutsourcedSupplierID), item.OutsourcedNotes, item.Notes); err != nil {
 			return fmt.Errorf("insert order item: %w", err)
 		}
 	}
@@ -2876,9 +2900,11 @@ func scanOrder(row scanner) (domain.Order, error) {
 func scanOrderItem(row scanner) (domain.OrderItem, error) {
 	var i domain.OrderItem
 	var quantity int64
-	if err := row.Scan(&i.ID, &i.OrderID, &i.Position, &i.ServiceID, &i.ServiceNameSnapshot, &i.ServiceCodeSnapshot, &quantity, &i.QuantityUnit, &i.ResolvedParametersJSON, &i.CostBreakdownJSON, &i.PricingSnapshotJSON, &i.EstimatedCostRial, &i.SuggestedPriceRial, &i.SellingPriceRial, &i.Notes); err != nil {
+	var outsourcedSupplier sql.NullString
+	if err := row.Scan(&i.ID, &i.OrderID, &i.Position, &i.ServiceID, &i.ServiceNameSnapshot, &i.ServiceCodeSnapshot, &quantity, &i.QuantityUnit, &i.ResolvedParametersJSON, &i.CostBreakdownJSON, &i.PricingSnapshotJSON, &i.EstimatedCostRial, &i.SuggestedPriceRial, &i.SellingPriceRial, &i.OutsourcedCostRial, &i.OutsourcedShippingRial, &outsourcedSupplier, &i.OutsourcedNotes, &i.Notes); err != nil {
 		return i, err
 	}
+	i.OutsourcedSupplierID = outsourcedSupplier.String
 	i.Quantity = domain.Quantity(quantity)
 	return i, nil
 }

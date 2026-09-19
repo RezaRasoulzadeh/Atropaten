@@ -28,6 +28,7 @@ const props = withDefaults(
     services: any[];
     materials: any[];
     machines: any[];
+    suppliers?: any[];
     currencyUnit: CurrencyUnit;
     initial?: any;
     presetServiceId?: string;
@@ -49,6 +50,10 @@ const values = ref<Record<string, string>>({});
 const quantity = ref('');
 const unit = ref('unit');
 const notes = ref('');
+const outsourcedCostText = ref('');
+const outsourcedShippingText = ref('');
+const outsourcedSupplierId = ref('');
+const outsourcedNotes = ref('');
 const overrideText = ref('');
 const manualTexts = ref<Record<string, string>>({});
 const pricing = ref<PricingRecord | null>(null);
@@ -59,6 +64,17 @@ let lastWarningSignature = '';
 const calculating = ref(false);
 const manualCosts = ref<Record<string, number>>({});
 const overrideInvalid = computed(() => overrideText.value.trim() !== '' && parseMoneyInput(overrideText.value, props.currencyUnit) === null);
+const isOutsourcedService = computed(() => service.value?.fulfillmentMode === 'outsourced');
+const outsourcedCostInvalid = computed(() => {
+  if (!outsourcedCostText.value.trim()) return false;
+  const parsed = parseMoneyInput(outsourcedCostText.value, props.currencyUnit);
+  return parsed === null || parsed < 0;
+});
+const outsourcedShippingInvalid = computed(() => {
+  if (!outsourcedShippingText.value.trim()) return false;
+  const parsed = parseMoneyInput(outsourcedShippingText.value, props.currencyUnit);
+  return parsed === null || parsed < 0;
+});
 const missingRequiredParameters = computed(() => activeParams.value.some((parameter: any) => parameterIsMissing(parameter)));
 const quantityInvalid = computed(() => {
   const parsed = Number(quantity.value);
@@ -75,6 +91,8 @@ const canAdd = computed(() => Boolean(
   (pricing.value || canAddWithoutPricingPreview.value) &&
   (!calculating.value || canAddWithoutPricingPreview.value) &&
   !overrideInvalid.value &&
+  !outsourcedCostInvalid.value &&
+  !outsourcedShippingInvalid.value &&
   !customWidthInvalid.value &&
   !missingRequiredParameters.value &&
   !quantityInvalid.value,
@@ -100,7 +118,8 @@ const unitOptions = [
 ].map((value) => ({ label: value, value }));
 
 function configuredService(id: string) {
-  const source = props.services.find(value => value.id === id);
+  const normalizedID = String(id || '').trim();
+  const source = props.services.find(value => String(value?.id || '').trim() === normalizedID);
   return source ? ensureRollSizeInputs({ ...source, parameters: (source.parameters || []).map((p: any) => ({ ...p })) }) : undefined;
 }
 const service = computed(() => configuredService(serviceId.value));
@@ -145,20 +164,36 @@ const totalEstimatedCost = computed(() =>
       : Math.round(pricing.value.estimatedCostRial * priceMultiplier.value)
     : 0,
 );
+const totalOutsourcedCost = computed(() => {
+  if (!isOutsourcedService.value) return 0;
+  const item = parseMoneyInput(outsourcedCostText.value, props.currencyUnit) || 0;
+  const shipping = parseMoneyInput(outsourcedShippingText.value, props.currencyUnit) || 0;
+  return item + shipping;
+});
+const totalEstimatedCostWithOutsourcing = computed(() => totalEstimatedCost.value + totalOutsourcedCost.value);
+const supplierOptions = computed(() => {
+  const currentId = outsourcedSupplierId.value;
+  return [
+    { label: 'Select supplier…', value: '' },
+    ...(props.suppliers || [])
+      .filter((supplier: any) => supplier.active !== false || supplier.id === currentId)
+      .map((supplier: any) => ({ label: supplier.code ? `${supplier.name} · ${supplier.code}` : supplier.name, value: supplier.id })),
+  ];
+});
 const totalSuggestedPrice = computed(() =>
   pricing.value ? sellingPriceTotal(pricing.value.suggestedSellingPriceRial, priceMultiplier.value, pricing.value.roundingStepRial) : 0,
 );
 const totalEffectivePrice = computed(() =>
   pricing.value ? sellingPriceTotal(pricing.value.effectiveSellingPriceRial, priceMultiplier.value, pricing.value.roundingStepRial) : 0,
 );
-const totalProfit = computed(() => totalEffectivePrice.value - totalEstimatedCost.value);
+const totalProfit = computed(() => totalEffectivePrice.value - totalEstimatedCostWithOutsourcing.value);
 
 function initialize() {
   initializing = true;
   const initial = props.initial;
-  const selectedServiceId = initial?.serviceId || props.presetServiceId || props.services.find((value) => value.active)?.id || '';
+  const selectedServiceId = String(initial?.serviceId || props.presetServiceId || props.services.find((value) => value?.active !== false)?.id || '').trim();
   const selectedService = configuredService(selectedServiceId);
-  serviceId.value = selectedServiceId;
+  serviceId.value = String(selectedService?.id || '');
   const initialValues: Record<string, string> = {};
   if (initial?.resolvedParametersJson) {
     try {
@@ -177,6 +212,16 @@ function initialize() {
   quantity.value = initial?.quantity || '1';
   unit.value = initial?.quantityUnit || selectedService?.defaultUnit || 'piece';
   notes.value = initial?.notes || '';
+  const hasInitialOutsourcedCost = initial?.outsourcedCostRial !== undefined && initial?.outsourcedCostRial !== null;
+  const hasInitialOutsourcedShipping = initial?.outsourcedShippingRial !== undefined && initial?.outsourcedShippingRial !== null;
+  outsourcedCostText.value = hasInitialOutsourcedCost
+    ? (initial.outsourcedCostRial > 0 ? formatMoneyInput(initial.outsourcedCostRial, props.currencyUnit) : '')
+    : (selectedService?.fulfillmentMode === 'outsourced' && selectedService.defaultOutsourcedCostRial > 0 ? formatMoneyInput(selectedService.defaultOutsourcedCostRial, props.currencyUnit) : '');
+  outsourcedShippingText.value = hasInitialOutsourcedShipping
+    ? (initial.outsourcedShippingRial > 0 ? formatMoneyInput(initial.outsourcedShippingRial, props.currencyUnit) : '')
+    : (selectedService?.fulfillmentMode === 'outsourced' && selectedService.defaultOutsourcedShippingRial > 0 ? formatMoneyInput(selectedService.defaultOutsourcedShippingRial, props.currencyUnit) : '');
+  outsourcedSupplierId.value = initial?.outsourcedSupplierId || '';
+  outsourcedNotes.value = initial?.outsourcedNotes || '';
   overrideText.value = '';
   manualTexts.value = {};
   manualCosts.value = {};
@@ -203,6 +248,14 @@ watch(serviceId, (next, previous) => {
   unit.value = selectedService?.defaultUnit || 'piece';
   manualTexts.value = {};
   manualCosts.value = {};
+  outsourcedCostText.value = selectedService?.fulfillmentMode === 'outsourced' && selectedService.defaultOutsourcedCostRial > 0
+    ? formatMoneyInput(selectedService.defaultOutsourcedCostRial, props.currencyUnit)
+    : '';
+  outsourcedShippingText.value = selectedService?.fulfillmentMode === 'outsourced' && selectedService.defaultOutsourcedShippingRial > 0
+    ? formatMoneyInput(selectedService.defaultOutsourcedShippingRial, props.currencyUnit)
+    : '';
+  outsourcedSupplierId.value = '';
+  outsourcedNotes.value = '';
   pricing.value = null;
   lastWarningSignature = '';
   scheduleCalculate();
@@ -483,6 +536,13 @@ function updateMoneyText(text: string, key: string) {
   else delete manualCosts.value[key];
 }
 
+function updateOutsourcedMoney(text: string, key: 'cost' | 'shipping') {
+  const target = key === 'cost' ? outsourcedCostText : outsourcedShippingText;
+  target.value = text;
+  const parsed = parseMoneyInput(text, props.currencyUnit);
+  if (parsed !== null) target.value = formatMoneyInput(parsed, props.currencyUnit);
+}
+
 function scheduleCalculate() {
   requestToken += 1;
   pricing.value = null;
@@ -606,6 +666,10 @@ function save() {
     toast.warning('Enter a valid selling price override.', 'Pricing');
     return;
   }
+  if (outsourcedCostInvalid.value || outsourcedShippingInvalid.value) {
+    toast.warning('Enter valid outsourced cost and shipping amounts.', 'Order item');
+    return;
+  }
   if (missingRequiredParameters.value) {
     toast.warning('Complete the required service options before adding the item.', 'Order item');
     return;
@@ -632,6 +696,10 @@ function save() {
     sellingPriceOverrideRial: override,
     quantity: quantity.value,
     quantityUnit: unit.value,
+    outsourcedCostRial: isOutsourcedService.value ? (parseMoneyInput(outsourcedCostText.value, props.currencyUnit) || 0) : 0,
+    outsourcedShippingRial: isOutsourcedService.value ? (parseMoneyInput(outsourcedShippingText.value, props.currencyUnit) || 0) : 0,
+    outsourcedSupplierId: isOutsourcedService.value ? outsourcedSupplierId.value : '',
+    outsourcedNotes: isOutsourcedService.value ? outsourcedNotes.value : '',
     notes: notes.value,
   }, pricing.value || undefined);
 }
@@ -777,6 +845,30 @@ function save() {
           </div>
         </section>
 
+        <section v-if="isOutsourcedService" class="rounded-box border border-info/35 bg-info/5 p-4">
+          <div class="border-b border-info/20 pb-3">
+            <h4 class="text-sm font-semibold">{{ $t("Outsourced fulfillment") }}</h4>
+            <p class="mt-1 text-xs leading-5 text-base-content/65">{{ $t("Optional order-specific overrides. Service defaults are prefilled; shipping is optional. Both values are recorded in estimated cost and do not change the customer's selling price.") }}</p>
+          </div>
+          <div class="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
+            <SelectField v-if="supplierOptions.length > 1" v-model="outsourcedSupplierId" :label='$t("Supplier")' :options="supplierOptions" :aria-label='$t("Outsourced supplier")' />
+            <FormField class="gap-1" :class="(suppliers || []).length ? '' : 'sm:col-span-2'">
+              <span class="text-xs text-base-content/60">{{ $t("Outsourced item cost") }} <em class="font-normal text-base-content/50">{{ $t("optional · total") }}</em></span>
+              <AppInput :model-value="outsourcedCostText" :class="{ 'input-error': outsourcedCostInvalid }" :money="currencyUnit" inputmode="decimal" :placeholder="$ui(`Optional ${$ui(currencyUnit)} cost`)" @update:model-value="updateOutsourcedMoney($event, 'cost')" />
+              <small v-if="outsourcedCostInvalid" class="text-xs text-error">{{ $t("Enter a valid amount.") }}</small>
+            </FormField>
+            <FormField class="gap-1">
+              <span class="text-xs text-base-content/60">{{ $t("Shipping") }} <em class="font-normal text-base-content/50">{{ $t("optional · total") }}</em></span>
+              <AppInput :model-value="outsourcedShippingText" :class="{ 'input-error': outsourcedShippingInvalid }" :money="currencyUnit" inputmode="decimal" :placeholder="$ui(`Optional ${$ui(currencyUnit)} shipping`)" @update:model-value="updateOutsourcedMoney($event, 'shipping')" />
+              <small v-if="outsourcedShippingInvalid" class="text-xs text-error">{{ $t("Enter a valid amount.") }}</small>
+            </FormField>
+            <FormField class="gap-1 sm:col-span-2">
+              <span class="text-xs text-base-content/60">{{ $t("Outsourcing notes") }} <em class="font-normal text-base-content/50">{{ $t("optional") }}</em></span>
+              <AppTextarea v-model="outsourcedNotes" rows="2" :placeholder='$t("Vendor quote, delivery note, or handoff details")' />
+            </FormField>
+          </div>
+        </section>
+
         <section v-if="manualComponents.length || service" class="rounded-box border border-base-300 bg-base-100 p-4">
           <div class="border-b border-base-300 pb-3">
             <h4 class="text-sm font-semibold">{{ $t("Pricing adjustments") }}</h4>
@@ -807,7 +899,7 @@ function save() {
 
         <div v-if="pricing" class="mt-4 space-y-4" :class="{ 'opacity-60': calculating }">
           <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-            <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">{{ $t("Estimated cost · order total") }}</span><strong class="mt-1 block text-sm">{{ formatMoney(totalEstimatedCost, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/50">{{ formatMoney(pricing.estimatedCostRial, currencyUnit) }} / {{ $ui(pricing.batchQuantity ? 'batch' : unit) }}</span></div>
+            <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">{{ $t("Estimated cost · order total") }}</span><strong class="mt-1 block text-sm">{{ formatMoney(totalEstimatedCostWithOutsourcing, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/50">{{ formatMoney(pricing.estimatedCostRial, currencyUnit) }} / {{ $ui(pricing.batchQuantity ? 'batch' : unit) }}<template v-if="totalOutsourcedCost"> · + {{ formatMoney(totalOutsourcedCost, currencyUnit) }} {{ $t("outsourced") }}</template></span></div>
             <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">{{ $t("Suggested price · order total") }}</span><strong class="mt-1 block text-sm">{{ formatMoney(totalSuggestedPrice, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/50">{{ formatMoney(pricing.suggestedSellingPriceRial, currencyUnit) }} / {{ $ui(unit) }}</span></div>
             <div v-for="layout in pricing.layouts || []" :key="layout.materialId" class="rounded-box border border-primary/30 bg-primary/5 p-3 text-sm space-y-2">
               <strong>{{ layout.materialName }} {{ $t("· production layout") }}</strong>
