@@ -1,9 +1,10 @@
-name: Windows release candidate
+name: Windows 10 prerelease
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -26,7 +27,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Check tag matches application version
+      - name: Check release metadata
         shell: pwsh
         run: |
           $project = Get-Content wails.json -Raw | ConvertFrom-Json
@@ -38,11 +39,6 @@ jobs:
           $applicationVersion = $Matches[1]
           if ($applicationVersion -ne $metadataVersion) {
             throw "Application version '$applicationVersion' does not match Windows metadata version '$metadataVersion'."
-          }
-
-          $expectedTag = "v$metadataVersion"
-          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
-            throw "Release tag '$env:GITHUB_REF_NAME' must match product version '$expectedTag'."
           }
 
       - name: Install Windows build tools
@@ -136,13 +132,22 @@ jobs:
           "installer=$($installer.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "checksum=$checksumFile" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
-      - name: Update Windows prerelease
+      - name: Publish Windows 10 prerelease artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Atropaten-Windows10-prerelease
+          path: |
+            ${{ steps.package.outputs.installer }}
+            ${{ steps.package.outputs.checksum }}
+          retention-days: 14
+
+      - name: Update Windows 10 prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          $tag = $env:GITHUB_REF_NAME
-          $title = "Atropaten $tag Beta for Windows x64"
+          $tag = "windows-10-prerelease"
+          $title = "Atropaten Windows 10 prerelease"
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag `
@@ -151,7 +156,8 @@ jobs:
               --clobber
             gh release edit $tag `
               --title $title `
-              --prerelease
+              --prerelease `
+              --latest=false
           } else {
             gh release create $tag `
               "${{ steps.package.outputs.installer }}" `
@@ -159,5 +165,6 @@ jobs:
               --title $title `
               --generate-notes `
               --prerelease `
-              --verify-tag
+              --latest=false `
+              --target $env:GITHUB_SHA
           }
