@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-const ApplicationVersion = "0.1.0"
+const ApplicationVersion = "0.1.1"
 const CurrentSchemaVersion = 44
 
 type DataPaths struct {

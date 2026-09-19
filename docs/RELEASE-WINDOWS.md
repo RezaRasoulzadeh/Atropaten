@@ -5,7 +5,7 @@ The application version is centralized in `internal/platform/paths.go` as
 `wails.json` when cutting a release. The Windows metadata template consumes
 that project information for the executable and installer properties.
 
-The current release metadata is `0.1.0` and the current database schema is
+The current release metadata is `0.1.1` and the current database schema is
 version 44. The schema migration adds service-level outsourced cost defaults
 with safe zero values for existing databases, so upgrades preserve previous
 orders and service data.
