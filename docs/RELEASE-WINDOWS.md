@@ -5,6 +5,11 @@ The application version is centralized in `internal/platform/paths.go` as
 `wails.json` when cutting a release. The Windows metadata template consumes
 that project information for the executable and installer properties.
 
+The current release metadata is `0.1.0` and the current database schema is
+version 44. The schema migration adds service-level outsourced cost defaults
+with safe zero values for existing databases, so upgrades preserve previous
+orders and service data.
+
 On a Windows build host:
 
 ```powershell
@@ -21,6 +26,13 @@ The expected artifacts are the application executable and NSIS installer under
 directory. It must not delete `%APPDATA%\Atropaten`, which contains the live
 database, backups, attachments, and artwork. Reinstall and uninstall therefore
 leave user data available for a later installation or manual restore.
+
+Before signing off the Windows release candidate, verify the order flow for an
+outsourced service: create the service with a default supplier item cost and
+optional shipping, confirm those defaults are prefilled when adding an order
+item, and confirm that order-specific overrides remain optional. Also verify
+that in-house paper-printing and roll-material services continue through their
+existing materials and machines steps.
 
 This repository is developed on Linux; Windows compilation, WebView2 behavior,
 installer execution, and print-driver behavior must be validated on Windows
