@@ -12,20 +12,17 @@ import { formatMoney } from '../../utils/currency'
 import MachineDetailPanel from './MachineDetailPanel.vue'
 import MachineEditorWizard from './MachineEditorWizard.vue'
 import { useMachinesWorkspace, type MachineFilter } from './useMachinesWorkspace'
+import { useDynamicPagination } from '../../composables/useDynamicPagination'
 
 const props = defineProps<{ currencyUnit: CurrencyUnit }>()
 const emit = defineEmits<{ notify: [message: string] }>()
 const workspace = useMachinesWorkspace(props, emit)
 const { machines, selectedId, selectedMachine, machineFilter, searchQuery, editorMode, isLoading, filteredMachines, startCreate, selectMachine } = workspace
 
-const page = ref(1)
-const pageSize = 10
 const statusOptions: MachineFilter[] = ['All', 'Active', 'Archived']
 
 const visibleMachines = computed(() => filteredMachines.value)
-const pageCount = computed(() => Math.max(1, Math.ceil(visibleMachines.value.length / pageSize)))
-const pagedMachines = computed(() => visibleMachines.value.slice((page.value - 1) * pageSize, page.value * pageSize))
-const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1))
+const { page, pageSize, pageCount, pageNumbers, pagedItems: pagedMachines, goToPage } = useDynamicPagination(visibleMachines, { viewportSelector: '.machine-register-row' })
 
 function statusCount(status: MachineFilter) {
   if (status === 'All') return machines.value.length
@@ -37,10 +34,6 @@ function profileSummary(machine: typeof machines.value[number]) {
   return `${count} profile${count === 1 ? '' : 's'}`
 }
 
-function goToPage(value: number) {
-  page.value = Math.min(Math.max(value, 1), pageCount.value)
-}
-
 function clearFilters() {
   searchQuery.value = ''
   machineFilter.value = 'All'
@@ -48,7 +41,6 @@ function clearFilters() {
 }
 
 watch([searchQuery, machineFilter], () => { page.value = 1 })
-watch(pageCount, (count) => { if (page.value > count) page.value = count })
 watch([selectedId, editorMode], () => { void nextTick(() => document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' })) })
 </script>
 

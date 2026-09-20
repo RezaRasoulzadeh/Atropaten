@@ -16,7 +16,7 @@ import SelectField from '../../components/ui/SelectField.vue';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import type { OrderItemPayload, OrderPayload, OrderRecord } from '../../api/orders';
 import { ordersApi } from '../../api/orders';
-import type { CurrencyUnit } from '../../utils/currency';
+import { DEFAULT_MONETARY_ROUNDING_STEP_RIAL, type CurrencyUnit } from '../../utils/currency';
 import { formatMoney, formatMoneyInput, formatMoneyInputWhileTyping, parseMoneyInput } from '../../utils/currency';
 import { formatDateTime } from '../../utils/date';
 import DocumentMetadataPanel from '../documents/DocumentMetadataPanel.vue';
@@ -32,6 +32,7 @@ const props = defineProps<{
   services: any[];
   materials: any[];
   machines: any[];
+  roundingStepRial?: number;
   suppliers?: any[];
   isNew?: boolean;
 }>();
@@ -648,6 +649,7 @@ reportError(error);
           :machines="machines"
           :suppliers="suppliers"
           :currency-unit="currencyUnit"
+          :rounding-step-rial="roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL"
           :initial="editingItem"
           :preset-service-id="selectedServiceForEditor"
           :busy="busy || saving"

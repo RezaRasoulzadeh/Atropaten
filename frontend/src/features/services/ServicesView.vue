@@ -8,15 +8,16 @@ import LoadingState from '../../components/ui/LoadingState.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import type { CurrencyUnit } from '../../utils/currency'
-import { formatMoney } from '../../utils/currency'
+import { DEFAULT_MONETARY_ROUNDING_STEP_RIAL, formatMoney } from '../../utils/currency'
 import type { ServiceFilter } from './types'
 import ServiceEditorWizard from './ServiceEditorWizard.vue'
 import ServiceDetailPanel from './ServiceDetailPanel.vue'
 import { serviceEstimatedSellingPrice } from './serviceDefaultPricing'
 import { useServicesWorkspace } from './useServicesWorkspace'
+import { useDynamicPagination } from '../../composables/useDynamicPagination'
 
 const emit = defineEmits<{ notify: [message: string] }>()
-const props = defineProps<{ currencyUnit: CurrencyUnit }>()
+const props = defineProps<{ currencyUnit: CurrencyUnit; roundingStepRial?: number }>()
 
 const {
   busy,
@@ -44,27 +45,19 @@ const {
   remove,
 } = useServicesWorkspace(props, emit)
 
-const page = ref(1)
-const pageSize = 10
 const statusOptions: ServiceFilter[] = ['All', 'Active', 'Archived']
 
 const visibleServices = computed(() => filteredServices.value)
 
-const pageCount = computed(() => Math.max(1, Math.ceil(visibleServices.value.length / pageSize)))
-const pagedServices = computed(() => visibleServices.value.slice((page.value - 1) * pageSize, page.value * pageSize))
-const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1))
+const { page, pageSize, pageCount, pageNumbers, pagedItems: pagedServices, goToPage } = useDynamicPagination(visibleServices, { viewportSelector: 'button.group.grid.w-full.min-w-0' })
 
 function statusCount(status: ServiceFilter) {
   if (status === 'All') return services.value.length
   return services.value.filter((service) => status === 'Active' ? service.active : !service.active).length
 }
 
-function goToPage(value: number) {
-  page.value = Math.min(Math.max(value, 1), pageCount.value)
-}
-
 function estimatedPrice(service: typeof services.value[number]) {
-  return serviceEstimatedSellingPrice(service, materials.value, machines.value, services.value)
+  return serviceEstimatedSellingPrice(service, materials.value, machines.value, services.value, props.roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL)
 }
 
 function resetListFilters() {
@@ -74,7 +67,6 @@ function resetListFilters() {
 }
 
 watch([searchQuery, serviceFilter], () => { page.value = 1 })
-watch(pageCount, (count) => { if (page.value > count) page.value = count })
 
 watch(
   [() => selectedId.value, () => editorMode.value],
@@ -100,6 +92,7 @@ watch(
       :services="services"
       :service-id="selectedService?.id || ''"
       :currency-unit="props.currencyUnit"
+      :rounding-step-rial="props.roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL"
       :predefined-parameters="predefinedParameters"
       @cancel="cancelEditor"
       @save="saveService"
@@ -154,6 +147,7 @@ watch(
         :machines="machines"
         :services="services"
         :currency-unit="props.currencyUnit"
+        :rounding-step-rial="props.roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL"
         :busy="busy"
         @edit="startEdit"
         @archive="setActive(false)"

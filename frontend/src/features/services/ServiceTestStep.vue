@@ -8,7 +8,7 @@ import SelectField from '../../components/ui/SelectField.vue'
 import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
-import { formatMoney, type CurrencyUnit } from '../../utils/currency'
+import { formatMoney, roundMoneyUp, DEFAULT_MONETARY_ROUNDING_STEP_RIAL, type CurrencyUnit } from '../../utils/currency'
 import { calculateServiceTest, isAutomaticVariationParameter, isMachineRateParameter, machineGroupOptions, machineRateOptions, outsourcedDefaultCostRial, outsourcedDefaultLines, testParameterLabel, visibleTestParameters, type TestPricingResult, type TestValues } from './serviceTestPricing'
 import type { ParameterForm, ServiceForm } from './types'
 import { translateUi } from '../../i18n'
@@ -23,6 +23,7 @@ const props = defineProps<{
   services: ServiceRecord[]
   values: TestValues
   currencyUnit: CurrencyUnit
+  roundingStepRial?: number
 }>()
 
 const emit = defineEmits<{
@@ -75,7 +76,7 @@ function recalculate() {
     if (!props.values[key] && materialWidth.value) props.values[key] = materialWidth.value
   }
   if (!props.form.finishedSize?.quantityParameterKey) {
-    emit('update:result', calculateServiceTest(props.form, props.values, props.materials, props.machines, props.services)); return
+    emit('update:result', calculateServiceTest(props.form, props.values, props.materials, props.machines, props.services, props.roundingStepRial)); return
   }
   const token = ++draftToken
   clearTimeout(draftTimer)
@@ -130,16 +131,18 @@ function onValueChanged() {
 }
 
 watch(
-  () => [props.parameters, props.form.components, props.form.pricingRule, props.form.finishedSize, props.materials, props.machines, props.services, props.values],
+  () => [props.parameters, props.form.components, props.form.pricingRule, props.form.finishedSize, props.materials, props.machines, props.services, props.values, props.roundingStepRial],
   recalculate,
   { deep: true, immediate: true },
 )
 
 const result = computed<TestPricingResult>(() => {
-  if (!props.form.finishedSize?.quantityParameterKey) return calculateServiceTest(props.form, props.values, props.materials, props.machines, props.services)
+  if (!props.form.finishedSize?.quantityParameterKey) return calculateServiceTest(props.form, props.values, props.materials, props.machines, props.services, props.roundingStepRial)
   const p = draftPrice.value
   const outsourcedCost = outsourcedDefaultCostRial(props.form)
-  const totalCostRial = (p?.estimatedCostRial || 0) + outsourcedCost
+  const roundingStepRial = p?.roundingStepRial || props.roundingStepRial
+  const step = roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL
+  const totalCostRial = roundMoneyUp((p?.estimatedCostRial || 0) + outsourcedCost, step)
   const lines = [
     ...(p?.components.map(c => ({ name: c.name, detail: c.explanation, amount: c.amountRial, missing: false })) || []),
     ...outsourcedDefaultLines(props.form),
@@ -148,9 +151,9 @@ const result = computed<TestPricingResult>(() => {
   let markupRial = p ? p.suggestedSellingPriceRial - p.estimatedCostRial : 0
   if (p && props.form.pricingRule.type === 'markup') {
     markupRial = Math.ceil(totalCostRial * (Number(props.form.pricingRule.markupPercentage) || 0) / 100)
-    sellingPriceRial = totalCostRial + markupRial
+    sellingPriceRial = roundMoneyUp(totalCostRial + markupRial, step)
   } else if (p && props.form.pricingRule.type === 'fixed-margin') {
-    sellingPriceRial = totalCostRial + props.form.pricingRule.fixedMarginRial
+    sellingPriceRial = roundMoneyUp(totalCostRial + props.form.pricingRule.fixedMarginRial, step)
   }
   const profitRial = sellingPriceRial - totalCostRial
   return { lines, totalCostRial, markupRial, sellingPriceRial, pricingLabel: 'Complete batch', profitRial, marginPercentage: sellingPriceRial ? profitRial / sellingPriceRial * 100 : 0, belowCost: p ? sellingPriceRial < totalCostRial : false, hasMissing: !p }

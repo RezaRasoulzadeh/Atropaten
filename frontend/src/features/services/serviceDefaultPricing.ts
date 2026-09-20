@@ -2,6 +2,7 @@ import type { MachineRecord } from '../../api/machines'
 import type { MaterialRecord } from '../../api/materials'
 import type { ServiceRecord } from '../../api/services'
 import { calculateServiceTest, type TestPricingResult, type TestValues } from './serviceTestPricing'
+import { DEFAULT_MONETARY_ROUNDING_STEP_RIAL } from '../../utils/currency'
 import type { ComponentForm, ParameterForm, PricingRuleForm, ServiceForm } from './types'
 
 function formFromService(service: ServiceRecord): ServiceForm {
@@ -144,10 +145,11 @@ export function serviceDefaultPricingResult(
   materials: MaterialRecord[],
   machines: MachineRecord[],
   services: ServiceRecord[],
+  roundingStepRial = DEFAULT_MONETARY_ROUNDING_STEP_RIAL,
 ): TestPricingResult | null {
   if (service.finishedSize?.quantityParameterKey || !service.pricingRule || service.pricingRule.type === 'manual') return null
   const form = formFromService(service)
-  return calculateServiceTest(form, defaultValues(form), materials, machines, services)
+  return calculateServiceTest(form, defaultValues(form), materials, machines, services, roundingStepRial)
 }
 
 /** Return a usable final selling price, or null when defaults cannot produce one. */
@@ -156,8 +158,9 @@ export function serviceEstimatedSellingPrice(
   materials: MaterialRecord[],
   machines: MachineRecord[],
   services: ServiceRecord[],
+  roundingStepRial = DEFAULT_MONETARY_ROUNDING_STEP_RIAL,
 ): number | null {
-  const result = serviceDefaultPricingResult(service, materials, machines, services)
+  const result = serviceDefaultPricingResult(service, materials, machines, services, roundingStepRial)
   if (!result || result.sellingPriceRial <= 0) return null
 
   const requiresCompleteCost = service.pricingRule?.type === 'markup' || service.pricingRule?.type === 'fixed-margin'

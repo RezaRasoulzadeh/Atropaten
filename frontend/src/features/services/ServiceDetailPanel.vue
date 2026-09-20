@@ -5,7 +5,7 @@ import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
 import type { CurrencyUnit } from '../../utils/currency'
-import { formatMoney } from '../../utils/currency'
+import { DEFAULT_MONETARY_ROUNDING_STEP_RIAL, formatMoney } from '../../utils/currency'
 import { formatDateTime } from '../../utils/date'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import { serviceEstimatedSellingPrice } from './serviceDefaultPricing'
@@ -20,6 +20,7 @@ const props = defineProps<{
   machines: MachineRecord[]
   services: ServiceRecord[]
   currencyUnit: CurrencyUnit
+  roundingStepRial?: number
   busy?: boolean
 }>()
 
@@ -37,7 +38,7 @@ const parameters = computed(() => props.service.parameters || [])
 const components = computed(() => props.service.components || [])
 const pricingRule = computed(() => props.service.pricingRule)
 
-const estimatedPrice = computed(() => serviceEstimatedSellingPrice(props.service, props.materials, props.machines, props.services))
+const estimatedPrice = computed(() => serviceEstimatedSellingPrice(props.service, props.materials, props.machines, props.services, props.roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL))
 
 const categoryLabel = computed(() => props.service.category || 'Uncategorized')
 const categoryRequirements = computed(() => serviceCategoryRequirements(props.service.category))

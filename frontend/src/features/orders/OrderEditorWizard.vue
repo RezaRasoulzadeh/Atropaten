@@ -13,7 +13,7 @@ import OrderItemConfigurator from '../sales/OrderItemConfigurator.vue'
 import type { OrderItemPayload, OrderRecord } from '../../api/orders'
 import type { PricingRecord } from '../../api/pricing'
 import { ordersApi } from '../../api/orders'
-import type { CurrencyUnit } from '../../utils/currency'
+import { DEFAULT_MONETARY_ROUNDING_STEP_RIAL, type CurrencyUnit } from '../../utils/currency'
 import { formatMoney, formatMoneyInput, parseMoneyInput, sellingPriceTotal } from '../../utils/currency'
 import { reportError } from '../../composables/useWorkspaceActions'
 
@@ -25,6 +25,7 @@ const props = defineProps<{
   services: any[]
   materials: any[]
   machines: any[]
+  roundingStepRial?: number
   currencyUnit: CurrencyUnit
   busy?: boolean
 }>()
@@ -207,7 +208,7 @@ async function save() {
 
             <section v-else-if="activeStep === 2" class="min-w-0 space-y-4">
               <div class="flex flex-wrap items-start justify-between gap-3"><div><h2 class="text-lg font-semibold">{{ $t("Configure order items") }}</h2><p class="mt-1 text-sm text-base-content/60">{{ $t("Add services and calculate their accepted pricing before creating the order.") }}</p></div><button v-if="!itemEditorOpen" class="btn btn-primary btn-sm gap-2" type="button" @click="openItemEditor()"><Plus :size="15" aria-hidden="true" />{{ $t("Add service") }}</button></div>
-              <OrderItemConfigurator v-if="itemEditorOpen" :services="services" :materials="materials" :machines="machines" :currency-unit="currencyUnit" :initial="itemInitial(editingIndex === null ? undefined : draftItems[editingIndex])" :busy="saving || busy" @configured="saveItem" @cancel="itemEditorOpen = false; editingIndex = null" />
+              <OrderItemConfigurator v-if="itemEditorOpen" :services="services" :materials="materials" :machines="machines" :rounding-step-rial="roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL" :currency-unit="currencyUnit" :initial="itemInitial(editingIndex === null ? undefined : draftItems[editingIndex])" :busy="saving || busy" @configured="saveItem" @cancel="itemEditorOpen = false; editingIndex = null" />
               <div v-else-if="draftItems.length" class="space-y-2">
                 <div v-for="(item, index) in draftItems" :key="item.id" class="flex min-w-0 items-center gap-3 rounded-box border border-base-300 bg-base-100 px-3 py-3"><span class="grid size-9 shrink-0 place-items-center rounded-box bg-base-200 text-primary"><Package :size="18" aria-hidden="true" /></span><div class="min-w-0 flex-1"><strong class="block truncate text-sm">{{ serviceName(item) }}</strong><span class="block truncate text-xs text-base-content/55">{{ serviceCode(item) }} · {{ $ui(item.payload.quantity || '1') }} {{ $ui(item.payload.quantityUnit) }}</span></div><button class="btn btn-ghost btn-square btn-sm" type="button" :aria-label='$t("Edit service item")' @click="openItemEditor(index)"><Edit3 :size="14" aria-hidden="true" /></button><button class="btn btn-ghost btn-error btn-square btn-sm" type="button" :aria-label='$t("Remove service item")' @click="removeItem(index)"><Trash2 :size="14" aria-hidden="true" /></button></div>
               </div>

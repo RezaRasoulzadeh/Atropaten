@@ -19,7 +19,7 @@ import ServiceOverviewSection from './ServiceOverviewSection.vue'
 import type { MaterialAttributeDefinitionRecord, MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
-import { formatMoneyInput, parseMoneyInput, type CurrencyUnit } from '../../utils/currency'
+import { formatMoneyInput, parseMoneyInput, roundMoneyUp, DEFAULT_MONETARY_ROUNDING_STEP_RIAL, type CurrencyUnit } from '../../utils/currency'
 import ServiceMachinesStep from './ServiceMachinesStep.vue'
 import type { PredefinedParameter, ServiceForm } from './types'
 import { outsourcedDefaultCostRial, outsourcedDefaultLines, type TestPricingResult, type TestValues } from './serviceTestPricing'
@@ -40,6 +40,7 @@ const props = defineProps<{
   services: ServiceRecord[]
   serviceId?: string
   currencyUnit: CurrencyUnit
+  roundingStepRial?: number
   predefinedParameters: PredefinedParameter[]
 }>()
 const emit = defineEmits<{
@@ -62,7 +63,9 @@ type ServiceStepKey = 'basic' | 'materials' | 'machines' | 'outsourcing' | 'pric
 const isOutsourced = computed(() => props.form.fulfillmentMode === 'outsourced')
 const defaultOutsourcedCostInvalid = computed(() => isOutsourced.value && props.form.defaultOutsourcedCostRial <= 0)
 const defaultOutsourcedShippingInvalid = computed(() => props.form.defaultOutsourcedShippingRial < 0)
-const effectivePricingCostEstimate = computed(() => isOutsourced.value ? outsourcedDefaultCostRial(props.form) : pricingCostEstimate.value)
+const effectivePricingCostEstimate = computed(() => isOutsourced.value
+  ? roundMoneyUp(outsourcedDefaultCostRial(props.form), props.roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL)
+  : pricingCostEstimate.value)
 const effectivePricingBreakdown = computed(() => isOutsourced.value ? outsourcedDefaultLines(props.form) : pricingBreakdown.value)
 const steps = computed(() => isOutsourced.value
   ? [
@@ -313,6 +316,7 @@ watch(
             :material-variants="form.materialVariants"
             :currency-unit="currencyUnit"
             :estimated-cost-rial="effectivePricingCostEstimate"
+            :rounding-step-rial="roundingStepRial"
             :show-errors="validationAttempted"
           />
           <ServiceTestStep
@@ -324,6 +328,7 @@ watch(
             :services="services"
             :values="testValues"
             :currency-unit="currencyUnit"
+            :rounding-step-rial="roundingStepRial"
             @update:result="testResult = $event"
           />
           <section v-else class="flex min-h-[28rem] flex-col items-center justify-center text-center">
@@ -336,9 +341,9 @@ watch(
         </section>
 
         <aside class="service-wizard-preview-panel min-h-0 min-w-0 rounded-box border border-base-300 bg-base-200/35 p-4 xl:overflow-y-auto">
-        <ServiceCostBreakdownPreview v-if="activeStepKey === 'materials' || activeStepKey === 'machines'" :form="form" :active="active" :components="form.components" :parameters="form.parameters" :materials="materials" :machines="machines" :services="services" :currency-unit="currencyUnit" @update:total="pricingCostEstimate = $event" @update:breakdown="pricingBreakdown = $event" />
+        <ServiceCostBreakdownPreview v-if="activeStepKey === 'materials' || activeStepKey === 'machines'" :form="form" :active="active" :components="form.components" :parameters="form.parameters" :materials="materials" :machines="machines" :services="services" :currency-unit="currencyUnit" :rounding-step-rial="roundingStepRial" @update:total="pricingCostEstimate = $event" @update:breakdown="pricingBreakdown = $event" />
         <ServiceOrderPreview v-if="activeStepKey === 'materials' || activeStepKey === 'machines'" :form="form" :materials="materials" :machines="machines" :currency-unit="currencyUnit" :show-identity="false" :show-material-estimate="false" :active="active" />
-        <ServicePricingPreview v-if="activeStepKey === 'pricing'" :form="form" :active="active" :pricing-rule="form.pricingRule" :parameters="form.parameters" :materials="materials" :machines="machines" :estimated-cost-rial="effectivePricingCostEstimate" :breakdown="effectivePricingBreakdown" :currency-unit="currencyUnit" />
+        <ServicePricingPreview v-if="activeStepKey === 'pricing'" :form="form" :active="active" :pricing-rule="form.pricingRule" :parameters="form.parameters" :materials="materials" :machines="machines" :estimated-cost-rial="effectivePricingCostEstimate" :breakdown="effectivePricingBreakdown" :currency-unit="currencyUnit" :rounding-step-rial="roundingStepRial" />
         <ServiceTestPreview v-if="activeStepKey === 'test'" :form="form" :active="active" :parameters="form.parameters" :values="testValues" :materials="materials" :machines="machines" :result="testResult" :currency-unit="currencyUnit" @edit="goToStep(isOutsourced ? 3 : 2)" />
         <template v-if="activeStepKey === 'basic'">
         <div class="space-y-4">

@@ -17,7 +17,7 @@ import {
   type ShopSettingsRecord,
 } from '../../api/reports';
 import { confirmAction } from '../../ui/feedback';
-const emit = defineEmits<{ notify: [message: string]; restored: [] }>();
+const emit = defineEmits<{ notify: [message: string]; restored: []; 'settings-updated': [settings: ShopSettingsRecord] }>();
 const form = ref<ShopSettingsRecord>({
   shopName: '',
   shopSubtitle: '',
@@ -61,6 +61,7 @@ return runAction(async () => {
   try {
     await reportsApi.saveSettings(form.value);
     paths.value = await reportsApi.dataPaths();
+    emit('settings-updated', { ...form.value });
     emit('notify', 'Settings saved.');
   } catch (e) {
 reportError(e);

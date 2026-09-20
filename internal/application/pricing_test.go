@@ -30,7 +30,7 @@ func TestPricingServiceResolvesDynamicParametersAndRejectsInvalidValues(t *testi
 	if err != nil {
 		t.Fatalf("calculate: %v", err)
 	}
-	if result.Parameters[0].Quantity != "0.125001" || result.EstimatedCostRial != 125001 || result.SuggestedSellingPriceRial != 151000 {
+	if result.Parameters[0].Quantity != "0.125001" || result.EstimatedCostRial != 126000 || result.SuggestedSellingPriceRial != 152000 {
 		t.Fatalf("unexpected pricing result: %+v", result)
 	}
 	_, err = pricing.Calculate(context.Background(), PricingRequest{ServiceID: service.ID, Parameters: map[string]string{"estimated_hours": "0.1", "paper": "MAT-paper"}})
@@ -58,7 +58,7 @@ func TestPricingServiceUsesPersistedMonetaryRoundingStep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.EstimatedCostRial != 12100 || result.SuggestedSellingPriceRial != 12100 || result.RoundingStepRial != 100 {
+	if result.EstimatedCostRial != 12100 || result.SuggestedSellingPriceRial != 12200 || result.RoundingStepRial != 100 {
 		t.Fatalf("rounded pricing=%+v", result)
 	}
 	repository.step = 1
@@ -105,8 +105,8 @@ func TestPricingServiceCalculatesMaterialSelectedByParameter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("calculate: %v", err)
 	}
-	if result.EstimatedCostRial != 725 || len(result.Components) != 2 {
-		t.Fatalf("material and machine costs = %+v, want 725 across 2 components", result)
+	if result.EstimatedCostRial != 1000 || len(result.Components) != 2 {
+		t.Fatalf("material and machine costs = %+v, want rounded cost across 2 components", result)
 	}
 }
 
@@ -196,8 +196,8 @@ func TestPricingServiceCalculatesMachineSelectedByParameter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("calculate: %v", err)
 	}
-	if result.EstimatedCostRial != 750 {
-		t.Fatalf("machine cost = %d, want 750", result.EstimatedCostRial)
+	if result.EstimatedCostRial != 1000 {
+		t.Fatalf("machine cost = %d, want rounded cost 1000", result.EstimatedCostRial)
 	}
 }
 
@@ -229,8 +229,8 @@ func TestPricingServiceAcceptsLegacyDynamicMachineRateDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("legacy dynamic machine rate was rejected: %v", err)
 	}
-	if result.EstimatedCostRial != 250 {
-		t.Fatalf("legacy dynamic machine rate cost=%d, want 250", result.EstimatedCostRial)
+	if result.EstimatedCostRial != 1000 {
+		t.Fatalf("legacy dynamic machine rate cost=%d, want rounded cost 1000", result.EstimatedCostRial)
 	}
 }
 
@@ -287,8 +287,8 @@ func TestPricingServiceIncludesNestedServiceCostAndRejectsCycles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("calculate nested service cost: %v", err)
 	}
-	if result.EstimatedCostRial != 300 || len(result.Components) != 1 || result.Components[0].RateRial != 300 {
-		t.Fatalf("nested service cost = %+v, want 300 Rial", result)
+	if result.EstimatedCostRial != 1000 || len(result.Components) != 1 || result.Components[0].RateRial != 1000 {
+		t.Fatalf("nested service cost = %+v, want rounded 1000 Rial", result)
 	}
 
 	finishing.Components = []domain.ServiceCostComponent{{ID: "C-printing", Name: "Printing service", Type: domain.CostService, ReferenceID: printing.ID, UsageMode: domain.UsageFixed, UsageQuantity: domain.QuantityScale, Multiplier: domain.QuantityScale, Enabled: true, CreatedAt: now, UpdatedAt: now}}

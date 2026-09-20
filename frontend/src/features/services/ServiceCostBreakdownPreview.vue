@@ -6,7 +6,7 @@ import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { ServiceRecord } from '../../api/services'
 import type { ComponentForm, ParameterForm, ServiceForm } from './types'
-import { formatMoney, type CurrencyUnit } from '../../utils/currency'
+import { formatMoney, roundMoneyUp, DEFAULT_MONETARY_ROUNDING_STEP_RIAL, type CurrencyUnit } from '../../utils/currency'
 import ServiceOverviewIdentity from './ServiceOverviewIdentity.vue'
 import ServiceOverviewSection from './ServiceOverviewSection.vue'
 import { collapseGroupedMaterialComponents } from './serviceComponentSync'
@@ -23,6 +23,7 @@ const props = defineProps<{
   currencyUnit: CurrencyUnit
   form: ServiceForm
   active: boolean
+  roundingStepRial?: number
 }>()
 const emit = defineEmits<{
   'update:total': [value: number]
@@ -138,7 +139,7 @@ const layoutMessage = ref('')
 let previewToken = 0
 let previewTimer: ReturnType<typeof setTimeout> | undefined
 onBeforeUnmount(() => { previewToken++; clearTimeout(previewTimer) })
-watch(() => props.form, () => {
+watch(() => [props.form, props.roundingStepRial], () => {
   const token = ++previewToken
   clearTimeout(previewTimer)
   layoutPrice.value = null
@@ -195,6 +196,7 @@ const rows = computed<BreakdownRow[]>(() => {
 
 const subtotal = computed(() => rows.value.filter((row) => row.component.type !== 'overhead' && row.component.type !== 'waste').reduce((total, row) => total + row.amount, 0))
 const total = computed(() => rows.value.reduce((sum, row) => sum + row.amount, 0))
+const roundedTotal = computed(() => roundMoneyUp(Math.round(total.value), props.roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL))
 const defaultEstimateSummary = computed(() => effectiveComponents.value
   .filter((component) => component.enabled && (component.type === 'material' || component.type === 'machine'))
   .map((component) => {
@@ -203,7 +205,7 @@ const defaultEstimateSummary = computed(() => effectiveComponents.value
     const rate = machine ? machineRateFor(component) : null
     return `Machine: ${machine?.name || 'not set'}${rate?.name ? ` · ${rate.name}` : ''}`
   }))
-watch(total, (value) => emit('update:total', Math.round(value)), { immediate: true })
+watch(roundedTotal, (value) => emit('update:total', value), { immediate: true })
 watch(rows, (value) => emit('update:breakdown', value.map((row) => ({ name: row.component.name || 'Cost component', amount: Math.round(row.amount), detail: row.detail, missing: row.missing }))), { immediate: true })
 </script>
 
@@ -222,7 +224,7 @@ watch(rows, (value) => emit('update:breakdown', value.map((row) => ({ name: row.
           </div>
         </div>
         <div class="flex items-center justify-between gap-3 border-t border-base-300/75 pt-2.5 text-sm"><span class="font-medium">{{ $t("Subtotal") }}</span><strong class="tabular-nums">{{ formatMoney(subtotal, currencyUnit) }}</strong></div>
-        <div class="flex items-center justify-between gap-3 border-t border-base-300/75 pt-2.5 text-sm"><span class="font-semibold">{{ $t("Estimated cost") }}</span><strong class="text-base text-success tabular-nums">{{ formatMoney(total, currencyUnit) }}</strong></div>
+        <div class="flex items-center justify-between gap-3 border-t border-base-300/75 pt-2.5 text-sm"><span class="font-semibold">{{ $t("Estimated cost") }}</span><strong class="text-base text-success tabular-nums">{{ formatMoney(roundedTotal, currencyUnit) }}</strong></div>
       </div>
       <p v-else class="rounded-box border border-dashed border-base-300/80 p-4 text-center text-sm leading-5 text-base-content/60">{{ $t("Add a cost component to see its estimated breakdown.") }}</p>
     </ServiceOverviewSection>

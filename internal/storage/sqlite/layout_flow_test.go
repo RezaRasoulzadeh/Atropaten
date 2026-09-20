@@ -49,7 +49,7 @@ func TestLegacyRollServicePricesAndAddsWithoutSavedLayout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if preview.BatchQuantity != "2" || preview.EstimatedCostRial != 300 || len(preview.Layouts) != 1 || preview.Layouts[0].ConsumedQuantity != "3" {
+	if preview.BatchQuantity != "2" || preview.EstimatedCostRial != 1000 || len(preview.Layouts) != 1 || preview.Layouts[0].ConsumedQuantity != "3" {
 		t.Fatalf("legacy roll pricing did not use custom length: %+v", preview)
 	}
 	order := domain.NewOrder("legacy-roll-order", "", now)
@@ -61,7 +61,7 @@ func TestLegacyRollServicePricesAndAddsWithoutSavedLayout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(saved.Items) != 1 || saved.Items[0].EstimatedCostRial != 300 {
+	if len(saved.Items) != 1 || saved.Items[0].EstimatedCostRial != 1000 {
 		t.Fatalf("legacy roll order cost: %+v", saved.Items)
 	}
 }
@@ -110,7 +110,7 @@ func TestLayoutOrderAndProductionUseWholeBatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if preview.BatchQuantity != "5" || preview.EstimatedCostRial != 330 || len(preview.Layouts) != 1 || preview.Layouts[0].Sheets != "2" {
+	if preview.BatchQuantity != "5" || preview.EstimatedCostRial != 1000 || len(preview.Layouts) != 1 || preview.Layouts[0].Sheets != "2" {
 		t.Fatalf("batch pricing: %+v", preview)
 	}
 	draftPrice, err := pricing.CalculateDraft(ctx, application.ServiceInput{Name: "Cards", DefaultUnit: "piece", FinishedSize: service.FinishedSize,
@@ -131,7 +131,7 @@ func TestLayoutOrderAndProductionUseWholeBatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	item := saved.Items[0]
-	if item.Quantity != "5" || item.EstimatedCostRial != 330 || item.SellingPriceRial != 1000 {
+	if item.Quantity != "5" || item.EstimatedCostRial != 1000 || item.SellingPriceRial != 1000 {
 		t.Fatalf("order double counted batch: %+v", item)
 	}
 	var snapshot application.PricingView
@@ -155,7 +155,7 @@ func TestLayoutOrderAndProductionUseWholeBatch(t *testing.T) {
 		t.Fatalf("partial production cost: %d %v", cost, err)
 	}
 	updated, err := orders.ReplaceItem(ctx, order.ID, item.ID, application.OrderItemInput{ServiceID: service.ID, Quantity: "9", QuantityUnit: "piece"})
-	if err != nil || updated.Items[0].EstimatedCostRial != 480 {
+	if err != nil || updated.Items[0].EstimatedCostRial != 1000 {
 		t.Fatalf("edited batch cost: %+v %v", updated, err)
 	}
 	plans, err = s.ProductionMaterials(ctx, job.ID)

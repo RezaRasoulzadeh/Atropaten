@@ -12,6 +12,7 @@ import { ordersApi, type OrderRecord } from '../../api/orders'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
 import { formatDateTime } from '../../utils/date'
 import { useWorkspaceActions } from '../../composables/useWorkspaceActions'
+import { useDynamicPagination } from '../../composables/useDynamicPagination'
 import { confirmAction } from '../../ui/feedback'
 
 type Tone = 'blue' | 'green' | 'amber' | 'red' | 'slate'
@@ -35,8 +36,6 @@ const { busy, runAction } = useWorkspaceActions()
 const query = ref('')
 const status = ref<OrderFilter>('All')
 const selectedOrderId = ref<string | null>(null)
-const page = ref(1)
-const pageSize = 10
 
 const statusOptions: OrderFilter[] = ['All', 'Draft', 'Confirmed', 'Production', 'Delivery', 'Closed', 'Cancelled', 'Archived']
 
@@ -71,12 +70,10 @@ const filteredOrders = computed(() => {
 
 const visibleOrders = computed(() => filteredOrders.value)
 
-const pageCount = computed(() => Math.max(1, Math.ceil(visibleOrders.value.length / pageSize)))
-const pagedOrders = computed(() => visibleOrders.value.slice((page.value - 1) * pageSize, page.value * pageSize))
 const selectedOrder = computed(() => props.orders.find((order) => order.id === selectedOrderId.value) ?? null)
-const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1))
+const { page, pageSize, pageCount, pageNumbers, pagedItems: pagedOrders, goToPage } = useDynamicPagination(visibleOrders, { viewportSelector: '.order-register-row' })
 const pageSummary = computed(() => visibleOrders.value.length
-  ? 'Showing ' + ((page.value - 1) * pageSize + 1) + '–' + Math.min(page.value * pageSize, visibleOrders.value.length) + ' of ' + visibleOrders.value.length + ' orders'
+  ? 'Showing ' + ((page.value - 1) * pageSize.value + 1) + '–' + Math.min(page.value * pageSize.value, visibleOrders.value.length) + ' of ' + visibleOrders.value.length + ' orders'
   : '0 orders')
 
 function tone(value: string): Tone {
@@ -101,12 +98,7 @@ function clearFilters() {
   page.value = 1
 }
 
-function goToPage(value: number) {
-  page.value = Math.min(Math.max(value, 1), pageCount.value)
-}
-
 watch([query, status], () => { page.value = 1 })
-watch(pageCount, (count) => { if (page.value > count) page.value = count })
 watch(visibleOrders, (orders) => {
   if (!orders.some((order) => order.id === selectedOrderId.value)) selectedOrderId.value = orders[0]?.id ?? null
 }, { immediate: true })

@@ -12,6 +12,7 @@ import AppInput from '../../components/ui/AppInput.vue'
 import AppTextarea from '../../components/ui/AppTextarea.vue'
 import FormField from '../../components/ui/FormField.vue'
 import { useWorkspaceActions, reportError } from '../../composables/useWorkspaceActions'
+import { useDynamicPagination } from '../../composables/useDynamicPagination'
 import { customersApi, type CustomerPayload, type CustomerRecord } from '../../api/customers'
 import { formatDateTime } from '../../utils/date'
 import { confirmAction } from '../../ui/feedback'
@@ -26,8 +27,6 @@ const customers = ref<CustomerRecord[]>([])
 const selectedId = ref<string | null>(null)
 const searchQuery = ref('')
 const customerFilter = ref<CustomerFilter>('All')
-const page = ref(1)
-const pageSize = 10
 const isLoading = ref(true)
 const editing = ref(false)
 const saving = ref(false)
@@ -45,13 +44,10 @@ const filteredCustomers = computed(() => {
   })
 })
 const visibleCustomers = computed(() => filteredCustomers.value)
-const pageCount = computed(() => Math.max(1, Math.ceil(visibleCustomers.value.length / pageSize)))
-const pagedCustomers = computed(() => visibleCustomers.value.slice((page.value - 1) * pageSize, page.value * pageSize))
-const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1))
+const { page, pageSize, pageCount, pageNumbers, pagedItems: pagedCustomers, goToPage } = useDynamicPagination(visibleCustomers, { viewportSelector: '.customer-register-row' })
 
 watch(() => props.refreshKey, loadCustomers, { immediate: true })
 watch([searchQuery, customerFilter], () => { page.value = 1 })
-watch(pageCount, (count) => { if (page.value > count) page.value = count })
 watch([selectedId, editing], () => {
   void nextTick(() => document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' }))
 })
@@ -106,10 +102,6 @@ function resetListFilters() {
   searchQuery.value = ''
   customerFilter.value = 'All'
   page.value = 1
-}
-
-function goToPage(value: number) {
-  page.value = Math.min(Math.max(value, 1), pageCount.value)
 }
 
 async function save() {

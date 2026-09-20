@@ -287,19 +287,15 @@ func (s *ProductionService) calculatedProductionJobView(ctx context.Context, v d
 	if err != nil {
 		return ProductionJobView{}, err
 	}
-	step := settings.MonetaryRoundingStepRial
-	if step <= 0 {
-		step = domain.DefaultMonetaryRoundingStepRial
-	}
-	view.EstimatedConversionCostRial, err = domain.RoundMoneyUp(view.EstimatedConversionCostRial, step)
+	view.EstimatedConversionCostRial, err = domain.RoundCalculatedMoney(view.EstimatedConversionCostRial, settings.MonetaryRoundingStepRial)
 	if err != nil {
 		return ProductionJobView{}, err
 	}
-	view.RemainingMaterialCostRial, err = domain.RoundMoneyUp(view.RemainingMaterialCostRial, step)
+	view.RemainingMaterialCostRial, err = domain.RoundCalculatedMoney(view.RemainingMaterialCostRial, settings.MonetaryRoundingStepRial)
 	if err != nil {
 		return ProductionJobView{}, err
 	}
-	view.ProjectedCostRial, err = domain.RoundMoneyUp(view.ProjectedCostRial, step)
+	view.ProjectedCostRial, err = domain.RoundCalculatedMoney(view.ProjectedCostRial, settings.MonetaryRoundingStepRial)
 	if err != nil {
 		return ProductionJobView{}, err
 	}

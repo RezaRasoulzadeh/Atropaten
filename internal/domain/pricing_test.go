@@ -49,8 +49,9 @@ func TestEvaluatePricingUsesDeterministicFixedScaleArithmetic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("evaluate: %v", err)
 	}
-	// 100 + 12.5 + 11.25 = 123.75, then 20% markup = 148.5 Rial.
-	if result.EstimatedCostRial != 124 || result.SuggestedSellingPriceRial != 1000 {
+	// 100 + 12.5 + 11.25 = 123.75 Rial. The aggregate cost rounds to
+	// 1,000 Rial before the 20% markup, which rounds to a 2,000-Rial price.
+	if result.EstimatedCostRial != 1000 || result.SuggestedSellingPriceRial != 2000 {
 		t.Fatalf("unexpected rounded totals: %+v", result)
 	}
 	if result.Components[1].Explanation != "12.5 of accumulated cost before this component" {
@@ -72,11 +73,11 @@ func TestEvaluatePricingSupportsGenericRules(t *testing.T) {
 		rule     *ServicePricingRuleDraft
 		expected int64
 	}{
-		"fixed":    {&ServicePricingRuleDraft{Type: PricingFixed, FixedPriceRial: 250}, 250},
-		"markup":   {&ServicePricingRuleDraft{Type: PricingMarkup, MarkupPercentage: Quantity(25 * QuantityScale)}, 125},
-		"margin":   {&ServicePricingRuleDraft{Type: PricingFixedMargin, FixedMarginRial: 40}, 140},
-		"per unit": {&ServicePricingRuleDraft{Type: PricingPerUnit, ParameterKey: "quantity", PerUnitRateRial: 20}, 240},
-		"tiers":    {&ServicePricingRuleDraft{Type: PricingTiers, ParameterKey: "quantity", Tiers: []ServicePricingTierDraft{{MinimumQuantity: 0, PriceRial: 100}, {MinimumQuantity: 10 * QuantityScale, PriceRial: 80}}}, 80},
+		"fixed":    {&ServicePricingRuleDraft{Type: PricingFixed, FixedPriceRial: 250}, 1000},
+		"markup":   {&ServicePricingRuleDraft{Type: PricingMarkup, MarkupPercentage: Quantity(25 * QuantityScale)}, 2000},
+		"margin":   {&ServicePricingRuleDraft{Type: PricingFixedMargin, FixedMarginRial: 40}, 2000},
+		"per unit": {&ServicePricingRuleDraft{Type: PricingPerUnit, ParameterKey: "quantity", PerUnitRateRial: 20}, 1000},
+		"tiers":    {&ServicePricingRuleDraft{Type: PricingTiers, ParameterKey: "quantity", Tiers: []ServicePricingTierDraft{{MinimumQuantity: 0, PriceRial: 100}, {MinimumQuantity: 10 * QuantityScale, PriceRial: 80}}}, 1000},
 		"manual":   {&ServicePricingRuleDraft{Type: PricingManual}, 0},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -84,9 +85,8 @@ func TestEvaluatePricingSupportsGenericRules(t *testing.T) {
 			if err != nil {
 				t.Fatalf("evaluate: %v", err)
 			}
-			expected := ((test.expected + 999) / 1000) * 1000
-			if result.SuggestedSellingPriceRial != expected {
-				t.Fatalf("suggested price = %d, want %d", result.SuggestedSellingPriceRial, expected)
+			if result.SuggestedSellingPriceRial != test.expected {
+				t.Fatalf("suggested price = %d, want %d", result.SuggestedSellingPriceRial, test.expected)
 			}
 		})
 	}
@@ -216,8 +216,8 @@ func TestEvaluatePricingUsesHighestPostedPurchaseCostForMaterials(t *testing.T) 
 	if err != nil {
 		t.Fatalf("evaluate: %v", err)
 	}
-	if result.EstimatedCostRial != 350 || result.Components[0].RateRial != 175 {
-		t.Fatalf("material price = %+v, want cost 350 at rate 175", result)
+	if result.EstimatedCostRial != 1000 || result.Components[0].RateRial != 175 {
+		t.Fatalf("material price = %+v, want rounded cost 1000 at rate 175", result)
 	}
 }
 
@@ -242,8 +242,8 @@ func TestEvaluatePricingUsesSelectedMaterialParameter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("evaluate: %v", err)
 	}
-	if result.EstimatedCostRial != 225 || result.Components[0].RateRial != 225 {
-		t.Fatalf("selected material price = %+v, want cost 225 at rate 225", result)
+	if result.EstimatedCostRial != 1000 || result.Components[0].RateRial != 225 {
+		t.Fatalf("selected material price = %+v, want rounded cost 1000 at rate 225", result)
 	}
 }
 
@@ -278,8 +278,8 @@ func TestEvaluatePricingCountsOneMaterialForGroupedCombination(t *testing.T) {
 	if err != nil {
 		t.Fatalf("evaluate: %v", err)
 	}
-	if result.EstimatedCostRial != 175 || len(result.Components) != 1 {
-		t.Fatalf("grouped material cost = %+v, want one 175-Rial component", result)
+	if result.EstimatedCostRial != 1000 || len(result.Components) != 1 {
+		t.Fatalf("grouped material cost = %+v, want one component and rounded cost", result)
 	}
 }
 
@@ -302,7 +302,7 @@ func TestEvaluatePricingUsesMachineRateSelectedByChoice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("evaluate black and white: %v", err)
 	}
-	if result.EstimatedCostRial != 100 || result.Components[0].RateRial != 100 {
+	if result.EstimatedCostRial != 1000 || result.Components[0].RateRial != 100 {
 		t.Fatalf("black and white rate = %+v, want 100", result)
 	}
 	input.Parameters["color"] = ResolvedParameter{Key: "color", Type: ParameterChoice, Value: "Full color"}
@@ -310,7 +310,7 @@ func TestEvaluatePricingUsesMachineRateSelectedByChoice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("evaluate full color: %v", err)
 	}
-	if result.EstimatedCostRial != 250 || result.Components[0].RateRial != 250 {
+	if result.EstimatedCostRial != 1000 || result.Components[0].RateRial != 250 {
 		t.Fatalf("full color rate = %+v, want 250", result)
 	}
 }

@@ -199,11 +199,7 @@ func (s *OrdersService) enrich(ctx context.Context, view OrderView) (OrderView, 
 		if settingsErr != nil {
 			return OrderView{}, settingsErr
 		}
-		step := settings.MonetaryRoundingStepRial
-		if step <= 0 {
-			step = domain.DefaultMonetaryRoundingStepRial
-		}
-		view.ProjectedCostRial, err = domain.RoundMoneyUp(view.ProjectedCostRial, step)
+		view.ProjectedCostRial, err = domain.RoundCalculatedMoney(view.ProjectedCostRial, settings.MonetaryRoundingStepRial)
 		if err != nil {
 			return OrderView{}, err
 		}
@@ -357,16 +353,14 @@ func (s *OrdersService) buildConfiguredItem(ctx context.Context, orderID string,
 	if err != nil {
 		return domain.OrderItem{}, fmt.Errorf("estimated cost for quantity: %w", err)
 	}
-	if price.RoundingStepRial > 0 && price.RoundingStepRial != domain.DefaultMonetaryRoundingStepRial {
-		estimatedCostRial, err = domain.RoundMoneyUp(estimatedCostRial, price.RoundingStepRial)
-		if err != nil {
-			return domain.OrderItem{}, fmt.Errorf("round estimated cost for quantity: %w", err)
-		}
-	}
 	if estimatedCostRial > (1<<63-1)-outsourcedTotal {
 		return domain.OrderItem{}, fmt.Errorf("estimated cost for quantity exceeds the supported money range")
 	}
 	estimatedCostRial += outsourcedTotal
+	estimatedCostRial, err = domain.RoundCalculatedMoney(estimatedCostRial, price.RoundingStepRial)
+	if err != nil {
+		return domain.OrderItem{}, fmt.Errorf("round estimated cost for quantity: %w", err)
+	}
 	suggestedPriceRial, err := domain.MulQuantitySellingPriceRialWithStep(priceQuantity, price.SuggestedSellingPriceRial, price.RoundingStepRial)
 	if err != nil {
 		return domain.OrderItem{}, fmt.Errorf("suggested price for quantity: %w", err)

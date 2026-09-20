@@ -38,3 +38,14 @@ func TestRoundMoneyUp(t *testing.T) {
 		})
 	}
 }
+
+func TestRoundCalculatedMoneyUsesDefaultWhenStepIsMissing(t *testing.T) {
+	got, err := RoundCalculatedMoney(12001, 0)
+	if err != nil || got != DefaultMonetaryRoundingStepRial*13 {
+		t.Fatalf("calculated money = %d/%v, want 13000 with default step", got, err)
+	}
+	got, err = RoundCalculatedMoney(12001, 100)
+	if err != nil || got != 12100 {
+		t.Fatalf("configured calculated money = %d/%v, want 12100", got, err)
+	}
+}

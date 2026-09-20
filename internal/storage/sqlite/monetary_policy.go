@@ -13,9 +13,5 @@ func (s *Store) roundCalculatedMoney(ctx context.Context, amount int64) (int64, 
 	if err != nil {
 		return 0, err
 	}
-	step := settings.MonetaryRoundingStepRial
-	if step <= 0 {
-		step = domain.DefaultMonetaryRoundingStepRial
-	}
-	return domain.RoundMoneyUp(amount, step)
+	return domain.RoundCalculatedMoney(amount, settings.MonetaryRoundingStepRial)
 }

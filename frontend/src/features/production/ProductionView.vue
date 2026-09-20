@@ -10,6 +10,7 @@ import StatusBadge from '../../components/ui/StatusBadge.vue'
 import type { OrderRecord } from '../../api/orders'
 import type { CurrencyUnit } from '../../utils/currency'
 import { useProductionWorkspace } from './useProductionWorkspace'
+import { useDynamicPagination } from '../../composables/useDynamicPagination'
 import ProductionJobWorkspaceView from './ProductionJobWorkspaceView.vue'
 import ProductionJobDetailPanel from './ProductionJobDetailPanel.vue'
 
@@ -40,18 +41,13 @@ const {
   statusTone,
 } = workspace
 
-const page = ref(1)
-const pageSize = 10
 const fullWorkspace = ref(false)
 const statusOptions = ['All', 'Pending', 'Ready', 'In Progress', 'Paused', 'Completed', 'Cancelled', 'Failed'] as const
 
 const sortedJobs = computed(() => visibleJobs.value)
-const pageCount = computed(() => Math.max(1, Math.ceil(sortedJobs.value.length / pageSize)))
-const pagedJobs = computed(() => sortedJobs.value.slice((page.value - 1) * pageSize, page.value * pageSize))
-const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1))
+const { page, pageSize, pageCount, pageNumbers, pagedItems: pagedJobs, goToPage } = useDynamicPagination(sortedJobs, { viewportSelector: '.production-register-row' })
 
 watch([searchQuery, statusFilter], () => { page.value = 1 })
-watch(pageCount, (count) => { if (page.value > count) page.value = count })
 watch(selectedId, () => {
   void nextTick(() => document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' }))
 })
@@ -62,10 +58,6 @@ watch(selected, (job) => {
 function statusCount(status: string) {
   if (status === 'All') return jobs.value.length
   return jobs.value.filter((job) => job.status === status).length
-}
-
-function goToPage(value: number) {
-  page.value = Math.min(Math.max(value, 1), pageCount.value)
 }
 
 function resetListFilters() {

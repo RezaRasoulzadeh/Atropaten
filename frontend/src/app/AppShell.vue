@@ -26,7 +26,7 @@ import { ordersApi, type OrderRecord } from '../api/orders';
 import { servicesApi } from '../api/services';
 import { materialsApi } from '../api/materials';
 import { machinesApi } from '../api/machines';
-import type { CurrencyUnit } from '../utils/currency';
+import { DEFAULT_MONETARY_ROUNDING_STEP_RIAL, type CurrencyUnit } from '../utils/currency';
 import OrderWorkspaceView from '../features/orders/OrderWorkspaceView.vue';
 import OrdersView from '../features/orders/OrdersView.vue';
 import MaterialsView from '../features/materials/MaterialsView.vue';
@@ -44,6 +44,7 @@ import { loansApi, type LoanRecord } from '../api/loans';
 import { ownersApi, type OwnerRecord } from '../api/owners';
 import { productionApi, type ProductionJobRecord } from '../api/production';
 import { accountingApi, type AccountRecord, type ExpenseRecord, type FinancialAccountRecord, type PaymentRecord, type TransferRecord } from '../api/accounting';
+import { reportsApi } from '../api/reports';
 import AccountingView from '../features/accounting/AccountingView.vue';
 import InvoicesView from '../features/invoices/InvoicesView.vue';
 import InvoiceWorkspaceView from '../features/invoices/InvoiceWorkspaceView.vue';
@@ -133,6 +134,7 @@ const toolbarCollapsed = computed(() =>
 );
 const searchQuery = ref('');
 const currencyUnit = ref<CurrencyUnit>('Toman');
+const monetaryRoundingStepRial = ref(DEFAULT_MONETARY_ROUNDING_STEP_RIAL);
 const selectedOrderId = ref<string | null>(null);
 const selectedInvoiceId = ref<string | null>(null);
 const selectedLoanId = ref<string | null>(null);
@@ -331,6 +333,17 @@ async function loadPurchases() {
   }
 }
 
+async function loadMoneySettings() {
+  try {
+    const settings = await reportsApi.settings();
+    monetaryRoundingStepRial.value = settings.monetaryRoundingStepRial > 0
+      ? settings.monetaryRoundingStepRial
+      : DEFAULT_MONETARY_ROUNDING_STEP_RIAL;
+  } catch (error) {
+    toast.error(error, 'Settings');
+  }
+}
+
 async function loadGlobalSearchData() {
   globalSearchLoading.value = true;
   const results = await Promise.allSettled([
@@ -365,6 +378,7 @@ async function refreshWorkspaceData() {
     loadOrders(),
     loadSuppliers(),
     loadPurchases(),
+    loadMoneySettings(),
     loadGlobalSearchData(),
   ]);
 }
@@ -515,6 +529,7 @@ onMounted(() => {
   loadOrders();
   loadSuppliers();
   loadPurchases();
+  loadMoneySettings();
   loadGlobalSearchData();
 });
 
@@ -596,6 +611,7 @@ function showToast(message: string) {
                 :services="catalogServices"
                 :materials="catalogMaterials"
                 :machines="catalogMachines"
+                :rounding-step-rial="monetaryRoundingStepRial"
                 :suppliers="suppliers"
                 :is-new="selectedOrderId?.startsWith('new-order-') ?? false"
                 @back="closeOrderWorkspace"
@@ -628,6 +644,7 @@ function showToast(message: string) {
             v-else-if="activeView === 'Services'"
             key="services"
             :currency-unit="currencyUnit"
+            :rounding-step-rial="monetaryRoundingStepRial"
             @notify="showToast"
           />
 
@@ -746,7 +763,7 @@ function showToast(message: string) {
             @notify="showToast"
           />
 
-          <SettingsView v-else-if="activeView === 'Settings'" key="settings" @notify="showToast" @restored="refreshWorkspaceData" />
+          <SettingsView v-else-if="activeView === 'Settings'" key="settings" @notify="showToast" @restored="refreshWorkspaceData" @settings-updated="monetaryRoundingStepRial = $event.monetaryRoundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL" />
 
           <EmptyState
             v-else

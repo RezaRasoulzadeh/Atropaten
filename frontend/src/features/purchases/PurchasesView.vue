@@ -15,6 +15,7 @@ import { formatDateTime } from '../../utils/date'
 import PurchaseDetailPanel from './PurchaseDetailPanel.vue'
 import PurchaseWorkspaceView from './PurchaseWorkspaceView.vue'
 import { usePurchasesWorkspace, type PurchaseFilter } from './usePurchasesWorkspace'
+import { useDynamicPagination } from '../../composables/useDynamicPagination'
 
 const props = defineProps<{
   currencyUnit: CurrencyUnit
@@ -39,14 +40,10 @@ const {
   backToPurchases,
 } = workspace
 
-const page = ref(1)
-const pageSize = 10
 const statusOptions: PurchaseFilter[] = ['All', 'Draft', 'Posted', 'Archived']
 
 const visibleRows = computed(() => filteredRows.value)
-const pageCount = computed(() => Math.max(1, Math.ceil(visibleRows.value.length / pageSize)))
-const pagedRows = computed(() => visibleRows.value.slice((page.value - 1) * pageSize, page.value * pageSize))
-const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1))
+const { page, pageSize, pageCount, pageNumbers, pagedItems: pagedRows, goToPage } = useDynamicPagination(visibleRows, { viewportSelector: '.purchase-register-row' })
 
 function statusTone(status: string) {
   return status === 'Posted' ? 'green' : status === 'Archived' || status === 'Cancelled' ? 'slate' : 'amber'
@@ -57,10 +54,6 @@ function statusCount(status: PurchaseFilter) {
   return rows.value.filter((purchase) => purchase.status === status).length
 }
 
-function goToPage(value: number) {
-  page.value = Math.min(Math.max(value, 1), pageCount.value)
-}
-
 function resetListFilters() {
   searchQuery.value = ''
   purchaseFilter.value = 'All'
@@ -68,7 +61,6 @@ function resetListFilters() {
 }
 
 watch([searchQuery, purchaseFilter], () => { page.value = 1 })
-watch(pageCount, (count) => { if (page.value > count) page.value = count })
 watch([selectedId, editing, createMode], () => {
   void nextTick(() => document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' }))
 })

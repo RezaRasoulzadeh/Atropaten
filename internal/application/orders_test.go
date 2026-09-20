@@ -114,7 +114,7 @@ func TestOutsourcedItemCostsAreOptionalLineCosts(t *testing.T) {
 	if item.OutsourcedCostRial != 350 || item.OutsourcedShippingRial != 50 || item.OutsourcedSupplierID != "SUP-1" || item.OutsourcedNotes != "Vendor quote" {
 		t.Fatalf("outsourced fields were not preserved: %+v", item)
 	}
-	if item.EstimatedCostRial != 400 || item.SellingPriceRial != 2_000 {
+	if item.EstimatedCostRial != 1000 || item.SellingPriceRial != 2_000 {
 		t.Fatalf("outsourced line cost changed the wrong totals: %+v", item)
 	}
 	defaultView, err := orders.Create(context.Background(), OrderInput{Items: []OrderItemInput{{
@@ -123,7 +123,7 @@ func TestOutsourcedItemCostsAreOptionalLineCosts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := defaultView.Items[0]; got.OutsourcedCostRial != 350 || got.OutsourcedShippingRial != 50 || got.EstimatedCostRial != 400 {
+	if got := defaultView.Items[0]; got.OutsourcedCostRial != 350 || got.OutsourcedShippingRial != 50 || got.EstimatedCostRial != 1000 {
 		t.Fatalf("service outsourced defaults were not applied: %+v", got)
 	}
 	if _, err = orders.Create(context.Background(), OrderInput{Items: []OrderItemInput{{

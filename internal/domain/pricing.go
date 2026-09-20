@@ -63,8 +63,8 @@ type PricingResult struct {
 
 // EvaluatePricing evaluates the persisted definition in display order. All
 // fractional work uses integers and big.Int. Component arithmetic remains
-// exact until the configured calculation boundary; automatically calculated
-// customer prices are rounded up so the final charge never loses a fraction.
+// exact until the configured calculation boundary; the calculated aggregate
+// cost and selling prices are rounded up consistently at that boundary.
 func EvaluatePricing(input PricingInput) (PricingResult, error) {
 	if err := input.Service.Validate(); err != nil {
 		return PricingResult{}, err
@@ -262,26 +262,18 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 		}
 		result.Components = append(result.Components, item)
 	}
-	calculatedCost := total
-	// The legacy 1,000-Rial policy only applied to customer charges. A shop
-	// selecting another configured step opts into the same round-up boundary
-	// for newly calculated service costs; existing snapshots remain untouched.
-	if input.MonetaryRoundingStepRial > 0 && input.MonetaryRoundingStepRial != DefaultMonetaryRoundingStepRial {
-		roundedCost, roundErr := RoundMoneyUp(total, input.MonetaryRoundingStepRial)
-		if roundErr != nil {
-			return PricingResult{}, roundErr
-		}
-		total = roundedCost
+	roundedCost, roundErr := RoundCalculatedMoney(total, input.MonetaryRoundingStepRial)
+	if roundErr != nil {
+		return PricingResult{}, roundErr
 	}
+	calculatedCost := roundedCost
+	total = roundedCost
 	result.EstimatedCostRial = total
 	suggested, warnings, err := suggestedPrice(input.Service.PricingRule, input.Service, input.Parameters, calculatedCost)
 	if err != nil {
 		return PricingResult{}, err
 	}
-	step := input.MonetaryRoundingStepRial
-	if step <= 0 {
-		step = DefaultMonetaryRoundingStepRial
-	}
+	step := EffectiveMonetaryRoundingStep(input.MonetaryRoundingStepRial)
 	suggested, err = MulQuantitySellingPriceRialWithStep(QuantityScale, suggested, step)
 	if err != nil {
 		return PricingResult{}, err
@@ -295,7 +287,7 @@ func EvaluatePricing(input PricingInput) (PricingResult, error) {
 		}
 		// An explicitly entered selling-price override is authoritative at the
 		// service boundary. Quantity-based order totals still round once when
-		// their exact product is calculated.
+		// their product is calculated.
 		result.EffectiveSellingPriceRial = *input.SellingPriceOverrideRial
 	}
 	result.ProfitRial, err = subtractMoney(result.EffectiveSellingPriceRial, total)
@@ -419,8 +411,8 @@ func scaledMoneyCeil(quantity Quantity, rate int64) (int64, error) {
 	return ceilBig(new(big.Int).Mul(big.NewInt(int64(quantity)), big.NewInt(rate)), big.NewInt(QuantityScale))
 }
 
-// Customer charges round upward in 100-toman (1,000-Rial) increments.
-// Round the exact quantity product once; stock and cost arithmetic stay exact.
+// Calculated customer charges round upward in the configured monetary step.
+// Round the exact quantity product once; stock arithmetic remains exact.
 func MulQuantitySellingPriceRial(quantity Quantity, rate int64) (int64, error) {
 	return MulQuantitySellingPriceRialWithStep(quantity, rate, DefaultMonetaryRoundingStepRial)
 }

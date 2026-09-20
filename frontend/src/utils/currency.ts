@@ -7,6 +7,9 @@ import { formatLocalizedNumber, normalizeDigits } from './number'
  */
 export type CurrencyUnit = 'Toman' | 'Rial'
 
+/** Must match the backend's default calculated-money step. */
+export const DEFAULT_MONETARY_ROUNDING_STEP_RIAL = 1000
+
 /** Mirrors the backend's one-time calculated price boundary for display only. */
 export function roundMoneyUp(amountRial: number, stepRial: number): number {
   const amount = BigInt(Math.trunc(amountRial))
@@ -14,7 +17,7 @@ export function roundMoneyUp(amountRial: number, stepRial: number): number {
   return Number(((amount + (amount >= 0n ? step - 1n : 0n)) / step) * step)
 }
 
-export function sellingPriceTotal(rateRial: number, quantity: number, stepRial = 1000): number {
+export function sellingPriceTotal(rateRial: number, quantity: number, stepRial = DEFAULT_MONETARY_ROUNDING_STEP_RIAL): number {
   const scaledQuantity = BigInt(Math.round(quantity * 1_000_000))
   const divisor = 1_000_000n
   const exact = BigInt(rateRial) * scaledQuantity

@@ -10,6 +10,7 @@ import { pricingApi, type PricingRecord } from '../../api/pricing';
 import { servicesApi } from '../../api/services';
 import type { OrderItemPayload } from '../../api/orders';
 import {
+  DEFAULT_MONETARY_ROUNDING_STEP_RIAL,
   formatMoney,
   formatMoneyInput,
   parseMoneyInput,
@@ -31,6 +32,7 @@ const props = withDefaults(
     machines: any[];
     suppliers?: any[];
     currencyUnit: CurrencyUnit;
+    roundingStepRial?: number;
     initial?: any;
     presetServiceId?: string;
     documentLabel?: string;
@@ -160,9 +162,7 @@ const manualComponents = computed(
 const priceMultiplier = computed(() => pricing.value?.batchQuantity ? 1 : quantityNumber.value);
 const totalEstimatedCost = computed(() =>
   pricing.value
-    ? pricing.value.roundingStepRial !== 1000
-      ? roundMoneyUp(Math.round(pricing.value.estimatedCostRial * priceMultiplier.value), pricing.value.roundingStepRial)
-      : Math.round(pricing.value.estimatedCostRial * priceMultiplier.value)
+    ? roundMoneyUp(Math.round(pricing.value.estimatedCostRial * priceMultiplier.value), pricing.value.roundingStepRial)
     : 0,
 );
 function effectiveOutsourcedAmount(text: string, fallback: number) {
@@ -183,7 +183,9 @@ const totalOutsourcedCost = computed(() => {
   if (!isOutsourcedService.value) return 0;
   return effectiveOutsourcedCost.value + effectiveOutsourcedShipping.value;
 });
-const totalEstimatedCostWithOutsourcing = computed(() => totalEstimatedCost.value + totalOutsourcedCost.value);
+const totalEstimatedCostWithOutsourcing = computed(() => pricing.value
+  ? roundMoneyUp(totalEstimatedCost.value + totalOutsourcedCost.value, pricing.value.roundingStepRial)
+  : totalOutsourcedCost.value);
 const supplierOptions = computed(() => {
   const currentId = outsourcedSupplierId.value;
   return [
@@ -632,7 +634,8 @@ function dependencyFreePricingPreview(): PricingRecord | null {
         defaultOutsourcedShippingRial: 0,
       }
     : selectedService;
-  const result = serviceDefaultPricingResult(pricingService, props.materials, props.machines, props.services);
+  const step = props.roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL;
+  const result = serviceDefaultPricingResult(pricingService, props.materials, props.machines, props.services, step);
   if (!result) return null;
   const override = overrideText.value.trim() ? parseMoneyInput(overrideText.value, props.currencyUnit) : null;
   const effective = override ?? result.sellingPriceRial;
@@ -662,7 +665,7 @@ function dependencyFreePricingPreview(): PricingRecord | null {
     marginPercentage: effective ? String(((effective - result.totalCostRial) / effective) * 100) : '0',
     warnings: result.hasMissing ? ['Some service costs need configuration.'] : [],
     belowCost: effective < result.totalCostRial,
-    roundingStepRial: 1000,
+    roundingStepRial: step,
     finishedWidthMM: '',
     finishedHeightMM: '',
   } as unknown as PricingRecord;
@@ -708,7 +711,7 @@ async function calculate() {
 }
 
 watch(
-  [serviceId, values, quantity, manualCosts, overrideText],
+  [serviceId, values, quantity, manualCosts, overrideText, () => props.roundingStepRial],
   scheduleCalculate,
   { deep: true },
 );
@@ -980,10 +983,10 @@ function save() {
             <div v-if="isOutsourcedService && effectiveOutsourcedShipping" class="rounded-box border border-info/25 bg-info/5 p-3"><span class="block text-xs text-base-content/60">{{ $t("Outsourced shipping") }}</span><strong class="mt-1 block text-sm">{{ formatMoney(effectiveOutsourcedShipping, currencyUnit) }}</strong><span class="mt-0.5 block text-[0.68rem] text-base-content/50">{{ $t("Included once in this order total") }}</span></div>
             <div class="rounded-box border border-base-300 bg-base-200/35 p-3"><span class="block text-xs text-base-content/60">{{ $t("Profit / margin") }}</span><strong class="mt-1 block text-sm" :class="totalProfit < 0 ? 'text-error' : 'text-success'">{{ formatMoney(totalProfit, currencyUnit) }} · {{ effectiveMarginPercentage }}%</strong></div>
           </div>
-          <p class="text-xs text-base-content/60">{{ $t("Selling prices round up to the next 100 tomans (1,000 rials).") }}</p>
+          <p class="text-xs text-base-content/60">{{ $t("Selling prices round up according to the shop's money calculation setting.") }}</p>
           <div v-if="effectiveBelowCost" class="rounded-box border border-warning/30 bg-warning/5 p-3 text-xs leading-5 text-warning">{{ $t("The selling price is below the estimated cost. Review the override or service pricing before adding.") }}</div>
-          <div v-if="pricing.components.length" class="divide-y divide-base-300 rounded-box border border-base-300">
-            <div v-for="component in pricing.components" :key="component.id" class="flex items-center justify-between gap-3 px-3 py-2 text-xs"><span class="min-w-0 truncate">{{ component.name }}</span><strong class="shrink-0">{{ $ui(component.enabled ? formatMoney(component.amountRial, currencyUnit) : 'Disabled') }}</strong></div>
+          <div v-if="pricing.components?.length" class="divide-y divide-base-300 rounded-box border border-base-300">
+            <div v-for="component in pricing.components || []" :key="component.id" class="flex items-center justify-between gap-3 px-3 py-2 text-xs"><span class="min-w-0 truncate">{{ component.name }}</span><strong class="shrink-0">{{ $ui(component.enabled ? formatMoney(component.amountRial, currencyUnit) : 'Disabled') }}</strong></div>
           </div>
         </div>
         <div v-else-if="calculating" class="mt-4 rounded-box border border-dashed border-primary/40 bg-primary/5 p-5 text-center text-sm text-base-content/70" aria-live="polite">{{ $t("Updating the price preview…") }}</div>

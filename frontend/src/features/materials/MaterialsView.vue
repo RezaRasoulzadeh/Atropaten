@@ -12,20 +12,17 @@ import { formatMoney } from '../../utils/currency'
 import MaterialEditorWizard from './MaterialEditorWizard.vue'
 import MaterialDetailPanel from './MaterialDetailPanel.vue'
 import { useMaterialsWorkspace, type MaterialFilter } from './useMaterialsWorkspace'
+import { useDynamicPagination } from '../../composables/useDynamicPagination'
 
 const props = defineProps<{ currencyUnit: CurrencyUnit }>()
 const emit = defineEmits<{ notify: [message: string] }>()
 const workspace = useMaterialsWorkspace(props, emit)
 const { materials, selectedId, selectedMaterial, searchQuery, materialFilter, editorMode, isLoading, filteredMaterials, startCreate, selectMaterial } = workspace
 
-const page = ref(1)
-const pageSize = 10
 const statusOptions: MaterialFilter[] = ['All', 'Active', 'Archived']
 
 const visibleMaterials = computed(() => filteredMaterials.value)
-const pageCount = computed(() => Math.max(1, Math.ceil(visibleMaterials.value.length / pageSize)))
-const pagedMaterials = computed(() => visibleMaterials.value.slice((page.value - 1) * pageSize, page.value * pageSize))
-const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1))
+const { page, pageSize, pageCount, pageNumbers, pagedItems: pagedMaterials, goToPage } = useDynamicPagination(visibleMaterials, { viewportSelector: '.material-register-row' })
 
 function statusCount(status: MaterialFilter) {
   if (status === 'All') return materials.value.length
@@ -41,7 +38,6 @@ function kindLabel(kind: string) {
     chemical: 'Chemical', 'generic-consumable': 'Generic consumable',
   } as Record<string, string>)[kind] || 'Generic consumable'
 }
-function goToPage(value: number) { page.value = Math.min(Math.max(value, 1), pageCount.value) }
 function clearFilters() {
   searchQuery.value = ''
   materialFilter.value = 'All'
@@ -49,7 +45,6 @@ function clearFilters() {
 }
 
 watch([searchQuery, materialFilter], () => { page.value = 1 })
-watch(pageCount, (count) => { if (page.value > count) page.value = count })
 watch([selectedId, editorMode], () => { void nextTick(() => document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' })) })
 </script>
 

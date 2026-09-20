@@ -12,6 +12,7 @@ import AppInput from '../../components/ui/AppInput.vue'
 import AppTextarea from '../../components/ui/AppTextarea.vue'
 import FormField from '../../components/ui/FormField.vue'
 import { useWorkspaceActions, reportError } from '../../composables/useWorkspaceActions'
+import { useDynamicPagination } from '../../composables/useDynamicPagination'
 import { suppliersApi, type SupplierPayload, type SupplierRecord } from '../../api/suppliers'
 import { formatDateTime } from '../../utils/date'
 import { confirmAction } from '../../ui/feedback'
@@ -25,8 +26,6 @@ const suppliers = ref<SupplierRecord[]>([])
 const selectedId = ref<string | null>(null)
 const searchQuery = ref('')
 const supplierFilter = ref<SupplierFilter>('All')
-const page = ref(1)
-const pageSize = 10
 const isLoading = ref(false)
 const editing = ref(false)
 const form = ref<SupplierPayload>(emptyForm())
@@ -43,14 +42,11 @@ const filteredSuppliers = computed(() => {
   })
 })
 const visibleSuppliers = computed(() => filteredSuppliers.value)
-const pageCount = computed(() => Math.max(1, Math.ceil(visibleSuppliers.value.length / pageSize)))
-const pagedSuppliers = computed(() => visibleSuppliers.value.slice((page.value - 1) * pageSize, page.value * pageSize))
-const pageNumbers = computed(() => Array.from({ length: pageCount.value }, (_, index) => index + 1))
+const { page, pageSize, pageCount, pageNumbers, pagedItems: pagedSuppliers, goToPage } = useDynamicPagination(visibleSuppliers, { viewportSelector: '.supplier-register-row' })
 
 onMounted(loadSuppliers)
 
 watch([searchQuery, supplierFilter], () => { page.value = 1 })
-watch(pageCount, (count) => { if (page.value > count) page.value = count })
 watch([selectedId, editing], () => {
   void nextTick(() => document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' }))
 })
@@ -106,10 +102,6 @@ function resetListFilters() {
   searchQuery.value = ''
   supplierFilter.value = 'All'
   page.value = 1
-}
-
-function goToPage(value: number) {
-  page.value = Math.min(Math.max(value, 1), pageCount.value)
 }
 
 async function save() {

@@ -4,7 +4,7 @@ import { Calculator, CircleHelp, Percent } from 'lucide-vue-next'
 import type { MaterialRecord } from '../../api/materials'
 import type { MachineRecord } from '../../api/machines'
 import type { CurrencyUnit } from '../../utils/currency'
-import { formatMoney } from '../../utils/currency'
+import { formatMoney, roundMoneyUp, DEFAULT_MONETARY_ROUNDING_STEP_RIAL } from '../../utils/currency'
 import type { ParameterForm, PricingRuleForm, ServiceForm } from './types'
 import ServiceOverviewIdentity from './ServiceOverviewIdentity.vue'
 import ServiceOverviewSection from './ServiceOverviewSection.vue'
@@ -22,6 +22,7 @@ const props = defineProps<{
   currencyUnit: CurrencyUnit
   form: ServiceForm
   active: boolean
+  roundingStepRial?: number
 }>()
 
 const selectedQuantity = computed(() => {
@@ -51,12 +52,12 @@ const selectedVariationPrice = computed(() => {
 const selectedSellingPriceReady = computed(() => (props.pricingRule.type !== 'variation' && !(props.pricingRule.type === 'quantity-tiers' && props.pricingRule.variations.length > 0)) || selectedVariationPrice.value > 0)
 const sellingPrice = computed(() => {
   switch (props.pricingRule.type) {
-    case 'markup': return props.estimatedCostRial + markupAmount.value
-    case 'fixed-margin': return props.estimatedCostRial + props.pricingRule.fixedMarginRial
-    case 'fixed': return props.pricingRule.fixedPriceRial
-    case 'quantity-tiers': return props.pricingRule.variations.length ? selectedVariationPrice.value : selectedTier.value?.priceRial || 0
-    case 'variation': return selectedVariationPrice.value
-    case 'per-unit': return Math.ceil(selectedQuantity.value * props.pricingRule.perUnitRateRial)
+    case 'markup': return roundMoneyUp(props.estimatedCostRial + markupAmount.value, props.roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL)
+    case 'fixed-margin': return roundMoneyUp(props.estimatedCostRial + props.pricingRule.fixedMarginRial, props.roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL)
+    case 'fixed': return roundMoneyUp(props.pricingRule.fixedPriceRial, props.roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL)
+    case 'quantity-tiers': return roundMoneyUp(props.pricingRule.variations.length ? selectedVariationPrice.value : selectedTier.value?.priceRial || 0, props.roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL)
+    case 'variation': return roundMoneyUp(selectedVariationPrice.value, props.roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL)
+    case 'per-unit': return roundMoneyUp(Math.ceil(selectedQuantity.value * props.pricingRule.perUnitRateRial), props.roundingStepRial || DEFAULT_MONETARY_ROUNDING_STEP_RIAL)
     default: return 0
   }
 })

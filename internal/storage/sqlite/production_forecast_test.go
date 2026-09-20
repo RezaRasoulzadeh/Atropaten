@@ -9,7 +9,7 @@ import (
 	"Atropaten/internal/domain"
 )
 
-func TestOrderPricingRoundsChargesAndPreservesExactCost(t *testing.T) {
+func TestOrderPricingRoundsChargesAndCostConsistently(t *testing.T) {
 	s, _, _ := productionFlowFixture(t)
 	ctx := context.Background()
 	now := time.Now().UTC()
@@ -30,7 +30,7 @@ func TestOrderPricingRoundsChargesAndPreservesExactCost(t *testing.T) {
 	}
 	orders := application.NewOrdersService(s, s, application.NewPricingService(s, s, s))
 	view, err := orders.AddItem(ctx, order.ID, application.OrderItemInput{ServiceID: service.ID, Quantity: "0.5", QuantityUnit: "job"})
-	if err != nil || view.EstimatedCostRial != 835971 || view.TotalRial != 1004000 || view.MarginRial != 168000 || view.ProjectedCostRial != 836000 {
+	if err != nil || view.EstimatedCostRial != 836000 || view.TotalRial != 1004000 || view.MarginRial != 168000 || view.ProjectedCostRial != 836000 {
 		t.Fatalf("rounded order=%+v err=%v", view, err)
 	}
 	invoice, err := application.NewInvoicesService(s, s).CreateFromOrder(ctx, order.ID)

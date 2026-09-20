@@ -5,10 +5,26 @@ import (
 	"math/big"
 )
 
-// DefaultMonetaryRoundingStepRial is the legacy customer-price increment
+// DefaultMonetaryRoundingStepRial is the default calculated-money increment
 // (100 Toman = 1,000 Rial). It is seeded into settings so existing shops keep
-// their current calculated selling-price behaviour after upgrading.
+// their current calculated-money behaviour after upgrading.
 const DefaultMonetaryRoundingStepRial int64 = 1000
+
+// EffectiveMonetaryRoundingStep returns the configured step or the safe
+// default when older settings or callers do not provide one.
+func EffectiveMonetaryRoundingStep(stepRial int64) int64 {
+	if stepRial > 0 {
+		return stepRial
+	}
+	return DefaultMonetaryRoundingStepRial
+}
+
+// RoundCalculatedMoney applies the single round-up policy used for all newly
+// calculated costs, prices, and derived projections. Historical stored values
+// are never changed by this helper.
+func RoundCalculatedMoney(amountRial, stepRial int64) (int64, error) {
+	return RoundMoneyUp(amountRial, EffectiveMonetaryRoundingStep(stepRial))
+}
 
 // RoundMoneyUp rounds a calculated monetary amount toward the next multiple
 // of stepRial. It uses mathematical ceiling semantics for negative values:

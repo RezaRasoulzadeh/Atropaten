@@ -5,6 +5,7 @@ import type { ComponentForm, ParameterForm, ServiceForm } from './types'
 import { collapseGroupedMaterialComponents } from './serviceComponentSync'
 import { serviceCategoryRequirements } from './serviceCategory'
 import { findMaterialVariant } from './serviceMaterialResolution'
+import { roundMoneyUp, DEFAULT_MONETARY_ROUNDING_STEP_RIAL } from '../../utils/currency'
 
 export type TestValues = Record<string, string>
 export type TestPricingLine = { name: string; detail: string; amount: number; missing: boolean }
@@ -206,20 +207,21 @@ function calculateComponents(components: ComponentForm[], parameters: ParameterF
   return { lines, totalCostRial: running }
 }
 
-export function calculateServiceTest(form: ServiceForm, values: TestValues, materials: MaterialRecord[], machines: MachineRecord[], services: ServiceRecord[]): TestPricingResult {
+export function calculateServiceTest(form: ServiceForm, values: TestValues, materials: MaterialRecord[], machines: MachineRecord[], services: ServiceRecord[], roundingStepRial = DEFAULT_MONETARY_ROUNDING_STEP_RIAL): TestPricingResult {
   const costs = calculateComponents(form.components, form.parameters, values, materials, machines, services, form.materialVariants, new Set<string>(), form.category)
   const outsourcedLines = outsourcedDefaultLines(form)
   const combinedCosts = {
     lines: [...costs.lines, ...outsourcedLines],
     totalCostRial: costs.totalCostRial + outsourcedDefaultCostRial(form),
   }
+  const roundedCostRial = roundMoneyUp(combinedCosts.totalCostRial, roundingStepRial)
   const rule = form.pricingRule
   const quantity = number(values[rule.parameterKey] || form.parameters.find((parameter) => parameter.key === rule.parameterKey)?.defaultValue)
-  const markupRial = rule.type === 'markup' ? Math.ceil(combinedCosts.totalCostRial * number(rule.markupPercentage) / 100) : 0
+  const markupRial = rule.type === 'markup' ? Math.ceil(roundedCostRial * number(rule.markupPercentage) / 100) : 0
   let sellingPriceRial = 0
   let pricingLabel = 'Manual price'
-  if (rule.type === 'markup') { sellingPriceRial = combinedCosts.totalCostRial + markupRial; pricingLabel = `Cost + markup (${rule.markupPercentage || 0}%)` }
-  else if (rule.type === 'fixed-margin') { sellingPriceRial = combinedCosts.totalCostRial + rule.fixedMarginRial; pricingLabel = 'Cost + fixed margin' }
+  if (rule.type === 'markup') { sellingPriceRial = roundedCostRial + markupRial; pricingLabel = `Cost + markup (${rule.markupPercentage || 0}%)` }
+  else if (rule.type === 'fixed-margin') { sellingPriceRial = roundedCostRial + rule.fixedMarginRial; pricingLabel = 'Cost + fixed margin' }
   else if (rule.type === 'fixed') { sellingPriceRial = rule.fixedPriceRial; pricingLabel = 'Fixed price' }
   else if (rule.type === 'variation') { sellingPriceRial = variationPrice(form, values, quantity); pricingLabel = 'Variation price' }
   else if (rule.type === 'per-unit') { sellingPriceRial = Math.ceil(quantity * rule.perUnitRateRial); pricingLabel = 'Per-unit parameter' }
@@ -228,6 +230,7 @@ export function calculateServiceTest(form: ServiceForm, values: TestValues, mate
     sellingPriceRial = rule.variations.length ? variationPrice(form, values, quantity) : tier?.priceRial || 0
     pricingLabel = 'Quantity tiers'
   }
-  const profitRial = sellingPriceRial - combinedCosts.totalCostRial
-  return { ...combinedCosts, markupRial, sellingPriceRial, pricingLabel, profitRial, marginPercentage: sellingPriceRial ? profitRial / sellingPriceRial * 100 : 0, belowCost: rule.type !== 'manual' && sellingPriceRial < combinedCosts.totalCostRial, hasMissing: combinedCosts.lines.some((line) => line.missing) || ((rule.type === 'variation' || (rule.type === 'quantity-tiers' && rule.variations.length > 0)) && sellingPriceRial <= 0) }
+  if (rule.type !== 'manual') sellingPriceRial = roundMoneyUp(sellingPriceRial, roundingStepRial)
+  const profitRial = sellingPriceRial - roundedCostRial
+  return { ...combinedCosts, totalCostRial: roundedCostRial, markupRial, sellingPriceRial, pricingLabel, profitRial, marginPercentage: sellingPriceRial ? profitRial / sellingPriceRial * 100 : 0, belowCost: rule.type !== 'manual' && sellingPriceRial < roundedCostRial, hasMissing: combinedCosts.lines.some((line) => line.missing) || ((rule.type === 'variation' || (rule.type === 'quantity-tiers' && rule.variations.length > 0)) && sellingPriceRial <= 0) }
 }
