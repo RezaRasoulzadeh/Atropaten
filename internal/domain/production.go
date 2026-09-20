@@ -18,17 +18,20 @@ var (
 )
 
 const (
-	ReservationActive    = "active"
-	ReservationReleased  = "released"
-	ReservationConsumed  = "consumed"
-	ReservationCancelled = "cancelled"
-	ProductionPending    = "Pending"
-	ProductionReady      = "Ready"
-	ProductionInProgress = "In Progress"
-	ProductionPaused     = "Paused"
-	ProductionCompleted  = "Completed"
-	ProductionCancelled  = "Cancelled"
-	ProductionFailed     = "Failed"
+	ReservationActive          = "active"
+	ReservationReleased        = "released"
+	ReservationConsumed        = "consumed"
+	ReservationCancelled       = "cancelled"
+	ProductionPending          = "Pending"
+	ProductionReady            = "Ready"
+	ProductionInProgress       = "In Progress"
+	ProductionPaused           = "Paused"
+	ProductionCompleted        = "Completed"
+	ProductionCancelled        = "Cancelled"
+	ProductionFailed           = "Failed"
+	OutsourcePaymentPaid       = "paid"
+	OutsourcePaymentPrePayment = "pre-payment"
+	OutsourcePaymentOnHold     = "on-hold"
 )
 
 type InventoryReservation struct {
@@ -43,6 +46,7 @@ type ProductionJob struct {
 	OutsourceQuantity                                                                                                          Quantity
 	OutsourceUnitCostRial                                                                                                      int64
 	OutsourceFinancialAccountID                                                                                                string
+	OutsourcePaymentStatus                                                                                                     string
 	ID, JobNumber, OrderID, OrderItemID                                                                                        string
 	ServiceNameSnapshot                                                                                                        string
 	Quantity                                                                                                                   Quantity
@@ -51,6 +55,10 @@ type ProductionJob struct {
 	EstimatedCostRial, ActualMaterialCostRial, ActualWasteCostRial, ActualOutsourcedCostRial, OutsourceQuotedCostRial          int64
 	OutsourceSupplierID, OutsourceDescription, OutsourceSentAt, OutsourceExpectedReturnAt, OutsourceReceivedAt, OutsourceNotes string
 	CreatedAt, UpdatedAt                                                                                                       time.Time
+}
+
+func ValidOutsourcePaymentStatus(status string) bool {
+	return status == OutsourcePaymentPaid || status == OutsourcePaymentPrePayment || status == OutsourcePaymentOnHold
 }
 
 type ProductionConsumption struct {
@@ -85,6 +93,9 @@ func (j ProductionJob) Validate() error {
 	}
 	if !ValidProductionStatus(j.Status) {
 		return validationError("status", "is unsupported")
+	}
+	if j.OutsourcePaymentStatus != "" && !ValidOutsourcePaymentStatus(j.OutsourcePaymentStatus) {
+		return validationError("outsourcing payment status", "is unsupported")
 	}
 	if j.EstimatedCostRial < 0 || j.ActualMaterialCostRial < 0 || j.ActualWasteCostRial < 0 || j.ActualOutsourcedCostRial < 0 || j.OutsourceQuotedCostRial < 0 {
 		return validationError("cost", "cannot be negative")

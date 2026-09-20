@@ -12,7 +12,7 @@ import (
 )
 
 func (s *Store) ListExpenses(ctx context.Context) ([]domain.Expense, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,expense_number,expense_date,category_account_id,COALESCE(payee,''),COALESCE(supplier_id,''),description,amount_rial,payment_method,financial_account_id,notes,status,journal_entry_id,idempotency_key,created_at,updated_at FROM expenses ORDER BY expense_date DESC,expense_number DESC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,expense_number,expense_date,category_account_id,COALESCE(payee,''),COALESCE(supplier_id,''),description,amount_rial,payment_method,COALESCE(payment_status,'paid'),COALESCE(financial_account_id,''),notes,status,journal_entry_id,idempotency_key,created_at,updated_at FROM expenses ORDER BY expense_date DESC,expense_number DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func (s *Store) ListExpenses(ctx context.Context) ([]domain.Expense, error) {
 	return out, rows.Err()
 }
 func (s *Store) GetExpense(ctx context.Context, id string) (domain.Expense, error) {
-	v, e := scanExpense(s.db.QueryRowContext(ctx, `SELECT id,expense_number,expense_date,category_account_id,COALESCE(payee,''),COALESCE(supplier_id,''),description,amount_rial,payment_method,financial_account_id,notes,status,journal_entry_id,idempotency_key,created_at,updated_at FROM expenses WHERE id=?`, id))
+	v, e := scanExpense(s.db.QueryRowContext(ctx, `SELECT id,expense_number,expense_date,category_account_id,COALESCE(payee,''),COALESCE(supplier_id,''),description,amount_rial,payment_method,COALESCE(payment_status,'paid'),COALESCE(financial_account_id,''),notes,status,journal_entry_id,idempotency_key,created_at,updated_at FROM expenses WHERE id=?`, id))
 	if errors.Is(e, sql.ErrNoRows) {
 		return domain.Expense{}, domain.ErrExpenseNotFound
 	}
@@ -37,6 +37,9 @@ func (s *Store) GetExpense(ctx context.Context, id string) (domain.Expense, erro
 func (s *Store) CreateExpense(ctx context.Context, v domain.Expense) (domain.Expense, error) {
 	if v.Status == "" {
 		v.Status = "Posted"
+	}
+	if v.PaymentStatus == "" {
+		v.PaymentStatus = domain.OutsourcePaymentPaid
 	}
 	if v.UpdatedAt.IsZero() {
 		v.UpdatedAt = time.Now().UTC()
@@ -100,7 +103,7 @@ func (s *Store) CreateExpense(ctx context.Context, v domain.Expense) (domain.Exp
 	if _, err = tx.ExecContext(ctx, `UPDATE expense_number_sequences SET next_number=next_number+1 WHERE id=1`); err != nil {
 		return fail(err)
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO expenses(id,expense_number,expense_date,category_account_id,payee,supplier_id,description,amount_rial,payment_method,financial_account_id,notes,status,journal_entry_id,idempotency_key,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, v.ID, v.ExpenseNumber, v.ExpenseDate.UTC().Format(time.RFC3339Nano), v.CategoryAccountID, v.Payee, nullableString(v.SupplierID), v.Description, v.AmountRial, v.PaymentMethod, v.FinancialAccountID, v.Notes, v.Status, je, v.IdempotencyKey, v.CreatedAt.UTC().Format(time.RFC3339Nano), v.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO expenses(id,expense_number,expense_date,category_account_id,payee,supplier_id,description,amount_rial,payment_method,payment_status,financial_account_id,notes,status,journal_entry_id,idempotency_key,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, v.ID, v.ExpenseNumber, v.ExpenseDate.UTC().Format(time.RFC3339Nano), v.CategoryAccountID, v.Payee, nullableString(v.SupplierID), v.Description, v.AmountRial, v.PaymentMethod, v.PaymentStatus, v.FinancialAccountID, v.Notes, v.Status, je, v.IdempotencyKey, v.CreatedAt.UTC().Format(time.RFC3339Nano), v.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
 		return fail(err)
 	}
 	if err = tx.Commit(); err != nil {
@@ -115,6 +118,9 @@ func (s *Store) UpdateExpense(ctx context.Context, v domain.Expense) (domain.Exp
 	}
 	if v.Status == "" {
 		v.Status = "Posted"
+	}
+	if v.PaymentStatus == "" {
+		v.PaymentStatus = domain.OutsourcePaymentPaid
 	}
 	if v.CreatedAt.IsZero() {
 		v.CreatedAt = existing.CreatedAt
@@ -169,7 +175,7 @@ func (s *Store) UpdateExpense(ctx context.Context, v domain.Expense) (domain.Exp
 	if _, err = s.postJournalTx(ctx, tx, entry); err != nil {
 		return fail(err)
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE expenses SET expense_date=?,category_account_id=?,payee=?,supplier_id=?,description=?,amount_rial=?,payment_method=?,financial_account_id=?,notes=?,status='Posted',journal_entry_id=?,updated_at=? WHERE id=?`, v.ExpenseDate.UTC().Format(time.RFC3339Nano), v.CategoryAccountID, v.Payee, nullableString(v.SupplierID), v.Description, v.AmountRial, v.PaymentMethod, v.FinancialAccountID, v.Notes, journalID, v.UpdatedAt.UTC().Format(time.RFC3339Nano), v.ID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE expenses SET expense_date=?,category_account_id=?,payee=?,supplier_id=?,description=?,amount_rial=?,payment_method=?,payment_status=?,financial_account_id=?,notes=?,status='Posted',journal_entry_id=?,updated_at=? WHERE id=?`, v.ExpenseDate.UTC().Format(time.RFC3339Nano), v.CategoryAccountID, v.Payee, nullableString(v.SupplierID), v.Description, v.AmountRial, v.PaymentMethod, v.PaymentStatus, v.FinancialAccountID, v.Notes, journalID, v.UpdatedAt.UTC().Format(time.RFC3339Nano), v.ID); err != nil {
 		return fail(err)
 	}
 	if err = tx.Commit(); err != nil {
@@ -356,7 +362,7 @@ func (s *Store) ReverseTransfer(ctx context.Context, id, key string) (domain.Fin
 func scanExpense(row scanner) (domain.Expense, error) {
 	var v domain.Expense
 	var date, created, updated string
-	if err := row.Scan(&v.ID, &v.ExpenseNumber, &date, &v.CategoryAccountID, &v.Payee, &v.SupplierID, &v.Description, &v.AmountRial, &v.PaymentMethod, &v.FinancialAccountID, &v.Notes, &v.Status, &v.JournalEntryID, &v.IdempotencyKey, &created, &updated); err != nil {
+	if err := row.Scan(&v.ID, &v.ExpenseNumber, &date, &v.CategoryAccountID, &v.Payee, &v.SupplierID, &v.Description, &v.AmountRial, &v.PaymentMethod, &v.PaymentStatus, &v.FinancialAccountID, &v.Notes, &v.Status, &v.JournalEntryID, &v.IdempotencyKey, &created, &updated); err != nil {
 		return v, err
 	}
 	var err error

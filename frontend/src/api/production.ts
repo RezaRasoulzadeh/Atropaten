@@ -25,6 +25,7 @@ export interface ProductionJobRecord {
   outsourceQuantity: string
   outsourceUnitCostRial: number
   outsourceFinancialAccountId: string
+  outsourcePaymentStatus: string
   id: string
   jobNumber: string
   orderId: string
@@ -114,6 +115,7 @@ export interface OutsourcePayload {
   notes: string
   quotedCostRial: number
   actualCostRial: number
+  paymentStatus: string
 }
 export const productionApi = {
   materials(jobId: string): Promise<ProductionMaterialRecord[]> {

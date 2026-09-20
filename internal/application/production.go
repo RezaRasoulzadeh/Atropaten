@@ -33,7 +33,7 @@ type ProductionJobInput struct {
 type ReservationInput struct{ MaterialID, OrderID, OrderItemID, ProductionJobID, Quantity string }
 type ConsumptionInput struct{ MaterialID, ConsumedQuantity, WasteQuantity, IdempotencyKey, Notes string }
 type OutsourceInput struct {
-	Quantity, FinancialAccountID                                         string
+	Quantity, FinancialAccountID, PaymentStatus                          string
 	UnitCostRial                                                         int64
 	SupplierID, Description, SentAt, ExpectedReturnAt, ReceivedAt, Notes string
 	QuotedCostRial, ActualCostRial                                       int64
@@ -41,7 +41,7 @@ type OutsourceInput struct {
 
 type ProductionJobView struct {
 	EstimatedConversionCostRial, RemainingMaterialCostRial, ProjectedCostRial                                                                                          int64
-	OutsourceQuantity, OutsourceFinancialAccountID                                                                                                                     string
+	OutsourceQuantity, OutsourceFinancialAccountID, OutsourcePaymentStatus                                                                                             string
 	OutsourceUnitCostRial                                                                                                                                              int64
 	ID, JobNumber, OrderID, OrderItemID, ServiceName, Quantity, QuantityUnit, AssignedMachineID, Status, Priority, Notes, PlannedAt, StartedAt, CompletedAt, CreatedAt string
 	EstimatedCostRial, ActualMaterialCostRial, ActualWasteCostRial, ActualOutsourcedCostRial, ActualTotalCostRial, OutsourceQuotedCostRial                             int64
@@ -246,6 +246,13 @@ func (s *ProductionService) Outsource(ctx context.Context, id string, in Outsour
 	j.OutsourceNotes = in.Notes
 	j.OutsourceQuotedCostRial = in.QuotedCostRial
 	j.ActualOutsourcedCostRial = in.ActualCostRial
+	j.OutsourcePaymentStatus = in.PaymentStatus
+	if j.OutsourcePaymentStatus == "" {
+		j.OutsourcePaymentStatus = domain.OutsourcePaymentPaid
+	}
+	if !domain.ValidOutsourcePaymentStatus(j.OutsourcePaymentStatus) {
+		return ProductionJobView{}, fmt.Errorf("unsupported outsourcing payment status")
+	}
 	if in.Quantity != "" {
 		j.OutsourceQuantity, e = domain.ParseQuantity(in.Quantity)
 		if e != nil {
@@ -265,7 +272,7 @@ func (s *ProductionService) Outsource(ctx context.Context, id string, in Outsour
 	return s.Get(ctx, id)
 }
 func productionJobView(v domain.ProductionJob) ProductionJobView {
-	return ProductionJobView{EstimatedConversionCostRial: v.EstimatedConversionCostRial, RemainingMaterialCostRial: v.RemainingMaterialCostRial, ProjectedCostRial: v.ProjectedCostRial, OutsourceQuantity: v.OutsourceQuantity.String(), OutsourceUnitCostRial: v.OutsourceUnitCostRial, OutsourceFinancialAccountID: v.OutsourceFinancialAccountID, ID: v.ID, JobNumber: v.JobNumber, OrderID: v.OrderID, OrderItemID: v.OrderItemID, ServiceName: v.ServiceNameSnapshot, Quantity: v.Quantity.String(), QuantityUnit: v.QuantityUnit, AssignedMachineID: v.AssignedMachineID, Status: v.Status, Priority: v.Priority, Notes: v.Notes, PlannedAt: optionalTime(v.PlannedAt), StartedAt: optionalTime(v.StartedAt), CompletedAt: optionalTime(v.CompletedAt), CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano), EstimatedCostRial: v.EstimatedCostRial, ActualMaterialCostRial: v.ActualMaterialCostRial, ActualWasteCostRial: v.ActualWasteCostRial, ActualOutsourcedCostRial: v.ActualOutsourcedCostRial, ActualTotalCostRial: v.ActualMaterialCostRial + v.ActualWasteCostRial + v.ActualOutsourcedCostRial, OutsourceQuotedCostRial: v.OutsourceQuotedCostRial, OutsourceSupplierID: v.OutsourceSupplierID, OutsourceDescription: v.OutsourceDescription, OutsourceSentAt: v.OutsourceSentAt, OutsourceExpectedReturnAt: v.OutsourceExpectedReturnAt, OutsourceReceivedAt: v.OutsourceReceivedAt, OutsourceNotes: v.OutsourceNotes}
+	return ProductionJobView{EstimatedConversionCostRial: v.EstimatedConversionCostRial, RemainingMaterialCostRial: v.RemainingMaterialCostRial, ProjectedCostRial: v.ProjectedCostRial, OutsourceQuantity: v.OutsourceQuantity.String(), OutsourceUnitCostRial: v.OutsourceUnitCostRial, OutsourceFinancialAccountID: v.OutsourceFinancialAccountID, OutsourcePaymentStatus: v.OutsourcePaymentStatus, ID: v.ID, JobNumber: v.JobNumber, OrderID: v.OrderID, OrderItemID: v.OrderItemID, ServiceName: v.ServiceNameSnapshot, Quantity: v.Quantity.String(), QuantityUnit: v.QuantityUnit, AssignedMachineID: v.AssignedMachineID, Status: v.Status, Priority: v.Priority, Notes: v.Notes, PlannedAt: optionalTime(v.PlannedAt), StartedAt: optionalTime(v.StartedAt), CompletedAt: optionalTime(v.CompletedAt), CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano), EstimatedCostRial: v.EstimatedCostRial, ActualMaterialCostRial: v.ActualMaterialCostRial, ActualWasteCostRial: v.ActualWasteCostRial, ActualOutsourcedCostRial: v.ActualOutsourcedCostRial, ActualTotalCostRial: v.ActualMaterialCostRial + v.ActualWasteCostRial + v.ActualOutsourcedCostRial, OutsourceQuotedCostRial: v.OutsourceQuotedCostRial, OutsourceSupplierID: v.OutsourceSupplierID, OutsourceDescription: v.OutsourceDescription, OutsourceSentAt: v.OutsourceSentAt, OutsourceExpectedReturnAt: v.OutsourceExpectedReturnAt, OutsourceReceivedAt: v.OutsourceReceivedAt, OutsourceNotes: v.OutsourceNotes}
 }
 
 func (s *ProductionService) calculatedProductionJobView(ctx context.Context, v domain.ProductionJob) (ProductionJobView, error) {

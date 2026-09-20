@@ -56,6 +56,7 @@ type HistoryEntry = {
   date: string;
   amount: number;
   status: string;
+  paymentStatus?: string;
   expense?: ExpenseRecord;
 };
 const expense = ref({
@@ -102,6 +103,7 @@ function accountLabel(account: FinancialAccountRecord) {
   return identity ? `${account.name} · ${identity}` : account.name;
 }
 function financialAccountName(id: string) {
+  if (!id) return 'Supplier payable';
   const account = props.financial.find((value) => value.id === id);
   return account ? accountLabel(account) : 'Unknown account';
 }
@@ -115,6 +117,7 @@ const historyEntries = computed<HistoryEntry[]>(() => [
     date: value.expenseDate,
     amount: value.amountRial,
     status: value.status,
+    paymentStatus: value.paymentStatus,
     expense: value,
   })),
   ...purchases.value.map((value) => ({
@@ -318,7 +321,7 @@ reportError(e);
           <div><span class="block text-base-content/50">{{ $t("Date") }}</span><span class="block text-base-content/80">{{ formatDateTime(entry.date) }}</span></div>
         </div>
       </template>
-      <template #status><div class="flex flex-col items-end gap-2"><strong class="text-sm tabular-nums text-primary">{{ formatMoney(entry.amount, currencyUnit) }}</strong><StatusBadge :label="entry.status" :tone="historyStatusTone(entry.status)" /></div></template>
+      <template #status><div class="flex flex-col items-end gap-2"><strong class="text-sm tabular-nums text-primary">{{ formatMoney(entry.amount, currencyUnit) }}</strong><StatusBadge v-if="entry.paymentStatus && entry.paymentStatus !== 'paid'" :label="entry.paymentStatus === 'pre-payment' ? $t('Pre-payment') : $t('On hold')" tone="amber" /><StatusBadge :label="entry.status" :tone="historyStatusTone(entry.status)" /></div></template>
       <template #actions>
         <div v-if="entry.expense" class="flex flex-wrap justify-end gap-2">
           <button class="btn btn-outline btn-info btn-sm gap-1" type="button" @click.stop="startExpenseEdit(entry.expense)" :disabled="busy"><Edit3 :size="14" /> {{ $t("Edit") }}</button>

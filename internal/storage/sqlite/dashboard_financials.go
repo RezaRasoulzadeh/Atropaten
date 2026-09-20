@@ -13,9 +13,11 @@ import (
 // retains its recorded basis. Both cards and charts use this single series.
 func (s *Store) dashboardFinancialTrend(ctx context.Context, start, end time.Time, d *domain.Dashboard) error {
 	from, until := reportWindow(start, end)
-	rows, err := s.db.QueryContext(ctx, `SELECT id,created_at,total_rial FROM orders
-	 WHERE commercial_status IN ('Confirmed','Closed') AND created_at>=? AND created_at<?
-	 ORDER BY created_at,id`, from, until)
+	rows, err := s.db.QueryContext(ctx, `SELECT o.id,o.created_at,
+		COALESCE((SELECT SUM(oi.selling_price_rial) FROM order_items oi WHERE oi.order_id=o.id AND oi.removed_at IS NULL),0)-o.discount_rial
+		FROM orders o
+	 WHERE o.commercial_status IN ('Confirmed','Closed') AND o.created_at>=? AND o.created_at<?
+	 ORDER BY o.created_at,o.id`, from, until)
 	if err != nil {
 		return err
 	}

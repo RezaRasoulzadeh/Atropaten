@@ -112,6 +112,7 @@ type ExpenseDTO struct {
 	Description        string `json:"description"`
 	AmountRial         int64  `json:"amountRial"`
 	PaymentMethod      string `json:"paymentMethod"`
+	PaymentStatus      string `json:"paymentStatus"`
 	FinancialAccountID string `json:"financialAccountId"`
 	Notes              string `json:"notes"`
 	Status             string `json:"status"`
@@ -378,7 +379,7 @@ func (a *App) ReverseTransfer(id, key string) (TransferDTO, error) {
 	return transferDTO(v), e
 }
 func expenseDTO(v application.ExpenseView) ExpenseDTO {
-	return ExpenseDTO{ID: v.ID, ExpenseNumber: v.ExpenseNumber, ExpenseDate: v.ExpenseDate, CategoryAccountID: v.CategoryAccountID, Payee: v.Payee, SupplierID: v.SupplierID, Description: v.Description, AmountRial: v.AmountRial, PaymentMethod: v.PaymentMethod, FinancialAccountID: v.FinancialAccountID, Notes: v.Notes, Status: v.Status, JournalEntryID: v.JournalEntryID, IdempotencyKey: v.IdempotencyKey, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt}
+	return ExpenseDTO{ID: v.ID, ExpenseNumber: v.ExpenseNumber, ExpenseDate: v.ExpenseDate, CategoryAccountID: v.CategoryAccountID, Payee: v.Payee, SupplierID: v.SupplierID, Description: v.Description, AmountRial: v.AmountRial, PaymentMethod: v.PaymentMethod, PaymentStatus: v.PaymentStatus, FinancialAccountID: v.FinancialAccountID, Notes: v.Notes, Status: v.Status, JournalEntryID: v.JournalEntryID, IdempotencyKey: v.IdempotencyKey, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt}
 }
 func transferDTO(v application.TransferView) TransferDTO {
 	return TransferDTO{ID: v.ID, TransferNumber: v.TransferNumber, SourceFinancialAccountID: v.SourceFinancialAccountID, DestinationFinancialAccountID: v.DestinationFinancialAccountID, AmountRial: v.AmountRial, TransferDate: v.TransferDate, Reference: v.Reference, Notes: v.Notes, Status: v.Status, JournalEntryID: v.JournalEntryID, IdempotencyKey: v.IdempotencyKey, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt}

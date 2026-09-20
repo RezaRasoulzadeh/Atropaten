@@ -120,6 +120,7 @@ export interface ExpenseRecord {
   description: string
   amountRial: number
   paymentMethod: string
+  paymentStatus: string
   financialAccountId: string
   notes: string
   status: string
@@ -134,6 +135,7 @@ export interface ExpensePayload {
   description?: string
   amountRial: number
   paymentMethod: string
+  paymentStatus?: string
   financialAccountId: string
   notes?: string
   idempotencyKey?: string

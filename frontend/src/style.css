@@ -47,7 +47,11 @@
 @layer base {
   :root { font-family: var(--font-sans); font-synthesis: none; text-rendering: optimizeLegibility; }
   html, body, #app { width: 100%; height: 100%; }
-  body { overflow: hidden; background: var(--color-base-200); color: var(--color-base-content); font-size: .875rem; line-height: 1.25rem; }
+body { overflow: hidden; background: var(--color-base-200); color: var(--color-base-content); font-size: .875rem; line-height: 1.25rem; }
+}
+
+.app-brand-logo {
+  display: block;
 }
 
 /* Keep the shared control density aligned with the 40px fields. */

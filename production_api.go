@@ -27,6 +27,7 @@ type ProductionJobDTO struct {
 	OutsourceQuantity           string `json:"outsourceQuantity"`
 	OutsourceUnitCostRial       int64  `json:"outsourceUnitCostRial"`
 	OutsourceFinancialAccountID string `json:"outsourceFinancialAccountId"`
+	OutsourcePaymentStatus      string `json:"outsourcePaymentStatus"`
 	ID                          string `json:"id"`
 	JobNumber                   string `json:"jobNumber"`
 	OrderID                     string `json:"orderId"`
@@ -107,6 +108,7 @@ type OutsourceInput struct {
 	Notes              string `json:"notes"`
 	QuotedCostRial     int64  `json:"quotedCostRial"`
 	ActualCostRial     int64  `json:"actualCostRial"`
+	PaymentStatus      string `json:"paymentStatus"`
 }
 
 func (a *App) productionService() (*application.ProductionService, error) {
@@ -295,12 +297,12 @@ func (a *App) UpdateProductionOutsourcing(id string, i OutsourceInput) (Producti
 	if e != nil {
 		return ProductionJobDTO{}, e
 	}
-	v, e := s.Outsource(a.materialContext(), id, application.OutsourceInput{Quantity: i.Quantity, UnitCostRial: i.UnitCostRial, FinancialAccountID: i.FinancialAccountID, SupplierID: i.SupplierID, Description: i.Description, SentAt: i.SentAt, ExpectedReturnAt: i.ExpectedReturnAt, ReceivedAt: i.ReceivedAt, Notes: i.Notes, QuotedCostRial: i.QuotedCostRial, ActualCostRial: i.ActualCostRial})
+	v, e := s.Outsource(a.materialContext(), id, application.OutsourceInput{Quantity: i.Quantity, UnitCostRial: i.UnitCostRial, FinancialAccountID: i.FinancialAccountID, PaymentStatus: i.PaymentStatus, SupplierID: i.SupplierID, Description: i.Description, SentAt: i.SentAt, ExpectedReturnAt: i.ExpectedReturnAt, ReceivedAt: i.ReceivedAt, Notes: i.Notes, QuotedCostRial: i.QuotedCostRial, ActualCostRial: i.ActualCostRial})
 	return productionJobDTO(v), e
 }
 
 func productionJobDTO(v application.ProductionJobView) ProductionJobDTO {
-	return ProductionJobDTO{EstimatedConversionCostRial: v.EstimatedConversionCostRial, RemainingMaterialCostRial: v.RemainingMaterialCostRial, ProjectedCostRial: v.ProjectedCostRial, OutsourceQuantity: v.OutsourceQuantity, OutsourceUnitCostRial: v.OutsourceUnitCostRial, OutsourceFinancialAccountID: v.OutsourceFinancialAccountID, ActualOutsourcedCostRial: v.ActualOutsourcedCostRial, ID: v.ID, JobNumber: v.JobNumber, OrderID: v.OrderID, OrderItemID: v.OrderItemID, ServiceName: v.ServiceName, Quantity: v.Quantity, QuantityUnit: v.QuantityUnit, AssignedMachineID: v.AssignedMachineID, Status: v.Status, Priority: v.Priority, Notes: v.Notes, PlannedAt: v.PlannedAt, StartedAt: v.StartedAt, CompletedAt: v.CompletedAt, CreatedAt: v.CreatedAt, EstimatedCostRial: v.EstimatedCostRial, ActualMaterialCostRial: v.ActualMaterialCostRial, ActualWasteCostRial: v.ActualWasteCostRial, ActualTotalCostRial: v.ActualTotalCostRial, OutsourceQuotedCostRial: v.OutsourceQuotedCostRial, OutsourceSupplierID: v.OutsourceSupplierID, OutsourceDescription: v.OutsourceDescription, OutsourceSentAt: v.OutsourceSentAt, OutsourceExpectedReturnAt: v.OutsourceExpectedReturnAt, OutsourceReceivedAt: v.OutsourceReceivedAt, OutsourceNotes: v.OutsourceNotes}
+	return ProductionJobDTO{EstimatedConversionCostRial: v.EstimatedConversionCostRial, RemainingMaterialCostRial: v.RemainingMaterialCostRial, ProjectedCostRial: v.ProjectedCostRial, OutsourceQuantity: v.OutsourceQuantity, OutsourceUnitCostRial: v.OutsourceUnitCostRial, OutsourceFinancialAccountID: v.OutsourceFinancialAccountID, OutsourcePaymentStatus: v.OutsourcePaymentStatus, ActualOutsourcedCostRial: v.ActualOutsourcedCostRial, ID: v.ID, JobNumber: v.JobNumber, OrderID: v.OrderID, OrderItemID: v.OrderItemID, ServiceName: v.ServiceName, Quantity: v.Quantity, QuantityUnit: v.QuantityUnit, AssignedMachineID: v.AssignedMachineID, Status: v.Status, Priority: v.Priority, Notes: v.Notes, PlannedAt: v.PlannedAt, StartedAt: v.StartedAt, CompletedAt: v.CompletedAt, CreatedAt: v.CreatedAt, EstimatedCostRial: v.EstimatedCostRial, ActualMaterialCostRial: v.ActualMaterialCostRial, ActualWasteCostRial: v.ActualWasteCostRial, ActualTotalCostRial: v.ActualTotalCostRial, OutsourceQuotedCostRial: v.OutsourceQuotedCostRial, OutsourceSupplierID: v.OutsourceSupplierID, OutsourceDescription: v.OutsourceDescription, OutsourceSentAt: v.OutsourceSentAt, OutsourceExpectedReturnAt: v.OutsourceExpectedReturnAt, OutsourceReceivedAt: v.OutsourceReceivedAt, OutsourceNotes: v.OutsourceNotes}
 }
 func reservationDTO(v application.ReservationView) InventoryReservationDTO {
 	return InventoryReservationDTO{ID: v.ID, MaterialID: v.MaterialID, OrderID: v.OrderID, OrderItemID: v.OrderItemID, ProductionJobID: v.ProductionJobID, Quantity: v.Quantity, Status: v.Status, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt}

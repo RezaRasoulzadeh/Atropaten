@@ -86,6 +86,8 @@ const cases = [
   ['Order-time supplier cost', 'هزینهٔ تأمین‌کننده هنگام سفارش'],
   ['Default outsourced item cost', 'هزینهٔ پیش‌فرض آیتم برون‌سپاری'],
   ['Default outsourced shipping', 'ارسال پیش‌فرض برون‌سپاری'],
+  ['Outsourced shipping', 'ارسال برون‌سپاری'],
+  ['Included once in this order total', 'یک‌بار در جمع این سفارش منظور شده است'],
   ['Optional IRT cost', 'هزینهٔ اختیاری IRT'],
   ['Enter the outsourced item cost.', 'هزینهٔ آیتم برون‌سپاری را وارد کنید.'],
 ]

@@ -92,6 +92,80 @@ func TestReportsReconcileJournalLinesAndPersistedSettings(t *testing.T) {
 	}
 }
 
+func TestOverrideSellingPriceFlowsIntoDashboardAndAccountingReports(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "override-reporting.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	now := time.Date(2026, 2, 20, 8, 0, 0, 0, time.UTC)
+	customer := domain.Customer{ID: "CUS-override-report", Name: "Override customer", Active: true, CreatedAt: now, UpdatedAt: now}
+	if err = s.SaveCustomer(ctx, customer); err != nil {
+		t.Fatal(err)
+	}
+	order := domain.NewOrder("ORD-override-report", customer.ID, now)
+	order.CommercialStatus = domain.CommercialConfirmed
+	order.CustomerNameSnapshot = customer.Name
+	order.Items = []domain.OrderItem{{
+		ID: "ITEM-override-report", OrderID: order.ID, Position: 0, ServiceID: "SVC-design",
+		ServiceNameSnapshot: "Design service", Quantity: domain.QuantityScale, QuantityUnit: "job",
+		SuggestedPriceRial: 10000, SellingPriceRial: 4500,
+	}}
+	if err = order.RecalculateTotals(); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.CreateOrder(ctx, order); err != nil {
+		t.Fatal(err)
+	}
+
+	// Simulate a legacy aggregate that was saved from the suggested price. The
+	// reporting projection must use the active line's effective selling price.
+	if _, err = s.db.Exec(`UPDATE orders SET subtotal_rial=10000,total_rial=10000 WHERE id=?`, order.ID); err != nil {
+		t.Fatal(err)
+	}
+	dashboard, err := s.Dashboard(ctx, now.Add(-time.Hour), now.Add(time.Hour))
+	if err != nil || dashboard.RevenueRial != 4500 || dashboard.Trend[0].RevenueRial != 4500 {
+		t.Fatalf("dashboard override total=%+v err=%v", dashboard, err)
+	}
+
+	if _, err = s.db.Exec(`UPDATE orders SET subtotal_rial=4500,total_rial=4500 WHERE id=?`, order.ID); err != nil {
+		t.Fatal(err)
+	}
+	invoice, err := application.NewInvoicesService(s, s).CreateFromOrder(ctx, order.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.PostInvoice(ctx, invoice.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	customerSales, err := s.Report(ctx, "customer_sales", now.Add(-time.Hour), now.Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	salesByService, err := s.Report(ctx, "sales_by_service", now.Add(-time.Hour), now.Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	profitLoss, err := s.Report(ctx, "profit_loss", now.Add(-time.Hour), now.Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summaryAmount(customerSales, "revenue") != 4500 || summaryAmount(salesByService, "revenue") != 4500 || summaryAmount(profitLoss, "revenue") != 4500 {
+		t.Fatalf("override missing from accounting reports: customer=%+v service=%+v pnl=%+v", customerSales.Summaries, salesByService.Summaries, profitLoss.Summaries)
+	}
+}
+
+func summaryAmount(report domain.Report, key string) int64 {
+	for _, summary := range report.Summaries {
+		if summary.Key == key {
+			return summary.AmountRial
+		}
+	}
+	return 0
+}
+
 func TestReceivablesReportIncludesUninvoicedOrderAndDoesNotDoubleCountInvoice(t *testing.T) {
 	s, err := Open(filepath.Join(t.TempDir(), "receivables.db"))
 	if err != nil {

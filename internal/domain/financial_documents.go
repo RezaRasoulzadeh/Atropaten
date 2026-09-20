@@ -77,11 +77,11 @@ func (i Invoice) Validate() error {
 }
 
 type Expense struct {
-	ID, ExpenseNumber                                                                                                                   string
-	ExpenseDate                                                                                                                         time.Time
-	CategoryAccountID, Payee, SupplierID, Description, PaymentMethod, FinancialAccountID, Notes, Status, JournalEntryID, IdempotencyKey string
-	AmountRial                                                                                                                          int64
-	CreatedAt, UpdatedAt                                                                                                                time.Time
+	ID, ExpenseNumber                                                                                                                                  string
+	ExpenseDate                                                                                                                                        time.Time
+	CategoryAccountID, Payee, SupplierID, Description, PaymentMethod, PaymentStatus, FinancialAccountID, Notes, Status, JournalEntryID, IdempotencyKey string
+	AmountRial                                                                                                                                         int64
+	CreatedAt, UpdatedAt                                                                                                                               time.Time
 }
 
 func (e Expense) Validate() error {

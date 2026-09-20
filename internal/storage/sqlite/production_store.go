@@ -201,7 +201,7 @@ func (s *Store) ReleaseReservation(ctx context.Context, id, status string) error
 }
 
 func (s *Store) ListProductionJobs(ctx context.Context, status string) ([]domain.ProductionJob, error) {
-	q := `SELECT id,job_number,order_id,order_item_id,service_name_snapshot,quantity_units,quantity_unit,COALESCE(assigned_machine_id,''),status,priority,planned_at,started_at,completed_at,notes,estimated_cost_rial,actual_material_cost_rial,actual_waste_cost_rial,actual_outsourced_cost_rial,COALESCE(outsource_supplier_id,''),outsource_description,outsource_quoted_cost_rial,COALESCE(outsource_sent_at,''),COALESCE(outsource_expected_return_at,''),COALESCE(outsource_received_at,''),outsource_notes,created_at,updated_at FROM production_jobs`
+	q := `SELECT id,job_number,order_id,order_item_id,service_name_snapshot,quantity_units,quantity_unit,COALESCE(assigned_machine_id,''),status,priority,planned_at,started_at,completed_at,notes,estimated_cost_rial,actual_material_cost_rial,actual_waste_cost_rial,actual_outsourced_cost_rial,COALESCE(outsource_supplier_id,''),outsource_description,outsource_quoted_cost_rial,COALESCE(outsource_sent_at,''),COALESCE(outsource_expected_return_at,''),COALESCE(outsource_received_at,''),outsource_notes,COALESCE(outsource_payment_status,'paid'),created_at,updated_at FROM production_jobs`
 	args := []any{}
 	if status != "" && status != "All" {
 		q += ` WHERE status=?`
@@ -237,7 +237,7 @@ func (s *Store) ListProductionJobs(ctx context.Context, status string) ([]domain
 	return out, nil
 }
 func (s *Store) GetProductionJob(ctx context.Context, id string) (domain.ProductionJob, error) {
-	v, e := scanProductionJob(s.db.QueryRowContext(ctx, `SELECT id,job_number,order_id,order_item_id,service_name_snapshot,quantity_units,quantity_unit,COALESCE(assigned_machine_id,''),status,priority,planned_at,started_at,completed_at,notes,estimated_cost_rial,actual_material_cost_rial,actual_waste_cost_rial,actual_outsourced_cost_rial,COALESCE(outsource_supplier_id,''),outsource_description,outsource_quoted_cost_rial,COALESCE(outsource_sent_at,''),COALESCE(outsource_expected_return_at,''),COALESCE(outsource_received_at,''),outsource_notes,created_at,updated_at FROM production_jobs WHERE id=?`, id))
+	v, e := scanProductionJob(s.db.QueryRowContext(ctx, `SELECT id,job_number,order_id,order_item_id,service_name_snapshot,quantity_units,quantity_unit,COALESCE(assigned_machine_id,''),status,priority,planned_at,started_at,completed_at,notes,estimated_cost_rial,actual_material_cost_rial,actual_waste_cost_rial,actual_outsourced_cost_rial,COALESCE(outsource_supplier_id,''),outsource_description,outsource_quoted_cost_rial,COALESCE(outsource_sent_at,''),COALESCE(outsource_expected_return_at,''),COALESCE(outsource_received_at,''),outsource_notes,COALESCE(outsource_payment_status,'paid'),created_at,updated_at FROM production_jobs WHERE id=?`, id))
 	if errors.Is(e, sql.ErrNoRows) {
 		return domain.ProductionJob{}, domain.ErrProductionJobNotFound
 	}
@@ -250,7 +250,7 @@ func (s *Store) withProductionActuals(ctx context.Context, j domain.ProductionJo
 	if e := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN m.movement_type='production_consumption' THEN -m.total_cost_rial ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.movement_type='waste' THEN -m.total_cost_rial ELSE 0 END),0) FROM inventory_movements m JOIN production_consumptions c ON c.id=m.reference_id WHERE c.production_job_id=? AND m.reference_type IN ('production_consumption','production_correction')`, j.ID).Scan(&j.ActualMaterialCostRial, &j.ActualWasteCostRial); e != nil {
 		return j, e
 	}
-	if err := s.db.QueryRowContext(ctx, `SELECT outsource_quantity_units,outsource_unit_cost_rial,outsource_financial_account_id FROM production_jobs WHERE id=?`, j.ID).Scan(&j.OutsourceQuantity, &j.OutsourceUnitCostRial, &j.OutsourceFinancialAccountID); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT outsource_quantity_units,outsource_unit_cost_rial,outsource_financial_account_id,COALESCE(outsource_payment_status,'paid') FROM production_jobs WHERE id=?`, j.ID).Scan(&j.OutsourceQuantity, &j.OutsourceUnitCostRial, &j.OutsourceFinancialAccountID, &j.OutsourcePaymentStatus); err != nil {
 		return j, err
 	}
 	return s.withProductionForecast(ctx, j)
@@ -441,7 +441,13 @@ func (s *Store) UpdateProductionOutsourcing(ctx context.Context, j domain.Produc
 		}
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	_, err = tx.ExecContext(ctx, `UPDATE production_jobs SET outsource_quantity_units=?,outsource_unit_cost_rial=?,outsource_financial_account_id=?,actual_outsourced_cost_rial=?,outsource_supplier_id=?,outsource_description=?,outsource_quoted_cost_rial=?,outsource_sent_at=?,outsource_expected_return_at=?,outsource_received_at=?,outsource_notes=?,updated_at=? WHERE id=?`, j.OutsourceQuantity, j.OutsourceUnitCostRial, j.OutsourceFinancialAccountID, total, nullableString(j.OutsourceSupplierID), j.OutsourceDescription, j.OutsourceQuotedCostRial, nullableString(j.OutsourceSentAt), nullableString(j.OutsourceExpectedReturnAt), nullableString(j.OutsourceReceivedAt), j.OutsourceNotes, now, j.ID)
+	if j.OutsourcePaymentStatus == "" {
+		j.OutsourcePaymentStatus = domain.OutsourcePaymentPaid
+	}
+	if !domain.ValidOutsourcePaymentStatus(j.OutsourcePaymentStatus) {
+		return fmt.Errorf("unsupported outsourcing payment status")
+	}
+	_, err = tx.ExecContext(ctx, `UPDATE production_jobs SET outsource_quantity_units=?,outsource_unit_cost_rial=?,outsource_financial_account_id=?,outsource_payment_status=?,actual_outsourced_cost_rial=?,outsource_supplier_id=?,outsource_description=?,outsource_quoted_cost_rial=?,outsource_sent_at=?,outsource_expected_return_at=?,outsource_received_at=?,outsource_notes=?,updated_at=? WHERE id=?`, j.OutsourceQuantity, j.OutsourceUnitCostRial, j.OutsourceFinancialAccountID, j.OutsourcePaymentStatus, total, nullableString(j.OutsourceSupplierID), j.OutsourceDescription, j.OutsourceQuotedCostRial, nullableString(j.OutsourceSentAt), nullableString(j.OutsourceExpectedReturnAt), nullableString(j.OutsourceReceivedAt), j.OutsourceNotes, now, j.ID)
 	if err != nil {
 		return err
 	}
@@ -861,7 +867,7 @@ func scanProductionJob(row scanner) (domain.ProductionJob, error) {
 	var planned, started, completed, outsourceSent, outsourceExpected, outsourceReceived sql.NullString
 	var outsourceQuoted int64
 	var created, updated string
-	if e := row.Scan(&v.ID, &v.JobNumber, &v.OrderID, &v.OrderItemID, &v.ServiceNameSnapshot, &q, &v.QuantityUnit, &v.AssignedMachineID, &v.Status, &v.Priority, &planned, &started, &completed, &v.Notes, &v.EstimatedCostRial, &v.ActualMaterialCostRial, &v.ActualWasteCostRial, &v.ActualOutsourcedCostRial, &v.OutsourceSupplierID, &v.OutsourceDescription, &outsourceQuoted, &outsourceSent, &outsourceExpected, &outsourceReceived, &v.OutsourceNotes, &created, &updated); e != nil {
+	if e := row.Scan(&v.ID, &v.JobNumber, &v.OrderID, &v.OrderItemID, &v.ServiceNameSnapshot, &q, &v.QuantityUnit, &v.AssignedMachineID, &v.Status, &v.Priority, &planned, &started, &completed, &v.Notes, &v.EstimatedCostRial, &v.ActualMaterialCostRial, &v.ActualWasteCostRial, &v.ActualOutsourcedCostRial, &v.OutsourceSupplierID, &v.OutsourceDescription, &outsourceQuoted, &outsourceSent, &outsourceExpected, &outsourceReceived, &v.OutsourceNotes, &v.OutsourcePaymentStatus, &created, &updated); e != nil {
 		return v, e
 	}
 	v.Quantity = domain.Quantity(q)

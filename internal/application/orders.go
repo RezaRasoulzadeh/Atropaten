@@ -47,17 +47,19 @@ type OrderInput struct {
 	Items        []OrderItemInput
 }
 type OrderItemInput struct {
-	ServiceID                string
-	Parameters               map[string]string
-	ManualCosts              map[string]int64
-	SellingPriceOverrideRial *int64
-	Quantity                 string
-	QuantityUnit             string
-	Notes                    string
-	OutsourcedCostRial       int64
-	OutsourcedShippingRial   int64
-	OutsourcedSupplierID     string
-	OutsourcedNotes          string
+	ServiceID                    string
+	Parameters                   map[string]string
+	ManualCosts                  map[string]int64
+	SellingPriceOverrideRial     *int64
+	Quantity                     string
+	QuantityUnit                 string
+	Notes                        string
+	OutsourcedCostRial           int64
+	OutsourcedShippingRial       int64
+	OutsourcedCostOverridden     bool
+	OutsourcedShippingOverridden bool
+	OutsourcedSupplierID         string
+	OutsourcedNotes              string
 }
 type OrderView struct {
 	ProjectedCostRial                                                     int64
@@ -332,10 +334,10 @@ func (s *OrdersService) buildConfiguredItem(ctx context.Context, orderID string,
 		outsourcedCost, outsourcedShipping = 0, 0
 		outsourcedSupplierID, outsourcedNotes = "", ""
 	} else {
-		if outsourcedCost == 0 {
+		if outsourcedCost == 0 && !input.OutsourcedCostOverridden {
 			outsourcedCost = price.DefaultOutsourcedCostRial
 		}
-		if outsourcedShipping == 0 {
+		if outsourcedShipping == 0 && !input.OutsourcedShippingOverridden {
 			outsourcedShipping = price.DefaultOutsourcedShippingRial
 		}
 	}
@@ -373,6 +375,9 @@ func (s *OrdersService) buildConfiguredItem(ctx context.Context, orderID string,
 	if err != nil {
 		return domain.OrderItem{}, fmt.Errorf("selling price for quantity: %w", err)
 	}
+	price.OutsourcedCostOverridden = price.FulfillmentMode == domain.ServiceFulfillmentOutsourced && input.OutsourcedCostOverridden
+	price.OutsourcedShippingOverridden = price.FulfillmentMode == domain.ServiceFulfillmentOutsourced && input.OutsourcedShippingOverridden
+	price.SellingPriceOverridden = input.SellingPriceOverrideRial != nil
 	parametersJSON, _ := json.Marshal(price.Parameters)
 	componentsJSON, _ := json.Marshal(price.Components)
 	snapshotJSON, _ := json.Marshal(price)

@@ -92,6 +92,15 @@ function itemInitial(item: DraftItem | undefined) {
     quantityUnit: item.payload.quantityUnit,
     notes: item.payload.notes,
     resolvedParametersJson: JSON.stringify(Object.entries(item.payload.parameters).map(([key, value]) => ({ key, value }))),
+    manualCosts: { ...item.payload.manualCosts },
+    sellingPriceOverrideRial: item.payload.sellingPriceOverrideRial,
+    pricingSnapshotJson: item.preview ? JSON.stringify(item.preview) : '',
+    suggestedPriceRial: item.preview?.suggestedSellingPriceRial || 0,
+    sellingPriceRial: item.preview?.effectiveSellingPriceRial || item.payload.sellingPriceOverrideRial || 0,
+    outsourcedCostRial: item.payload.outsourcedCostRial,
+    outsourcedShippingRial: item.payload.outsourcedShippingRial,
+    outsourcedSupplierId: item.payload.outsourcedSupplierId,
+    outsourcedNotes: item.payload.outsourcedNotes,
   }
 }
 

@@ -49,6 +49,9 @@ type PricingDTO struct {
 	FulfillmentMode               string                 `json:"fulfillmentMode"`
 	DefaultOutsourcedCostRial     int64                  `json:"defaultOutsourcedCostRial"`
 	DefaultOutsourcedShippingRial int64                  `json:"defaultOutsourcedShippingRial"`
+	OutsourcedCostOverridden      bool                   `json:"outsourcedCostOverridden,omitempty"`
+	OutsourcedShippingOverridden  bool                   `json:"outsourcedShippingOverridden,omitempty"`
+	SellingPriceOverridden        bool                   `json:"sellingPriceOverridden,omitempty"`
 	Parameters                    []ResolvedParameterDTO `json:"parameters"`
 	Components                    []PricingComponentDTO  `json:"components"`
 	EstimatedCostRial             int64                  `json:"estimatedCostRial"`
@@ -86,7 +89,7 @@ func (a *App) CalculateServicePrice(request PricingRequest) (PricingDTO, error) 
 }
 
 func pricingDTO(view application.PricingView) PricingDTO {
-	dto := PricingDTO{BatchQuantity: view.BatchQuantity, Layouts: view.Layouts, ServiceID: view.ServiceID, ServiceName: view.ServiceName, ServiceCode: view.ServiceCode, FulfillmentMode: view.FulfillmentMode, DefaultOutsourcedCostRial: view.DefaultOutsourcedCostRial, DefaultOutsourcedShippingRial: view.DefaultOutsourcedShippingRial, EstimatedCostRial: view.EstimatedCostRial, SuggestedSellingPriceRial: view.SuggestedSellingPriceRial, EffectiveSellingPriceRial: view.EffectiveSellingPriceRial, ProfitRial: view.ProfitRial, MarginPercentage: view.MarginPercentage, Warnings: view.Warnings, BelowCost: view.BelowCost, RoundingStepRial: view.RoundingStepRial, FinishedWidthMM: view.FinishedWidthMM, FinishedHeightMM: view.FinishedHeightMM}
+	dto := PricingDTO{BatchQuantity: view.BatchQuantity, Layouts: view.Layouts, ServiceID: view.ServiceID, ServiceName: view.ServiceName, ServiceCode: view.ServiceCode, FulfillmentMode: view.FulfillmentMode, DefaultOutsourcedCostRial: view.DefaultOutsourcedCostRial, DefaultOutsourcedShippingRial: view.DefaultOutsourcedShippingRial, OutsourcedCostOverridden: view.OutsourcedCostOverridden, OutsourcedShippingOverridden: view.OutsourcedShippingOverridden, SellingPriceOverridden: view.SellingPriceOverridden, EstimatedCostRial: view.EstimatedCostRial, SuggestedSellingPriceRial: view.SuggestedSellingPriceRial, EffectiveSellingPriceRial: view.EffectiveSellingPriceRial, ProfitRial: view.ProfitRial, MarginPercentage: view.MarginPercentage, Warnings: view.Warnings, BelowCost: view.BelowCost, RoundingStepRial: view.RoundingStepRial, FinishedWidthMM: view.FinishedWidthMM, FinishedHeightMM: view.FinishedHeightMM}
 	for _, parameter := range view.Parameters {
 		dto.Parameters = append(dto.Parameters, ResolvedParameterDTO{Key: parameter.Key, Label: parameter.Label, Type: parameter.Type, Value: parameter.Value, Quantity: parameter.Quantity, MaterialID: parameter.MaterialID, Unit: parameter.Unit})
 	}

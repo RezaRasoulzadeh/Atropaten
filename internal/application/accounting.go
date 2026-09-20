@@ -97,8 +97,8 @@ type ExpenseInput struct {
 	AmountRial                                                                                                                   int64
 }
 type ExpenseView struct {
-	ID, ExpenseNumber, ExpenseDate, CategoryAccountID, Payee, SupplierID, Description, PaymentMethod, FinancialAccountID, Notes, Status, JournalEntryID, IdempotencyKey, CreatedAt, UpdatedAt string
-	AmountRial                                                                                                                                                                                int64
+	ID, ExpenseNumber, ExpenseDate, CategoryAccountID, Payee, SupplierID, Description, PaymentMethod, PaymentStatus, FinancialAccountID, Notes, Status, JournalEntryID, IdempotencyKey, CreatedAt, UpdatedAt string
+	AmountRial                                                                                                                                                                                               int64
 }
 type TransferInput struct {
 	ID, SourceFinancialAccountID, DestinationFinancialAccountID, Reference, Notes, TransferDate, IdempotencyKey string
@@ -355,7 +355,7 @@ func (s *AccountingService) CreateExpense(ctx context.Context, in ExpenseInput) 
 		}
 		date = v.UTC()
 	}
-	v, e := r.CreateExpense(ctx, domain.Expense{ID: id, ExpenseDate: date, CategoryAccountID: in.CategoryAccountID, Payee: in.Payee, SupplierID: in.SupplierID, Description: in.Description, PaymentMethod: in.PaymentMethod, FinancialAccountID: in.FinancialAccountID, Notes: in.Notes, AmountRial: in.AmountRial, IdempotencyKey: in.IdempotencyKey, Status: "Posted", CreatedAt: date, UpdatedAt: date})
+	v, e := r.CreateExpense(ctx, domain.Expense{ID: id, ExpenseDate: date, CategoryAccountID: in.CategoryAccountID, Payee: in.Payee, SupplierID: in.SupplierID, Description: in.Description, PaymentMethod: in.PaymentMethod, PaymentStatus: domain.OutsourcePaymentPaid, FinancialAccountID: in.FinancialAccountID, Notes: in.Notes, AmountRial: in.AmountRial, IdempotencyKey: in.IdempotencyKey, Status: "Posted", CreatedAt: date, UpdatedAt: date})
 	if e != nil {
 		return ExpenseView{}, e
 	}
@@ -388,7 +388,7 @@ func (s *AccountingService) UpdateExpense(ctx context.Context, id string, in Exp
 		}
 		date = v.UTC()
 	}
-	v, err := r.UpdateExpense(ctx, domain.Expense{ID: strings.TrimSpace(id), ExpenseDate: date, CategoryAccountID: in.CategoryAccountID, Payee: in.Payee, SupplierID: in.SupplierID, Description: in.Description, AmountRial: in.AmountRial, PaymentMethod: in.PaymentMethod, FinancialAccountID: in.FinancialAccountID, Notes: in.Notes, Status: "Posted", UpdatedAt: s.now().UTC()})
+	v, err := r.UpdateExpense(ctx, domain.Expense{ID: strings.TrimSpace(id), ExpenseDate: date, CategoryAccountID: in.CategoryAccountID, Payee: in.Payee, SupplierID: in.SupplierID, Description: in.Description, AmountRial: in.AmountRial, PaymentMethod: in.PaymentMethod, PaymentStatus: domain.OutsourcePaymentPaid, FinancialAccountID: in.FinancialAccountID, Notes: in.Notes, Status: "Posted", UpdatedAt: s.now().UTC()})
 	if err != nil {
 		return ExpenseView{}, err
 	}
@@ -465,7 +465,7 @@ func paymentView(p domain.Payment) PaymentView {
 	return v
 }
 func expenseView(v domain.Expense) ExpenseView {
-	return ExpenseView{ID: v.ID, ExpenseNumber: v.ExpenseNumber, ExpenseDate: v.ExpenseDate.UTC().Format(time.RFC3339Nano), CategoryAccountID: v.CategoryAccountID, Payee: v.Payee, SupplierID: v.SupplierID, Description: v.Description, PaymentMethod: v.PaymentMethod, FinancialAccountID: v.FinancialAccountID, Notes: v.Notes, Status: v.Status, JournalEntryID: v.JournalEntryID, IdempotencyKey: v.IdempotencyKey, CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: v.UpdatedAt.UTC().Format(time.RFC3339Nano), AmountRial: v.AmountRial}
+	return ExpenseView{ID: v.ID, ExpenseNumber: v.ExpenseNumber, ExpenseDate: v.ExpenseDate.UTC().Format(time.RFC3339Nano), CategoryAccountID: v.CategoryAccountID, Payee: v.Payee, SupplierID: v.SupplierID, Description: v.Description, PaymentMethod: v.PaymentMethod, PaymentStatus: v.PaymentStatus, FinancialAccountID: v.FinancialAccountID, Notes: v.Notes, Status: v.Status, JournalEntryID: v.JournalEntryID, IdempotencyKey: v.IdempotencyKey, CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: v.UpdatedAt.UTC().Format(time.RFC3339Nano), AmountRial: v.AmountRial}
 }
 func transferView(v domain.FinancialTransfer) TransferView {
 	return TransferView{ID: v.ID, TransferNumber: v.TransferNumber, SourceFinancialAccountID: v.SourceFinancialAccountID, DestinationFinancialAccountID: v.DestinationFinancialAccountID, Reference: v.Reference, Notes: v.Notes, Status: v.Status, JournalEntryID: v.JournalEntryID, IdempotencyKey: v.IdempotencyKey, TransferDate: v.TransferDate.UTC().Format(time.RFC3339Nano), CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: v.UpdatedAt.UTC().Format(time.RFC3339Nano), AmountRial: v.AmountRial}

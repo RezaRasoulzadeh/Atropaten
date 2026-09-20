@@ -30,6 +30,8 @@ export interface OrderItemRecord {
   sellingPriceRial: number
   outsourcedCostRial: number
   outsourcedShippingRial: number
+  outsourcedCostOverridden?: boolean
+  outsourcedShippingOverridden?: boolean
   outsourcedSupplierId: string
   outsourcedNotes: string
   notes: string
@@ -84,6 +86,8 @@ export interface OrderItemPayload {
   quantityUnit: string
   outsourcedCostRial: number
   outsourcedShippingRial: number
+  outsourcedCostOverridden: boolean
+  outsourcedShippingOverridden: boolean
   outsourcedSupplierId: string
   outsourcedNotes: string
   notes: string

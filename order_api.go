@@ -15,17 +15,19 @@ type OrderInput struct {
 	Items        []OrderItemInput `json:"items,omitempty"`
 }
 type OrderItemInput struct {
-	ServiceID                string            `json:"serviceId"`
-	Parameters               map[string]string `json:"parameters"`
-	ManualCosts              map[string]int64  `json:"manualCosts"`
-	SellingPriceOverrideRial *int64            `json:"sellingPriceOverrideRial"`
-	Quantity                 string            `json:"quantity"`
-	QuantityUnit             string            `json:"quantityUnit"`
-	Notes                    string            `json:"notes"`
-	OutsourcedCostRial       int64             `json:"outsourcedCostRial"`
-	OutsourcedShippingRial   int64             `json:"outsourcedShippingRial"`
-	OutsourcedSupplierID     string            `json:"outsourcedSupplierId"`
-	OutsourcedNotes          string            `json:"outsourcedNotes"`
+	ServiceID                    string            `json:"serviceId"`
+	Parameters                   map[string]string `json:"parameters"`
+	ManualCosts                  map[string]int64  `json:"manualCosts"`
+	SellingPriceOverrideRial     *int64            `json:"sellingPriceOverrideRial"`
+	Quantity                     string            `json:"quantity"`
+	QuantityUnit                 string            `json:"quantityUnit"`
+	Notes                        string            `json:"notes"`
+	OutsourcedCostRial           int64             `json:"outsourcedCostRial"`
+	OutsourcedShippingRial       int64             `json:"outsourcedShippingRial"`
+	OutsourcedCostOverridden     bool              `json:"outsourcedCostOverridden"`
+	OutsourcedShippingOverridden bool              `json:"outsourcedShippingOverridden"`
+	OutsourcedSupplierID         string            `json:"outsourcedSupplierId"`
+	OutsourcedNotes              string            `json:"outsourcedNotes"`
 }
 type OrderDTO struct {
 	ProjectedCostRial        int64          `json:"projectedCostRial"`
@@ -272,7 +274,7 @@ func orderInput(i OrderInput) (application.OrderInput, error) {
 	return application.OrderInput{CustomerID: i.CustomerID, PromisedAt: p, Priority: i.Priority, Notes: i.Notes, DiscountRial: i.DiscountRial, Items: items}, nil
 }
 func itemInput(i OrderItemInput) application.OrderItemInput {
-	return application.OrderItemInput{ServiceID: i.ServiceID, Parameters: i.Parameters, ManualCosts: i.ManualCosts, SellingPriceOverrideRial: i.SellingPriceOverrideRial, Quantity: i.Quantity, QuantityUnit: i.QuantityUnit, Notes: i.Notes, OutsourcedCostRial: i.OutsourcedCostRial, OutsourcedShippingRial: i.OutsourcedShippingRial, OutsourcedSupplierID: i.OutsourcedSupplierID, OutsourcedNotes: i.OutsourcedNotes}
+	return application.OrderItemInput{ServiceID: i.ServiceID, Parameters: i.Parameters, ManualCosts: i.ManualCosts, SellingPriceOverrideRial: i.SellingPriceOverrideRial, Quantity: i.Quantity, QuantityUnit: i.QuantityUnit, Notes: i.Notes, OutsourcedCostRial: i.OutsourcedCostRial, OutsourcedShippingRial: i.OutsourcedShippingRial, OutsourcedCostOverridden: i.OutsourcedCostOverridden, OutsourcedShippingOverridden: i.OutsourcedShippingOverridden, OutsourcedSupplierID: i.OutsourcedSupplierID, OutsourcedNotes: i.OutsourcedNotes}
 }
 func orderDTO(v application.OrderView) OrderDTO {
 	o := OrderDTO{ProjectedCostRial: v.ProjectedCostRial, ID: v.ID, OrderNumber: v.OrderNumber, CustomerID: v.CustomerID, CustomerName: v.CustomerName, CustomerPhone: v.CustomerPhone, Notes: v.Notes, CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt, PromisedAt: v.PromisedAt, Priority: v.Priority, CommercialStatus: v.CommercialStatus, FulfillmentStatus: v.FulfillmentStatus, PaymentStatus: v.PaymentStatus, Archived: v.Archived, SubtotalRial: v.SubtotalRial, DiscountRial: v.DiscountRial, TotalRial: v.TotalRial, EstimatedCostRial: v.EstimatedCostRial, ActualCostRial: v.ActualCostRial, MarginRial: v.MarginRial, MarginPercentage: v.MarginPercentage, PaidRial: v.PaidRial, RemainingRial: v.RemainingRial, InvoiceID: v.InvoiceID, InvoiceStatus: v.InvoiceStatus, InvoicedTotalRial: v.InvoicedTotalRial, ProductionJobCount: v.ProductionJobCount, CompletedProductionJobs: v.CompletedProductionJobs, InProgressProductionJobs: v.InProgressProductionJobs}

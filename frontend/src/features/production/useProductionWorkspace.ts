@@ -58,6 +58,7 @@ export function useProductionWorkspace(
   const editingConsumptionId = ref<string | null>(null);
   const outsourceQuantity = ref('');
   const outsourceAccount = ref('');
+  const outsourcePaymentStatus = ref('paid');
   const initializedJobId = ref('');
   let selectionRequest = 0;
   const reservedConsumptionQuantity = computed(() => reservations.value
@@ -166,10 +167,14 @@ export function useProductionWorkspace(
     outsourceSupplier.value=job?.outsourceSupplierId || '';
     outsourceDescription.value=job?.outsourceDescription || '';
     outsourceQuantity.value=Number(job?.outsourceQuantity || 0)>0 ? job!.outsourceQuantity : job?.quantity || '';
-    const unitCost=Number(job?.outsourceQuantity || 0)>0 ? job!.outsourceUnitCostRial : Math.round((job?.estimatedCostRial || 0)/Number(job?.quantity || 1));
+    const jobQuantity = Number(parseQuantityInput(job?.quantity || '1')) || 1;
+    const savedOrderOutsourceTotal = (selectedItem.value?.outsourcedCostRial || 0) + (selectedItem.value?.outsourcedShippingRial || 0);
+    const defaultOutsourceTotal = savedOrderOutsourceTotal > 0 ? savedOrderOutsourceTotal : (job?.estimatedCostRial || 0);
+    const unitCost=Number(job?.outsourceQuantity || 0)>0 ? job!.outsourceUnitCostRial : Math.round(defaultOutsourceTotal / jobQuantity);
     outsourceCost.value=formatMoneyInput(unitCost,props.currencyUnit);
     outsourceQuotedCost.value=formatMoneyInput(job?.estimatedCostRial || 0,props.currencyUnit);
     outsourceAccount.value=job?.outsourceFinancialAccountId || financialAccounts.value.find(a => a.type==='cash')?.id || financialAccounts.value[0]?.id || '';
+    outsourcePaymentStatus.value=job?.outsourcePaymentStatus || 'paid';
   }
   function suggestConsumption() {
     consumedQuantity.value=String(reservedConsumptionQuantity.value);
@@ -449,6 +454,7 @@ export function useProductionWorkspace(
           quantity: parseQuantityInput(outsourceQuantity.value || '0'),
           unitCostRial: cost,
           financialAccountId: outsourceAccount.value,
+          paymentStatus: outsourcePaymentStatus.value,
           supplierId: outsourceSupplier.value,
           description: outsourceDescription.value,
           sentAt: selected.value.outsourceSentAt,
@@ -510,7 +516,7 @@ export function useProductionWorkspace(
   }
   return {
     materialPlans, consumptions, stockMaterials, financialAccounts, materialsError, editingConsumptionId,
-    outsourceQuantity, outsourceAccount, outsourceTotal, reservedConsumptionQuantity, canConsume, editableJob,
+    outsourceQuantity, outsourceAccount, outsourcePaymentStatus, outsourceTotal, reservedConsumptionQuantity, canConsume, editableJob,
     suggestConsumption, updateConsumptionSlider, editConsumption, correctConsumption, saveMaterialTarget, updateReservation, resetOutsourceDraft,
     busy,
     runAction,

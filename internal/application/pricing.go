@@ -54,6 +54,9 @@ type PricingView struct {
 	FulfillmentMode               string                  `json:"fulfillmentMode"`
 	DefaultOutsourcedCostRial     int64                   `json:"defaultOutsourcedCostRial"`
 	DefaultOutsourcedShippingRial int64                   `json:"defaultOutsourcedShippingRial"`
+	OutsourcedCostOverridden      bool                    `json:"outsourcedCostOverridden,omitempty"`
+	OutsourcedShippingOverridden  bool                    `json:"outsourcedShippingOverridden,omitempty"`
+	SellingPriceOverridden        bool                    `json:"sellingPriceOverridden,omitempty"`
 	Parameters                    []ResolvedParameterView `json:"parameters"`
 	Components                    []PricingComponentView  `json:"components"`
 	EstimatedCostRial             int64                   `json:"estimatedCostRial"`

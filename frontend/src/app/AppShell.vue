@@ -57,6 +57,8 @@ import SettingsView from '../features/settings/SettingsView.vue';
 import ToastHost from '../components/ui/ToastHost.vue';
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue';
 import EmptyState from '../components/ui/EmptyState.vue';
+import logoDark from '../assets/logo-dark.png';
+import logoWhite from '../assets/logo-white.png';
 import { normalizeError, useToast } from '../ui/feedback';
 import { useI18n } from 'vue-i18n';
 import { setLocale, type Locale } from '../i18n';
@@ -779,12 +781,10 @@ function showToast(message: string) {
           class="navbar min-h-16 shrink-0 border-b border-base-300 bg-base-100"
           :class="sidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-4'"
         >
-          <div
-            class="grid size-8 shrink-0 place-items-center rounded bg-primary font-bold text-primary-content"
-            aria-hidden="true"
-          >
-            {{ $t("A") }}
-          </div>
+          <picture class="app-brand-logo size-10 shrink-0" :aria-label="$t('Atropaten')">
+            <source :srcset="logoDark" media="(prefers-color-scheme: light)" />
+            <img class="size-full object-contain" :src="logoWhite" :alt="$t('Atropaten')" />
+          </picture>
           <div v-if="!sidebarCollapsed" class="min-w-0">
             <span class="block truncate text-sm font-bold">{{ $t("Atropaten") }}</span>
             <span class="block text-xs leading-4 text-base-content/60">{{ t('brand.tagline') }}</span>

@@ -351,7 +351,7 @@ func (s *Store) reportInventory(ctx context.Context, r domain.Report) (domain.Re
 }
 
 func (s *Store) reportSalesByService(ctx context.Context, r domain.Report, from, until string) (domain.Report, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT i.id,COALESCE(ii.service_id,''),ii.description_snapshot,ii.quantity_units,ii.line_total_rial,i.subtotal_rial,i.total_rial,COALESCE(oi.estimated_cost_rial,0),
+	rows, err := s.db.QueryContext(ctx, `SELECT i.id,COALESCE(ii.service_id,''),ii.description_snapshot,ii.quantity_units,COALESCE(oi.selling_price_rial,ii.line_total_rial),i.subtotal_rial,i.total_rial,COALESCE(oi.estimated_cost_rial,0),
 	 COALESCE((SELECT SUM(p.actual_outsourced_cost_rial+COALESCE((SELECT SUM(-m.total_cost_rial) FROM production_consumptions c JOIN inventory_movements m ON m.reference_id=c.id AND m.reference_type IN ('production_consumption','production_correction') WHERE c.production_job_id=p.id),0)) FROM production_jobs p WHERE p.order_item_id=ii.order_item_id),0)
 	 FROM invoice_items ii JOIN invoices i ON i.id=ii.invoice_id AND i.status IN ('Posted','Partially Paid','Paid') LEFT JOIN order_items oi ON oi.id=ii.order_item_id WHERE i.issue_date>=? AND i.issue_date<? ORDER BY i.id,ii.position,ii.id`, from, until)
 	if err != nil {
@@ -589,7 +589,8 @@ func (s *Store) Dashboard(ctx context.Context, start, end time.Time) (domain.Das
 
 // Read-only projections: money remains integer Rial and order eligibility is owned here.
 func (s *Store) dashboardChartsAndOrders(ctx context.Context, start, end time.Time, d *domain.Dashboard) error {
-	rows, err := s.db.QueryContext(ctx, `SELECT o.id,o.order_number,o.customer_name_snapshot,o.commercial_status,o.fulfillment_status,COALESCE(o.promised_at,''),o.total_rial,
+	rows, err := s.db.QueryContext(ctx, `SELECT o.id,o.order_number,o.customer_name_snapshot,o.commercial_status,o.fulfillment_status,COALESCE(o.promised_at,''),
+	COALESCE((SELECT SUM(oi.selling_price_rial) FROM order_items oi WHERE oi.order_id=o.id AND oi.removed_at IS NULL),0)-o.discount_rial,
  (SELECT COUNT(*) FROM attachments a WHERE a.owner_type='order' AND a.owner_id=o.id AND a.category='reference') AS refs
  FROM orders o WHERE o.commercial_status NOT IN ('Cancelled','Closed') AND o.fulfillment_status<>'Delivered'
  AND (o.commercial_status='Confirmed' OR EXISTS(SELECT 1 FROM attachments a WHERE a.owner_type='order' AND a.owner_id=o.id AND a.category='reference'))

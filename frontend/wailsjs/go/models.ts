@@ -1,5 +1,5 @@
 export namespace domain {
-
+	
 	export class PrintLayout {
 	    finishedWidthMM: string;
 	    finishedHeightMM: string;
@@ -21,11 +21,11 @@ export namespace domain {
 	    wasteCostRial: number;
 	    areaM2: string;
 	    originalLengthMM?: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PrintLayout(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.finishedWidthMM = source["finishedWidthMM"];
@@ -54,7 +54,7 @@ export namespace domain {
 }
 
 export namespace main {
-
+	
 	export class AccountDTO {
 	    id: string;
 	    code: string;
@@ -63,11 +63,11 @@ export namespace main {
 	    active: boolean;
 	    system: boolean;
 	    balanceRial: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new AccountDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -91,11 +91,11 @@ export namespace main {
 	    notes: string;
 	    sizeBytes?: number;
 	    createdAt: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new AttachmentDTO(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -580,6 +580,7 @@ export namespace main {
 	    description: string;
 	    amountRial: number;
 	    paymentMethod: string;
+	    paymentStatus: string;
 	    financialAccountId: string;
 	    notes: string;
 	    status: string;
@@ -603,6 +604,7 @@ export namespace main {
 	        this.description = source["description"];
 	        this.amountRial = source["amountRial"];
 	        this.paymentMethod = source["paymentMethod"];
+	        this.paymentStatus = source["paymentStatus"];
 	        this.financialAccountId = source["financialAccountId"];
 	        this.notes = source["notes"];
 	        this.status = source["status"];
@@ -2200,6 +2202,8 @@ export namespace main {
 	    notes: string;
 	    outsourcedCostRial: number;
 	    outsourcedShippingRial: number;
+	    outsourcedCostOverridden: boolean;
+	    outsourcedShippingOverridden: boolean;
 	    outsourcedSupplierId: string;
 	    outsourcedNotes: string;
 	
@@ -2218,6 +2222,8 @@ export namespace main {
 	        this.notes = source["notes"];
 	        this.outsourcedCostRial = source["outsourcedCostRial"];
 	        this.outsourcedShippingRial = source["outsourcedShippingRial"];
+	        this.outsourcedCostOverridden = source["outsourcedCostOverridden"];
+	        this.outsourcedShippingOverridden = source["outsourcedShippingOverridden"];
 	        this.outsourcedSupplierId = source["outsourcedSupplierId"];
 	        this.outsourcedNotes = source["outsourcedNotes"];
 	    }
@@ -2229,11 +2235,11 @@ export namespace main {
 	    notes: string;
 	    discountRial: number;
 	    items?: OrderItemInput[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new OrderInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.customerId = source["customerId"];
@@ -2243,7 +2249,7 @@ export namespace main {
 	        this.discountRial = source["discountRial"];
 	        this.items = this.convertValues(source["items"], OrderItemInput);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2262,8 +2268,8 @@ export namespace main {
 		    return a;
 		}
 	}
-
-
+	
+	
 	export class OutsourceInput {
 	    quantity: string;
 	    unitCostRial: number;
@@ -2276,6 +2282,7 @@ export namespace main {
 	    notes: string;
 	    quotedCostRial: number;
 	    actualCostRial: number;
+	    paymentStatus: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new OutsourceInput(source);
@@ -2294,6 +2301,7 @@ export namespace main {
 	        this.notes = source["notes"];
 	        this.quotedCostRial = source["quotedCostRial"];
 	        this.actualCostRial = source["actualCostRial"];
+	        this.paymentStatus = source["paymentStatus"];
 	    }
 	}
 	export class OwnerDTO {
@@ -2728,6 +2736,9 @@ export namespace main {
 	    fulfillmentMode: string;
 	    defaultOutsourcedCostRial: number;
 	    defaultOutsourcedShippingRial: number;
+	    outsourcedCostOverridden?: boolean;
+	    outsourcedShippingOverridden?: boolean;
+	    sellingPriceOverridden?: boolean;
 	    parameters: ResolvedParameterDTO[];
 	    components: PricingComponentDTO[];
 	    estimatedCostRial: number;
@@ -2755,6 +2766,9 @@ export namespace main {
 	        this.fulfillmentMode = source["fulfillmentMode"];
 	        this.defaultOutsourcedCostRial = source["defaultOutsourcedCostRial"];
 	        this.defaultOutsourcedShippingRial = source["defaultOutsourcedShippingRial"];
+	        this.outsourcedCostOverridden = source["outsourcedCostOverridden"];
+	        this.outsourcedShippingOverridden = source["outsourcedShippingOverridden"];
+	        this.sellingPriceOverridden = source["sellingPriceOverridden"];
 	        this.parameters = this.convertValues(source["parameters"], ResolvedParameterDTO);
 	        this.components = this.convertValues(source["components"], PricingComponentDTO);
 	        this.estimatedCostRial = source["estimatedCostRial"];
@@ -3247,6 +3261,7 @@ export namespace main {
 	    outsourceQuantity: string;
 	    outsourceUnitCostRial: number;
 	    outsourceFinancialAccountId: string;
+	    outsourcePaymentStatus: string;
 	    id: string;
 	    jobNumber: string;
 	    orderId: string;
@@ -3287,6 +3302,7 @@ export namespace main {
 	        this.outsourceQuantity = source["outsourceQuantity"];
 	        this.outsourceUnitCostRial = source["outsourceUnitCostRial"];
 	        this.outsourceFinancialAccountId = source["outsourceFinancialAccountId"];
+	        this.outsourcePaymentStatus = source["outsourcePaymentStatus"];
 	        this.id = source["id"];
 	        this.jobNumber = source["jobNumber"];
 	        this.orderId = source["orderId"];
@@ -4192,3 +4208,4 @@ export namespace sqlite {
 	}
 
 }
+

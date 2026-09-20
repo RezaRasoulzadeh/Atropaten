@@ -984,6 +984,24 @@ var migrations = []migration{{
 		sql: `ALTER TABLE services ADD COLUMN default_outsourced_cost_rial INTEGER NOT NULL DEFAULT 0 CHECK(default_outsourced_cost_rial >= 0);
 		ALTER TABLE services ADD COLUMN default_outsourced_shipping_rial INTEGER NOT NULL DEFAULT 0 CHECK(default_outsourced_shipping_rial >= 0);`,
 	},
+	{
+		version: 45,
+		sql: `ALTER TABLE production_jobs ADD COLUMN outsource_payment_status TEXT NOT NULL DEFAULT 'paid' CHECK(outsource_payment_status IN ('paid','pre-payment','on-hold'));
+		CREATE TABLE expenses_v45 (
+			id TEXT PRIMARY KEY, expense_number TEXT NOT NULL UNIQUE, expense_date TEXT NOT NULL, category_account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE RESTRICT,
+			payee TEXT NOT NULL DEFAULT '', supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL, description TEXT NOT NULL, amount_rial INTEGER NOT NULL CHECK(amount_rial > 0),
+			payment_method TEXT NOT NULL, payment_status TEXT NOT NULL DEFAULT 'paid' CHECK(payment_status IN ('paid','pre-payment','on-hold')), financial_account_id TEXT REFERENCES financial_accounts(id) ON DELETE RESTRICT, notes TEXT NOT NULL DEFAULT '', status TEXT NOT NULL CHECK(status IN ('Posted','Reversed')),
+			journal_entry_id TEXT NOT NULL UNIQUE REFERENCES journal_entries(id) ON DELETE RESTRICT, idempotency_key TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+		);
+		INSERT INTO expenses_v45(id,expense_number,expense_date,category_account_id,payee,supplier_id,description,amount_rial,payment_method,payment_status,financial_account_id,notes,status,journal_entry_id,idempotency_key,created_at,updated_at)
+		SELECT id,expense_number,expense_date,category_account_id,payee,supplier_id,description,amount_rial,payment_method,'paid',financial_account_id,notes,status,journal_entry_id,idempotency_key,created_at,updated_at FROM expenses;
+		DROP TRIGGER IF EXISTS expenses_immutable_delete;
+		DROP INDEX IF EXISTS expenses_date;
+		DROP TABLE expenses;
+		ALTER TABLE expenses_v45 RENAME TO expenses;
+		CREATE TRIGGER expenses_immutable_delete BEFORE DELETE ON expenses BEGIN SELECT RAISE(ABORT,'posted expenses cannot be deleted'); END;
+		CREATE INDEX expenses_date ON expenses(expense_date DESC,expense_number DESC);`,
+	},
 }
 
 // SQLite does not support altering a CHECK constraint. Rebuilding machines is
