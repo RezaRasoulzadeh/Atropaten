@@ -103,7 +103,7 @@ func (s *Store) CreateExpense(ctx context.Context, v domain.Expense) (domain.Exp
 	if _, err = tx.ExecContext(ctx, `UPDATE expense_number_sequences SET next_number=next_number+1 WHERE id=1`); err != nil {
 		return fail(err)
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO expenses(id,expense_number,expense_date,category_account_id,payee,supplier_id,description,amount_rial,payment_method,payment_status,financial_account_id,notes,status,journal_entry_id,idempotency_key,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, v.ID, v.ExpenseNumber, v.ExpenseDate.UTC().Format(time.RFC3339Nano), v.CategoryAccountID, v.Payee, nullableString(v.SupplierID), v.Description, v.AmountRial, v.PaymentMethod, v.PaymentStatus, v.FinancialAccountID, v.Notes, v.Status, je, v.IdempotencyKey, v.CreatedAt.UTC().Format(time.RFC3339Nano), v.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO expenses(id,expense_number,expense_date,category_account_id,payee,supplier_id,description,amount_rial,payment_method,payment_status,financial_account_id,notes,status,journal_entry_id,idempotency_key,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, v.ID, v.ExpenseNumber, v.ExpenseDate.UTC().Format(time.RFC3339Nano), v.CategoryAccountID, v.Payee, nullableString(v.SupplierID), v.Description, v.AmountRial, v.PaymentMethod, v.PaymentStatus, v.FinancialAccountID, v.Notes, v.Status, je, v.IdempotencyKey, v.CreatedAt.UTC().Format(time.RFC3339Nano), v.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
 		return fail(err)
 	}
 	if err = tx.Commit(); err != nil {

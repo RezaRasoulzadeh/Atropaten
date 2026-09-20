@@ -136,6 +136,15 @@ func TestOverrideSellingPriceFlowsIntoDashboardAndAccountingReports(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
+	invoiceRecord, err := s.GetInvoice(ctx, invoice.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invoiceRecord.IssueDate = now
+	invoiceRecord.UpdatedAt = now
+	if err = s.SaveInvoice(ctx, invoiceRecord); err != nil {
+		t.Fatal(err)
+	}
 	if err = s.PostInvoice(ctx, invoice.ID); err != nil {
 		t.Fatal(err)
 	}
