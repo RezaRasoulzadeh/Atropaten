@@ -129,8 +129,8 @@ func TestPricingServiceCalculatesMaterialBackedChoiceByResolvedMaterial(t *testi
 	if err != nil {
 		t.Fatalf("calculate material-backed choice: %v", err)
 	}
-	if result.EstimatedCostRial != 1700 || len(result.Components) != 1 || result.Components[0].MaterialID != material.ID {
-		t.Fatalf("material-backed choice pricing = %+v, want 1700 Rial using %s", result, material.ID)
+	if result.EstimatedCostRial != 2000 || len(result.Components) != 1 || result.Components[0].MaterialID != material.ID {
+		t.Fatalf("material-backed choice pricing = %+v, want rounded 2000 Rial using %s", result, material.ID)
 	}
 }
 

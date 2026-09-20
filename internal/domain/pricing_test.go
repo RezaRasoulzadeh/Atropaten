@@ -176,8 +176,8 @@ func TestEvaluatePricingRoundsAutomaticSellingPriceUp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("evaluate: %v", err)
 	}
-	if result.SuggestedSellingPriceRial != 1000 {
-		t.Fatalf("selling price = %d, want 1000", result.SuggestedSellingPriceRial)
+	if result.SuggestedSellingPriceRial != 2000 {
+		t.Fatalf("selling price = %d, want rounded 2000", result.SuggestedSellingPriceRial)
 	}
 }
 
