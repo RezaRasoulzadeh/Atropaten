@@ -69,7 +69,10 @@ function date(value: string) {
     <section class="invoice-print-meta">
       <div><span>{{ $t("Invoice date") }}</span><strong>{{ date(invoice.issueDate) }}</strong></div>
       <div><span>{{ $t("Due date") }}</span><strong>{{ invoice.dueDate ? date(invoice.dueDate) : $t("On receipt") }}</strong></div>
-      <div><span>{{ $t("Order reference") }}</span><strong><bdi>{{ invoice.orderId || '—' }}</bdi></strong></div>
+      <div class="invoice-print-order-reference">
+        <span>{{ $t("Order reference") }}</span>
+        <strong :title="invoice.orderId || undefined"><bdi>{{ invoice.orderId || '—' }}</bdi></strong>
+      </div>
       <div><span>{{ $t("Currency") }}</span><strong>{{ $ui(currencyUnit === 'Toman' ? 'Iranian Toman' : 'Iranian Rial') }}</strong></div>
     </section>
 
@@ -122,21 +125,8 @@ function date(value: string) {
       </dl>
     </section>
 
-    <footer class="invoice-print-footer">
-      <div class="invoice-print-footer-copy">
-        <strong>{{ shop?.documentFooter?.trim() || $t("Thank you for your business.") }}</strong>
-        <span v-if="shop?.phone || shop?.email || shop?.website">
-          <bdi v-if="shop?.phone">{{ shop.phone }}</bdi>
-          <span v-if="shop?.phone && (shop?.email || shop?.website)"> · </span>
-          <bdi v-if="shop?.email">{{ shop.email }}</bdi>
-          <span v-if="shop?.email && shop?.website"> · </span>
-          <bdi v-if="shop?.website">{{ shop.website }}</bdi>
-        </span>
-      </div>
-      <div class="invoice-print-footer-reference">
-        <span>{{ $t("Invoice") }}</span>
-        <strong><bdi>{{ invoice.invoiceNumber }}</bdi></strong>
-      </div>
+    <footer v-if="shop?.documentFooter?.trim()" class="invoice-print-footer">
+      <span>{{ shop.documentFooter.trim() }}</span>
     </footer>
   </article>
 </template>
@@ -186,11 +176,13 @@ function date(value: string) {
 .invoice-print-registration { font-size: 8pt; text-align: end; }
 .invoice-print-registration p { margin: 1mm 0; }
 .invoice-print-registration span { color: #53626d; margin-inline-end: 2mm; }
-.invoice-print-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 3mm; border: 0.25mm solid #ccd5d8; border-radius: 1.5mm; overflow: hidden; }
+.invoice-print-meta { display: grid; grid-template-columns: 1fr 1fr 1.35fr 0.95fr; margin-top: 3mm; border: 0.25mm solid #ccd5d8; border-radius: 1.5mm; overflow: hidden; }
 .invoice-print-meta > div { min-width: 0; padding: 3mm; border-inline-end: 0.25mm solid #dce2e5; }
 .invoice-print-meta > div:last-child { border-inline-end: 0; }
 .invoice-print-meta span { display: block; color: #53626d; font-size: 7.5pt; }
 .invoice-print-meta strong { display: block; margin-top: 1mm; font-size: 8pt; font-weight: 600; }
+.invoice-print-order-reference strong { overflow: hidden; font-size: 7pt; text-overflow: ellipsis; white-space: nowrap; }
+.invoice-print-order-reference bdi { white-space: nowrap; }
 .invoice-print-section { margin-top: 4mm; }
 .invoice-print-section-heading { align-items: center; margin-bottom: 3mm; break-after: avoid; }
 .invoice-print-section-heading h2 { margin: 0; font-size: 10pt; }
@@ -208,7 +200,7 @@ function date(value: string) {
 .invoice-print-table th.invoice-print-index { color: #fff; }
 .invoice-print-description { text-align: start !important; vertical-align: top !important; }
 .invoice-print-number { text-align: center !important; }
-.invoice-print-number bdi, .invoice-print-index, .invoice-print-footer-reference { white-space: nowrap; }
+.invoice-print-number bdi, .invoice-print-index { white-space: nowrap; }
 .invoice-print-quantity { white-space: nowrap; }
 .invoice-print-quantity span { margin-inline-start: 1mm; color: #53626d; }
 .invoice-print-subline { display: block; margin-top: 1mm; color: #53626d; font-size: 7.5pt; white-space: pre-wrap; }
@@ -225,10 +217,7 @@ function date(value: string) {
 .invoice-print-total dt, .invoice-print-total dd { color: #fff; font-weight: 700; }
 .invoice-print-remaining dt, .invoice-print-remaining dd { color: #202d3a; font-weight: 700; }
 .invoice-print-footer { margin-top: auto; padding-top: 3mm; border-top: 0.5mm solid #243238; color: #53626d; font-size: 7pt; }
-.invoice-print-footer-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 1mm; }
-.invoice-print-footer-copy strong { color: #243238; font-size: 8pt; }
-.invoice-print-footer-reference { display: flex; flex-direction: column; align-items: end; }
-.invoice-print-footer-reference strong { color: #243238; font-size: 8.5pt; }
+.invoice-print-footer > span { display: block; min-width: 0; white-space: pre-wrap; }
 
 @media print {
   .invoice-print-document { width: 100%; max-width: none; min-height: 190mm; margin: 0; padding: 0; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
