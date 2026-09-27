@@ -17,6 +17,7 @@ import { useWorkspaceActions, reportError } from '../../composables/useWorkspace
 import { invoicesApi, type InvoiceRecord } from '../../api/invoices'
 import type { OrderRecord } from '../../api/orders'
 import { formatMoney, type CurrencyUnit } from '../../utils/currency'
+import { formatLocalizedNumber } from '../../utils/number'
 import { formatDateTime } from '../../utils/date'
 
 const { busy, runAction } = useWorkspaceActions()
@@ -47,6 +48,7 @@ const filtered = computed(() => {
 const readyOrders = computed(() =>
   props.orders.filter((value) => !value.invoiceId && value.totalRial > 0),
 )
+const localizedCount = (value: number) => formatLocalizedNumber(value)
 
 function tone(value: string) {
   return value === 'Paid' || value === 'Posted'
@@ -122,7 +124,7 @@ async function create(orderId: string) {
           />
         </template>
         <template #count>
-          <span>{{ filtered.length }} {{ $t("of") }} {{ rows.length }} {{ $t("shown") }}</span>
+          <span>{{ localizedCount(filtered.length) }} {{ $t("of") }} {{ localizedCount(rows.length) }} {{ $t("shown") }}</span>
         </template>
         <template #actions>
           <button
@@ -142,7 +144,7 @@ async function create(orderId: string) {
       :subtitle='$t("Select a row to open the full invoice workspace.")'
       :flush="true"
     >
-      <template #action><span class="text-xs text-base-content/60">{{ filtered.length }} {{ $t("shown") }}</span></template>
+      <template #action><span class="text-xs text-base-content/60">{{ localizedCount(filtered.length) }} {{ $t("shown") }}</span></template>
 
       <LoadingState v-if="loading" :label='$t("Loading invoices…")' />
       <EmptyState
@@ -177,7 +179,7 @@ async function create(orderId: string) {
           >
             <DataTableCell>
               <strong class="block whitespace-nowrap text-sm">{{ value.invoiceNumber }}</strong>
-              <span class="mt-1 block text-xs text-base-content/55">{{ value.items.length }} {{ $t("line items") }}</span>
+              <span class="mt-1 block text-xs text-base-content/55">{{ localizedCount(value.items.length) }} {{ $t("line items") }}</span>
             </DataTableCell>
             <DataTableCell>
               <strong class="block max-w-64 truncate text-sm font-medium">{{ $ui(value.customerName || 'Walk-in customer') }}</strong>
@@ -192,7 +194,7 @@ async function create(orderId: string) {
               <span class="mt-1 block whitespace-nowrap text-xs text-base-content/55">{{ $t("Due") }} {{ $ui(value.dueDate ? formatDateTime(value.dueDate) : 'on receipt') }}</span>
             </DataTableCell>
             <DataTableCell class="text-center">
-              <span class="badge badge-ghost min-w-8 justify-center tabular-nums">{{ value.items.length }}</span>
+              <span class="badge badge-ghost min-w-8 justify-center tabular-nums">{{ localizedCount(value.items.length) }}</span>
             </DataTableCell>
             <DataTableCell numeric>
               <strong class="text-sm text-primary">{{ formatMoney(value.totalRial, props.currencyUnit) }}</strong>
@@ -208,7 +210,7 @@ async function create(orderId: string) {
       :subtitle="$t('Creating an invoice copies the order\'s stored pricing snapshots exactly.')"
       :flush="true"
     >
-      <template #action><span class="text-xs text-base-content/60">{{ readyOrders.length }} {{ $t("ready") }}</span></template>
+      <template #action><span class="text-xs text-base-content/60">{{ localizedCount(readyOrders.length) }} {{ $t("ready") }}</span></template>
       <div v-if="readyOrders.length" class="divide-y divide-base-300">
         <div
           v-for="order in readyOrders"
@@ -218,7 +220,7 @@ async function create(orderId: string) {
           <div class="min-w-0">
             <strong class="block truncate text-sm">{{ order.orderNumber }} · {{ $ui(order.customerName || 'Walk-in customer') }}</strong>
             <span class="mt-1 block truncate text-xs text-base-content/60">
-              {{ order.items.length }} {{ $t("items ·") }} {{ formatMoney(order.totalRial, props.currencyUnit) }}
+              {{ localizedCount(order.items.length) }} {{ $t("items ·") }} {{ formatMoney(order.totalRial, props.currencyUnit) }}
             </span>
           </div>
           <button class="btn btn-primary btn-sm shrink-0" type="button" :disabled="busy" @click="create(order.id)">

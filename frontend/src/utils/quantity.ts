@@ -1,4 +1,4 @@
-import { normalizeDigits } from './number'
+import { localizeDigits, normalizeDigits } from './number'
 
 // Invoice DTOs expose fixed-scale units as an integer string (1,000,000 = 1).
 // Format with integer arithmetic so large and fractional quantities stay exact.
@@ -8,6 +8,12 @@ export function formatQuantityUnits(value: string): string {
   const absolute = units < 0n ? -units : units
   const fraction = (absolute % 1000000n).toString().padStart(6, '0').replace(/0+$/, '')
   return `${units < 0n ? '-' : ''}${absolute / 1000000n}${fraction ? `.${fraction}` : ''}`
+}
+
+// Keep formatQuantityUnits canonical for persistence and calculations. Use
+// this variant at display boundaries so a locale switch also updates digits.
+export function formatLocalizedQuantityUnits(value: string): string {
+  return localizeDigits(formatQuantityUnits(value))
 }
 
 export function formatQuantityInput(value: string): string {

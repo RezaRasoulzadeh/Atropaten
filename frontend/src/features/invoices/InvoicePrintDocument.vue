@@ -5,7 +5,7 @@ import type { InvoiceRecord } from '../../api/invoices'
 import type { ShopSettingsRecord } from '../../api/reports'
 import { convertRial, formatMoney, type CurrencyUnit } from '../../utils/currency'
 import { formatLocalizedNumber } from '../../utils/number'
-import { formatQuantityUnits } from '../../utils/quantity'
+import { formatLocalizedQuantityUnits } from '../../utils/quantity'
 import { formatDate } from '../../utils/date'
 import logoDark from '../../assets/logo-dark.png'
 
@@ -100,7 +100,7 @@ function date(value: string) {
           <td class="invoice-print-index">{{ formatLocalizedNumber(index + 1) }}</td>
           <td class="invoice-print-description"><strong>{{ line.description }}</strong></td>
           <td class="invoice-print-quantity">
-            <bdi>{{ formatQuantityUnits(line.quantity) }}</bdi>
+            <bdi>{{ formatLocalizedQuantityUnits(line.quantity) }}</bdi>
             <span>{{ $ui(line.quantityUnit) }}</span>
           </td>
           <td class="invoice-print-number"><bdi>{{ amount(line.unitPriceRial) }}</bdi></td>

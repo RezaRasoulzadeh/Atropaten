@@ -14,7 +14,8 @@ import { invoicesApi, type InvoiceRecord } from '../../api/invoices'
 import { reportsApi, type ShopSettingsRecord } from '../../api/reports'
 import type { CurrencyUnit } from '../../utils/currency'
 import { formatMoney } from '../../utils/currency'
-import { formatQuantityUnits } from '../../utils/quantity'
+import { formatLocalizedQuantityUnits } from '../../utils/quantity'
+import { formatLocalizedNumber } from '../../utils/number'
 import { formatDateTime } from '../../utils/date'
 import { confirmAction } from '../../ui/feedback'
 import InvoicePrintDocument from './InvoicePrintDocument.vue'
@@ -33,6 +34,7 @@ const shopSettings = ref<ShopSettingsRecord | null>(null)
 const loading = ref(false)
 const printing = ref(false)
 const printMode = computed(() => invoice.value?.status === 'Draft' ? 'pre' : 'final')
+const localizedCount = (value: number) => formatLocalizedNumber(value)
 
 function tone(value: string) {
   return value === 'Paid' || value === 'Posted'
@@ -203,7 +205,7 @@ async function remove() {
             </div>
           </AppPanel>
 
-          <AppPanel :title='$t("Invoice lines")' :subtitle="$ui(`${invoice.items.length} line items`)" :flush="true">
+          <AppPanel :title='$t("Invoice lines")' :subtitle="$ui(`${localizedCount(invoice.items.length)} line items`)" :flush="true">
             <DataTable v-if="invoice.items.length" :label='$t("Invoice lines")'>
               <thead>
                 <tr>
@@ -216,7 +218,7 @@ async function remove() {
               <tbody>
                 <tr v-for="line in invoice.items" :key="line.id">
                   <DataTableCell><span class="block min-w-44 whitespace-normal font-medium">{{ line.description }}</span></DataTableCell>
-                  <DataTableCell>{{ formatQuantityUnits(line.quantity) }} {{ $ui(line.quantityUnit) }}</DataTableCell>
+                  <DataTableCell>{{ formatLocalizedQuantityUnits(line.quantity) }} {{ $ui(line.quantityUnit) }}</DataTableCell>
                   <DataTableCell numeric>{{ formatMoney(line.unitPriceRial, props.currencyUnit) }}</DataTableCell>
                   <DataTableCell numeric><strong>{{ formatMoney(line.lineTotalRial, props.currencyUnit) }}</strong></DataTableCell>
                 </tr>

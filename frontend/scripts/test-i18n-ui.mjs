@@ -15,7 +15,8 @@ const result = await build({
     loader: 'ts',
     contents: `
       import { setLocale, translateUi } from './src/i18n'
-      export { setLocale, translateUi }
+      import { formatLocalizedQuantityUnits } from './src/utils/quantity'
+      export { setLocale, translateUi, formatLocalizedQuantityUnits }
     `,
   },
   bundle: true,
@@ -31,8 +32,9 @@ new Function('require', 'module', 'exports', result.outputFiles[0].text)(
   built.exports,
 )
 
-const { setLocale, translateUi } = built.exports
+const { setLocale, translateUi, formatLocalizedQuantityUnits } = built.exports
 setLocale('fa')
+assert.equal(formatLocalizedQuantityUnits('500000000'), '۵۰۰', 'Quantity counts must use Persian digits in Persian UI')
 
 const cases = [
   ['Last 30 days', '۳۰ روز گذشته'],
@@ -118,4 +120,5 @@ assert.equal(
 
 setLocale('en')
 assert.equal(translateUi('Last 30 days'), 'Last 30 days', 'English labels must stay in English')
+assert.equal(formatLocalizedQuantityUnits('500000000'), '500', 'Quantity counts must return to Latin digits in English UI')
 console.log(`UI translation smoke tests passed (${cases.length} Persian cases and English fallback).`)
