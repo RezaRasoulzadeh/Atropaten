@@ -3,6 +3,7 @@ import fs from 'node:fs/promises'
 
 const debugPort = process.env.CHROME_DEBUG_PORT || '9229'
 const output = process.env.INVOICE_PRINT_OUTPUT || '/tmp/atropaten-invoice-print-preview.pdf'
+const extraRows = Math.max(0, Number(process.env.INVOICE_PRINT_EXTRA_ROWS || 0))
 const pages = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json()
 const pageTarget = pages.find((page) => page.type === 'page')
 assert.ok(pageTarget, 'Chrome does not expose a page target')
@@ -96,19 +97,32 @@ try {
     preparingClassCleaned: true,
   })
 
+  if (extraRows) {
+    await evaluate(`(() => {
+      const body = document.querySelector('.invoice-print-lines')
+      const source = body.querySelector('.invoice-print-item')
+      for (let index = 0; index < ${extraRows}; index += 1) {
+        const clone = source.cloneNode(true)
+        clone.querySelector('.invoice-print-index').textContent = String(index + 2)
+        body.appendChild(clone)
+      }
+    })()`)
+  }
+
   await send('Emulation.setEmulatedMedia', { media: 'print' })
   const layout = await evaluate(`(() => {
     const documentElement = document.querySelector('.invoice-print-document')
     const logo = document.querySelector('.invoice-print-logo')
     const table = document.querySelector('.invoice-print-table')
     const footer = document.querySelector('.invoice-print-footer')
+    const lastItem = [...document.querySelectorAll('.invoice-print-item')].at(-1)
     return {
       appVisible: getComputedStyle(document.querySelector('#app')).display !== 'none',
       printVisible: getComputedStyle(document.querySelector('.print-output')).display !== 'none',
       logoWidth: Math.round(logo.getBoundingClientRect().width),
       tableWidth: Math.round(table.getBoundingClientRect().width),
-      tableColumns: table.querySelectorAll('thead th').length,
-      footerBelowTable: footer.getBoundingClientRect().top > table.getBoundingClientRect().bottom,
+      tableColumns: table.querySelectorAll('.invoice-print-columns th').length,
+      footerBelowTable: footer.getBoundingClientRect().top > lastItem.getBoundingClientRect().bottom,
       documentOverflow: documentElement.scrollWidth > documentElement.clientWidth,
     }
   })()`)
@@ -117,7 +131,7 @@ try {
   assert.equal(layout.printVisible, true)
   assert.ok(layout.logoWidth > 55)
   assert.equal(layout.tableColumns, 5)
-  assert.equal(layout.footerBelowTable, true)
+  if (!extraRows) assert.equal(layout.footerBelowTable, true)
   assert.equal(layout.documentOverflow, false)
   assert.deepEqual(pageErrors, [])
 
@@ -137,9 +151,20 @@ try {
   }
   assert.deepEqual(pageSizePoints, { width: 420, height: 595 })
   const pageCount = Number(pageCountMatch[1])
-  assert.equal(pageCount, 1)
   await fs.writeFile(output, pdfBuffer)
-  console.log(JSON.stringify({ output, pageErrors, printPreparation, layout, pageSizePoints, pageCount, status: 'passed' }, null, 2))
+  if (extraRows) assert.ok(pageCount > 1)
+  else assert.equal(pageCount, 1)
+  let continuationPageOutput
+  if (extraRows && pageCount > 1) {
+    const continuationPage = await send('Page.printToPDF', {
+      printBackground: true,
+      preferCSSPageSize: true,
+      pageRanges: '2',
+    })
+    continuationPageOutput = output.replace(/\.pdf$/i, '-page-2.pdf')
+    await fs.writeFile(continuationPageOutput, Buffer.from(continuationPage.data, 'base64'))
+  }
+  console.log(JSON.stringify({ output, continuationPageOutput, extraRows, pageErrors, printPreparation, layout, pageSizePoints, pageCount, status: 'passed' }, null, 2))
 } finally {
   socket.close()
 }

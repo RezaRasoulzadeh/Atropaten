@@ -3,7 +3,7 @@ import DashboardCharts from './DashboardCharts.vue';
 import DataTable from '../../components/ui/DataTable.vue';
 import SelectField from '../../components/ui/SelectField.vue';
 import AppPanel from '../../components/layout/AppPanel.vue';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import {
   BarChart3,
   ClipboardList,
@@ -36,9 +36,6 @@ const emit = defineEmits<{
 const data = ref<DashboardRecord | null>(null);
 const loading = ref(false);
 const toast = useToast();
-const refreshAnimation = ref<'once' | 'infinite' | ''>('');
-let refreshTimer: ReturnType<typeof setTimeout> | undefined;
-let refreshClearTimer: ReturnType<typeof setTimeout> | undefined;
 const period = ref('30');
 const end = ref(currentCanonicalDate());
 const start = computed(() => {
@@ -52,33 +49,17 @@ async function load() {
   if (loading.value) return;
   loading.value = true;
   end.value = currentCanonicalDate();
-  refreshAnimation.value = 'once';
-  if (refreshTimer) clearTimeout(refreshTimer);
-  if (refreshClearTimer) clearTimeout(refreshClearTimer);
-  refreshTimer = setTimeout(() => {
-    if (loading.value) refreshAnimation.value = 'infinite';
-  }, 700);
-  const startedAt = Date.now();
   try {
     data.value = await reportsApi.dashboard(start.value, end.value);
   } catch (e) {
     toast.error(normalizeError(e).message, 'Dashboard');
   } finally {
     loading.value = false;
-    if (refreshTimer) clearTimeout(refreshTimer);
-    refreshTimer = undefined;
-    const remaining = Math.max(0, 700 - (Date.now() - startedAt));
-    refreshClearTimer = setTimeout(() => {
-      refreshAnimation.value = '';
-    }, remaining);
   }
 }
+defineExpose({ refresh: load });
 onMounted(load);
 watch(period, load);
-onBeforeUnmount(() => {
-  if (refreshTimer) clearTimeout(refreshTimer);
-  if (refreshClearTimer) clearTimeout(refreshClearTimer);
-});
 const initialLoading = computed(() => loading.value && !data.value);
 </script>
 <template>
@@ -101,19 +82,6 @@ const initialLoading = computed(() => loading.value && !data.value);
           @update:model-value="period = $event"
         />
         <button
-          :disabled="loading"
-          class="btn btn-outline btn-primary"
-          type="button"
-          @click="load"
-        >
-          <RefreshCw
-            :class="{
-              'refresh-once': refreshAnimation === 'once',
-              'animate-spin': refreshAnimation === 'infinite',
-            }"
-            :size="15"
-          /><span>{{ $t("Refresh") }}</span></button
-        ><button
           class="btn btn-primary gap-2"
           type="button"
           @click="emit('newOrder')"
@@ -263,7 +231,6 @@ const initialLoading = computed(() => loading.value && !data.value);
           :description='$t("Refresh the dashboard to try loading the order summary again.")'
         >
           <template #icon><RefreshCw :size="21" aria-hidden="true" /></template>
-          <template #action><button class="btn btn-primary btn-sm" type="button" @click="load">{{ $t("Refresh dashboard") }}</button></template>
         </EmptyState>
       </AppPanel>
       <RegisterList
@@ -325,19 +292,3 @@ const initialLoading = computed(() => loading.value && !data.value);
     </div>
   </div>
 </template>
-
-<style scoped>
-@keyframes refresh-spin-once {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.refresh-once {
-  animation: refresh-spin-once 0.7s linear 1;
-}
-</style>

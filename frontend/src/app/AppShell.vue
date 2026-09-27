@@ -158,6 +158,8 @@ const expenses = ref<ExpenseRecord[]>([]);
 const payments = ref<PaymentRecord[]>([]);
 const transfers = ref<TransferRecord[]>([]);
 const globalSearchLoading = ref(true);
+const toolbarRefreshing = ref(false);
+const dashboardView = ref<{ refresh: () => Promise<void> } | null>(null);
 const toast = useToast();
 const selectedLocale = computed(() => locale.value as Locale);
 
@@ -383,6 +385,19 @@ async function refreshWorkspaceData() {
   ]);
 }
 
+async function refreshFromToolbar() {
+  if (toolbarRefreshing.value) return;
+  toolbarRefreshing.value = true;
+  try {
+    const dashboardRefresh = activeView.value === 'Dashboard'
+      ? dashboardView.value?.refresh()
+      : undefined;
+    await Promise.all([refreshWorkspaceData(), dashboardRefresh]);
+  } finally {
+    toolbarRefreshing.value = false;
+  }
+}
+
 async function openDashboardOrder(orderId: string) {
   await Promise.all([loadOrders(), loadOrderCatalog()]);
   if (orders.value.some(order => order.id === orderId)) openOrder(orderId);
@@ -562,6 +577,7 @@ function showToast(message: string) {
         :search-query="searchQuery"
         :search-results="searchResults"
         :search-loading="globalSearchLoading"
+        :refreshing="toolbarRefreshing"
         :currency-unit="currencyUnit"
         :locale="selectedLocale"
         :collapsed="toolbarCollapsed"
@@ -571,6 +587,7 @@ function showToast(message: string) {
         @update:currency-unit="currencyUnit = $event"
         @update:locale="changeLocale"
         @new-order="openNewOrder"
+        @refresh="refreshFromToolbar"
         @navigate="selectView"
       >
         <template #notifications>
@@ -589,6 +606,7 @@ function showToast(message: string) {
         <Transition mode="out-in">
           <DashboardView
             v-if="activeView === 'Dashboard'"
+            ref="dashboardView"
             key="dashboard"
             :currency-unit="currencyUnit"
             @navigate="selectView"

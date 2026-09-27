@@ -8,7 +8,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Printer,
-  ShoppingCart,
+  RefreshCw,
   Store,
 } from 'lucide-vue-next';
 import type { CurrencyUnit } from '../../utils/currency';
@@ -58,6 +58,7 @@ defineProps<{
   searchQuery: string;
   searchResults: GlobalSearchResult[];
   searchLoading: boolean;
+  refreshing: boolean;
   currencyUnit: CurrencyUnit;
   locale: Locale;
 }>();
@@ -69,6 +70,7 @@ defineEmits<{
   'update:currency-unit': [value: CurrencyUnit];
   'update:locale': [value: Locale];
   'new-order': [];
+  refresh: [];
   navigate: [view: string];
 }>();
 </script>
@@ -163,11 +165,12 @@ defineEmits<{
       <button
         class="btn btn-ghost btn-square"
         type="button"
-        :aria-label="t('navigation.views.Purchases')"
-        :title="t('navigation.views.Purchases')"
-        @click="$emit('navigate', 'Purchases')"
+        :disabled="refreshing"
+        :aria-label="t('Refresh')"
+        :title="t('Refresh')"
+        @click="$emit('refresh')"
       >
-        <ShoppingCart :size="16" :stroke-width="1.8" aria-hidden="true" />
+        <RefreshCw :class="{ 'animate-spin': refreshing }" :size="16" :stroke-width="1.8" aria-hidden="true" />
       </button>
       <button
         class="btn btn-ghost btn-square"
