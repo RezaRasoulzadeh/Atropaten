@@ -77,10 +77,6 @@ function date(value: string) {
     </section>
 
     <section class="invoice-print-section">
-      <div class="invoice-print-section-heading">
-        <h2>{{ $t("Invoice lines") }}</h2>
-        <span>{{ formatLocalizedNumber(invoice.items.length) }} {{ $ui(invoice.items.length === 1 ? 'line' : 'lines') }}</span>
-      </div>
       <table class="invoice-print-table">
         <colgroup><col class="invoice-col-index" /><col class="invoice-col-description" /><col class="invoice-col-quantity" /><col class="invoice-col-price" /><col class="invoice-col-price" /></colgroup>
         <thead>
@@ -154,7 +150,7 @@ function date(value: string) {
 }
 .invoice-print-document *, .invoice-print-document *::before, .invoice-print-document *::after { box-sizing: border-box; }
 .invoice-print-document strong, .invoice-print-document h1, .invoice-print-document h2 { font-weight: 700; }
-.invoice-print-header, .invoice-print-title-row, .invoice-print-section-heading, .invoice-print-footer {
+.invoice-print-header, .invoice-print-title-row, .invoice-print-footer {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -172,7 +168,7 @@ function date(value: string) {
 .invoice-print-status { display: inline-block; margin-top: 2mm; padding: 0.6mm 3mm; border: 0.25mm solid #e0aa42; border-radius: 99mm; color: #714a00; background: #fff8e9; font-size: 7.5pt; font-weight: 600; }
 .invoice-print-title-row { margin-top: 4mm; padding: 3mm; align-items: center; border: 0.25mm solid #ccd5d8; border-radius: 1.5mm; background: #fbfcfc; }
 .invoice-print-label { margin: 0; color: #53626d; font-size: 8pt; font-weight: 600; }
-.invoice-print-title-row h2 { margin: 1mm 0 0; font-size: 13pt; }
+.invoice-print-title-row h2 { max-width: 72mm; margin: 1mm 0 0; font-size: 10pt; line-height: 1.45; overflow-wrap: break-word; }
 .invoice-print-registration { font-size: 8pt; text-align: end; }
 .invoice-print-registration p { margin: 1mm 0; }
 .invoice-print-registration span { color: #53626d; margin-inline-end: 2mm; }
@@ -184,9 +180,6 @@ function date(value: string) {
 .invoice-print-order-reference strong { overflow: hidden; font-size: 7pt; text-overflow: ellipsis; white-space: nowrap; }
 .invoice-print-order-reference bdi { white-space: nowrap; }
 .invoice-print-section { margin-top: 4mm; }
-.invoice-print-section-heading { align-items: center; margin-bottom: 3mm; break-after: avoid; }
-.invoice-print-section-heading h2 { margin: 0; font-size: 10pt; }
-.invoice-print-section-heading > span { color: #53626d; font-size: 8pt; white-space: nowrap; }
 .invoice-print-table { width: 100%; border: 0.3mm solid #aebbc0; border-collapse: collapse; table-layout: fixed; }
 .invoice-col-index { width: 7%; }
 .invoice-col-description { width: 37%; }
