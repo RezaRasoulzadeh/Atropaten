@@ -2,7 +2,7 @@
 import {useWorkspaceActions, reportError} from '../../composables/useWorkspaceActions'
 const {busy,runAction}=useWorkspaceActions()
 
-import { nextTick, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { FileText, Plus, Printer, RotateCcw } from 'lucide-vue-next';
 import StatusBadge from '../../components/ui/StatusBadge.vue';
 import { invoicesApi, type InvoiceRecord } from '../../api/invoices';
@@ -13,6 +13,7 @@ import { formatMoney } from '../../utils/currency';
 import { confirmAction } from '../../ui/feedback';
 import EmptyState from '../../components/ui/EmptyState.vue';
 import InvoicePrintDocument from '../invoices/InvoicePrintDocument.vue';
+import { printDocument } from '../../utils/print';
 const props = defineProps<{ order: OrderRecord; currencyUnit: CurrencyUnit }>();
 const emit = defineEmits<{ notify: [string]; saved: [order: OrderRecord] }>();
 const invoice = ref<InvoiceRecord | null>(null);
@@ -59,8 +60,7 @@ return runAction(async () => {
   try {
     if (!shopSettings.value) shopSettings.value = await reportsApi.settings();
     printMode.value = mode;
-    await nextTick();
-    window.print();
+    await printDocument();
   } catch (e) {
     reportError(e);
   }

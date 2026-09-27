@@ -563,10 +563,28 @@ body.service-template-dialog-open .service-wizard-preview-panel {
 
 /* Only the prepared document participates in printing. */
 .print-output { display: none; }
+body.print-preparing > .print-output {
+  position: fixed;
+  top: 0;
+  left: -300mm;
+  display: block;
+  width: 210mm;
+  visibility: hidden;
+  pointer-events: none;
+}
 @media print {
   @page { size: A4; margin: 12mm; }
   html, body { height: auto; min-height: 0; margin: 0; background: white; color: black; color-scheme: light; }
-  #app { display: none; }
+  body > :not(.print-output) { display: none !important; }
   body { overflow: visible; height: auto; }
-  .print-output { display: block; min-height: 0; background: white; color: black; font-family: "Estedad", sans-serif; }
+  body > .print-output {
+    position: static !important;
+    display: block !important;
+    width: auto !important;
+    min-height: 0;
+    visibility: visible !important;
+    background: white;
+    color: black;
+    font-family: "Estedad", sans-serif;
+  }
 }
