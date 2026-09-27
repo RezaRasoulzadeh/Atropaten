@@ -68,17 +68,24 @@ function date(value: string) {
         <tr class="invoice-print-layout-row">
           <td colspan="5" class="invoice-print-layout-cell">
             <section class="invoice-print-title-row">
-              <div>
-                <p class="invoice-print-label">{{ $t("Billed to") }}</p>
-                <h2>{{ invoice.customerName?.trim() || $t("Walk-in customer") }}</h2>
-                <p v-if="invoice.customerPhone" class="invoice-print-muted"><bdi>{{ invoice.customerPhone }}</bdi></p>
-              </div>
-              <div v-if="shop?.registrationId || shop?.taxId" class="invoice-print-registration">
-                <p v-if="shop?.registrationId"><span>{{ $t("Registration ID") }}</span> <bdi>{{ shop.registrationId }}</bdi></p>
-                <p v-if="shop?.taxId"><span>{{ $t("Tax ID") }}</span> <bdi>{{ shop.taxId }}</bdi></p>
+              <div class="invoice-print-customer">
+                <div class="invoice-print-customer-line">
+                  <p class="invoice-print-label">{{ $t("Billed to") }}</p>
+                  <h2>{{ invoice.customerName?.trim() || $t("Walk-in customer") }}</h2>
+                </div>
+                <div v-if="invoice.customerPhone || shop?.registrationId || shop?.taxId" class="invoice-print-customer-meta">
+                  <span v-if="invoice.customerPhone"><bdi>{{ invoice.customerPhone }}</bdi></span>
+                  <span v-if="invoice.customerPhone && (shop?.registrationId || shop?.taxId)" aria-hidden="true">·</span>
+                  <span v-if="shop?.registrationId"><span>{{ $t("Registration ID") }}</span> <bdi>{{ shop.registrationId }}</bdi></span>
+                  <span v-if="shop?.registrationId && shop?.taxId" aria-hidden="true">·</span>
+                  <span v-if="shop?.taxId"><span>{{ $t("Tax ID") }}</span> <bdi>{{ shop.taxId }}</bdi></span>
+                </div>
               </div>
             </section>
           </td>
+        </tr>
+        <tr class="invoice-print-customer-gap" aria-hidden="true">
+          <td colspan="5"><div></div></td>
         </tr>
         <tr class="invoice-print-columns">
           <th class="invoice-print-index" scope="col">#</th>
@@ -137,6 +144,7 @@ function date(value: string) {
 
 <style scoped>
 .invoice-print-document {
+  --invoice-footer-height: 8mm;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -175,14 +183,17 @@ function date(value: string) {
 .invoice-print-number-label { display: block; color: #243238; font-size: 11pt; }
 .invoice-print-header-date { display: block; margin-top: 0.8mm; color: #53626d; font-size: 7pt; white-space: nowrap; }
 .invoice-print-status { display: inline-block; margin-top: 2mm; padding: 0.6mm 3mm; border: 0.25mm solid #e0aa42; border-radius: 99mm; color: #714a00; background: #fff8e9; font-size: 7.5pt; font-weight: 600; }
-.invoice-print-title-row { margin-top: 4mm; padding: 3mm; align-items: center; border: 0.25mm solid #ccd5d8; border-radius: 1.5mm; background: #fbfcfc; }
+.invoice-print-title-row { margin-top: 4mm; padding: 2.5mm 3mm; align-items: center; border: 0.25mm solid #ccd5d8; border-radius: 1.5mm; background: #fbfcfc; }
+.invoice-print-customer { min-width: 0; flex: 1 1 auto; }
+.invoice-print-customer-line { display: flex; min-width: 0; align-items: baseline; gap: 3mm; }
 .invoice-print-label { margin: 0; color: #53626d; font-size: 8pt; font-weight: 600; }
-.invoice-print-title-row h2 { max-width: 72mm; margin: 1mm 0 0; font-size: 10pt; line-height: 1.45; overflow-wrap: break-word; }
-.invoice-print-registration { font-size: 8pt; text-align: end; }
-.invoice-print-registration p { margin: 1mm 0; }
-.invoice-print-registration span { color: #53626d; margin-inline-end: 2mm; }
+.invoice-print-title-row h2 { min-width: 0; flex: 1 1 auto; margin: 0; font-size: 10pt; line-height: 1.45; overflow-wrap: break-word; }
+.invoice-print-customer-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1mm 2mm; margin-top: 1mm; color: #53626d; font-size: 7.5pt; line-height: 1.4; }
+.invoice-print-customer-meta span span { margin-inline-end: 1mm; }
 .invoice-print-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .invoice-print-layout-cell { padding: 0 !important; border: 0 !important; background: transparent !important; }
+.invoice-print-customer-gap td { height: 4mm; padding: 0 !important; border: 0 !important; line-height: 0; }
+.invoice-print-customer-gap td div { height: 4mm; }
 .invoice-col-index { width: 7%; }
 .invoice-col-description { width: 37%; }
 .invoice-col-quantity { width: 14%; }
@@ -219,14 +230,14 @@ function date(value: string) {
   .invoice-print-document { display: block; width: 100%; max-width: none; min-height: 0; margin: 0; padding: 0; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .invoice-print-table > thead { display: table-header-group; }
   .invoice-print-table > tfoot { display: table-footer-group; }
-  .invoice-print-footer-reserve { display: block; height: 8mm; }
+  .invoice-print-footer-reserve { display: block; height: var(--invoice-footer-height); }
   .invoice-print-footer {
     position: fixed;
     z-index: 1;
     inset-inline: 0;
     bottom: 0;
     width: 100%;
-    height: 8mm;
+    height: var(--invoice-footer-height);
     margin: 0;
     padding-top: 2mm;
     background: #fff;
