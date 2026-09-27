@@ -115,7 +115,7 @@ try {
 
   assert.equal(layout.appVisible, false)
   assert.equal(layout.printVisible, true)
-  assert.ok(layout.logoWidth > 70)
+  assert.ok(layout.logoWidth > 55)
   assert.equal(layout.tableColumns, 5)
   assert.equal(layout.footerBelowTable, true)
   assert.equal(layout.documentOverflow, false)
@@ -125,8 +125,21 @@ try {
     printBackground: true,
     preferCSSPageSize: true,
   })
-  await fs.writeFile(output, Buffer.from(pdf.data, 'base64'))
-  console.log(JSON.stringify({ output, pageErrors, printPreparation, layout, status: 'passed' }, null, 2))
+  const pdfBuffer = Buffer.from(pdf.data, 'base64')
+  const pdfText = pdfBuffer.toString('latin1')
+  const mediaBox = pdfText.match(/\/MediaBox\s*\[0 0 ([\d.]+) ([\d.]+)\]/)
+  const pageCountMatch = pdfText.match(/\/Count\s+(\d+)/)
+  assert.ok(mediaBox, 'Generated PDF has no readable media box')
+  assert.ok(pageCountMatch, 'Generated PDF has no readable page count')
+  const pageSizePoints = {
+    width: Math.round(Number(mediaBox[1])),
+    height: Math.round(Number(mediaBox[2])),
+  }
+  assert.deepEqual(pageSizePoints, { width: 420, height: 595 })
+  const pageCount = Number(pageCountMatch[1])
+  assert.equal(pageCount, 1)
+  await fs.writeFile(output, pdfBuffer)
+  console.log(JSON.stringify({ output, pageErrors, printPreparation, layout, pageSizePoints, pageCount, status: 'passed' }, null, 2))
 } finally {
   socket.close()
 }

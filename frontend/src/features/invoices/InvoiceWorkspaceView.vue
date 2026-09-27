@@ -292,7 +292,7 @@ async function remove() {
     </template>
 
     <Teleport to="body">
-      <div v-if="invoice" class="print-output">
+      <div v-if="invoice" class="print-output invoice-print-output">
         <InvoicePrintDocument :invoice="invoice" :shop="shopSettings" :currency-unit="props.currencyUnit" :document-type="printMode" />
       </div>
     </Teleport>

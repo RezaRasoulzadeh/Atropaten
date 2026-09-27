@@ -572,8 +572,10 @@ body.print-preparing > .print-output {
   visibility: hidden;
   pointer-events: none;
 }
+body.print-preparing > .invoice-print-output { width: 148mm; }
 @media print {
   @page { size: A4; margin: 12mm; }
+  @page invoice { size: A5 portrait; margin: 8mm; }
   html, body { height: auto; min-height: 0; margin: 0; background: white; color: black; color-scheme: light; }
   body > :not(.print-output) { display: none !important; }
   body { overflow: visible; height: auto; }
@@ -587,4 +589,5 @@ body.print-preparing > .print-output {
     color: black;
     font-family: "Estedad", sans-serif;
   }
+  body > .invoice-print-output { page: invoice; }
 }

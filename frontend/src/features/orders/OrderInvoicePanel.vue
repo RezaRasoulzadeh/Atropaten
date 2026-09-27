@@ -161,7 +161,7 @@ return runAction(async () => {
       <template #action><button class="btn btn-primary btn-sm" type="button" @click="create" :disabled="busy"><Plus :size="15" aria-hidden="true" /> {{ $t("Create invoice") }}</button></template>
     </EmptyState>
     <Teleport to="body">
-      <div v-if="invoice" class="print-output">
+      <div v-if="invoice" class="print-output invoice-print-output">
         <InvoicePrintDocument :invoice="invoice" :shop="shopSettings" :currency-unit="props.currencyUnit" :document-type="printMode" />
       </div>
     </Teleport>
