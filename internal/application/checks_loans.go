@@ -112,8 +112,11 @@ type LoanRepository interface {
 	ListLoans(context.Context, string, string) ([]domain.Loan, error)
 	GetLoan(context.Context, string) (domain.Loan, error)
 	CreateLoan(context.Context, domain.Loan) (domain.Loan, error)
+	UpdateLoan(context.Context, domain.Loan, string) (domain.Loan, error)
+	CancelLoan(context.Context, string, string) error
 	ListLoanPayments(context.Context, string) ([]domain.LoanPayment, error)
 	CreateLoanPayment(context.Context, domain.LoanPayment) (domain.LoanPayment, error)
+	ReplaceLoanPayment(context.Context, string, domain.LoanPayment) (domain.LoanPayment, error)
 	GetLoanPayment(context.Context, string) (domain.LoanPayment, error)
 	ReverseLoanPayment(context.Context, string, string) (domain.LoanPayment, error)
 }
@@ -186,16 +189,47 @@ func (s *LoansService) Get(ctx context.Context, id string) (LoanView, error) {
 	return loanView(v), nil
 }
 func (s *LoansService) Create(ctx context.Context, in LoanInput) (LoanView, error) {
+	l, e := s.loan(in, "", s.now().UTC())
+	if e != nil {
+		return LoanView{}, e
+	}
+	v, e := s.repository.CreateLoan(ctx, l)
+	if e != nil {
+		return LoanView{}, e
+	}
+	return loanView(v), nil
+}
+func (s *LoansService) Update(ctx context.Context, id string, in LoanInput) (LoanView, error) {
+	id = strings.TrimSpace(id)
+	current, e := s.repository.GetLoan(ctx, id)
+	if e != nil {
+		return LoanView{}, e
+	}
+	l, e := s.loan(in, id, current.CreatedAt)
+	if e != nil {
+		return LoanView{}, e
+	}
+	l.LoanNumber = current.LoanNumber
+	v, e := s.repository.UpdateLoan(ctx, l, strings.TrimSpace(in.IdempotencyKey))
+	if e != nil {
+		return LoanView{}, e
+	}
+	return loanView(v), nil
+}
+func (s *LoansService) Remove(ctx context.Context, id, key string) error {
+	return s.repository.CancelLoan(ctx, strings.TrimSpace(id), strings.TrimSpace(key))
+}
+func (s *LoansService) loan(in LoanInput, requestedID string, createdAt time.Time) (domain.Loan, error) {
 	now := s.now().UTC()
 	start, e := parseDate(in.StartDate, now)
 	if e != nil {
-		return LoanView{}, e
+		return domain.Loan{}, e
 	}
 	var end *time.Time
 	if strings.TrimSpace(in.EndDate) != "" {
 		v, x := parseDate(in.EndDate, start)
 		if x != nil {
-			return LoanView{}, x
+			return domain.Loan{}, x
 		}
 		end = &v
 	}
@@ -211,7 +245,7 @@ func (s *LoansService) Create(ctx context.Context, in LoanInput) (LoanView, erro
 		for n, x := range in.Installments {
 			due, xerr := parseDate(x.DueDate, start)
 			if xerr != nil {
-				return LoanView{}, xerr
+				return domain.Loan{}, xerr
 			}
 			installments = append(installments, domain.LoanInstallment{ID: x.ID, LoanID: in.ID, Position: n, DueDate: due, PrincipalRial: x.PrincipalRial, InterestFeeRial: x.InterestFeeRial, TotalDueRial: x.PrincipalRial + x.InterestFeeRial})
 		}
@@ -228,7 +262,10 @@ func (s *LoansService) Create(ctx context.Context, in LoanInput) (LoanView, erro
 			installments = append(installments, domain.LoanInstallment{ID: mustID("INST-"), LoanID: in.ID, Position: n, DueDate: start.AddDate(0, n+1, 0), PrincipalRial: p, InterestFeeRial: interest, TotalDueRial: p + interest})
 		}
 	}
-	id := in.ID
+	id := strings.TrimSpace(requestedID)
+	if id == "" {
+		id = in.ID
+	}
 	if id == "" {
 		id = mustID("LOAN-")
 	}
@@ -238,23 +275,44 @@ func (s *LoansService) Create(ctx context.Context, in LoanInput) (LoanView, erro
 			installments[i].ID = mustID("INST-")
 		}
 	}
-	l := domain.Loan{ID: id, Direction: strings.TrimSpace(in.Direction), CounterpartyName: strings.TrimSpace(in.CounterpartyName), CustomerID: strings.TrimSpace(in.CustomerID), SupplierID: strings.TrimSpace(in.SupplierID), PrincipalRial: in.PrincipalRial, InterestFeeRial: in.InterestFeeRial, StartDate: start, EndDate: end, Status: domain.LoanActive, Notes: strings.TrimSpace(in.Notes), FinancialAccountID: strings.TrimSpace(in.FinancialAccountID), IdempotencyKey: in.IdempotencyKey, CreatedAt: now, UpdatedAt: now, Installments: installments}
+	if createdAt.IsZero() {
+		createdAt = now
+	}
+	l := domain.Loan{ID: id, Direction: strings.TrimSpace(in.Direction), CounterpartyName: strings.TrimSpace(in.CounterpartyName), CustomerID: strings.TrimSpace(in.CustomerID), SupplierID: strings.TrimSpace(in.SupplierID), PrincipalRial: in.PrincipalRial, InterestFeeRial: in.InterestFeeRial, StartDate: start, EndDate: end, Status: domain.LoanActive, Notes: strings.TrimSpace(in.Notes), FinancialAccountID: strings.TrimSpace(in.FinancialAccountID), IdempotencyKey: in.IdempotencyKey, CreatedAt: createdAt, UpdatedAt: now, Installments: installments}
 	if l.IdempotencyKey == "" {
 		l.IdempotencyKey = l.ID
 	}
 	if e = l.Validate(); e != nil {
-		return LoanView{}, e
+		return domain.Loan{}, e
 	}
-	v, e := s.repository.CreateLoan(ctx, l)
-	if e != nil {
-		return LoanView{}, e
-	}
-	return loanView(v), nil
+	return l, nil
 }
 func (s *LoansService) Payment(ctx context.Context, in LoanPaymentInput) (LoanPaymentView, error) {
-	at, e := parseDate(in.PaidAt, s.now().UTC())
+	p, e := s.loanPayment(in)
 	if e != nil {
 		return LoanPaymentView{}, e
+	}
+	v, e := s.repository.CreateLoanPayment(ctx, p)
+	if e != nil {
+		return LoanPaymentView{}, e
+	}
+	return loanPaymentView(v), nil
+}
+func (s *LoansService) UpdatePayment(ctx context.Context, id string, in LoanPaymentInput) (LoanPaymentView, error) {
+	p, e := s.loanPayment(in)
+	if e != nil {
+		return LoanPaymentView{}, e
+	}
+	v, e := s.repository.ReplaceLoanPayment(ctx, strings.TrimSpace(id), p)
+	if e != nil {
+		return LoanPaymentView{}, e
+	}
+	return loanPaymentView(v), nil
+}
+func (s *LoansService) loanPayment(in LoanPaymentInput) (domain.LoanPayment, error) {
+	at, e := parseDate(in.PaidAt, s.now().UTC())
+	if e != nil {
+		return domain.LoanPayment{}, e
 	}
 	id := in.ID
 	if id == "" {
@@ -267,11 +325,10 @@ func (s *LoansService) Payment(ctx context.Context, in LoanPaymentInput) (LoanPa
 	for n, a := range in.Allocations {
 		p.Allocations = append(p.Allocations, domain.LoanPaymentAllocation{ID: mustID("LPA-"), PaymentID: id, InstallmentID: a.InstallmentID, Position: n, PrincipalRial: a.PrincipalRial, InterestRial: a.InterestRial})
 	}
-	v, e := s.repository.CreateLoanPayment(ctx, p)
-	if e != nil {
-		return LoanPaymentView{}, e
+	if e = p.Validate(); e != nil {
+		return domain.LoanPayment{}, e
 	}
-	return loanPaymentView(v), nil
+	return p, nil
 }
 func (s *LoansService) Payments(ctx context.Context, id string) ([]LoanPaymentView, error) {
 	rows, e := s.repository.ListLoanPayments(ctx, id)

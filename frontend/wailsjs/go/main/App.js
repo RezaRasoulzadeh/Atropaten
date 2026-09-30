@@ -498,6 +498,10 @@ export function RemoveAttachment(arg1) {
   return window['go']['main']['App']['RemoveAttachment'](arg1);
 }
 
+export function RemoveLoan(arg1, arg2) {
+  return window['go']['main']['App']['RemoveLoan'](arg1, arg2);
+}
+
 export function RemoveOrderItem(arg1, arg2) {
   return window['go']['main']['App']['RemoveOrderItem'](arg1, arg2);
 }
@@ -612,6 +616,14 @@ export function UpdateFinancialAccount(arg1) {
 
 export function UpdateInventoryReservation(arg1, arg2) {
   return window['go']['main']['App']['UpdateInventoryReservation'](arg1, arg2);
+}
+
+export function UpdateLoan(arg1, arg2) {
+  return window['go']['main']['App']['UpdateLoan'](arg1, arg2);
+}
+
+export function UpdateLoanPayment(arg1, arg2) {
+  return window['go']['main']['App']['UpdateLoanPayment'](arg1, arg2);
 }
 
 export function UpdateMachine(arg1, arg2) {

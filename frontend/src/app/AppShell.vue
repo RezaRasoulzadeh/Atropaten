@@ -51,6 +51,7 @@ import InvoiceWorkspaceView from '../features/invoices/InvoiceWorkspaceView.vue'
 import ChecksView from '../features/checks/ChecksView.vue';
 import LoansView from '../features/loans/LoansView.vue';
 import LoanWorkspaceView from '../features/loans/LoanWorkspaceView.vue';
+import LoanPaymentWorkspaceView from '../features/loans/LoanPaymentWorkspaceView.vue';
 import OwnersView from '../features/owners/OwnersView.vue';
 import DashboardView from '../features/dashboard/DashboardView.vue';
 import ReportsView from '../features/reports/ReportsView.vue';
@@ -138,6 +139,9 @@ const monetaryRoundingStepRial = ref(DEFAULT_MONETARY_ROUNDING_STEP_RIAL);
 const selectedOrderId = ref<string | null>(null);
 const selectedInvoiceId = ref<string | null>(null);
 const selectedLoanId = ref<string | null>(null);
+const loanEditorId = ref<string | null>(null);
+const loanPaymentWorkspaceId = ref<string | null>(null);
+const loanPaymentStartsNew = ref(false);
 const unsavedOrder = ref<OrderRecord | null>(null);
 const orders = ref<OrderRecord[]>([]);
 const suppliers = ref<SupplierRecord[]>([]);
@@ -279,6 +283,8 @@ function selectView(label: string) {
   selectedOrderId.value = null;
   selectedInvoiceId.value = null;
   selectedLoanId.value = null;
+  loanEditorId.value = null;
+  loanPaymentWorkspaceId.value = null;
   unsavedOrder.value = null;
   if (label === 'Orders') {
     loadOrders();
@@ -419,6 +425,8 @@ function closeInvoiceWorkspace() {
 function openLoan(loanId: string) {
   activeView.value = 'Loans';
   selectedLoanId.value = loanId;
+  loanEditorId.value = null;
+  loanPaymentWorkspaceId.value = null;
 }
 
 async function selectSearchResult(result: GlobalSearchResult) {
@@ -442,10 +450,51 @@ async function selectSearchResult(result: GlobalSearchResult) {
 function openNewLoan() {
   activeView.value = 'Loans';
   selectedLoanId.value = 'new';
+  loanEditorId.value = null;
+  loanPaymentWorkspaceId.value = null;
 }
 function closeLoanWorkspace() {
   activeView.value = 'Loans';
-  selectedLoanId.value = null;
+  if (selectedLoanId.value === 'new') selectedLoanId.value = null;
+  loanEditorId.value = null;
+  loanPaymentWorkspaceId.value = null;
+}
+function loanCreated(loan: LoanRecord) {
+  activeView.value = 'Loans';
+  selectedLoanId.value = loan.id;
+  loanEditorId.value = null;
+  loanPaymentWorkspaceId.value = null;
+  const index = loans.value.findIndex((item) => item.id === loan.id);
+  if (index >= 0) loans.value.splice(index, 1, loan);
+  else loans.value.unshift(loan);
+}
+function editLoan(loanId: string) {
+  activeView.value = 'Loans';
+  selectedLoanId.value = loanId;
+  loanEditorId.value = loanId;
+  loanPaymentWorkspaceId.value = null;
+}
+function loanUpdated(loan: LoanRecord) {
+  selectedLoanId.value = loan.id;
+  loanEditorId.value = null;
+  const index = loans.value.findIndex((item) => item.id === loan.id);
+  if (index >= 0) loans.value.splice(index, 1, loan);
+  else loans.value.unshift(loan);
+}
+function loanRemoved(loanId: string) {
+  loans.value = loans.value.filter((loan) => loan.id !== loanId);
+  if (selectedLoanId.value === loanId) selectedLoanId.value = null;
+}
+function openLoanPayments(loanId: string, startNew: boolean) {
+  activeView.value = 'Loans';
+  selectedLoanId.value = loanId;
+  loanEditorId.value = null;
+  loanPaymentWorkspaceId.value = loanId;
+  loanPaymentStartsNew.value = startNew;
+}
+function closeLoanPayments() {
+  loanPaymentWorkspaceId.value = null;
+  loanPaymentStartsNew.value = false;
 }
 function openNewOrder() {
   activeView.value = 'Orders';
@@ -747,22 +796,37 @@ function showToast(message: string) {
 
           <div v-else-if="activeView === 'Loans'" key="loans">
             <Transition mode="out-in">
+              <LoanPaymentWorkspaceView
+                v-if="loanPaymentWorkspaceId"
+                :key="`loan-payments-${loanPaymentWorkspaceId}-${loanPaymentStartsNew}`"
+                :loan-id="loanPaymentWorkspaceId"
+                :start-new="loanPaymentStartsNew"
+                :currency-unit="currencyUnit"
+                @back="closeLoanPayments"
+                @notify="showToast"
+              />
               <LoanWorkspaceView
-                v-if="selectedLoanId"
-                :key="selectedLoanId"
-                :loan-id="selectedLoanId === 'new' ? null : selectedLoanId"
+                v-else-if="selectedLoanId === 'new' || loanEditorId"
+                :key="loanEditorId ? `edit-loan-${loanEditorId}` : 'new-loan'"
+                :loan-id="loanEditorId"
                 :is-new="selectedLoanId === 'new'"
                 :currency-unit="currencyUnit"
                 @back="closeLoanWorkspace"
                 @notify="showToast"
+                @created="loanCreated"
+                @updated="loanUpdated"
               />
               <LoansView
                 v-else
                 key="loans-list"
                 :currency-unit="currencyUnit"
+                :initial-loan-id="selectedLoanId"
                 @notify="showToast"
-                @open-loan="openLoan"
+                @select-loan="openLoan"
                 @new-loan="openNewLoan"
+                @manage-payments="openLoanPayments"
+                @edit-loan="editLoan"
+                @loan-removed="loanRemoved"
               />
             </Transition>
           </div>

@@ -151,6 +151,25 @@ func (a *App) CreateLoan(in LoanInputDTO) (LoanDTO, error) {
 	v, e := s.Create(a.materialContext(), x)
 	return loanDTO(v), e
 }
+func (a *App) UpdateLoan(id string, in LoanInputDTO) (LoanDTO, error) {
+	s, e := a.loansService()
+	if e != nil {
+		return LoanDTO{}, e
+	}
+	x := application.LoanInput{ID: id, Direction: in.Direction, CounterpartyName: in.CounterpartyName, CustomerID: in.CustomerID, SupplierID: in.SupplierID, StartDate: in.StartDate, EndDate: in.EndDate, Notes: in.Notes, FinancialAccountID: in.FinancialAccountID, IdempotencyKey: in.IdempotencyKey, PrincipalRial: in.PrincipalRial, InterestFeeRial: in.InterestFeeRial, InstallmentCount: in.InstallmentCount}
+	for _, i := range in.Installments {
+		x.Installments = append(x.Installments, application.LoanInstallmentInput{ID: i.ID, DueDate: i.DueDate, PrincipalRial: i.PrincipalRial, InterestFeeRial: i.InterestFeeRial})
+	}
+	v, e := s.Update(a.materialContext(), id, x)
+	return loanDTO(v), e
+}
+func (a *App) RemoveLoan(id, key string) error {
+	s, e := a.loansService()
+	if e != nil {
+		return e
+	}
+	return s.Remove(a.materialContext(), id, key)
+}
 func (a *App) ListLoanPayments(id string) ([]LoanPaymentDTO, error) {
 	s, e := a.loansService()
 	if e != nil {
@@ -176,6 +195,18 @@ func (a *App) CreateLoanPayment(in LoanPaymentInputDTO) (LoanPaymentDTO, error) 
 		x.Allocations = append(x.Allocations, application.LoanPaymentAllocationInput{InstallmentID: i.InstallmentID, PrincipalRial: i.PrincipalRial, InterestRial: i.InterestRial})
 	}
 	v, e := s.Payment(a.materialContext(), x)
+	return loanPaymentDTO(v), e
+}
+func (a *App) UpdateLoanPayment(id string, in LoanPaymentInputDTO) (LoanPaymentDTO, error) {
+	s, e := a.loansService()
+	if e != nil {
+		return LoanPaymentDTO{}, e
+	}
+	x := application.LoanPaymentInput{ID: in.ID, LoanID: in.LoanID, FinancialAccountID: in.FinancialAccountID, PaidAt: in.PaidAt, Notes: in.Notes, IdempotencyKey: in.IdempotencyKey, AmountRial: in.AmountRial, PrincipalRial: in.PrincipalRial, InterestRial: in.InterestRial}
+	for _, i := range in.Allocations {
+		x.Allocations = append(x.Allocations, application.LoanPaymentAllocationInput{InstallmentID: i.InstallmentID, PrincipalRial: i.PrincipalRial, InterestRial: i.InterestRial})
+	}
+	v, e := s.UpdatePayment(a.materialContext(), id, x)
 	return loanPaymentDTO(v), e
 }
 func (a *App) ReverseLoanPayment(id, key string) (LoanPaymentDTO, error) {

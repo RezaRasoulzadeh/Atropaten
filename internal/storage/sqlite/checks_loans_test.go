@@ -272,6 +272,126 @@ func TestLoansPostBalancedOpenPartialPaymentAndIdempotentReversal(t *testing.T) 
 	assertBalancedJournals(t, s)
 }
 
+func TestReplaceLoanPaymentIsAtomicAndRebuildsBalances(t *testing.T) {
+	s := newM5Store(t)
+	ctx := context.Background()
+	l := m5Loan("LOAN-EDIT", domain.LoanPayable)
+	if _, err := s.CreateLoan(ctx, l); err != nil {
+		t.Fatal(err)
+	}
+	original := domain.LoanPayment{ID: "LP-EDIT-1", LoanID: l.ID, FinancialAccountID: "FIN-CASH", AmountRial: 550, PrincipalRial: 500, InterestRial: 50, PaidAt: time.Now().UTC(), Status: string(domain.PaymentPosted), IdempotencyKey: "edit-original", CreatedAt: time.Now().UTC(), Allocations: []domain.LoanPaymentAllocation{{ID: "LPA-EDIT-1", PaymentID: "LP-EDIT-1", InstallmentID: l.ID + "-I1", PrincipalRial: 500, InterestRial: 50}}}
+	if _, err := s.CreateLoanPayment(ctx, original); err != nil {
+		t.Fatal(err)
+	}
+
+	invalid := domain.LoanPayment{ID: "LP-EDIT-BAD", LoanID: l.ID, FinancialAccountID: "FIN-CASH", AmountRial: 2200, PrincipalRial: 2000, InterestRial: 200, PaidAt: time.Now().UTC(), Status: string(domain.PaymentPosted), IdempotencyKey: "edit-invalid", CreatedAt: time.Now().UTC(), Allocations: []domain.LoanPaymentAllocation{{ID: "LPA-EDIT-BAD", PaymentID: "LP-EDIT-BAD", InstallmentID: l.ID + "-I1", PrincipalRial: 2000, InterestRial: 200}}}
+	if _, err := s.ReplaceLoanPayment(ctx, original.ID, invalid); !errors.Is(err, domain.ErrLoanPaymentExceeded) {
+		t.Fatalf("expected exceeded replacement error, got %v", err)
+	}
+	unchanged, err := s.GetLoanPayment(ctx, original.ID)
+	if err != nil || unchanged.Status != string(domain.PaymentPosted) {
+		t.Fatalf("failed replacement changed original payment: payment=%+v err=%v", unchanged, err)
+	}
+
+	replacement := domain.LoanPayment{ID: "LP-EDIT-2", LoanID: l.ID, FinancialAccountID: "FIN-CASH", AmountRial: 330, PrincipalRial: 300, InterestRial: 30, PaidAt: time.Now().UTC(), Notes: "corrected", Status: string(domain.PaymentPosted), IdempotencyKey: "edit-replacement", CreatedAt: time.Now().UTC(), Allocations: []domain.LoanPaymentAllocation{{ID: "LPA-EDIT-2", PaymentID: "LP-EDIT-2", InstallmentID: l.ID + "-I1", PrincipalRial: 300, InterestRial: 30}}}
+	created, err := s.ReplaceLoanPayment(ctx, original.ID, replacement)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.ID != replacement.ID || created.Status != string(domain.PaymentPosted) || created.Notes != "corrected" {
+		t.Fatalf("unexpected replacement: %+v", created)
+	}
+	reversed, err := s.GetLoanPayment(ctx, original.ID)
+	if err != nil || reversed.Status != string(domain.PaymentReversedState) {
+		t.Fatalf("original was not reversed: payment=%+v err=%v", reversed, err)
+	}
+	loan, err := s.GetLoan(ctx, l.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loan.PaidPrincipalRial != 300 || loan.PaidInterestRial != 30 || loan.RemainingPrincipalRial != 700 {
+		t.Fatalf("replacement did not rebuild loan totals: %+v", loan)
+	}
+	cash, _ := s.GetAccount(ctx, "ACC-CASH")
+	liability, _ := s.GetAccount(ctx, "ACC-LOANS-PAYABLE")
+	expense, _ := s.GetAccount(ctx, "ACC-FINANCE-EXPENSE")
+	if cash.BalanceRial != 670 || liability.BalanceRial != 700 || expense.BalanceRial != 30 {
+		t.Fatalf("replacement balances cash=%d liability=%d expense=%d", cash.BalanceRial, liability.BalanceRial, expense.BalanceRial)
+	}
+	assertBalancedJournals(t, s)
+}
+
+func TestUpdateAndRemoveLoanPreserveAccountingHistory(t *testing.T) {
+	s := newM5Store(t)
+	ctx := context.Background()
+	l := m5Loan("LOAN-UPDATE", domain.LoanPayable)
+	created, err := s.CreateLoan(ctx, l)
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated := l
+	updated.LoanNumber = created.LoanNumber
+	updated.CounterpartyName = "Updated lender"
+	updated.PrincipalRial = 1200
+	updated.InterestFeeRial = 120
+	updated.Installments = []domain.LoanInstallment{{ID: l.ID + "-EDIT-I1", LoanID: l.ID, Position: 0, DueDate: time.Now().UTC().Add(48 * time.Hour), PrincipalRial: 1200, InterestFeeRial: 120, TotalDueRial: 1320}}
+	updated.UpdatedAt = time.Now().UTC()
+	result, err := s.UpdateLoan(ctx, updated, "update-loan-once")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.CounterpartyName != "Updated lender" || result.PrincipalRial != 1200 || result.InterestFeeRial != 120 || len(result.Installments) != 1 || result.Installments[0].ID != l.ID+"-EDIT-I1" {
+		t.Fatalf("unexpected updated loan: %+v", result)
+	}
+	cash, _ := s.GetAccount(ctx, "ACC-CASH")
+	liability, _ := s.GetAccount(ctx, "ACC-LOANS-PAYABLE")
+	if cash.BalanceRial != 1200 || liability.BalanceRial != 1200 {
+		t.Fatalf("loan update balances cash=%d liability=%d", cash.BalanceRial, liability.BalanceRial)
+	}
+	if _, err = s.UpdateLoan(ctx, updated, "update-loan-once"); err != nil {
+		t.Fatalf("idempotent update failed: %v", err)
+	}
+	payment := domain.LoanPayment{ID: "LP-REMOVE", LoanID: l.ID, FinancialAccountID: "FIN-CASH", AmountRial: 330, PrincipalRial: 300, InterestRial: 30, PaidAt: time.Now().UTC(), Status: string(domain.PaymentPosted), IdempotencyKey: "remove-payment", CreatedAt: time.Now().UTC(), Allocations: []domain.LoanPaymentAllocation{{ID: "LPA-REMOVE", PaymentID: "LP-REMOVE", InstallmentID: l.ID + "-EDIT-I1", PrincipalRial: 300, InterestRial: 30}}}
+	if _, err = s.CreateLoanPayment(ctx, payment); err != nil {
+		t.Fatal(err)
+	}
+	metadata := updated
+	metadata.CounterpartyName = "Metadata only"
+	metadata.PrincipalRial = 9999
+	metadata.Installments = []domain.LoanInstallment{{ID: "IGNORED", LoanID: l.ID, Position: 0, DueDate: time.Now().UTC(), PrincipalRial: 9999, InterestFeeRial: 120, TotalDueRial: 10119}}
+	metadata.UpdatedAt = time.Now().UTC()
+	result, err = s.UpdateLoan(ctx, metadata, "metadata-update")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.CounterpartyName != "Metadata only" || result.PrincipalRial != 1200 || result.Installments[0].ID != l.ID+"-EDIT-I1" {
+		t.Fatalf("payment history should lock financial terms: %+v", result)
+	}
+	if err = s.CancelLoan(ctx, l.ID, "remove-with-payment"); !errors.Is(err, domain.ErrLoanProtected) {
+		t.Fatalf("expected protected removal, got %v", err)
+	}
+	if _, err = s.ReverseLoanPayment(ctx, payment.ID, "reverse-before-remove"); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.CancelLoan(ctx, l.ID, "remove-loan"); err != nil {
+		t.Fatal(err)
+	}
+	cancelled, err := s.GetLoan(ctx, l.ID)
+	if err != nil || cancelled.Status != domain.LoanCancelled {
+		t.Fatalf("loan not cancelled: loan=%+v err=%v", cancelled, err)
+	}
+	visible, err := s.ListLoans(ctx, "", "")
+	if err != nil || len(visible) != 0 {
+		t.Fatalf("removed loan remained in active register: n=%d err=%v", len(visible), err)
+	}
+	cash, _ = s.GetAccount(ctx, "ACC-CASH")
+	liability, _ = s.GetAccount(ctx, "ACC-LOANS-PAYABLE")
+	if cash.BalanceRial != 0 || liability.BalanceRial != 0 {
+		t.Fatalf("loan removal did not restore opening balances: cash=%d liability=%d", cash.BalanceRial, liability.BalanceRial)
+	}
+	assertBalancedJournals(t, s)
+}
+
 func TestReceivableLoanRepaymentUsesReceivableAndInterestIncome(t *testing.T) {
 	s := newM5Store(t)
 	ctx := context.Background()

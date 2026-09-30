@@ -4,7 +4,10 @@ import {
   GetLoan,
   ListLoanPayments,
   ListLoans,
+  RemoveLoan,
   ReverseLoanPayment,
+  UpdateLoan,
+  UpdateLoanPayment,
 } from '../../wailsjs/go/main/App'
 export interface LoanInstallmentRecord {
   id: string
@@ -105,11 +108,20 @@ export const loansApi = {
   create(v: LoanPayload) {
     return CreateLoan(v as any) as unknown as Promise<LoanRecord>
   },
+  update(id: string, v: LoanPayload) {
+    return UpdateLoan(id, v as any) as unknown as Promise<LoanRecord>
+  },
+  remove(id: string, key = '') {
+    return RemoveLoan(id, key) as unknown as Promise<void>
+  },
   payments(id: string) {
     return ListLoanPayments(id) as unknown as Promise<LoanPaymentRecord[]>
   },
   createPayment(v: LoanPaymentPayload) {
     return CreateLoanPayment(v as any) as unknown as Promise<LoanPaymentRecord>
+  },
+  updatePayment(id: string, v: LoanPaymentPayload) {
+    return UpdateLoanPayment(id, v as any) as unknown as Promise<LoanPaymentRecord>
   },
   reversePayment(id: string, key = '') {
     return ReverseLoanPayment(id, key) as unknown as Promise<LoanPaymentRecord>

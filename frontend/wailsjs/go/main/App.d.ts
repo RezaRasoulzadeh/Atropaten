@@ -251,6 +251,8 @@ export function ReleaseInventoryReservation(arg1:string):Promise<void>;
 
 export function RemoveAttachment(arg1:string):Promise<void>;
 
+export function RemoveLoan(arg1:string,arg2:string):Promise<void>;
+
 export function RemoveOrderItem(arg1:string,arg2:string):Promise<main.OrderDTO>;
 
 export function RemovePurchaseItem(arg1:string,arg2:string):Promise<main.PurchaseDTO>;
@@ -308,6 +310,10 @@ export function UpdateExpense(arg1:string,arg2:main.ExpenseInputDTO):Promise<mai
 export function UpdateFinancialAccount(arg1:main.FinancialAccountInputDTO):Promise<main.FinancialAccountDTO>;
 
 export function UpdateInventoryReservation(arg1:string,arg2:string):Promise<main.InventoryReservationDTO>;
+
+export function UpdateLoan(arg1:string,arg2:main.LoanInputDTO):Promise<main.LoanDTO>;
+
+export function UpdateLoanPayment(arg1:string,arg2:main.LoanPaymentInputDTO):Promise<main.LoanPaymentDTO>;
 
 export function UpdateMachine(arg1:string,arg2:main.MachineInput):Promise<main.MachineDTO>;
 

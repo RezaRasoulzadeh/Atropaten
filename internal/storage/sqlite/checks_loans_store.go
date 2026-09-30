@@ -320,6 +320,9 @@ func (s *Store) postCheckJournal(ctx context.Context, tx *sql.Tx, c domain.Check
 
 func (s *Store) ListLoans(ctx context.Context, direction, status string) ([]domain.Loan, error) {
 	q, args := loanSelect+` WHERE 1=1`, []any{}
+	if status == "" || status == "All" {
+		q += ` AND status<>'Cancelled'`
+	}
 	if direction != "" && direction != "All" {
 		q += ` AND direction=?`
 		args = append(args, direction)
@@ -437,6 +440,163 @@ func (s *Store) CreateLoan(ctx context.Context, l domain.Loan) (domain.Loan, err
 	return s.GetLoan(ctx, l.ID)
 }
 
+func (s *Store) UpdateLoan(ctx context.Context, l domain.Loan, key string) (domain.Loan, error) {
+	if err := l.Validate(); err != nil {
+		return domain.Loan{}, err
+	}
+	tx, e := s.db.BeginTx(ctx, nil)
+	if e != nil {
+		return domain.Loan{}, e
+	}
+	fail := func(x error) (domain.Loan, error) { tx.Rollback(); return domain.Loan{}, x }
+	var status, journalID, createdAt, currentDirection, currentStart, currentAccount string
+	var currentPrincipal, currentInterest int64
+	if e = tx.QueryRowContext(ctx, `SELECT status,journal_entry_id,created_at,direction,principal_rial,interest_fee_rial,start_date,financial_account_id FROM loans WHERE id=?`, l.ID).Scan(&status, &journalID, &createdAt, &currentDirection, &currentPrincipal, &currentInterest, &currentStart, &currentAccount); errors.Is(e, sql.ErrNoRows) {
+		return fail(domain.ErrLoanNotFound)
+	} else if e != nil {
+		return fail(e)
+	}
+	if status == domain.LoanCancelled {
+		return fail(domain.ErrLoanProtected)
+	}
+	var paymentHistory int
+	if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM loan_payments WHERE loan_id=?`, l.ID).Scan(&paymentHistory); e != nil {
+		return fail(e)
+	}
+	scheduleSame := currentDirection == l.Direction && currentPrincipal == l.PrincipalRial && currentInterest == l.InterestFeeRial && currentStart == l.StartDate.UTC().Format(time.RFC3339Nano) && currentAccount == l.FinancialAccountID
+	if scheduleSame {
+		rows, queryErr := tx.QueryContext(ctx, `SELECT id,position,due_date,principal_rial,interest_fee_rial,total_due_rial FROM loan_installments WHERE loan_id=? ORDER BY position`, l.ID)
+		if queryErr != nil {
+			return fail(queryErr)
+		}
+		position := 0
+		for rows.Next() {
+			if position >= len(l.Installments) {
+				scheduleSame = false
+				break
+			}
+			var id, due string
+			var installmentPosition int
+			var principal, interest, total int64
+			if queryErr = rows.Scan(&id, &installmentPosition, &due, &principal, &interest, &total); queryErr != nil {
+				rows.Close()
+				return fail(queryErr)
+			}
+			incoming := l.Installments[position]
+			if id != incoming.ID || installmentPosition != incoming.Position || due != incoming.DueDate.UTC().Format(time.RFC3339Nano) || principal != incoming.PrincipalRial || interest != incoming.InterestFeeRial || total != incoming.TotalDueRial {
+				scheduleSame = false
+				break
+			}
+			position++
+		}
+		if queryErr = rows.Err(); queryErr != nil {
+			rows.Close()
+			return fail(queryErr)
+		}
+		rows.Close()
+		if position != len(l.Installments) {
+			scheduleSame = false
+		}
+	}
+	now := time.Now().UTC()
+	if paymentHistory > 0 || scheduleSame {
+		if _, e = tx.ExecContext(ctx, `UPDATE loans SET counterparty_name=?,customer_id=?,supplier_id=?,end_date=?,notes=?,updated_at=? WHERE id=?`, l.CounterpartyName, nullableString(l.CustomerID), nullableString(l.SupplierID), nullableTime(l.EndDate), l.Notes, now.Format(time.RFC3339Nano), l.ID); e != nil {
+			return fail(e)
+		}
+		if e = tx.Commit(); e != nil {
+			return domain.Loan{}, e
+		}
+		return s.GetLoan(ctx, l.ID)
+	}
+	if key == "" {
+		key = "loan-update:" + l.ID + ":" + fmt.Sprint(now.UnixNano())
+	}
+	var prior string
+	if e = tx.QueryRowContext(ctx, `SELECT id FROM journal_entries WHERE idempotency_key=?`, "loan:update:"+key).Scan(&prior); e == nil {
+		tx.Rollback()
+		return s.GetLoan(ctx, l.ID)
+	} else if !errors.Is(e, sql.ErrNoRows) {
+		return fail(e)
+	}
+	var active int
+	var ledgerID, accountType string
+	if e = tx.QueryRowContext(ctx, `SELECT active,ledger_account_id,type FROM financial_accounts WHERE id=?`, l.FinancialAccountID).Scan(&active, &ledgerID, &accountType); errors.Is(e, sql.ErrNoRows) {
+		return fail(domain.ErrFinancialAccountNotFound)
+	} else if e != nil {
+		return fail(e)
+	}
+	if active == 0 {
+		return fail(domain.ErrAccountInactive)
+	}
+	if accountType != "cash" && accountType != "bank" {
+		return fail(fmt.Errorf("loans require a cash or bank financial account"))
+	}
+	if _, e = s.reverseJournalTx(ctx, tx, journalID, "loan:update:reverse:"+key, "Replace loan opening", now); e != nil {
+		return fail(e)
+	}
+	newJournalID := "JE-LOAN-EDIT-" + l.ID + "-" + fmt.Sprint(now.UnixNano())
+	var lines []domain.JournalLine
+	if l.Direction == domain.LoanPayable {
+		lines = []domain.JournalLine{{ID: newJournalID + "-L1", JournalEntryID: newJournalID, Position: 0, AccountID: ledgerID, DebitRial: l.PrincipalRial, Memo: "Borrowed loan receipt"}, {ID: newJournalID + "-L2", JournalEntryID: newJournalID, Position: 1, AccountID: "ACC-LOANS-PAYABLE", CreditRial: l.PrincipalRial, PartyID: l.CounterpartyName, Memo: "Loan payable"}}
+	} else {
+		lines = []domain.JournalLine{{ID: newJournalID + "-L1", JournalEntryID: newJournalID, Position: 0, AccountID: "ACC-LOANS-RECEIVABLE", DebitRial: l.PrincipalRial, PartyID: l.CounterpartyName, Memo: "Loan disbursement"}, {ID: newJournalID + "-L2", JournalEntryID: newJournalID, Position: 1, AccountID: ledgerID, CreditRial: l.PrincipalRial, Memo: "Lent loan cash"}}
+	}
+	if _, e = s.postJournalTx(ctx, tx, domain.JournalEntry{ID: newJournalID, Description: "Update loan " + l.LoanNumber, SourceType: "loan", SourceID: l.ID, IdempotencyKey: "loan:update:" + key, PostedAt: l.StartDate, CreatedAt: now, Lines: lines}); e != nil {
+		return fail(e)
+	}
+	if _, e = tx.ExecContext(ctx, `DELETE FROM loan_installments WHERE loan_id=?`, l.ID); e != nil {
+		return fail(e)
+	}
+	if _, e = tx.ExecContext(ctx, `UPDATE loans SET direction=?,counterparty_name=?,customer_id=?,supplier_id=?,principal_rial=?,interest_fee_rial=?,start_date=?,end_date=?,status='Active',notes=?,financial_account_id=?,journal_entry_id=?,updated_at=? WHERE id=?`, l.Direction, l.CounterpartyName, nullableString(l.CustomerID), nullableString(l.SupplierID), l.PrincipalRial, l.InterestFeeRial, l.StartDate.UTC().Format(time.RFC3339Nano), nullableTime(l.EndDate), l.Notes, l.FinancialAccountID, newJournalID, now.Format(time.RFC3339Nano), l.ID); e != nil {
+		return fail(e)
+	}
+	for _, installment := range l.Installments {
+		if _, e = tx.ExecContext(ctx, `INSERT INTO loan_installments(id,loan_id,position,due_date,principal_rial,interest_fee_rial,total_due_rial) VALUES(?,?,?,?,?,?,?)`, installment.ID, l.ID, installment.Position, installment.DueDate.UTC().Format(time.RFC3339Nano), installment.PrincipalRial, installment.InterestFeeRial, installment.TotalDueRial); e != nil {
+			return fail(e)
+		}
+	}
+	if e = tx.Commit(); e != nil {
+		return domain.Loan{}, e
+	}
+	return s.GetLoan(ctx, l.ID)
+}
+
+func (s *Store) CancelLoan(ctx context.Context, id, key string) error {
+	tx, e := s.db.BeginTx(ctx, nil)
+	if e != nil {
+		return e
+	}
+	fail := func(x error) error { tx.Rollback(); return x }
+	var status, journalID string
+	if e = tx.QueryRowContext(ctx, `SELECT status,journal_entry_id FROM loans WHERE id=?`, id).Scan(&status, &journalID); errors.Is(e, sql.ErrNoRows) {
+		return fail(domain.ErrLoanNotFound)
+	} else if e != nil {
+		return fail(e)
+	}
+	if status == domain.LoanCancelled {
+		tx.Rollback()
+		return nil
+	}
+	var posted int
+	if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM loan_payments WHERE loan_id=? AND status='posted'`, id).Scan(&posted); e != nil {
+		return fail(e)
+	}
+	if posted > 0 {
+		return fail(fmt.Errorf("reverse posted loan payments before removing the loan: %w", domain.ErrLoanProtected))
+	}
+	if key == "" {
+		key = "loan:remove:" + id
+	}
+	now := time.Now().UTC()
+	if _, e = s.reverseJournalTx(ctx, tx, journalID, key, "Remove loan", now); e != nil {
+		return fail(e)
+	}
+	if _, e = tx.ExecContext(ctx, `UPDATE loans SET status='Cancelled',updated_at=? WHERE id=?`, now.Format(time.RFC3339Nano), id); e != nil {
+		return fail(e)
+	}
+	return tx.Commit()
+}
+
 func (s *Store) ListLoanPayments(ctx context.Context, loanID string) ([]domain.LoanPayment, error) {
 	q := `SELECT id,payment_number,loan_id,financial_account_id,amount_rial,principal_rial,interest_rial,paid_at,notes,status,journal_entry_id,idempotency_key,created_at FROM loan_payments`
 	args := []any{}
@@ -494,52 +654,63 @@ func (s *Store) CreateLoanPayment(ctx context.Context, p domain.LoanPayment) (do
 	} else if !errors.Is(e, sql.ErrNoRows) {
 		return fail(e)
 	}
+	if e = s.createLoanPaymentTx(ctx, tx, p); e != nil {
+		return fail(e)
+	}
+	if e = tx.Commit(); e != nil {
+		return domain.LoanPayment{}, e
+	}
+	return s.GetLoanPayment(ctx, p.ID)
+}
+
+func (s *Store) createLoanPaymentTx(ctx context.Context, tx *sql.Tx, p domain.LoanPayment) error {
+	var e error
 	var dir string
 	var principal int64
 	if e = tx.QueryRowContext(ctx, `SELECT direction,principal_rial FROM loans WHERE id=? AND status='Active'`, p.LoanID).Scan(&dir, &principal); errors.Is(e, sql.ErrNoRows) {
-		return fail(domain.ErrLoanNotFound)
+		return domain.ErrLoanNotFound
 	} else if e != nil {
-		return fail(e)
+		return e
 	}
 	var active int
 	var ledger, accountType string
 	if e = tx.QueryRowContext(ctx, `SELECT active,ledger_account_id,type FROM financial_accounts WHERE id=?`, p.FinancialAccountID).Scan(&active, &ledger, &accountType); errors.Is(e, sql.ErrNoRows) {
-		return fail(domain.ErrFinancialAccountNotFound)
+		return domain.ErrFinancialAccountNotFound
 	} else if e != nil {
-		return fail(e)
+		return e
 	}
 	if active == 0 {
-		return fail(domain.ErrAccountInactive)
+		return domain.ErrAccountInactive
 	}
 	if accountType != "cash" && accountType != "bank" {
-		return fail(fmt.Errorf("loan payments require a cash or bank financial account"))
+		return fmt.Errorf("loan payments require a cash or bank financial account")
 	}
 	var paid int64
 	if e = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(principal_rial),0) FROM loan_payments WHERE loan_id=? AND status='posted'`, p.LoanID).Scan(&paid); e != nil {
-		return fail(e)
+		return e
 	}
 	if paid+p.PrincipalRial > principal {
-		return fail(domain.ErrLoanPaymentExceeded)
+		return domain.ErrLoanPaymentExceeded
 	}
 	for _, a := range p.Allocations {
 		var lp, li int64
 		if e = tx.QueryRowContext(ctx, `SELECT principal_rial,interest_fee_rial FROM loan_installments WHERE id=? AND loan_id=?`, a.InstallmentID, p.LoanID).Scan(&lp, &li); e != nil {
-			return fail(e)
+			return e
 		}
 		var ap, ai int64
 		if e = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.principal_rial),0),COALESCE(SUM(a.interest_rial),0) FROM loan_payment_allocations a JOIN loan_payments p ON p.id=a.payment_id WHERE a.installment_id=? AND p.status='posted'`, a.InstallmentID).Scan(&ap, &ai); e != nil {
-			return fail(e)
+			return e
 		}
 		if ap+a.PrincipalRial > lp || ai+a.InterestRial > li {
-			return fail(domain.ErrLoanPaymentExceeded)
+			return domain.ErrLoanPaymentExceeded
 		}
 	}
 	var totalDue, totalPaid int64
 	if e = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(total_due_rial),0) FROM loan_installments WHERE loan_id=?`, p.LoanID).Scan(&totalDue); e != nil {
-		return fail(e)
+		return e
 	}
 	if e = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(a.principal_rial+a.interest_rial),0) FROM loan_payment_allocations a JOIN loan_payments lp ON lp.id=a.payment_id WHERE lp.loan_id=? AND lp.status='posted'`, p.LoanID).Scan(&totalPaid); e != nil {
-		return fail(e)
+		return e
 	}
 	now := time.Now().UTC()
 	je := "JE-LPAY-" + p.ID
@@ -567,25 +738,75 @@ func (s *Store) CreateLoanPayment(ctx context.Context, p domain.LoanPayment) (do
 	}
 	lines = append(lines, domain.JournalLine{ID: je + "-L" + fmt.Sprint(pos+1), JournalEntryID: je, Position: pos, AccountID: ledger, DebitRial: choose(dir == domain.LoanReceivable, p.AmountRial, 0), CreditRial: choose(dir == domain.LoanPayable, p.AmountRial, 0), Memo: "Loan payment cash/bank"})
 	if _, e = s.postJournalTx(ctx, tx, domain.JournalEntry{ID: je, Description: "Loan payment", SourceType: "loan_payment", SourceID: p.ID, IdempotencyKey: "loan-payment:" + p.IdempotencyKey, PostedAt: p.PaidAt, CreatedAt: now, Lines: lines}); e != nil {
-		return fail(e)
+		return e
 	}
 	var n int64
 	if e = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(CAST(SUBSTR(payment_number,6) AS INTEGER)),1000)+1 FROM loan_payments`).Scan(&n); e != nil {
-		return fail(e)
+		return e
 	}
 	p.PaymentNumber = fmt.Sprintf("LPAY-%04d", n)
 	if _, e = tx.ExecContext(ctx, `INSERT INTO loan_payments(id,payment_number,loan_id,financial_account_id,amount_rial,principal_rial,interest_rial,paid_at,notes,status,journal_entry_id,idempotency_key,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.ID, p.PaymentNumber, p.LoanID, p.FinancialAccountID, p.AmountRial, p.PrincipalRial, p.InterestRial, p.PaidAt.UTC().Format(time.RFC3339Nano), p.Notes, p.Status, je, p.IdempotencyKey, p.CreatedAt.UTC().Format(time.RFC3339Nano)); e != nil {
-		return fail(e)
+		return e
 	}
 	for _, a := range p.Allocations {
 		if _, e = tx.ExecContext(ctx, `INSERT INTO loan_payment_allocations(id,payment_id,installment_id,position,principal_rial,interest_rial) VALUES(?,?,?,?,?,?)`, a.ID, p.ID, a.InstallmentID, a.Position, a.PrincipalRial, a.InterestRial); e != nil {
-			return fail(e)
+			return e
 		}
 	}
 	if totalPaid+p.AmountRial == totalDue && totalDue > 0 {
 		if _, e = tx.ExecContext(ctx, `UPDATE loans SET status='Closed',updated_at=? WHERE id=? AND status='Active'`, now.Format(time.RFC3339Nano), p.LoanID); e != nil {
-			return fail(e)
+			return e
 		}
+	}
+	return nil
+}
+
+func (s *Store) ReplaceLoanPayment(ctx context.Context, id string, p domain.LoanPayment) (domain.LoanPayment, error) {
+	if p.Status == "" {
+		p.Status = string(domain.PaymentPosted)
+	}
+	if p.CreatedAt.IsZero() {
+		p.CreatedAt = p.PaidAt
+	}
+	if err := p.Validate(); err != nil {
+		return domain.LoanPayment{}, err
+	}
+	tx, e := s.db.BeginTx(ctx, nil)
+	if e != nil {
+		return domain.LoanPayment{}, e
+	}
+	fail := func(x error) (domain.LoanPayment, error) { tx.Rollback(); return domain.LoanPayment{}, x }
+	var existing string
+	if e = tx.QueryRowContext(ctx, `SELECT id FROM loan_payments WHERE idempotency_key=?`, p.IdempotencyKey).Scan(&existing); e == nil {
+		tx.Rollback()
+		return s.GetLoanPayment(ctx, existing)
+	} else if !errors.Is(e, sql.ErrNoRows) {
+		return fail(e)
+	}
+	var status, journalID, loanID string
+	if e = tx.QueryRowContext(ctx, `SELECT status,journal_entry_id,loan_id FROM loan_payments WHERE id=?`, id).Scan(&status, &journalID, &loanID); errors.Is(e, sql.ErrNoRows) {
+		return fail(domain.ErrLoanPaymentNotFound)
+	} else if e != nil {
+		return fail(e)
+	}
+	if status != string(domain.PaymentPosted) {
+		return fail(fmt.Errorf("only posted loan payments can be edited"))
+	}
+	if p.LoanID != loanID {
+		return fail(fmt.Errorf("replacement payment must belong to the same loan"))
+	}
+	now := time.Now().UTC()
+	if _, e = s.reverseJournalTx(ctx, tx, journalID, "loan-payment:replace:"+id+":"+p.ID, "Replace loan payment", now); e != nil {
+		return fail(e)
+	}
+	if _, e = tx.ExecContext(ctx, `UPDATE loan_payments SET status='reversed' WHERE id=?`, id); e != nil {
+		return fail(e)
+	}
+	if _, e = tx.ExecContext(ctx, `UPDATE loans SET status='Active',updated_at=? WHERE id=?`, now.Format(time.RFC3339Nano), loanID); e != nil {
+		return fail(e)
+	}
+	if e = s.createLoanPaymentTx(ctx, tx, p); e != nil {
+		return fail(e)
 	}
 	if e = tx.Commit(); e != nil {
 		return domain.LoanPayment{}, e
