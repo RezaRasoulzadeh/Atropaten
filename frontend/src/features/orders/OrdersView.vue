@@ -60,7 +60,7 @@ const filteredOrders = computed(() => {
   return props.orders.filter((order) => {
     const matchesSearch =
       !search ||
-      [order.orderNumber, order.customerName, order.customerPhone, ...orderItems(order).map((item) => item.serviceName)].some((value) =>
+      [order.orderNumber, order.customerName, order.customerPhone, order.notes, ...orderItems(order).map((item) => item.serviceName)].some((value) =>
         String(value ?? '').toLowerCase().includes(search),
       )
 
@@ -186,7 +186,7 @@ async function removeSelectedOrder() {
       </div>
 
       <div class="order-register-table-head hidden grid-cols-[minmax(0,1.35fr)_minmax(10rem,1fr)_minmax(0,1.25fr)_8.5rem_7rem_1.25rem] gap-3 border-b border-base-300 px-4 py-3 text-xs font-medium text-base-content/55 md:grid">
-        <span>{{ $t("Order") }}</span><span>{{ $t("Customer") }}</span><span>{{ $t("Items") }}</span><span>{{ $t("Total") }}</span><span>{{ $t("Status") }}</span><span></span>
+        <span>{{ $t("Order") }}</span><span>{{ $t("Notes") }}</span><span>{{ $t("Items") }}</span><span>{{ $t("Total") }}</span><span>{{ $t("Status") }}</span><span></span>
       </div>
 
       <LoadingState v-if="loading" :label='$t("Loading orders…")' />
@@ -198,6 +198,7 @@ async function removeSelectedOrder() {
           type="button"
           :class="selectedOrderId === order.id ? 'bg-primary/10' : ''"
           @click="selectOrder(order.id)"
+          @dblclick="emit('edit-order', order.id)"
         >
           <span class="order-register-name flex min-w-0 items-center gap-3">
             <span class="grid size-9 shrink-0 place-items-center rounded-box border border-base-300 bg-base-200 text-primary"><ClipboardList :size="18" aria-hidden="true" /></span>
@@ -206,7 +207,7 @@ async function removeSelectedOrder() {
               <span class="block truncate text-xs text-base-content/60">{{ $ui(order.customerName || 'Walk-in customer') }}</span>
             </span>
           </span>
-          <span class="hidden min-w-0 truncate text-xs text-base-content/70 md:block">{{ $ui(order.customerPhone || 'No contact details') }}</span>
+          <span class="hidden min-w-0 line-clamp-2 text-xs leading-5 text-base-content/70 md:block">{{ $ui(order.notes || 'No notes') }}</span>
           <span class="hidden min-w-0 truncate text-xs text-base-content/70 md:block">
             {{ itemSummary(order) }} · {{ orderItems(order).length }} {{ $t("line item") }}{{ $ui(orderItems(order).length === 1 ? '' : 's') }}
           </span>
@@ -214,6 +215,7 @@ async function removeSelectedOrder() {
           <StatusBadge class="justify-self-end md:justify-self-start" :label="orderStatus(order)" :tone="tone(orderStatus(order))" />
           <ChevronRight :size="17" class="register-row-arrow justify-self-end text-base-content/45" aria-hidden="true" />
           <span class="col-span-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/55 md:hidden">
+            <span class="line-clamp-2 basis-full leading-5">{{ $ui(order.notes || 'No notes') }}</span>
             <span>{{ itemSummary(order) }}</span>
             <span>{{ money(order.totalRial) }}</span>
             <span>{{ $ui(order.paymentStatus) }} · {{ $ui(order.priority) }}</span>
